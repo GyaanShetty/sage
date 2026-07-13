@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/ui/coming-soon";
+import { ChatView } from "@/features/chat/components/chat-view";
 
 export const metadata: Metadata = { title: "Chat" };
 
 export default function ChatPage() {
-  return <ComingSoon title="Chat" phase="Phase 1" />;
+  return <ChatView />;
 }

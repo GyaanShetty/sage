@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,8 +11,18 @@ import { fadeRise } from "@/lib/motion";
 import { APP_NAME } from "@/lib/config";
 import { TypingIndicator } from "./typing-indicator";
 
-export function ChatView() {
-  const { messages, sendMessage, status } = useChat();
+export function ChatView({
+  threadId,
+  initialMessages,
+}: {
+  threadId: string;
+  initialMessages: UIMessage[];
+}) {
+  const { messages, sendMessage, status } = useChat({
+    id: threadId,
+    messages: initialMessages,
+    transport: new DefaultChatTransport({ api: "/api/chat", body: { threadId } }),
+  });
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const busy = status === "submitted" || status === "streaming";

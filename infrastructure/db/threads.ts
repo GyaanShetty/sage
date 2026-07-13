@@ -18,8 +18,14 @@ export async function getOrCreateLatestThread(): Promise<ThreadRow> {
     .limit(1);
   if (data && data.length > 0) return data[0] as ThreadRow;
 
-  const thread = { id: crypto.randomUUID(), userId: DEFAULT_USER_ID, title: "General" };
-  await db.from("Thread").insert(thread);
+  const thread = {
+    id: crypto.randomUUID(),
+    userId: DEFAULT_USER_ID,
+    title: "General",
+    updatedAt: new Date().toISOString(),
+  };
+  const { error } = await db.from("Thread").insert(thread);
+  if (error) console.error("[threads] create failed:", error.message);
   return { id: thread.id, title: thread.title };
 }
 

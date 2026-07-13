@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* ─── SAGE design tokens: pure black, glass, white typography ─── */
+:root {
+  --background: #000000;
+  --foreground: #fafafa;
+  --muted: #a1a1aa;
+  --subtle: #52525b;
+
+  --glass: rgba(255, 255, 255, 0.04);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glass-strong: rgba(255, 255, 255, 0.14);
+
+  /* Accent is reserved for AI activity only */
+  --accent: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.35);
+
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+  --color-border-glass: var(--border-glass);
+  --color-border-glass-strong: var(--border-glass-strong);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}

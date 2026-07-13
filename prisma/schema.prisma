@@ -1,0 +1,272 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+// ──────────────── Identity ────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  avatarUrl   String?
+  preferences Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  integrations Integration[]
+  threads      Thread[]
+  memories     Memory[]
+  sources      Source[]
+  projects     Project[]
+  notes        Note[]
+  tasks        Task[]
+  agentRuns    AgentRun[]
+  automations  Automation[]
+  reminders    Reminder[]
+  events       Event[]
+}
+
+model Integration {
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String
+  scopes       String[]
+  accessToken  String // encrypted (AES-256-GCM) before write
+  refreshToken String? // encrypted
+  expiresAt    DateTime?
+  status       String    @default("active")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+// ──────────────── Conversation ────────────────
+
+model Thread {
+  id         String    @id @default(cuid())
+  userId     String
+  projectId  String?
+  title      String?
+  summary    String?
+  pinned     Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  messages   Message[]
+
+  @@index([userId, updatedAt])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  threadId   String
+  role       String
+  content    Json
+  agentRunId String?
+  tokens     Int?
+  createdAt  DateTime @default(now())
+  thread     Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+// ──────────────── Memory ────────────────
+
+model Memory {
+  id             String                       @id @default(cuid())
+  userId         String
+  type           String
+  content        String
+  embedding      Unsupported("vector(1536)")?
+  importance     Float                        @default(0.5)
+  confidence     Float                        @default(0.8)
+  sourceType     String
+  sourceId       String?
+  supersededBy   String?
+  lastAccessedAt DateTime?
+  accessCount    Int                          @default(0)
+  expiresAt      DateTime?
+  createdAt      DateTime                     @default(now())
+  user           User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// ──────────────── Knowledge ────────────────
+
+model Source {
+  id        String   @id @default(cuid())
+  userId    String
+  projectId String?
+  kind      String
+  title     String
+  url       String?
+  fileKey   String?
+  status    String   @default("pending")
+  metadata  Json     @default("{}")
+  error     String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  chunks    Chunk[]
+
+  @@index([userId, status])
+}
+
+model Chunk {
+  id        String                       @id @default(cuid())
+  sourceId  String
+  userId    String
+  content   String
+  embedding Unsupported("vector(1536)")?
+  position  Int
+  metadata  Json                         @default("{}")
+  source    Source                       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, position])
+}
+
+// ──────────────── Workspace ────────────────
+
+model Project {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  emoji     String?
+  status    String   @default("active")
+  context   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  threads   Thread[]
+  notes     Note[]
+  tasks     Task[]
+  sources   Source[]
+}
+
+model Note {
+  id          String    @id @default(cuid())
+  userId      String
+  projectId   String?
+  kind        String    @default("doc")
+  title       String
+  content     Json
+  journalDate DateTime?
+  aiGenerated Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, updatedAt])
+}
+
+model Task {
+  id        String    @id @default(cuid())
+  userId    String
+  projectId String?
+  title     String
+  status    String    @default("todo")
+  priority  Int       @default(2)
+  dueAt     DateTime?
+  source    String    @default("user")
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, dueAt])
+}
+
+// ──────────────── Agents ────────────────
+
+model AgentRun {
+  id        String      @id @default(cuid())
+  userId    String
+  threadId  String?
+  agent     String
+  goal      String
+  status    String      @default("running")
+  plan      Json?
+  result    Json?
+  costUsd   Float       @default(0)
+  startedAt DateTime    @default(now())
+  endedAt   DateTime?
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  steps     AgentStep[]
+
+  @@index([userId, startedAt])
+}
+
+model AgentStep {
+  id        String   @id @default(cuid())
+  runId     String
+  index     Int
+  kind      String
+  name      String?
+  input     Json?
+  output    Json?
+  status    String
+  latencyMs Int?
+  createdAt DateTime @default(now())
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, index])
+}
+
+// ──────────────── Automation ────────────────
+
+model Automation {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  trigger   Json
+  workflow  Json
+  enabled   Boolean         @default(true)
+  lastRunAt DateTime?
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs      AutomationRun[]
+}
+
+model AutomationRun {
+  id           String     @id @default(cuid())
+  automationId String
+  status       String
+  log          Json       @default("[]")
+  startedAt    DateTime   @default(now())
+  endedAt      DateTime?
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  userId    String
+  text      String
+  remindAt  DateTime
+  recurring String?
+  channel   String   @default("app")
+  status    String   @default("pending")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, remindAt, status])
+}
+
+// ──────────────── Event Log ────────────────
+
+model Event {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, createdAt])
+}

@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { fadeRise } from "@/lib/motion";
 import { APP_NAME } from "@/lib/config";
 import { TypingIndicator } from "./typing-indicator";
+import { Markdown } from "./markdown";
 
 export function ChatView({
   threadId,
@@ -69,12 +70,18 @@ export function ChatView({
                   className={cn(
                     "text-[15px] leading-relaxed",
                     message.role === "user"
-                      ? "ml-auto max-w-[75%] rounded-2xl rounded-br-md border border-border-glass bg-glass-strong px-4 py-2.5"
-                      : "max-w-none whitespace-pre-wrap",
+                      ? "ml-auto max-w-[75%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-border-glass bg-glass-strong px-4 py-2.5"
+                      : "max-w-none",
                   )}
                 >
                   {message.parts.map((part, i) =>
-                    part.type === "text" ? <span key={i}>{part.text}</span> : null,
+                    part.type === "text" ? (
+                      message.role === "assistant" ? (
+                        <Markdown key={i}>{part.text}</Markdown>
+                      ) : (
+                        <span key={i}>{part.text}</span>
+                      )
+                    ) : null,
                   )}
                 </motion.div>
               ))}

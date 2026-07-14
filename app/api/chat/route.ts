@@ -6,7 +6,7 @@ import {
   type UIMessage,
 } from "ai";
 import { getModel } from "@/infrastructure/llm";
-import { saveExchange } from "@/infrastructure/db/threads";
+import { maybeTitleThread, saveExchange } from "@/infrastructure/db/threads";
 import { recallMemories, renderMemoryBlock, touchMemories } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { APP_NAME } from "@/lib/config";
@@ -50,6 +50,7 @@ export async function POST(req: Request) {
     onFinish: async ({ responseMessage }) => {
       if (!threadId || !userMessage) return;
       await saveExchange(threadId, userMessage, responseMessage).catch(() => undefined);
+      if (messages.length <= 1) await maybeTitleThread(threadId, userText).catch(() => undefined);
       await extractMemories(userText, textOf(responseMessage)).catch(() => undefined);
     },
   });

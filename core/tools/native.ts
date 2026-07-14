@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
+import { searchKnowledge } from "@/core/knowledge/search";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -60,6 +61,24 @@ export const nativeTools = {
       if (!data?.length) return { ok: false, error: "No matching open task" };
       await db.from("Task").update({ status: "done" }).eq("id", data[0].id);
       return { ok: true, completed: data[0].title };
+    },
+  }),
+
+  knowledge_search: tool({
+    description:
+      "Search the user's ingested knowledge base (PDFs, articles, docs they saved). Use when a question likely relates to their saved material. Cite source titles in your answer.",
+    inputSchema: z.object({ query: z.string() }),
+    execute: async ({ query }) => {
+      const hits = await searchKnowledge(query);
+      if (hits.length === 0) return { ok: true, hits: [], note: "Knowledge base empty or no match" };
+      return {
+        ok: true,
+        hits: hits.map((h) => ({
+          source: h.sourceTitle,
+          excerpt: h.content.slice(0, 1200),
+          similarity: Number(h.similarity.toFixed(3)),
+        })),
+      };
     },
   }),
 

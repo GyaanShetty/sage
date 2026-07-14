@@ -8,6 +8,10 @@ const LABELS: Record<string, string> = {
   list_tasks: "Checking your tasks",
   complete_task: "Completing task",
   remember: "Saving to memory",
+  knowledge_search: "Searching your knowledge",
+  web_search: "Searching the web",
+  create_reminder: "Setting reminder",
+  list_reminders: "Checking reminders",
 };
 
 export function ToolCard({

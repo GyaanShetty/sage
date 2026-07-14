@@ -8,7 +8,13 @@ import {
 } from "ai";
 import { nativeTools } from "@/core/tools/native";
 import { getModel } from "@/infrastructure/llm";
-import { maybeTitleThread, saveExchange } from "@/infrastructure/db/threads";
+import {
+  getThreadSummary,
+  maybeTitleThread,
+  saveExchange,
+  setThreadSummary,
+} from "@/infrastructure/db/threads";
+import { generateText } from "ai";
 import { recallMemories, renderMemoryBlock, touchMemories } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { APP_NAME } from "@/lib/config";
@@ -41,10 +47,22 @@ export async function POST(req: Request) {
   const memories = await recallMemories(userText).catch(() => []);
   void touchMemories(memories.map((m) => m.id));
 
+  // Context compression: long threads send a rolling summary + recent window
+  // instead of the full history.
+  let contextMessages = messages;
+  let summaryBlock = "";
+  if (messages.length > 24 && threadId) {
+    const summary = await getThreadSummary(threadId).catch(() => null);
+    if (summary) summaryBlock = `\n\nEarlier in this conversation (summary):\n${summary}`;
+    contextMessages = messages.slice(-16);
+  }
+
+  const nowBlock = `\n\nCurrent datetime: ${new Date().toISOString()}`;
+
   const result = streamText({
     model,
-    system: SYSTEM_PROMPT + renderMemoryBlock(memories),
-    messages: await convertToModelMessages(messages),
+    system: SYSTEM_PROMPT + nowBlock + renderMemoryBlock(memories) + summaryBlock,
+    messages: await convertToModelMessages(contextMessages),
     tools: nativeTools,
     stopWhen: stepCountIs(5),
   });
@@ -56,8 +74,27 @@ export async function POST(req: Request) {
       await saveExchange(threadId, userMessage, responseMessage).catch(() => undefined);
       if (messages.length <= 1) await maybeTitleThread(threadId, userText).catch(() => undefined);
       await extractMemories(userText, textOf(responseMessage)).catch(() => undefined);
+      // Refresh the rolling summary every ~10 messages
+      if (messages.length > 20 && messages.length % 10 < 2) {
+        await updateSummary(threadId, messages, textOf(responseMessage)).catch(() => undefined);
+      }
     },
   });
+}
+
+async function updateSummary(threadId: string, messages: UIMessage[], lastReply: string) {
+  const model = getModel("fast");
+  if (!model) return;
+  const prior = await getThreadSummary(threadId);
+  const transcript = messages
+    .slice(-20)
+    .map((m) => `${m.role}: ${textOf(m).slice(0, 500)}`)
+    .join("\n");
+  const { text } = await generateText({
+    model,
+    prompt: `Update this running conversation summary. Keep it under 200 words, dense, factual.\n\nPrevious summary:\n${prior ?? "(none)"}\n\nRecent messages:\n${transcript}\nassistant: ${lastReply.slice(0, 500)}\n\nUpdated summary:`,
+  });
+  if (text) await setThreadSummary(threadId, text.trim());
 }
 
 /** Keyless dev mode: streams a canned reply so the full pipeline is testable. */

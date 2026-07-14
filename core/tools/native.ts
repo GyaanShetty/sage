@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 import { searchKnowledge } from "@/core/knowledge/search";
+import { webSearch } from "@/infrastructure/search/tavily";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -61,6 +62,55 @@ export const nativeTools = {
       if (!data?.length) return { ok: false, error: "No matching open task" };
       await db.from("Task").update({ status: "done" }).eq("id", data[0].id);
       return { ok: true, completed: data[0].title };
+    },
+  }),
+
+  web_search: tool({
+    description:
+      "Search the live web for current information, news, prices, or anything beyond your training data. Cite result URLs in your answer.",
+    inputSchema: z.object({ query: z.string() }),
+    execute: async ({ query }) => {
+      const results = await webSearch(query).catch((e: Error) => ({ error: e.message }));
+      if (results === null)
+        return { ok: false, error: "Web search not configured (TAVILY_API_KEY missing)" };
+      if ("error" in (results as object))
+        return { ok: false, error: (results as { error: string }).error };
+      return { ok: true, results };
+    },
+  }),
+
+  create_reminder: tool({
+    description:
+      "Set a reminder for the user at a specific time. Use for 'remind me to/at …' requests.",
+    inputSchema: z.object({
+      text: z.string().max(300),
+      remindAt: z.string().datetime().describe("ISO datetime for when to remind"),
+    }),
+    execute: async ({ text, remindAt }) => {
+      const { error } = await db.from("Reminder").insert({
+        id: crypto.randomUUID(),
+        userId: DEFAULT_USER_ID,
+        text,
+        remindAt,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, text, remindAt };
+    },
+  }),
+
+  list_reminders: tool({
+    description: "List the user's upcoming pending reminders.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { data, error } = await db
+        .from("Reminder")
+        .select("text, remindAt, status")
+        .eq("userId", DEFAULT_USER_ID)
+        .eq("status", "pending")
+        .order("remindAt", { ascending: true })
+        .limit(20);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, reminders: data };
     },
   }),
 

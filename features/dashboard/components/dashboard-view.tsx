@@ -11,9 +11,14 @@ interface TaskRow {
   dueAt: string | null;
 }
 
+interface ReminderRow {
+  id: string;
+  text: string;
+  remindAt: string;
+}
+
 const STATIC_CARDS = [
   { title: "Calendar", body: "Connect Google Calendar to see your day." },
-  { title: "Weather", body: "Set your location in Settings." },
   { title: "Email", body: "Connect Gmail to see unread digests." },
   { title: "GitHub", body: "Connect GitHub to see notifications." },
   { title: "News", body: "Your AI-curated brief will appear here." },
@@ -27,7 +32,13 @@ function greeting() {
   return "Good evening";
 }
 
-export function DashboardView({ tasks }: { tasks: TaskRow[] }) {
+export function DashboardView({
+  tasks,
+  reminders,
+}: {
+  tasks: TaskRow[];
+  reminders: ReminderRow[];
+}) {
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
@@ -60,6 +71,33 @@ export function DashboardView({ tasks }: { tasks: TaskRow[] }) {
                   {tasks.length > 3 && (
                     <li className="text-xs text-subtle">+{tasks.length - 3} more</li>
                   )}
+                </ul>
+              )}
+            </GlassPanel>
+          </motion.div>
+          <motion.div variants={fadeRise} whileHover={{ y: -2, scale: 1.005 }}>
+            <GlassPanel className="h-36 overflow-hidden p-5 transition-colors hover:border-border-glass-strong">
+              <h2 className="text-sm font-medium">Reminders</h2>
+              {reminders.length === 0 ? (
+                <p className="mt-2 text-sm text-subtle">
+                  None set. Try &quot;remind me to…&quot; in chat.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {reminders.slice(0, 3).map((reminder) => (
+                    <li key={reminder.id} className="flex items-center gap-2 text-sm text-muted">
+                      <span className="size-1.5 shrink-0 rounded-full bg-amber-400/80" />
+                      <span className="truncate">{reminder.text}</span>
+                      <span className="ml-auto shrink-0 text-xs text-subtle">
+                        {new Date(reminder.remindAt).toLocaleString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               )}
             </GlassPanel>

@@ -6,12 +6,22 @@ export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const { data } = await db
-    .from("Task")
-    .select("id, title, status, dueAt")
-    .eq("userId", DEFAULT_USER_ID)
-    .in("status", ["todo", "doing"])
-    .order("dueAt", { ascending: true, nullsFirst: false })
-    .limit(5);
-  return <DashboardView tasks={data ?? []} />;
+  const [{ data: tasks }, { data: reminders }] = await Promise.all([
+    db
+      .from("Task")
+      .select("id, title, status, dueAt")
+      .eq("userId", DEFAULT_USER_ID)
+      .in("status", ["todo", "doing"])
+      .order("priority", { ascending: true })
+      .order("dueAt", { ascending: true, nullsFirst: false })
+      .limit(5),
+    db
+      .from("Reminder")
+      .select("id, text, remindAt")
+      .eq("userId", DEFAULT_USER_ID)
+      .eq("status", "pending")
+      .order("remindAt", { ascending: true })
+      .limit(5),
+  ]);
+  return <DashboardView tasks={tasks ?? []} reminders={reminders ?? []} />;
 }

@@ -72,6 +72,15 @@ export async function saveExchange(threadId: string, user: UIMessage, assistant:
   await db.from("Thread").update({ updatedAt: new Date().toISOString() }).eq("id", threadId);
 }
 
+export async function getThreadSummary(threadId: string): Promise<string | null> {
+  const { data } = await db.from("Thread").select("summary").eq("id", threadId).maybeSingle();
+  return (data?.summary as string | null) ?? null;
+}
+
+export async function setThreadSummary(threadId: string, summary: string) {
+  await db.from("Thread").update({ summary }).eq("id", threadId);
+}
+
 /** Set an auto-title from the first user message if still untitled. */
 export async function maybeTitleThread(threadId: string, firstUserText: string) {
   const { data } = await db.from("Thread").select("title").eq("id", threadId).maybeSingle();

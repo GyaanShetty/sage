@@ -2,9 +2,11 @@ import {
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  stepCountIs,
   streamText,
   type UIMessage,
 } from "ai";
+import { nativeTools } from "@/core/tools/native";
 import { getModel } from "@/infrastructure/llm";
 import { maybeTitleThread, saveExchange } from "@/infrastructure/db/threads";
 import { recallMemories, renderMemoryBlock, touchMemories } from "@/core/memory/recall";
@@ -43,6 +45,8 @@ export async function POST(req: Request) {
     model,
     system: SYSTEM_PROMPT + renderMemoryBlock(memories),
     messages: await convertToModelMessages(messages),
+    tools: nativeTools,
+    stopWhen: stepCountIs(5),
   });
 
   return result.toUIMessageStreamResponse({

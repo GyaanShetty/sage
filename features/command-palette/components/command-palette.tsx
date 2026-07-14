@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Command } from "cmdk";
@@ -12,6 +12,7 @@ export function CommandPalette() {
   const open = useShellStore((s) => s.paletteOpen);
   const setOpen = useShellStore((s) => s.setPaletteOpen);
   const router = useRouter();
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -26,9 +27,15 @@ export function CommandPalette() {
 
   const run = (action: PaletteAction) => {
     setOpen(false);
-    if (action.href) router.push(action.href);
-    // `command` actions route to chat until their flows land
-    else if (action.command) router.push(`/chat?command=${action.command}`);
+    if (action.id === "ask" && query.trim()) {
+      router.push(`/chat?ask=${encodeURIComponent(query.trim())}`);
+    } else if (action.href) {
+      router.push(action.href);
+    } else if (action.command) {
+      // `command` actions pre-fill chat until their dedicated flows land
+      router.push(`/chat?ask=${encodeURIComponent("/" + action.command + " ")}`);
+    }
+    setQuery("");
   };
 
   return (
@@ -55,6 +62,8 @@ export function CommandPalette() {
             >
               <Command.Input
                 autoFocus
+                value={query}
+                onValueChange={setQuery}
                 placeholder="Type a command or ask anything…"
                 className="h-14 w-full border-b border-border-glass bg-transparent px-5 text-[15px] text-foreground outline-none placeholder:text-subtle"
               />

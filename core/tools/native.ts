@@ -1,0 +1,89 @@
+import { tool } from "ai";
+import { z } from "zod";
+import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
+
+/**
+ * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
+ * Registered with the chat model so SAGE can act, not just talk.
+ */
+export const nativeTools = {
+  create_task: tool({
+    description:
+      "Create a task/todo for the user. Use when they ask to add, track, or remind them to do something actionable.",
+    inputSchema: z.object({
+      title: z.string().max(200),
+      dueAt: z.string().datetime().optional().describe("ISO datetime if the user gave a deadline"),
+      priority: z.number().int().min(0).max(3).default(2).describe("0 urgent, 1 high, 2 normal, 3 low"),
+    }),
+    execute: async ({ title, dueAt, priority }) => {
+      const { error } = await db.from("Task").insert({
+        id: crypto.randomUUID(),
+        userId: DEFAULT_USER_ID,
+        title,
+        priority,
+        ...(dueAt ? { dueAt } : {}),
+        source: "agent",
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, title };
+    },
+  }),
+
+  list_tasks: tool({
+    description: "List the user's open tasks (todo/doing), soonest due first.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { data, error } = await db
+        .from("Task")
+        .select("title, status, priority, dueAt")
+        .eq("userId", DEFAULT_USER_ID)
+        .in("status", ["todo", "doing"])
+        .order("dueAt", { ascending: true, nullsFirst: false })
+        .limit(20);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, tasks: data };
+    },
+  }),
+
+  complete_task: tool({
+    description: "Mark a task as done, matched by its (partial) title.",
+    inputSchema: z.object({ titleContains: z.string() }),
+    execute: async ({ titleContains }) => {
+      const { data } = await db
+        .from("Task")
+        .select("id, title")
+        .eq("userId", DEFAULT_USER_ID)
+        .in("status", ["todo", "doing"])
+        .ilike("title", `%${titleContains}%`)
+        .limit(1);
+      if (!data?.length) return { ok: false, error: "No matching open task" };
+      await db.from("Task").update({ status: "done" }).eq("id", data[0].id);
+      return { ok: true, completed: data[0].title };
+    },
+  }),
+
+  remember: tool({
+    description:
+      "Store an explicit long-term memory about the user. Use when they say 'remember …' or state something clearly worth keeping.",
+    inputSchema: z.object({
+      content: z.string().describe("One self-contained sentence, third person"),
+      type: z.enum(["fact", "preference", "goal", "routine", "skill", "relationship", "episode"]),
+    }),
+    execute: async ({ content, type }) => {
+      const embedding = await embedText(content).catch(() => null);
+      const { error } = await db.from("Memory").insert({
+        id: crypto.randomUUID(),
+        userId: DEFAULT_USER_ID,
+        type,
+        content,
+        confidence: 1.0,
+        importance: 0.8,
+        sourceType: "explicit",
+        ...(embedding ? { embedding: toVectorLiteral(embedding) } : {}),
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, remembered: content };
+    },
+  }),
+};

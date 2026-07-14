@@ -11,13 +11,16 @@ import { fadeRise } from "@/lib/motion";
 import { APP_NAME } from "@/lib/config";
 import { TypingIndicator } from "./typing-indicator";
 import { Markdown } from "./markdown";
+import { ToolCard } from "./tool-card";
 
 export function ChatView({
   threadId,
   initialMessages,
+  initialAsk,
 }: {
   threadId: string;
   initialMessages: UIMessage[];
+  initialAsk?: string;
 }) {
   const { messages, sendMessage, status } = useChat({
     id: threadId,
@@ -31,6 +34,17 @@ export function ChatView({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Palette "Ask" handoff: trailing space means pre-fill only, else auto-send.
+  const askHandled = useRef(false);
+  useEffect(() => {
+    if (!initialAsk || askHandled.current) return;
+    askHandled.current = true;
+    if (initialAsk.endsWith(" ")) setInput(initialAsk);
+    else sendMessage({ text: initialAsk });
+    window.history.replaceState(null, "", `/chat?t=${threadId}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialAsk]);
 
   const submit = () => {
     const text = input.trim();
@@ -74,15 +88,30 @@ export function ChatView({
                       : "max-w-none",
                   )}
                 >
-                  {message.parts.map((part, i) =>
-                    part.type === "text" ? (
-                      message.role === "assistant" ? (
+                  {message.parts.map((part, i) => {
+                    if (part.type === "text") {
+                      return message.role === "assistant" ? (
                         <Markdown key={i}>{part.text}</Markdown>
                       ) : (
                         <span key={i}>{part.text}</span>
-                      )
-                    ) : null,
-                  )}
+                      );
+                    }
+                    if (part.type.startsWith("tool-")) {
+                      const toolPart = part as unknown as {
+                        state: string;
+                        output?: unknown;
+                      };
+                      return (
+                        <ToolCard
+                          key={i}
+                          name={part.type.slice(5)}
+                          state={toolPart.state}
+                          output={toolPart.output}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
                 </motion.div>
               ))}
             </AnimatePresence>

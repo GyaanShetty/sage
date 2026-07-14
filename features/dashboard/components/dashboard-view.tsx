@@ -4,9 +4,15 @@ import { motion } from "framer-motion";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 
-const CARDS = [
+interface TaskRow {
+  id: string;
+  title: string;
+  status: string;
+  dueAt: string | null;
+}
+
+const STATIC_CARDS = [
   { title: "Calendar", body: "Connect Google Calendar to see your day." },
-  { title: "Tasks", body: "Nothing due today." },
   { title: "Weather", body: "Set your location in Settings." },
   { title: "Email", body: "Connect Gmail to see unread digests." },
   { title: "GitHub", body: "Connect GitHub to see notifications." },
@@ -21,7 +27,7 @@ function greeting() {
   return "Good evening";
 }
 
-export function DashboardView() {
+export function DashboardView({ tasks }: { tasks: TaskRow[] }) {
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
@@ -36,7 +42,29 @@ export function DashboardView() {
           variants={staggerContainer}
           className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
-          {CARDS.map((card) => (
+          <motion.div variants={fadeRise} whileHover={{ y: -2, scale: 1.005 }}>
+            <GlassPanel className="h-36 overflow-hidden p-5 transition-colors hover:border-border-glass-strong">
+              <h2 className="text-sm font-medium">Tasks</h2>
+              {tasks.length === 0 ? (
+                <p className="mt-2 text-sm text-subtle">
+                  Nothing open. Ask SAGE to add a task.
+                </p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {tasks.slice(0, 3).map((task) => (
+                    <li key={task.id} className="flex items-center gap-2 text-sm text-muted">
+                      <span className="size-1.5 shrink-0 rounded-full bg-accent/70" />
+                      <span className="truncate">{task.title}</span>
+                    </li>
+                  ))}
+                  {tasks.length > 3 && (
+                    <li className="text-xs text-subtle">+{tasks.length - 3} more</li>
+                  )}
+                </ul>
+              )}
+            </GlassPanel>
+          </motion.div>
+          {STATIC_CARDS.map((card) => (
             <motion.div key={card.title} variants={fadeRise} whileHover={{ y: -2, scale: 1.005 }}>
               <GlassPanel className="h-36 p-5 transition-colors hover:border-border-glass-strong">
                 <h2 className="text-sm font-medium">{card.title}</h2>

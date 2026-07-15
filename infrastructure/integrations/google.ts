@@ -8,10 +8,10 @@ export const GOOGLE_SCOPES = [
 ].join(" ");
 
 export function appUrl(): string {
-  return (
+  const raw =
     process.env.APP_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
-  );
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  return raw.replace(/\/+$/, "");
 }
 
 export function googleAuthUrl(): string {

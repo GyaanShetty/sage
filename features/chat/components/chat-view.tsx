@@ -5,7 +5,8 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import type { UIMessage } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Mic } from "lucide-react";
+import { useVoice } from "@/features/voice/use-voice";
 import { cn } from "@/lib/utils";
 import { fadeRise } from "@/lib/motion";
 import { APP_NAME } from "@/lib/config";
@@ -45,10 +46,27 @@ export function ChatView({
   initialMessages: UIMessage[];
   initialAsk?: string;
 }) {
+  const voiceMode = useRef(false);
   const { messages, sendMessage, status } = useChat({
     id: threadId,
     messages: initialMessages,
     transport: new DefaultChatTransport({ api: "/api/chat", body: { threadId } }),
+    onFinish: ({ message }) => {
+      if (!voiceMode.current) return;
+      voiceMode.current = false;
+      const text = message.parts
+        .filter((p): p is { type: "text"; text: string } => p.type === "text")
+        .map((p) => p.text)
+        .join(" ");
+      if (text) voice.speak(text);
+    },
+  });
+
+  const voice = useVoice({
+    onTranscript: (text) => {
+      voiceMode.current = true;
+      sendMessage({ text });
+    },
   });
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -167,6 +185,20 @@ export function ChatView({
               placeholder={`Message ${APP_NAME}…`}
               className="max-h-40 flex-1 resize-none bg-transparent text-[15px] outline-none placeholder:text-subtle"
             />
+            {voice.supported && (
+              <button
+                onClick={() => (voice.listening ? voice.stop() : (voice.stopSpeaking(), voice.start()))}
+                aria-label={voice.listening ? "Stop listening" : "Speak"}
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-lg transition-all",
+                  voice.listening
+                    ? "bg-red-500/90 text-white shadow-[0_0_16px_rgba(239,68,68,0.4)] animate-pulse"
+                    : "bg-glass-strong text-subtle hover:text-foreground",
+                )}
+              >
+                <Mic className="size-4" strokeWidth={2} />
+              </button>
+            )}
             <button
               onClick={submit}
               disabled={!input.trim() || busy}

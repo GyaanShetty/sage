@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
 
 export const maxDuration = 60;
 
@@ -23,7 +24,7 @@ export async function GET() {
   const model = getModel("fast");
   if (!model) return NextResponse.json({ ok: true, data: { text: null } });
 
-  const [{ data: tasks }, { data: reminders }, { data: goals }] = await Promise.all([
+  const [{ data: tasks }, { data: reminders }, { data: goals }, events, emails] = await Promise.all([
     db
       .from("Task")
       .select("title, dueAt, priority")
@@ -46,6 +47,8 @@ export async function GET() {
       .is("supersededBy", null)
       .order("importance", { ascending: false })
       .limit(3),
+    listUpcomingEvents(5).catch(() => null),
+    listUnreadEmails(5).catch(() => null),
   ]);
 
   const { text } = await generateText({
@@ -55,7 +58,9 @@ export async function GET() {
 Now: ${new Date().toString()}
 Open tasks: ${JSON.stringify(tasks ?? [])}
 Pending reminders: ${JSON.stringify(reminders ?? [])}
-Their goals: ${JSON.stringify(goals?.map((g) => g.content) ?? [])}`,
+Their goals: ${JSON.stringify(goals?.map((g) => g.content) ?? [])}
+Calendar (next events): ${events ? JSON.stringify(events) : "not connected"}
+Unread email: ${emails ? JSON.stringify(emails.map((e) => ({ from: e.from, subject: e.subject }))) : "not connected"}`,
   });
 
   await db.from("Event").insert({

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { BriefHeader } from "./brief-header";
 
 interface TaskRow {
   id: string;
@@ -48,6 +49,10 @@ export function DashboardView({
         <motion.p variants={fadeRise} className="mt-1 text-sm text-muted">
           Press <kbd className="rounded border border-border-glass bg-glass px-1.5 py-0.5 font-mono text-xs">⌘K</kbd> to do anything.
         </motion.p>
+
+        <motion.div variants={fadeRise}>
+          <BriefHeader />
+        </motion.div>
 
         <motion.div
           variants={staggerContainer}

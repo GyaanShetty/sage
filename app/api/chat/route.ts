@@ -7,6 +7,7 @@ import {
   type UIMessage,
 } from "ai";
 import { nativeTools } from "@/core/tools/native";
+import { planningTools } from "@/core/tools/planning";
 import { getModel } from "@/infrastructure/llm";
 import {
   getThreadSummary,
@@ -24,7 +25,8 @@ export const maxDuration = 120;
 const SYSTEM_PROMPT = `You are ${APP_NAME}, a personal AI operating system — an intelligent chief of staff.
 Be concise, warm, and direct. Prefer doing over explaining. Format with markdown when it helps.
 You have long-term memory: when relevant memories are provided below, weave them in naturally.
-If asked about the user and no memory covers it, say you don't know yet — never invent details about them.`;
+If asked about the user and no memory covers it, say you don't know yet — never invent details about them.
+For complex requests needing 3+ distinct actions (e.g. research + create + schedule), FIRST call set_plan with concise steps, then execute them in order, calling complete_step after each. For simple requests, skip planning and just act.`;
 
 function textOf(message: UIMessage | undefined): string {
   return (
@@ -63,8 +65,8 @@ export async function POST(req: Request) {
     model,
     system: SYSTEM_PROMPT + nowBlock + renderMemoryBlock(memories) + summaryBlock,
     messages: await convertToModelMessages(contextMessages),
-    tools: nativeTools,
-    stopWhen: stepCountIs(5),
+    tools: { ...nativeTools, ...planningTools },
+    stopWhen: stepCountIs(12),
   });
 
   return result.toUIMessageStreamResponse({

@@ -12,6 +12,29 @@ import { APP_NAME } from "@/lib/config";
 import { TypingIndicator } from "./typing-indicator";
 import { Markdown } from "./markdown";
 import { ToolCard } from "./tool-card";
+import { PlanChecklist, type PlanState } from "./plan-checklist";
+import type { UIMessage as UIMessageType } from "ai";
+
+/** Reconstruct the latest plan state from a message's tool parts. */
+function planFromParts(message: UIMessageType): PlanState | null {
+  let plan: PlanState | null = null;
+  for (const part of message.parts) {
+    const p = part as unknown as { type: string; state?: string; input?: unknown; output?: unknown };
+    if (p.type === "tool-set_plan" && p.input) {
+      const input = p.input as { goal?: string; steps?: string[] };
+      if (input.steps) {
+        plan = { goal: input.goal ?? "Plan", steps: input.steps.map((title) => ({ title, done: false })) };
+      }
+    }
+    if (p.type === "tool-complete_step" && plan && p.input) {
+      const input = p.input as { stepIndex?: number };
+      if (typeof input.stepIndex === "number" && plan.steps[input.stepIndex]) {
+        plan.steps[input.stepIndex].done = true;
+      }
+    }
+  }
+  return plan;
+}
 
 export function ChatView({
   threadId,
@@ -88,7 +111,14 @@ export function ChatView({
                       : "max-w-none",
                   )}
                 >
+                  {(() => {
+                    const plan = planFromParts(message);
+                    return plan ? <PlanChecklist plan={plan} /> : null;
+                  })()}
                   {message.parts.map((part, i) => {
+                    if (part.type === "tool-set_plan" || part.type === "tool-complete_step") {
+                      return null; // rendered via PlanChecklist
+                    }
                     if (part.type === "text") {
                       return message.role === "assistant" ? (
                         <Markdown key={i}>{part.text}</Markdown>

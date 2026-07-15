@@ -18,9 +18,16 @@ interface ReminderRow {
   remindAt: string;
 }
 
+interface EventRow {
+  summary: string;
+  start: string;
+}
+interface EmailRow {
+  from: string;
+  subject: string;
+}
+
 const STATIC_CARDS = [
-  { title: "Calendar", body: "Connect Google Calendar to see your day." },
-  { title: "Email", body: "Connect Gmail to see unread digests." },
   { title: "GitHub", body: "Connect GitHub to see notifications." },
   { title: "News", body: "Your AI-curated brief will appear here." },
 ];
@@ -36,9 +43,13 @@ function greeting() {
 export function DashboardView({
   tasks,
   reminders,
+  events,
+  emails,
 }: {
   tasks: TaskRow[];
   reminders: ReminderRow[];
+  events: EventRow[] | null;
+  emails: EmailRow[] | null;
 }) {
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
@@ -101,6 +112,63 @@ export function DashboardView({
                           minute: "2-digit",
                         })}
                       </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </GlassPanel>
+          </motion.div>
+          <motion.div variants={fadeRise} whileHover={{ y: -2, scale: 1.005 }}>
+            <GlassPanel className="h-36 overflow-hidden p-5 transition-colors hover:border-border-glass-strong">
+              <h2 className="text-sm font-medium">Calendar</h2>
+              {events === null ? (
+                <p className="mt-2 text-sm text-subtle">
+                  <a href="/settings" className="underline underline-offset-2 hover:text-foreground">
+                    Connect Google
+                  </a>{" "}
+                  to see your day.
+                </p>
+              ) : events.length === 0 ? (
+                <p className="mt-2 text-sm text-subtle">No upcoming events. Enjoy the calm.</p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {events.map((event, i) => (
+                    <li key={i} className="flex items-center gap-2 text-sm text-muted">
+                      <span className="size-1.5 shrink-0 rounded-full bg-emerald-400/80" />
+                      <span className="truncate">{event.summary}</span>
+                      <span className="ml-auto shrink-0 text-xs text-subtle">
+                        {new Date(event.start).toLocaleString(undefined, {
+                          weekday: "short",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </GlassPanel>
+          </motion.div>
+          <motion.div variants={fadeRise} whileHover={{ y: -2, scale: 1.005 }}>
+            <GlassPanel className="h-36 overflow-hidden p-5 transition-colors hover:border-border-glass-strong">
+              <h2 className="text-sm font-medium">Email</h2>
+              {emails === null ? (
+                <p className="mt-2 text-sm text-subtle">
+                  <a href="/settings" className="underline underline-offset-2 hover:text-foreground">
+                    Connect Google
+                  </a>{" "}
+                  to see unread mail.
+                </p>
+              ) : emails.length === 0 ? (
+                <p className="mt-2 text-sm text-subtle">Inbox zero. Impressive.</p>
+              ) : (
+                <ul className="mt-2 space-y-1.5">
+                  {emails.map((email, i) => (
+                    <li key={i} className="truncate text-sm text-muted">
+                      <span className="text-foreground">
+                        {email.from.replace(/<.*>/, "").trim()}
+                      </span>{" "}
+                      — {email.subject}
                     </li>
                   ))}
                 </ul>

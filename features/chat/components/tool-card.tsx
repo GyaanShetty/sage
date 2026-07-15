@@ -13,6 +13,8 @@ const LABELS: Record<string, string> = {
   create_reminder: "Setting reminder",
   list_reminders: "Checking reminders",
   create_note: "Writing note",
+  calendar_events: "Checking your calendar",
+  unread_emails: "Checking your inbox",
 };
 
 export function ToolCard({

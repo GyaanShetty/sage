@@ -4,6 +4,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 import { searchKnowledge } from "@/core/knowledge/search";
 import { webSearch } from "@/infrastructure/search/tavily";
+import { listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -62,6 +63,32 @@ export const nativeTools = {
       if (!data?.length) return { ok: false, error: "No matching open task" };
       await db.from("Task").update({ status: "done" }).eq("id", data[0].id);
       return { ok: true, completed: data[0].title };
+    },
+  }),
+
+  calendar_events: tool({
+    description: "List the user's upcoming Google Calendar events. Use for 'what's my day/week look like' questions.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const events = await listUpcomingEvents().catch((e: Error) => {
+        throw e;
+      });
+      if (events === null)
+        return { ok: false, error: "Google Calendar not connected (Settings → Connect Google)" };
+      return { ok: true, events };
+    },
+  }),
+
+  unread_emails: tool({
+    description: "List the user's unread Gmail inbox messages (sender, subject, snippet).",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const emails = await listUnreadEmails().catch((e: Error) => {
+        throw e;
+      });
+      if (emails === null)
+        return { ok: false, error: "Gmail not connected (Settings → Connect Google)" };
+      return { ok: true, emails };
     },
   }),
 

@@ -1,8 +1,22 @@
 import type { Metadata } from "next";
-import { ComingSoon } from "@/components/ui/coming-soon";
+import { SettingsView } from "@/features/settings/components/settings-view";
+import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
 export const metadata: Metadata = { title: "Settings" };
+export const dynamic = "force-dynamic";
 
-export default function SettingsPage() {
-  return <ComingSoon title="Settings" phase="Phase 1" />;
+export default async function SettingsPage() {
+  const { data } = await db
+    .from("Integration")
+    .select("id")
+    .eq("userId", DEFAULT_USER_ID)
+    .eq("provider", "google")
+    .eq("status", "active")
+    .maybeSingle();
+  return (
+    <SettingsView
+      googleConnected={!!data}
+      googleConfigured={!!process.env.GOOGLE_OAUTH_CLIENT_ID}
+    />
+  );
 }

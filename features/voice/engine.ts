@@ -70,20 +70,45 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
     window.speechSynthesis?.getVoices(); // warm the voice list
   }, []);
 
-  const speak = useCallback((text: string) => {
-    return new Promise<void>((resolve) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const speak = useCallback(async (text: string) => {
+    const clean = text
+      .replace(/```[\s\S]*?```/g, " I've put the code on screen. ")
+      .replace(/[*_#`>\[\]()|]/g, "")
+      .slice(0, 1400);
+
+    // Prefer neural TTS (Gemini); fall back to browser synthesis.
+    try {
+      const res = await fetch("/api/voice/speak", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: clean }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        await new Promise<void>((resolve) => {
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          audio.play().catch(() => resolve());
+        });
+        URL.revokeObjectURL(url);
+        return;
+      }
+    } catch {}
+
+    await new Promise<void>((resolve) => {
       const synth = window.speechSynthesis;
       if (!synth) return resolve();
       synth.cancel();
-      const clean = text
-        .replace(/```[\s\S]*?```/g, " I've put the code on screen. ")
-        .replace(/[*_#`>\[\]()|]/g, "")
-        .slice(0, 1400);
       const utterance = new SpeechSynthesisUtterance(clean);
       const voice = pickVoice();
       if (voice) utterance.voice = voice;
       utterance.rate = 1.0;
-      utterance.pitch = 0.92; // a touch of gravitas
+      utterance.pitch = 0.92;
       utterance.onend = () => resolve();
       utterance.onerror = () => resolve();
       synth.speak(utterance);
@@ -197,6 +222,7 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
     try {
       recognitionRef.current?.abort();
     } catch {}
+    audioRef.current?.pause();
     window.speechSynthesis?.cancel();
   }, []);
 

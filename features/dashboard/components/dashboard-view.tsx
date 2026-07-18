@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { BriefHeader } from "./brief-header";
+import { SageCore } from "./sage-core";
 
 interface TaskRow {
   id: string;
@@ -106,10 +107,28 @@ export function DashboardView({
             </div>
           </div>
 
-          {/* meters row */}
-          <Meter label="OPEN TASKS" value={tasks.length} max={12} suffix="ACTIVE" />
-          <Meter label="REMINDERS" value={reminders.length} max={8} suffix="PENDING" />
-          <Meter label="UNREAD COMMS" value={emails?.length ?? 0} max={10} suffix="MESSAGES" />
+          {/* THE CORE — center stage */}
+          <div className="relative flex flex-col items-center justify-center py-8 lg:col-span-2 lg:row-span-2">
+            <button
+              onClick={() => window.dispatchEvent(new Event("sage:engage-voice"))}
+              title="Talk to SAGE"
+              className="group relative transition-transform hover:scale-[1.02] active:scale-[0.99]"
+            >
+              <SageCore size={380} />
+              <span className="hud-label pointer-events-none absolute inset-x-0 bottom-2 text-center opacity-0 transition-opacity group-hover:opacity-100">
+                TAP TO SPEAK
+              </span>
+            </button>
+            <p className="hud-label absolute left-5 top-4">CORE</p>
+            <p className="hud-label absolute right-5 top-4">SYS·NOMINAL</p>
+          </div>
+
+          {/* meters stack beside the core */}
+          <div className="flex flex-col divide-y divide-border-glass lg:row-span-2">
+            <Meter label="OPEN TASKS" value={tasks.length} max={12} suffix="ACTIVE" />
+            <Meter label="REMINDERS" value={reminders.length} max={8} suffix="PENDING" />
+            <Meter label="UNREAD COMMS" value={emails?.length ?? 0} max={10} suffix="MESSAGES" />
+          </div>
 
           {/* schedule */}
           <div className="p-5 lg:col-span-2">

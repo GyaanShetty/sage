@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Ear, Mic, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -72,6 +72,13 @@ export function VoiceOverlay() {
 
   const assistant = useVoiceAssistant({ onUtterance });
   const open = assistant.state !== "off";
+
+  // Allow other surfaces (e.g. the dashboard Core) to engage voice mode.
+  useEffect(() => {
+    const handler = () => assistant.engage();
+    window.addEventListener("sage:engage-voice", handler);
+    return () => window.removeEventListener("sage:engage-voice", handler);
+  }, [assistant]);
 
   if (!assistant.supported) return null;
 

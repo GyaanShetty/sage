@@ -80,6 +80,11 @@ export function VoiceOverlay() {
     return () => window.removeEventListener("sage:engage-voice", handler);
   }, [assistant]);
 
+  // Broadcast state so the Core (and future surfaces) can react.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("sage:voice-state", { detail: assistant.state }));
+  }, [assistant.state]);
+
   if (!assistant.supported) return null;
 
   return (

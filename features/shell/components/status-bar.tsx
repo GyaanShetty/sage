@@ -19,8 +19,8 @@ export function StatusBar() {
       <span className="hud-label hidden sm:inline">v0.1 · PERSONAL</span>
       <span className="mx-auto" />
       <span className="flex items-center gap-1.5">
-        <span className="size-1.5 animate-pulse rounded-full bg-accent shadow-[0_0_8px_var(--accent-glow)]" />
-        <span className="hud-label !text-accent">ONLINE</span>
+        <span className="size-1.5 animate-pulse rounded-full bg-foreground" />
+        <span className="hud-label !text-foreground">ONLINE</span>
       </span>
       <span className="hud-label tabular-nums" suppressHydrationWarning>
         {now

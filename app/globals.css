@@ -1,24 +1,25 @@
 @import "tailwindcss";
 
-/* ─── SAGE HUD theme: command-center black, cyan glow, technical type ─── */
+/* ─── SAGE monochrome technical theme (AXION-style):
+       pure black, white type, hairline grid, mono labels ─── */
 :root {
-  --background: #010203;
-  --foreground: #e8f0f2;
-  --muted: #8ea0a6;
-  --subtle: #4a5a60;
+  --background: #060606;
+  --foreground: #f2f2f2;
+  --muted: #9a9a9a;
+  --subtle: #565656;
 
-  --glass: rgba(148, 220, 240, 0.03);
-  --glass-strong: rgba(148, 220, 240, 0.07);
-  --border-glass: rgba(148, 220, 240, 0.12);
-  --border-glass-strong: rgba(148, 220, 240, 0.28);
+  --glass: rgba(255, 255, 255, 0.025);
+  --glass-strong: rgba(255, 255, 255, 0.07);
+  --border-glass: rgba(255, 255, 255, 0.14);
+  --border-glass-strong: rgba(255, 255, 255, 0.32);
 
-  /* Accent: JARVIS cyan — reserved for AI activity & live data */
-  --accent: #2dd4ea;
-  --accent-glow: rgba(45, 212, 234, 0.30);
-  --warn: #fbbf24;
-  --danger: #f87171;
+  /* monochrome accent: white. Status colors stay functional only. */
+  --accent: #ffffff;
+  --accent-glow: rgba(255, 255, 255, 0.18);
+  --warn: #d4b106;
+  --danger: #e5484d;
 
-  --radius: 0.375rem;
+  --radius: 0;
 }
 
 @theme inline {
@@ -42,38 +43,43 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(45, 212, 234, 0.06), transparent),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
-  letter-spacing: -0.011em;
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
 
-/* HUD micro-label: uppercase mono, used for all panel headers */
+/* technical micro-label */
 .hud-label {
   font-family: var(--font-mono), monospace;
   font-size: 0.6875rem;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-/* faint grid backdrop for main surfaces */
+/* modular grid container: hairline-divided cells */
+.mono-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--border-glass);
+  border: 1px solid var(--border-glass);
+}
+.mono-grid > * {
+  background: var(--background);
+}
+
 .hud-grid {
-  background-image:
-    linear-gradient(rgba(148, 220, 240, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 220, 240, 0.025) 1px, transparent 1px);
-  background-size: 44px 44px;
+  background: var(--background);
 }
 
 ::selection {
-  background: rgba(45, 212, 234, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 220, 240, 0.15) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
 }

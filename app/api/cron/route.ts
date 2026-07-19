@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { runDueAutomations } from "@/core/automation/run";
+
+export const maxDuration = 300;
 
 /**
  * Scheduler tick (wire to Vercel Cron / Supabase cron). Fires due reminders:
@@ -37,5 +40,7 @@ export async function GET(req: Request) {
     });
   }
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0 });
+  const automationsRan = await runDueAutomations().catch(() => 0);
+
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan });
 }

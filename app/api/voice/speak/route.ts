@@ -23,7 +23,7 @@ export async function POST(req: Request) {
           {
             parts: [
               {
-                text: `Speak as a composed, refined English butler — calm, measured, quietly warm, unhurried: ${text.slice(0, 1200)}`,
+                text: `Speak as a composed, brilliant female AI assistant — calm, warm, articulate, quietly confident: ${text.slice(0, 1200)}`,
               },
             ],
           },
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         generationConfig: {
           responseModalities: ["AUDIO"],
           speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Iapetus" } },
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
           },
         },
       }),

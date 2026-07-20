@@ -34,12 +34,12 @@ function createRecognition(): RecognitionLike | null {
 const WAKE_RE = /\b(hey\s+)?sage\b.*\b(wake|up|hello|hi)\b|\bwake\s+up\b.*\bsage\b|\bhey\s+sage\b/i;
 const SLEEP_RE = /\b(go\s+to\s+sleep|goodbye|good\s*night|stand\s+down|that('?s| is)\s+all)\b/i;
 
-/** Pick the most butler-like voice available: en-GB male preferred. */
+/** Fallback browser voice: prefer a natural female English voice. */
 function pickVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis?.getVoices() ?? [];
   return (
-    voices.find((v) => /en[-_]GB/i.test(v.lang) && /male|daniel|arthur|george|brian|ryan/i.test(v.name)) ??
-    voices.find((v) => /en[-_]GB/i.test(v.lang)) ??
+    voices.find((v) => /^en/i.test(v.lang) && /female|samantha|zira|victoria|karen|moira|tessa|serena/i.test(v.name)) ??
+    voices.find((v) => v.name === "Google UK English Female") ??
     voices.find((v) => /^en/i.test(v.lang)) ??
     null
   );
@@ -54,6 +54,7 @@ function pickVoice(): SpeechSynthesisVoice | null {
 export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string) => Promise<string> }) {
   const [state, setState] = useState<AssistantState>("off");
   const [supported, setSupported] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [lastHeard, setLastHeard] = useState("");
   const [lastReply, setLastReply] = useState("");
   const stateRef = useRef<AssistantState>("off");
@@ -143,7 +144,14 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
         transcript = text;
       };
       recognition.onend = finish;
-      recognition.onerror = finish;
+      recognition.onerror = (event) => {
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setError("MICROPHONE BLOCKED — allow mic access for this site in your browser");
+        } else if (event.error === "network") {
+          setError("SPEECH SERVICE UNREACHABLE — try Chrome, or check connection");
+        }
+        finish();
+      };
       try {
         recognition.start();
       } catch {
@@ -210,11 +218,21 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
 
   /** Skip the wake word: jump straight into conversation. */
   const engage = useCallback(async () => {
-    if (stateRef.current === "off") {
-      setBoth("speaking");
-      await speak("At your service.");
-      conversationLoop();
+    if (stateRef.current !== "off") return;
+    setError(null);
+    // Force the mic permission prompt up front so failures are visible.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      setError("MICROPHONE BLOCKED — allow mic access for this site in your browser");
+      setBoth("listening"); // open the overlay so the error is visible
+      setTimeout(() => { if (stateRef.current === "listening") setBoth("off"); }, 4000);
+      return;
     }
+    setBoth("speaking");
+    await speak("At your service.");
+    conversationLoop();
   }, [speak, conversationLoop]);
 
   const disable = useCallback(() => {
@@ -228,5 +246,5 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
 
   useEffect(() => () => disable(), [disable]);
 
-  return { state, supported, lastHeard, lastReply, enable, engage, disable };
+  return { state, supported, error, lastHeard, lastReply, enable, engage, disable };
 }

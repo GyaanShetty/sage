@@ -129,6 +129,15 @@ export function VoiceOverlay() {
             >
               {STATE_LABEL[assistant.state]}
             </motion.p>
+            {assistant.error && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="lbl mt-2 max-w-sm text-center !text-red-400"
+              >
+                {assistant.error}
+              </motion.p>
+            )}
 
             <div className="mt-6 flex max-w-xl flex-col gap-2 px-6 text-center">
               {transcript.slice(-2).map((line, i) => (

@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
-import { DashboardView } from "@/features/dashboard/components/dashboard-view";
-import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import {
-  listUnreadEmails,
-  listUpcomingEvents,
-  type CalendarEvent,
-  type EmailSummary,
-} from "@/infrastructure/integrations/google";
+  CommandView,
+  type EventRow,
+  type LogRow,
+  type NoteRow,
+  type Stats,
+  type TaskRow,
+} from "@/features/dashboard/components/command-view";
+import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Command" };
 export const dynamic = "force-dynamic";
 
 async function count(table: string): Promise<number> {
@@ -20,44 +22,45 @@ async function count(table: string): Promise<number> {
 }
 
 export default async function DashboardPage() {
-  const [{ data: tasks }, { data: reminders }, events, emails, memoryCount, sourceCount, runCount, { data: log }] =
+  const [{ data: tasks }, events, { data: notes }, { data: log }, memories, sources, runs, noteCount] =
     await Promise.all([
       db
         .from("Task")
         .select("id, title, status, dueAt")
         .eq("userId", DEFAULT_USER_ID)
-        .in("status", ["todo", "doing"])
+        .neq("status", "cancelled")
         .order("priority", { ascending: true })
-        .order("dueAt", { ascending: true, nullsFirst: false })
+        .order("createdAt", { ascending: false })
         .limit(6),
+      listUpcomingEvents(8).catch(() => null) as Promise<EventRow[] | null>,
       db
-        .from("Reminder")
-        .select("id, text, remindAt")
+        .from("Note")
+        .select("id, title, createdAt")
         .eq("userId", DEFAULT_USER_ID)
-        .eq("status", "pending")
-        .order("remindAt", { ascending: true })
-        .limit(4),
-      listUpcomingEvents(8).catch(() => null) as Promise<CalendarEvent[] | null>,
-      listUnreadEmails(3).catch(() => null) as Promise<EmailSummary[] | null>,
-      count("Memory"),
-      count("Source"),
-      count("AgentRun"),
+        .eq("kind", "doc")
+        .order("createdAt", { ascending: false })
+        .limit(6),
       db
         .from("Event")
         .select("type, createdAt")
         .eq("userId", DEFAULT_USER_ID)
         .order("createdAt", { ascending: false })
-        .limit(7),
+        .limit(8),
+      count("Memory"),
+      count("Source"),
+      count("AgentRun"),
+      count("Note"),
     ]);
 
+  const stats: Stats = { memories, sources, runs, notes: noteCount };
   return (
-    <DashboardView
-      tasks={tasks ?? []}
-      reminders={reminders ?? []}
+    <CommandView
+      tasks={(tasks ?? []) as TaskRow[]}
       events={events}
-      emails={emails}
-      stats={{ memories: memoryCount, sources: sourceCount, runs: runCount }}
-      log={log ?? []}
+      notes={(notes ?? []) as NoteRow[]}
+      log={(log ?? []) as LogRow[]}
+      stats={stats}
+      userName="Gyaan"
     />
   );
 }

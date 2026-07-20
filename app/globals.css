@@ -1,85 +1,99 @@
 @import "tailwindcss";
 
-/* ─── SAGE monochrome technical theme (AXION-style):
-       pure black, white type, hairline grid, mono labels ─── */
+/* ============================================================
+   SAGE · COMMAND design system (ported from prototype)
+   Monochrome. White is the only accent. Hairlines structure.
+   ============================================================ */
 :root {
-  --background: #060606;
-  --foreground: #f2f2f2;
-  --muted: #9a9a9a;
-  --subtle: #565656;
+  --background: #070708;
+  --panel: #0a0a0b;
+  --foreground: #f4f4f5;
+  --muted: #9a9a9f;
+  --subtle: #5c5c62;
+  --faint: #2c2c30;
+  --hairbg: #1c1c1f;
 
-  --glass: rgba(255, 255, 255, 0.025);
-  --glass-strong: rgba(255, 255, 255, 0.07);
-  --border-glass: rgba(255, 255, 255, 0.14);
-  --border-glass-strong: rgba(255, 255, 255, 0.32);
+  --glass: rgba(244, 244, 245, 0.03);
+  --glass-strong: rgba(244, 244, 245, 0.07);
+  --border-glass: rgba(244, 244, 245, 0.13);
+  --border-glass-strong: rgba(244, 244, 245, 0.32);
 
-  /* monochrome accent: white. Status colors stay functional only. */
-  --accent: #ffffff;
-  --accent-glow: rgba(255, 255, 255, 0.18);
+  --accent: #f4f4f5;
+  --accent-glow: rgba(244, 244, 245, 0.18);
   --warn: #d4b106;
   --danger: #e5484d;
 
   --radius: 0;
+  --disp: var(--font-disp), sans-serif;
+  --mono: var(--font-mono-f), monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-panel: var(--panel);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-subtle: var(--subtle);
+  --color-faint: var(--faint);
   --color-glass: var(--glass);
   --color-glass-strong: var(--glass-strong);
   --color-border-glass: var(--border-glass);
   --color-border-glass-strong: var(--border-glass-strong);
   --color-accent: var(--accent);
   --color-warn: var(--warn);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-disp);
+  --font-mono: var(--font-mono-f);
 }
 
-html,
-body {
-  height: 100%;
-}
+html { scroll-behavior: smooth; }
+html, body { height: 100%; }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-mono), monospace;
-  letter-spacing: 0.01em;
+  font-family: var(--disp);
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
 }
 
+::selection { background: var(--foreground); color: var(--background); }
+* { scrollbar-width: thin; scrollbar-color: var(--faint) transparent; }
+
 /* technical micro-label */
-.hud-label {
-  font-family: var(--font-mono), monospace;
-  font-size: 0.6875rem;
-  letter-spacing: 0.12em;
+.hud-label,
+.lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--subtle);
 }
 
-/* modular grid container: hairline-divided cells */
+/* modular hairline grid */
 .mono-grid {
   display: grid;
   gap: 1px;
   background: var(--border-glass);
   border: 1px solid var(--border-glass);
 }
-.mono-grid > * {
-  background: var(--background);
-}
+.mono-grid > * { background: var(--panel); }
 
-.hud-grid {
-  background: var(--background);
-}
+/* section frame */
+.sectitle { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; }
+.sectitle .sn { font-family: var(--mono); font-size: 10px; color: var(--subtle); letter-spacing: 2px; }
+.sectitle h2 { font-weight: 300; font-size: 20px; letter-spacing: 3px; text-transform: uppercase; }
+.sectitle .line { flex: 1; height: 1px; background: rgba(244, 244, 245, 0.06); }
+.sectitle .tag { font-family: var(--mono); font-size: 9px; color: var(--subtle); letter-spacing: 1px; }
 
-::selection {
-  background: rgba(255, 255, 255, 0.25);
-}
+/* cell header */
+.bh { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.bh .t { font-weight: 500; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; }
+.bh .i { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); }
+.bh .r { margin-left: auto; font-family: var(--mono); font-size: 8.5px; color: var(--subtle); letter-spacing: 1px; }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
-}
+.hud-grid { background: var(--background); }
+.num { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 1px solid var(--foreground); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }

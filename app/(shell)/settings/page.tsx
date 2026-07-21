@@ -5,18 +5,25 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage() {
+async function connected(provider: string): Promise<boolean> {
   const { data } = await db
     .from("Integration")
     .select("id")
     .eq("userId", DEFAULT_USER_ID)
-    .eq("provider", "google")
+    .eq("provider", provider)
     .eq("status", "active")
     .maybeSingle();
+  return !!data;
+}
+
+export default async function SettingsPage() {
+  const [google, spotify] = await Promise.all([connected("google"), connected("spotify")]);
   return (
     <SettingsView
-      googleConnected={!!data}
+      googleConnected={google}
       googleConfigured={!!process.env.GOOGLE_OAUTH_CLIENT_ID}
+      spotifyConnected={spotify}
+      spotifyConfigured={!!process.env.SPOTIFY_CLIENT_ID}
     />
   );
 }

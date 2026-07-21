@@ -16,6 +16,10 @@ const LABELS: Record<string, string> = {
   calendar_events: "Checking your calendar",
   unread_emails: "Checking your inbox",
   draft_email: "Drafting email",
+  github_status: "Checking GitHub",
+  linkedin_activity: "Checking LinkedIn",
+  spotify_now: "Checking Spotify",
+  spotify_control: "Controlling playback",
 };
 
 export function ToolCard({

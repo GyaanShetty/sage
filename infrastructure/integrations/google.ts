@@ -176,6 +176,30 @@ export async function listUnreadEmails(maxResults = 5): Promise<EmailSummary[] |
   return out;
 }
 
+/** Search Gmail by query (e.g. "from:linkedin.com newer_than:7d"). */
+export async function searchGmail(query: string, maxResults = 6): Promise<EmailSummary[] | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const listRes = await proxyFetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  if (!listRes.ok) return null;
+  const list = (await listRes.json()) as { messages?: { id: string }[] };
+  const out: EmailSummary[] = [];
+  for (const msg of list.messages ?? []) {
+    const res = await proxyFetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`,
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) continue;
+    const detail = (await res.json()) as { snippet?: string; payload?: { headers?: { name: string; value: string }[] } };
+    const header = (name: string) => detail.payload?.headers?.find((h) => h.name === name)?.value ?? "";
+    out.push({ from: header("From"), subject: header("Subject"), snippet: detail.snippet ?? "" });
+  }
+  return out;
+}
+
 /** Create a Gmail draft (does NOT send — the user reviews and sends it). */
 export async function createGmailDraft(to: string, subject: string, body: string): Promise<boolean | null> {
   const token = await getGoogleAccessToken();

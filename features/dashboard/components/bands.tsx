@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { GeoMap } from "./geo-map";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -18,7 +19,7 @@ const CITIES: [number, number, string][] = [
   [139.7, 35.7, "TOK"], [-0.1, 51.5, "LDN"], [151.2, -33.9, "SYD"], [-122.4, 37.8, "SFO"],
 ];
 
-export function WorldBand() {
+export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
   const mapRef = useRef<SVGSVGElement>(null);
   const [clocks, setClocks] = useState<Record<string, string>>({});
 
@@ -129,7 +130,7 @@ export function WorldBand() {
 
   return (
     <section className="section" id="world" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · CLOCKS · MESH · SIM</span></div>
+      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · CLOCKS · MESH · GEO</span></div>
       <div className="grid deck3">
         <div className="cell">
           <div className="bh"><span className="t">Global Monitor</span><span className="i">EYE</span><span className="r">DAY/NIGHT LIVE</span></div>
@@ -157,6 +158,9 @@ export function WorldBand() {
               ))}
             </div>
           </div>
+        </div>
+        <div style={{ gridColumn: "1 / -1", display: "grid" }}>
+          <GeoMap lat={geo?.lat} lon={geo?.lon} />
         </div>
       </div>
     </section>
@@ -317,7 +321,23 @@ export function ConsoleBand({ stats }: { stats: { open: number; notes: number; m
 }
 
 /* ============ 05 REVIEW ============ */
-export function ReviewBand({ activity, journal }: { activity: number[]; journal: string[] }) {
+export function ReviewBand({ activity, journal, health }: { activity: number[]; journal: string[]; health?: Record<string, unknown> | null }) {
+  const vitals: { k: string; v: string }[] = [];
+  if (health) {
+    const num = (x: unknown) => (typeof x === "number" ? x : typeof x === "string" ? parseFloat(x) : NaN);
+    const steps = num(health.steps);
+    const sleep = num(health.sleepHours ?? health.sleep);
+    const kcal = num(health.activeKcal ?? health.calories);
+    const hr = num(health.restingHr ?? health.hr);
+    if (!Number.isNaN(steps)) vitals.push({ k: "STEPS", v: Math.round(steps).toLocaleString("en-IN") });
+    if (!Number.isNaN(sleep)) vitals.push({ k: "SLEEP HRS", v: sleep.toFixed(1) });
+    if (!Number.isNaN(kcal)) vitals.push({ k: "ACTIVE KCAL", v: String(Math.round(kcal)) });
+    if (!Number.isNaN(hr)) vitals.push({ k: "RESTING HR", v: String(Math.round(hr)) });
+  }
+  return <ReviewBandInner activity={activity} journal={journal} vitals={vitals} />;
+}
+
+function ReviewBandInner({ activity, journal, vitals }: { activity: number[]; journal: string[]; vitals: { k: string; v: string }[] }) {
   const [entries, setEntries] = useState(journal);
   const [text, setText] = useState("");
   const days = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -339,7 +359,17 @@ export function ReviewBand({ activity, journal }: { activity: number[]; journal:
 
   return (
     <section className="section" id="review" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">07</span><h2>Review</h2><span className="line" /><span className="tag">ACTIVITY · JOURNAL</span></div>
+      <div className="sectitle"><span className="sn">07</span><h2>Review</h2><span className="line" /><span className="tag">ACTIVITY · VITALS · JOURNAL</span></div>
+      {vitals.length > 0 && (
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${vitals.length}, 1fr)`, marginBottom: 1 }}>
+          {vitals.map((v) => (
+            <div className="cell ct" key={v.k}>
+              <div className="cv num">{v.v}</div>
+              <div className="ck">{v.k}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid deck7">
         <div className="cell">
           <div className="bh"><span className="t">System Activity</span><span className="i">WKL</span><span className="r">EVENTS / DAY · REAL</span></div>

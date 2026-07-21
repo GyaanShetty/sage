@@ -202,6 +202,26 @@ export async function searchGmail(query: string, maxResults = 6): Promise<EmailS
   return out;
 }
 
+/** Send an email via Gmail (compose scope). Used for the weekly review the user asked SAGE to email. */
+export async function sendGmail(to: string, subject: string, body: string): Promise<boolean | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const raw = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "",
+    body,
+  ].join("\r\n");
+  const encoded = Buffer.from(raw).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const res = await proxyFetch("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ raw: encoded }),
+  });
+  return res.ok;
+}
+
 /** Create a Gmail draft (does NOT send — the user reviews and sends it). */
 export async function createGmailDraft(to: string, subject: string, body: string): Promise<boolean | null> {
   const token = await getGoogleAccessToken();

@@ -5,6 +5,8 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.readonly",
   "https://www.googleapis.com/auth/gmail.readonly",
+  // compose = create drafts (safe: nothing sends without you hitting Send)
+  "https://www.googleapis.com/auth/gmail.compose",
 ].join(" ");
 
 export function appUrl(): string {
@@ -172,4 +174,24 @@ export async function listUnreadEmails(maxResults = 5): Promise<EmailSummary[] |
     out.push({ from: header("From"), subject: header("Subject"), snippet: detail.snippet ?? "" });
   }
   return out;
+}
+
+/** Create a Gmail draft (does NOT send — the user reviews and sends it). */
+export async function createGmailDraft(to: string, subject: string, body: string): Promise<boolean | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const raw = [
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    "Content-Type: text/plain; charset=UTF-8",
+    "",
+    body,
+  ].join("\r\n");
+  const encoded = Buffer.from(raw).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const res = await proxyFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ message: { raw: encoded } }),
+  });
+  return res.ok;
 }

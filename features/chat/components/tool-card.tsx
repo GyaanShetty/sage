@@ -15,6 +15,7 @@ const LABELS: Record<string, string> = {
   create_note: "Writing note",
   calendar_events: "Checking your calendar",
   unread_emails: "Checking your inbox",
+  draft_email: "Drafting email",
 };
 
 export function ToolCard({

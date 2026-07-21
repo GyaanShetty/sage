@@ -4,7 +4,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 import { searchKnowledge } from "@/core/knowledge/search";
 import { webSearch } from "@/infrastructure/search/tavily";
-import { listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
+import { createGmailDraft, listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -89,6 +89,22 @@ export const nativeTools = {
       if (emails === null)
         return { ok: false, error: "Gmail not connected (Settings → Connect Google)" };
       return { ok: true, emails };
+    },
+  }),
+
+  draft_email: tool({
+    description:
+      "Compose an email as a Gmail DRAFT for the user to review and send. Use when they ask to write/reply to an email. It never sends — it only drafts. Tell the user the draft is ready in Gmail.",
+    inputSchema: z.object({
+      to: z.string().describe("Recipient email address"),
+      subject: z.string().max(200),
+      body: z.string().describe("Full email body, plain text"),
+    }),
+    execute: async ({ to, subject, body }) => {
+      const ok = await createGmailDraft(to, subject, body);
+      if (ok === null) return { ok: false, error: "Gmail not connected (Settings → Connect Google)" };
+      if (!ok) return { ok: false, error: "Could not create draft (re-connect Google for compose access)" };
+      return { ok: true, to, subject, note: "Draft created in Gmail — review and send there." };
     },
   }),
 

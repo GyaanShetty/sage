@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
 interface Headline { source: string; title: string; link: string; published: number }
+interface Stock { symbol: string; price: number; change: number }
 
 function Spark({ data, up }: { data: number[]; up: boolean }) {
   if (!data.length) return null;
@@ -27,10 +28,12 @@ function ago(ts: number) {
 export function MissionControl() {
   const [coins, setCoins] = useState<Coin[] | null>(null);
   const [news, setNews] = useState<Headline[] | null>(null);
+  const [stocks, setStocks] = useState<Stock[] | null>(null);
 
   useEffect(() => {
     fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => setCoins([]));
     fetch("/api/news").then((r) => r.json()).then((j) => setNews(j.data ?? [])).catch(() => setNews([]));
+    fetch("/api/stocks").then((r) => r.json()).then((j) => setStocks(j.data ?? [])).catch(() => setStocks([]));
     const t = setInterval(() => {
       fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => {});
     }, 120000);
@@ -53,6 +56,18 @@ export function MissionControl() {
               <span className={`chg${c.change24h >= 0 ? " up" : ""}`}>{c.change24h >= 0 ? "▲" : "▽"} {Math.abs(c.change24h).toFixed(1)}%</span>
             </div>
           ))}
+          {stocks && stocks.length > 0 && (
+            <>
+              <p className="lbl" style={{ margin: "12px 0 4px" }}>EQUITIES</p>
+              {stocks.map((s) => (
+                <div className="mkt" key={s.symbol}>
+                  <span className="sym" style={{ flex: 1, width: "auto" }}>{s.symbol}</span>
+                  <span className="px">{s.price >= 1000 ? Math.round(s.price).toLocaleString("en-IN") : s.price.toFixed(2)}</span>
+                  <span className={`chg${s.change >= 0 ? " up" : ""}`}>{s.change >= 0 ? "▲" : "▽"} {Math.abs(s.change).toFixed(1)}%</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
         <div className="cell">
           <div className="bh"><span className="t">Newswire</span><span className="i">RSS</span><span className="r">FT · MINT · COINDESK · MIT · TED</span></div>

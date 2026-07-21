@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { APP_NAME } from "@/lib/config";
+import { APP_NAME, fmt } from "@/lib/config";
 import { SageMark } from "@/components/ui/sage-mark";
 
 /** Top strip: identity mark, wordmark, live online status, prominent clock. */
@@ -31,10 +31,10 @@ export function StatusBar() {
           className="num text-[24px] font-light leading-none tracking-tight"
           suppressHydrationWarning
         >
-          {now ? `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}` : "--:--"}
+          {now ? fmt(now, { hour: "2-digit", minute: "2-digit", hour12: false }) : "--:--"}
         </div>
         <div className="lbl mt-0.5" suppressHydrationWarning>
-          {now ? now.toDateString().toUpperCase() : ""}
+          {now ? fmt(now, { weekday: "short", day: "2-digit", month: "short" }).toUpperCase() + " IST" : ""}
         </div>
       </div>
     </header>

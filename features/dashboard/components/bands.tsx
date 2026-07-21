@@ -27,9 +27,15 @@ export function WorldBand() {
     if (!el) return;
     const WW = 720, WH = 360;
     const WPT = (lo: number, la: number): [number, number] => [((lo + 180) / 360) * WW, ((90 - la) / 180) * WH];
-    let satPhase = 0, timer = 0 as unknown as ReturnType<typeof setInterval>;
+    let satPhase = 0, raf = 0, last = 0, t0 = performance.now();
 
-    const draw = () => {
+    // Live data links between hubs (BLR ↔ world). Packets travel along arcs.
+    const HUB = 0; // BLR
+    const links = [1, 2, 3, 4, 5, 6, 7].map((to, i) => ({ from: HUB, to, phase: (i / 7) * Math.PI * 2, speed: 0.35 + (i % 3) * 0.15 }));
+    const arrivals: { x: number; y: number; t: number }[] = [];
+
+    const draw = (nowMs: number) => {
+      const T = (nowMs - t0) / 1000;
       const now = new Date();
       const doy = Math.floor((now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 864e5);
       const decl = ((23.44 * Math.sin((2 * Math.PI * (doy - 81)) / 365)) * Math.PI) / 180;
@@ -68,17 +74,42 @@ export function WorldBand() {
       const slon = (((Date.now() / 200) % 720) / 2) - 180, slat = 52 * Math.sin((slon * Math.PI) / 180 + satPhase);
       const [mx2, my2] = WPT(slon, slat);
       s += `<rect x="${mx2 - 3}" y="${my2 - 3}" width="6" height="6" fill="#f4f4f5" transform="rotate(45 ${mx2} ${my2})"/><text x="${mx2 + 8}" y="${my2 - 6}" fill="#9a9a9f" font-size="7" font-family="var(--mono)">SAGE-1</text>`;
-      CITIES.forEach(([lo, la, l]) => {
+      // ── live data links: arcs + travelling packets ──
+      links.forEach((lk) => {
+        const [ax, ay] = WPT(CITIES[lk.from][0], CITIES[lk.from][1]);
+        const [bx, by] = WPT(CITIES[lk.to][0], CITIES[lk.to][1]);
+        const mx = (ax + bx) / 2, my = (ay + by) / 2 - Math.hypot(bx - ax, by - ay) * 0.28; // arc apex
+        s += `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}" stroke="rgba(94,207,214,.10)" fill="none"/>`;
+        // packet position along the quadratic bezier
+        const u = (T * lk.speed + lk.phase / (Math.PI * 2)) % 1;
+        const qx = (1 - u) * (1 - u) * ax + 2 * (1 - u) * u * mx + u * u * bx;
+        const qy = (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * my + u * u * by;
+        s += `<circle cx="${qx.toFixed(1)}" cy="${qy.toFixed(1)}" r="1.8" fill="var(--live)"/>`;
+        s += `<circle cx="${qx.toFixed(1)}" cy="${qy.toFixed(1)}" r="3.4" fill="none" stroke="rgba(94,207,214,.3)"/>`;
+        if (u > 0.985) arrivals.push({ x: bx, y: by, t: nowMs });
+      });
+      // arrival pulses
+      for (let i = arrivals.length - 1; i >= 0; i--) {
+        const age = (nowMs - arrivals[i].t) / 900;
+        if (age > 1) { arrivals.splice(i, 1); continue; }
+        s += `<circle cx="${arrivals[i].x.toFixed(1)}" cy="${arrivals[i].y.toFixed(1)}" r="${(2 + age * 12).toFixed(1)}" stroke="rgba(94,207,214,${(0.5 * (1 - age)).toFixed(2)})" fill="none"/>`;
+      }
+
+      CITIES.forEach(([lo, la, l], i) => {
         const [x, y] = WPT(lo, la);
-        s += `<circle cx="${x}" cy="${y}" r="2" fill="#f4f4f5"/><text x="${x + 5}" y="${y + 3}" fill="#5c5c62" font-size="7" font-family="var(--mono)">${l}</text>`;
+        const hub = i === HUB;
+        s += `<circle cx="${x}" cy="${y}" r="${hub ? 3 : 2}" fill="${hub ? "var(--live)" : "#f4f4f5"}"/><text x="${x + 5}" y="${y + 3}" fill="#5c5c62" font-size="7" font-family="var(--mono)">${l}</text>`;
       });
       el.innerHTML = s;
     };
 
-    draw();
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduced) timer = setInterval(() => { satPhase += 0.02; draw(); }, 500);
-    return () => clearInterval(timer);
+    draw(performance.now());
+    if (!reduced) {
+      const loop = (ts: number) => { if (ts - last > 40) { satPhase += 0.0016 * (ts - last); draw(ts); last = ts; } raf = requestAnimationFrame(loop); };
+      raf = requestAnimationFrame(loop);
+    }
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   useEffect(() => {
@@ -158,10 +189,36 @@ export function ConsoleBand({ stats }: { stats: { open: number; notes: number; m
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const history = useRef<string[]>([]);
+  const histIdx = useRef(-1);
+
+  const COMMANDS = ["help", "status", "ask ", "note ", "task ", "clear"];
+  const suggestion = input && !input.includes(" ")
+    ? COMMANDS.find((c) => c.trimEnd().startsWith(input) && c.trimEnd() !== input)?.trimEnd()
+    : undefined;
 
   useEffect(() => {
     outRef.current?.scrollTo(0, outRef.current.scrollHeight);
   }, [lines]);
+
+  const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      const v = input;
+      if (v.trim()) { history.current.unshift(v); histIdx.current = -1; }
+      exec(v);
+      setInput("");
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      if (suggestion) setInput(suggestion + " ");
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (histIdx.current < history.current.length - 1) { histIdx.current++; setInput(history.current[histIdx.current]); }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (histIdx.current > 0) { histIdx.current--; setInput(history.current[histIdx.current]); }
+      else { histIdx.current = -1; setInput(""); }
+    }
+  };
 
   const print = useCallback((text: string, cls?: string) => setLines((l) => [...l.slice(-60), { text, cls }]), []);
 
@@ -215,14 +272,24 @@ export function ConsoleBand({ stats }: { stats: { open: number; notes: number; m
               {lines.map((l, i) => <div className={`tl${l.cls ? " " + l.cls : ""}`} key={i}>{l.text}</div>)}
             </div>
             <div className="tin">
-              <span className="tp">sage ›</span>
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { exec(input); setInput(""); } }}
-                autoComplete="off"
-                spellCheck={false}
-              />
+              <span className="tp" style={{ color: busy ? "var(--live)" : undefined }}>sage ›</span>
+              <div style={{ position: "relative", flex: 1 }}>
+                {suggestion && (
+                  <span style={{ position: "absolute", inset: 0, pointerEvents: "none", color: "var(--faint)", fontFamily: "var(--mono)", fontSize: 11, lineHeight: "1.4" }}>
+                    {input}<span style={{ opacity: 0.7 }}>{suggestion.slice(input.length)}</span>
+                    <span style={{ color: "var(--subtle)" }}> ⇥</span>
+                  </span>
+                )}
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={onKey}
+                  autoComplete="off"
+                  spellCheck={false}
+                  style={{ position: "relative", width: "100%", background: "none", border: "none", outline: "none", color: "var(--foreground)", fontFamily: "var(--mono)", fontSize: 11 }}
+                />
+              </div>
+              <span className="term-cursor" />
             </div>
           </div>
         </div>

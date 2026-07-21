@@ -297,3 +297,16 @@
   .cosmos-row { flex-direction: column; }
   .cosmos-row img { width: 100%; max-width: 100%; }
 }
+
+/* ── 09 live feeds (youtube wall) ── */
+.streams-grid { grid-template-columns: 1fr 1fr; }
+.stream-cell { padding: 12px 14px 14px; }
+.stream-frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--background); border: 1px solid rgba(244,244,245,.06); display: block; overflow: hidden; }
+.stream-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.stream-poster { cursor: pointer; background-size: cover; background-position: center; filter: grayscale(0.5) brightness(0.55); transition: filter 0.25s var(--ease); }
+.stream-poster:hover { filter: grayscale(0.1) brightness(0.8); }
+.stream-poster .stream-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--foreground); text-shadow: 0 0 12px rgba(0,0,0,.9); }
+.stream-poster:hover .stream-play { color: var(--live); }
+.stream-swap { margin-left: auto; background: none; border: 1px solid rgba(244,244,245,.06); color: var(--subtle); font-family: var(--mono); font-size: 8px; letter-spacing: 1px; padding: 2px 7px; cursor: pointer; }
+.stream-swap:hover { color: var(--foreground); border-color: var(--subtle); }
+@media (max-width: 767px) { .streams-grid { grid-template-columns: 1fr; } }

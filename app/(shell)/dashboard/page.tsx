@@ -47,7 +47,7 @@ export default async function DashboardPage() {
     { data: weekEvents },
     { data: journalNote },
     weather,
-    { data: healthEvent },
+    { data: healthEvents },
   ] = await Promise.all([
     db
       .from("Task")
@@ -96,8 +96,7 @@ export default async function DashboardPage() {
       .eq("type", "health.report")
       .gte("createdAt", new Date(Date.now() - 36 * 3600 * 1000).toISOString())
       .order("createdAt", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .limit(10),
   ]);
 
   // Mon..Sun real event counts
@@ -111,6 +110,14 @@ export default async function DashboardPage() {
     .map((p) => p.content?.[0]?.text ?? "")
     .filter(Boolean)
     .slice(0, 6);
+
+  // Shortcuts may post each metric as its own request — merge recent reports,
+  // newest value wins per key.
+  let health: Record<string, unknown> | null = null;
+  for (const ev of (healthEvents ?? []).reverse()) {
+    const p = ev.payload as Record<string, unknown> | null;
+    if (p && typeof p === "object") health = { ...(health ?? {}), ...p };
+  }
 
   const stats: Stats = { memories, sources, runs, notes: noteCount };
   const open = (tasks ?? []).filter((t) => t.status !== "done").length;
@@ -138,7 +145,7 @@ export default async function DashboardPage() {
       <ReviewBand
         activity={activity}
         journal={journal}
-        health={(healthEvent?.payload ?? null) as Record<string, unknown> | null}
+        health={health}
       />
       <LearnBand />
     </div>

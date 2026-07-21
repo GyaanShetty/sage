@@ -330,10 +330,11 @@ export function ReviewBand({ activity, journal, health }: { activity: number[]; 
     const sleep = !Number.isNaN(sleepMin) ? sleepMin / 60 : num(health.sleepHours ?? health.sleep);
     const kcal = num(health.activeKcal ?? health.calories);
     const hr = num(health.restingHr ?? health.hr);
-    if (!Number.isNaN(steps)) vitals.push({ k: "STEPS", v: Math.round(steps).toLocaleString("en-IN") });
-    if (!Number.isNaN(sleep)) vitals.push({ k: "SLEEP HRS", v: sleep.toFixed(1) });
-    if (!Number.isNaN(kcal)) vitals.push({ k: "ACTIVE KCAL", v: String(Math.round(kcal)) });
-    if (!Number.isNaN(hr)) vitals.push({ k: "RESTING HR", v: String(Math.round(hr)) });
+    // 0 means "no data recorded", not a real reading — hide those tiles.
+    if (steps > 0) vitals.push({ k: "STEPS", v: Math.round(steps).toLocaleString("en-IN") });
+    if (sleep > 0) vitals.push({ k: "SLEEP HRS", v: sleep.toFixed(1) });
+    if (kcal > 0) vitals.push({ k: "ACTIVE KCAL", v: String(Math.round(kcal)) });
+    if (hr > 0) vitals.push({ k: "RESTING HR", v: String(Math.round(hr)) });
   }
   return <ReviewBandInner activity={activity} journal={journal} vitals={vitals} />;
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../command.css";
+import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
 export interface TaskRow { id: string; title: string; status: string; dueAt: string | null }
@@ -164,7 +165,7 @@ export function CommandView({
   const [focusRun, setFocusRun] = useState(false);
 
   const now = new Date();
-  const hour = now.getHours();
+  const hour = tzHour(now);
   const greet = hour < 5 ? "Late night" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const open = tasks.filter((t) => t.status !== "done").length;
   const todays = (events ?? []).filter((e) => new Date(e.start).toDateString() === now.toDateString());
@@ -270,7 +271,7 @@ export function CommandView({
                   <span className="nb" />
                   <div style={{ flex: 1 }}>
                     <div className="ntx">{n.title}</div>
-                    <div className="nt2">{new Date(n.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</div>
+                    <div className="nt2">{fmt(n.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false })}</div>
                   </div>
                   <button className="del" onClick={() => delNote(n.id)}>×</button>
                 </div>
@@ -354,7 +355,7 @@ export function CommandView({
                 const isNext = i === 0;
                 return (
                   <div className={`ag${isNext ? " now" : ""}`} key={i}>
-                    <span className="tm">{d.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase()} {pad(d.getHours())}:{pad(d.getMinutes())}</span>
+                    <span className="tm">{fmt(d, { weekday: "short" }).toUpperCase()} {fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
                     <span className="mk2"><i /></span>
                     <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
                   </div>
@@ -381,7 +382,13 @@ export function CommandView({
             {tasks.length === 0 && <p className="lbl">NO OPEN DIRECTIVES</p>}
           </div>
           <div className="cell">
-            <div className="bh"><span className="t">Focus Cycle</span><span className="i">FCS</span><span className="r" style={{ cursor: "pointer" }} onClick={() => setFocusRun((r) => !r)}>{focusRun ? "PAUSE" : "START"}</span></div>
+            <div className="bh">
+              <span className="t">Focus Cycle</span><span className="i">FCS</span>
+              <span className="r" style={{ display: "flex", gap: 10 }}>
+                <button className="lbl" style={{ cursor: "pointer" }} onClick={() => setFocusRun((r) => !r)}>{focusRun ? "PAUSE" : "START"}</button>
+                <button className="lbl" style={{ cursor: "pointer" }} onClick={() => { setFocusRun(false); setFocusSec(25 * 60); }}>RESET</button>
+              </span>
+            </div>
             <div className="fring">
               <svg viewBox="0 0 92 92">
                 <circle cx="46" cy="46" r={fr} fill="none" stroke="#2c2c30" strokeWidth="2.5" />
@@ -405,7 +412,7 @@ export function CommandView({
             <div className="feed">
               {log.map((row, i) => (
                 <div className="fr" key={i}>
-                  <span className="ft">{new Date(row.createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>{" "}
+                  <span className="ft">{fmt(row.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false })}</span>{" "}
                   <span className={i === 0 ? "fh" : ""}>{LOG_LABEL[row.type] ?? row.type}</span>
                 </div>
               ))}

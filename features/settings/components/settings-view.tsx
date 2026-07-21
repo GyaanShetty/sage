@@ -1,10 +1,35 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CalendarDays, Check, Mail, Music } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
+
+function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
+  const disconnect = async () => {
+    await fetch("/api/integrations/disconnect", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+    onDone();
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex items-center gap-1.5 border border-border-glass bg-glass-strong px-3 py-1 text-xs text-live">
+        <Check className="size-3.5" /> Connected
+      </span>
+      <button
+        onClick={disconnect}
+        className="border border-border-glass px-3 py-1 text-xs text-muted transition-colors hover:border-border-glass-strong hover:text-foreground"
+      >
+        Disconnect
+      </button>
+    </div>
+  );
+}
 
 export function SettingsView({
   googleConnected,
@@ -17,6 +42,8 @@ export function SettingsView({
   spotifyConnected: boolean;
   spotifyConfigured: boolean;
 }) {
+  const router = useRouter();
+  const refresh = () => router.refresh();
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
@@ -41,20 +68,13 @@ export function SettingsView({
               </p>
             </div>
             {googleConnected ? (
-              <span className="flex items-center gap-1.5 rounded-full border border-border-glass bg-glass-strong px-3 py-1 text-xs text-accent">
-                <Check className="size-3.5" /> Connected
-              </span>
+              <ConnectedBadge provider="google" onDone={refresh} />
             ) : googleConfigured ? (
-              <a
-                href="/api/integrations/google"
-                className="rounded-lg bg-accent px-3.5 py-1.5 text-xs font-medium text-white shadow-[0_0_16px_var(--accent-glow)]"
-              >
+              <a href="/api/integrations/google" className="bg-accent px-3.5 py-1.5 text-xs font-medium text-background">
                 Connect
               </a>
             ) : (
-              <span className="text-xs text-subtle">
-                Set GOOGLE_OAUTH_CLIENT_ID/SECRET to enable
-              </span>
+              <span className="text-xs text-subtle">Set GOOGLE_OAUTH_CLIENT_ID/SECRET to enable</span>
             )}
           </GlassPanel>
 
@@ -67,9 +87,7 @@ export function SettingsView({
               </p>
             </div>
             {spotifyConnected ? (
-              <span className="flex items-center gap-1.5 border border-border-glass bg-glass-strong px-3 py-1 text-xs text-live">
-                <Check className="size-3.5" /> Connected
-              </span>
+              <ConnectedBadge provider="spotify" onDone={refresh} />
             ) : spotifyConfigured ? (
               <a href="/api/integrations/spotify" className="bg-accent px-3.5 py-1.5 text-xs font-medium text-background">
                 Connect

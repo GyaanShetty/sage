@@ -233,3 +233,7 @@
 .chart-wrap:hover .chart-crosshair { opacity: 1; }
 .chart-tip { position: absolute; transform: translate(-50%, -120%); background: var(--panel-hi); border: 1px solid var(--border-glass-strong); padding: 4px 8px; font-family: var(--mono); font-size: 9px; color: var(--foreground); pointer-events: none; white-space: nowrap; opacity: 0; }
 .chart-wrap:hover .chart-tip { opacity: 1; }
+
+/* ── fix blank grey gaps: bottom cell of each stack fills the grid row ── */
+.deck1 .stack > .cell:last-child { flex: 1 1 auto; }
+.stack { background: var(--border-glass); }

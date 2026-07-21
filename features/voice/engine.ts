@@ -145,10 +145,16 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
       };
       recognition.onend = finish;
       recognition.onerror = (event) => {
-        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        if (event.error === "not-allowed") {
           setError("MICROPHONE BLOCKED — allow mic access for this site in your browser");
+        } else if (event.error === "service-not-allowed") {
+          setError("SPEECH SERVICE DISABLED — on iPhone enable Settings → Siri → Dictation, then reload");
         } else if (event.error === "network") {
           setError("SPEECH SERVICE UNREACHABLE — try Chrome, or check connection");
+        } else if (event.error === "audio-capture") {
+          setError("NO MICROPHONE FOUND — check your device's mic");
+        } else if (event.error !== "no-speech" && event.error !== "aborted") {
+          setError(`VOICE ERROR — ${event.error}`);
         }
         finish();
       };
@@ -222,12 +228,25 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
     setError(null);
     // Force the mic permission prompt up front so failures are visible.
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError("MIC UNAVAILABLE HERE — open SAGE in the Safari/Chrome browser to use voice");
+        setBoth("listening");
+        setTimeout(() => { if (stateRef.current === "listening") setBoth("off"); }, 8000);
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
-    } catch {
-      setError("MICROPHONE BLOCKED — allow mic access for this site in your browser");
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      setError(
+        name === "NotFoundError"
+          ? "NO MICROPHONE FOUND — check your device's mic"
+          : name === "NotAllowedError"
+            ? "MICROPHONE BLOCKED — allow mic access for this site (Settings → Safari/Chrome → Microphone)"
+            : `MIC ERROR — ${name || "unknown"}. Allow mic access and reload.`,
+      );
       setBoth("listening"); // open the overlay so the error is visible
-      setTimeout(() => { if (stateRef.current === "listening") setBoth("off"); }, 4000);
+      setTimeout(() => { if (stateRef.current === "listening") setBoth("off"); }, 8000);
       return;
     }
     // ChatGPT-style: no spoken preamble — start listening instantly for a

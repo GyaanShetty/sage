@@ -262,3 +262,27 @@
   .clocks { grid-template-columns: 1fr 1fr; gap: 8px; }
   .mx { overflow-x: auto; }
 }
+
+/* ── 05 geo map ── */
+.geo-map { height: 320px; width: 100%; background: var(--background); z-index: 1; }
+.geo-map .leaflet-container { background: #08090b; }
+.geo-readout { position: absolute; z-index: 500; right: 14px; top: 14px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--live); background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 5px 9px; backdrop-blur: 4px; }
+.geo-home { background: var(--live); border-radius: 50%; box-shadow: 0 0 12px var(--live-glow), 0 0 0 3px rgba(94,207,214,.18); }
+.geo-dest { background: var(--foreground); border-radius: 50%; box-shadow: 0 0 8px rgba(244,244,245,.5); }
+.leaflet-control-zoom a { background: var(--panel-hi) !important; color: var(--muted) !important; border-color: var(--border-glass) !important; }
+
+/* ── 08 learn: flashcards ── */
+.fcard-cell { display: flex; align-items: center; justify-content: center; min-height: 240px; }
+.fcard { max-width: 560px; width: 100%; cursor: pointer; text-align: center; padding: 18px 8px; }
+.fcard .fc-meta { display: flex; justify-content: space-between; margin-bottom: 18px; }
+.fcard .fc-q { font-weight: 300; font-size: 21px; line-height: 1.45; letter-spacing: -0.2px; }
+.fcard .fc-a { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-glass); font-size: 14px; line-height: 1.65; color: var(--muted); }
+.fcard .fc-hint { margin-top: 22px; font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--subtle); animation: hintPulse 2.4s ease-in-out infinite; }
+@keyframes hintPulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.fcard .fc-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+.fcard .fc-got { border-color: var(--live-dim); color: var(--live); }
+
+@media (max-width: 767px) {
+  .geo-map { height: 240px; }
+  .fcard .fc-q { font-size: 17px; }
+}

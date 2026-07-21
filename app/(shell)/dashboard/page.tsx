@@ -8,6 +8,7 @@ import {
   type TaskRow,
 } from "@/features/dashboard/components/command-view";
 import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/components/bands";
+import { LearnBand } from "@/features/dashboard/components/learn-band";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
@@ -46,6 +47,7 @@ export default async function DashboardPage() {
     { data: weekEvents },
     { data: journalNote },
     weather,
+    { data: healthEvent },
   ] = await Promise.all([
     db
       .from("Task")
@@ -87,6 +89,15 @@ export default async function DashboardPage() {
       .eq("journalDate", today.toISOString())
       .maybeSingle(),
     getWeather(),
+    db
+      .from("Event")
+      .select("payload")
+      .eq("userId", DEFAULT_USER_ID)
+      .eq("type", "health.report")
+      .gte("createdAt", new Date(Date.now() - 36 * 3600 * 1000).toISOString())
+      .order("createdAt", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   // Mon..Sun real event counts
@@ -117,9 +128,19 @@ export default async function DashboardPage() {
       />
       <MissionControl />
       <OpsBand />
-      <WorldBand />
+      <WorldBand
+        geo={{
+          lat: Number(process.env.SAGE_LAT ?? 12.9716),
+          lon: Number(process.env.SAGE_LON ?? 77.5946),
+        }}
+      />
       <ConsoleBand stats={{ open, notes: noteCount, memories }} />
-      <ReviewBand activity={activity} journal={journal} />
+      <ReviewBand
+        activity={activity}
+        journal={journal}
+        health={(healthEvent?.payload ?? null) as Record<string, unknown> | null}
+      />
+      <LearnBand />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 import { searchKnowledge } from "@/core/knowledge/search";
 import { webSearch } from "@/infrastructure/search/tavily";
+import { proxyFetch } from "@/infrastructure/http/fetch";
 import { createGmailDraft, listUnreadEmails, listUpcomingEvents, searchGmail } from "@/infrastructure/integrations/google";
 import { githubSummary } from "@/infrastructure/integrations/github";
 import { getNowPlaying, spotifyControl, spotifyPlaySearch } from "@/infrastructure/integrations/spotify";
@@ -169,6 +170,39 @@ export const nativeTools = {
         return { ok: false, error: "Web search not configured (TAVILY_API_KEY missing)" };
       if ("error" in (results as object))
         return { ok: false, error: (results as { error: string }).error };
+      return { ok: true, results };
+    },
+  }),
+
+  news_search: tool({
+    description:
+      "Search current news headlines about a specific topic (e.g. 'ISRO', 'RBI rate decision'). Prefer this over web_search for news questions.",
+    inputSchema: z.object({ topic: z.string() }),
+    execute: async ({ topic }) => {
+      const key = process.env.GNEWS_API_KEY;
+      if (key) {
+        try {
+          const res = await proxyFetch(
+            `https://gnews.io/api/v4/search?q=${encodeURIComponent(topic)}&lang=en&country=in&max=6&apikey=${key}`,
+            { signal: AbortSignal.timeout(8000) },
+          );
+          if (res.ok) {
+            const j = (await res.json()) as {
+              articles?: { title: string; source?: { name?: string }; publishedAt?: string; url: string }[];
+            };
+            const articles = (j.articles ?? []).map((a) => ({
+              title: a.title,
+              source: a.source?.name ?? "",
+              publishedAt: a.publishedAt ?? "",
+              url: a.url,
+            }));
+            if (articles.length) return { ok: true, articles };
+          }
+        } catch {}
+      }
+      // No GNews key (or it failed) — fall back to general web search.
+      const results = await webSearch(`latest news: ${topic}`).catch(() => null);
+      if (results === null) return { ok: false, error: "No news source configured" };
       return { ok: true, results };
     },
   }),

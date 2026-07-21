@@ -8,6 +8,7 @@ export interface Weather {
   label: string;
   wind: number;
   place: string;
+  aqi?: number | null;
 }
 
 const WMO: Record<number, string> = {
@@ -24,8 +25,17 @@ export async function getWeather(): Promise<Weather | null> {
   const place = process.env.SAGE_PLACE ?? "Bengaluru";
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
-    const res = await proxyFetch(url, { signal: AbortSignal.timeout(8000) });
+    const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
+    const [res, aqiRes] = await Promise.all([
+      proxyFetch(url, { signal: AbortSignal.timeout(8000) }),
+      proxyFetch(aqiUrl, { signal: AbortSignal.timeout(8000) }).catch(() => null),
+    ]);
     if (!res.ok) return null;
+    let aqi: number | null = null;
+    if (aqiRes?.ok) {
+      const aj = (await aqiRes.json()) as { current?: { us_aqi?: number } };
+      aqi = typeof aj.current?.us_aqi === "number" ? Math.round(aj.current.us_aqi) : null;
+    }
     const j = (await res.json()) as {
       current: { temperature_2m: number; weather_code: number; wind_speed_10m: number };
       daily: { temperature_2m_max: number[]; temperature_2m_min: number[] };
@@ -38,6 +48,7 @@ export async function getWeather(): Promise<Weather | null> {
       label: WMO[j.current.weather_code] ?? "—",
       wind: Math.round(j.current.wind_speed_10m),
       place,
+      aqi,
     };
   } catch {
     return null;

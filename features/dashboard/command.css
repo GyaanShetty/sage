@@ -237,3 +237,28 @@
 /* ── fix blank grey gaps: bottom cell of each stack fills the grid row ── */
 .deck1 .stack > .cell:last-child { flex: 1 1 auto; }
 .stack { background: var(--border-glass); }
+
+/* ── mobile-adaptive (phones) ─────────────────────────── */
+@media (max-width: 767px) {
+  .section { padding: 14px 12px; }
+  .sectitle { margin-bottom: 12px; }
+  .sectitle h2 { font-size: 16px; }
+
+  /* hero scales to width, not viewport height (children are absolute → needs explicit height) */
+  .hero { min-height: min(118vw, 470px); padding-top: 110px; overflow: hidden; }
+  #dial { width: min(86vw, 340px); height: min(86vw, 340px); }
+  #globe { width: min(66vw, 260px); height: min(66vw, 260px); }
+  .greeting .g2 { font-size: 21px; }
+  .vitrow { top: 12px; right: 12px; }
+  .vitrow .vv { font-size: 17px; }
+  .vitrow .dv { margin: 8px 0; }
+
+  .cell { padding: 14px 13px; }
+  .askbox input, .askbox textarea { font-size: 16px; } /* stop iOS zoom-on-focus */
+
+  .ct .cv { font-size: 18px; }
+  .ck2 .cv { font-size: 16px; }
+  .term { height: 220px; }
+  .clocks { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mx { overflow-x: auto; }
+}

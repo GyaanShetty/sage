@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CalendarDays, Check, Mail } from "lucide-react";
+import { CalendarDays, Check, Mail, Music } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
@@ -9,9 +9,13 @@ import { APP_NAME } from "@/lib/config";
 export function SettingsView({
   googleConnected,
   googleConfigured,
+  spotifyConnected,
+  spotifyConfigured,
 }: {
   googleConnected: boolean;
   googleConfigured: boolean;
+  spotifyConnected: boolean;
+  spotifyConfigured: boolean;
 }) {
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
@@ -51,6 +55,27 @@ export function SettingsView({
               <span className="text-xs text-subtle">
                 Set GOOGLE_OAUTH_CLIENT_ID/SECRET to enable
               </span>
+            )}
+          </GlassPanel>
+
+          <GlassPanel className="mt-3 flex items-center gap-4 p-5">
+            <Music className="size-5 text-muted" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Spotify</p>
+              <p className="text-xs text-subtle">
+                Now-playing panel + voice control (&quot;play my focus playlist&quot;).
+              </p>
+            </div>
+            {spotifyConnected ? (
+              <span className="flex items-center gap-1.5 border border-border-glass bg-glass-strong px-3 py-1 text-xs text-live">
+                <Check className="size-3.5" /> Connected
+              </span>
+            ) : spotifyConfigured ? (
+              <a href="/api/integrations/spotify" className="bg-accent px-3.5 py-1.5 text-xs font-medium text-background">
+                Connect
+              </a>
+            ) : (
+              <span className="text-xs text-subtle">Set SPOTIFY_CLIENT_ID/SECRET</span>
             )}
           </GlassPanel>
         </motion.div>

@@ -37,3 +37,36 @@ export async function getMarkets(): Promise<Coin[] | null> {
     return null;
   }
 }
+
+export interface Stock { symbol: string; price: number; change: number }
+
+/**
+ * Stock quotes via Alpha Vantage (free tier: 25 req/day — keep the list small,
+ * cache aggressively upstream). Symbols default to a few majors + Indian .BSE.
+ */
+export async function getStocks(): Promise<Stock[] | null> {
+  const key = process.env.ALPHAVANTAGE_KEY;
+  if (!key) return null;
+  const symbols = (process.env.SAGE_STOCKS ?? "RELIANCE.BSE,TCS.BSE,NVDA").split(",").map((s) => s.trim());
+  const out: Stock[] = [];
+  for (const symbol of symbols) {
+    try {
+      const res = await proxyFetch(
+        `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${key}`,
+        { signal: AbortSignal.timeout(9000) },
+      );
+      if (!res.ok) continue;
+      const j = (await res.json()) as { "Global Quote"?: Record<string, string> };
+      const q = j["Global Quote"];
+      if (!q || !q["05. price"]) continue;
+      out.push({
+        symbol: symbol.replace(".BSE", ""),
+        price: parseFloat(q["05. price"]),
+        change: parseFloat((q["10. change percent"] ?? "0").replace("%", "")),
+      });
+    } catch {
+      /* skip */
+    }
+  }
+  return out.length ? out : null;
+}

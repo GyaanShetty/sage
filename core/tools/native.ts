@@ -4,7 +4,9 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 import { searchKnowledge } from "@/core/knowledge/search";
 import { webSearch } from "@/infrastructure/search/tavily";
-import { createGmailDraft, listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
+import { createGmailDraft, listUnreadEmails, listUpcomingEvents, searchGmail } from "@/infrastructure/integrations/google";
+import { githubSummary } from "@/infrastructure/integrations/github";
+import { getNowPlaying, spotifyControl, spotifyPlaySearch } from "@/infrastructure/integrations/spotify";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -105,6 +107,55 @@ export const nativeTools = {
       if (ok === null) return { ok: false, error: "Gmail not connected (Settings → Connect Google)" };
       if (!ok) return { ok: false, error: "Could not create draft (re-connect Google for compose access)" };
       return { ok: true, to, subject, note: "Draft created in Gmail — review and send there." };
+    },
+  }),
+
+  linkedin_activity: tool({
+    description:
+      "Surface the user's recent LinkedIn activity (connection requests, messages, notifications) from their Gmail, since LinkedIn has no direct API.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const mail = await searchGmail("from:linkedin.com newer_than:7d");
+      if (mail === null) return { ok: false, error: "Gmail not connected" };
+      return { ok: true, items: mail.map((m) => ({ subject: m.subject, snippet: m.snippet.slice(0, 120) })) };
+    },
+  }),
+
+  github_status: tool({
+    description:
+      "Check the user's GitHub: PRs awaiting their review, their open PRs, and recent repos. Use for 'what needs my review', 'my PRs', 'github status'.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const summary = await githubSummary();
+      if (summary === null) return { ok: false, error: "GitHub not configured" };
+      return { ok: true, summary };
+    },
+  }),
+
+  spotify_now: tool({
+    description: "Check what's currently playing on the user's Spotify.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const now = await getNowPlaying();
+      if (now === null) return { ok: false, error: "Spotify not connected (Settings → Connect Spotify)" };
+      if (!now.track) return { ok: true, playing: false, note: "Nothing playing" };
+      return { ok: true, playing: now.playing, track: now.track, artist: now.artist };
+    },
+  }),
+
+  spotify_control: tool({
+    description:
+      "Control Spotify playback. action: play/pause/next/previous, OR playSearch with a query to start a playlist/song (e.g. 'my focus playlist', 'lofi beats').",
+    inputSchema: z.object({
+      action: z.enum(["play", "pause", "next", "previous", "playSearch"]),
+      query: z.string().optional(),
+    }),
+    execute: async ({ action, query }) => {
+      const ok = action === "playSearch"
+        ? await spotifyPlaySearch(query ?? "")
+        : await spotifyControl(action);
+      if (ok === null) return { ok: false, error: "Spotify not connected" };
+      return { ok: !!ok, action, query };
     },
   }),
 

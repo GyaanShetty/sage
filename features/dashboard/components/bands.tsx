@@ -98,7 +98,7 @@ export function WorldBand() {
 
   return (
     <section className="section" id="world" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">04</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · CLOCKS · MESH · SIM</span></div>
+      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · CLOCKS · MESH · SIM</span></div>
       <div className="grid deck3">
         <div className="cell">
           <div className="bh"><span className="t">Global Monitor</span><span className="i">EYE</span><span className="r">DAY/NIGHT LIVE</span></div>
@@ -206,7 +206,7 @@ export function ConsoleBand({ stats }: { stats: { open: number; notes: number; m
 
   return (
     <section className="section" id="console" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">05</span><h2>Console</h2><span className="line" /><span className="tag">TERMINAL · REAL COMMANDS</span></div>
+      <div className="sectitle"><span className="sn">06</span><h2>Console</h2><span className="line" /><span className="tag">TERMINAL · REAL COMMANDS</span></div>
       <div className="grid deck6">
         <div className="cell">
           <div className="bh"><span className="t">Terminal</span><span className="i">TTY</span><span className="r">sage@command</span></div>
@@ -272,7 +272,7 @@ export function ReviewBand({ activity, journal }: { activity: number[]; journal:
 
   return (
     <section className="section" id="review" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">06</span><h2>Review</h2><span className="line" /><span className="tag">ACTIVITY · JOURNAL</span></div>
+      <div className="sectitle"><span className="sn">07</span><h2>Review</h2><span className="line" /><span className="tag">ACTIVITY · JOURNAL</span></div>
       <div className="grid deck7">
         <div className="cell">
           <div className="bh"><span className="t">System Activity</span><span className="i">WKL</span><span className="r">EVENTS / DAY · REAL</span></div>

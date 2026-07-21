@@ -220,3 +220,16 @@
 .empty-state .es-mark { opacity: 0.4; margin: 0 auto 10px; }
 .empty-state .es-t { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--subtle); text-transform: uppercase; }
 .empty-state .es-d { font-size: 11px; color: var(--faint); margin-top: 5px; }
+
+/* ── terminal polish ── */
+.term-cursor { width: 7px; height: 14px; background: var(--live); display: inline-block; animation: termBlink 1.1s steps(1) infinite; flex: 0 0 7px; box-shadow: 0 0 6px var(--live-glow); }
+@keyframes termBlink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+.term .tout .tl.cmd { color: var(--live); }
+.term .tin .tp { transition: color 0.2s var(--ease); }
+
+/* ── data-viz crosshair ── */
+.chart-wrap { position: relative; }
+.chart-crosshair { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--live-dim); pointer-events: none; opacity: 0; transition: opacity 0.12s; }
+.chart-wrap:hover .chart-crosshair { opacity: 1; }
+.chart-tip { position: absolute; transform: translate(-50%, -120%); background: var(--panel-hi); border: 1px solid var(--border-glass-strong); padding: 4px 8px; font-family: var(--mono); font-size: 9px; color: var(--foreground); pointer-events: none; white-space: nowrap; opacity: 0; }
+.chart-wrap:hover .chart-tip { opacity: 1; }

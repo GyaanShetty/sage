@@ -50,7 +50,7 @@ function Dial() {
   return <svg id="dial" ref={ref} viewBox="0 0 400 400" fill="none" />;
 }
 
-function Globe() {
+function Globe({ nodeCount = 8 }: { nodeCount?: number }) {
   const ref = useRef<SVGSVGElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -58,29 +58,79 @@ function Globe() {
     const cx = 150, cy = 150, Rg = 112;
     let ph = 0, raf = 0, last = 0;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const frame = () => {
-      let s = `<circle cx="${cx}" cy="${cy}" r="${Rg}" stroke="rgba(244,244,245,.28)" stroke-width="1" fill="none"/>`;
+
+    // Orbiting memory nodes: each on a tilted plane at its own radius/speed/phase.
+    const N = Math.max(5, Math.min(14, nodeCount));
+    const nodes = Array.from({ length: N }, (_, i) => ({
+      r: Rg * (1.06 + (i % 3) * 0.12),
+      tilt: (-0.5 + (i / N)) * 1.1,       // orbital plane tilt
+      speed: 0.006 + (i % 4) * 0.0025,
+      phase: (i / N) * Math.PI * 2,
+      syncAt: 0,
+    }));
+
+    const project = (n: (typeof nodes)[number], t: number) => {
+      const a = n.phase + t * n.speed * 60;
+      const x = Math.cos(a) * n.r;
+      const yFlat = Math.sin(a) * n.r;
+      const y = yFlat * Math.cos(n.tilt);
+      const z = yFlat * Math.sin(n.tilt);       // +z = front
+      return { x: cx + x, y: cy + y, front: z >= 0, depth: (z + n.r) / (2 * n.r) };
+    };
+
+    const frame = (t: number) => {
+      const breath = reduced ? 1 : 1 + Math.sin(t * 0.0014) * 0.02;
+      const R = Rg * breath;
+      let s = "";
+      // ambient core glow
+      s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#gcore)"/>`;
+      s += `<circle cx="${cx}" cy="${cy}" r="${R}" stroke="rgba(244,244,245,.26)" stroke-width="1" fill="none"/>`;
       for (const lat of [-60, -30, 0, 30, 60]) {
-        const f = (lat * Math.PI) / 180, rx = Rg * Math.cos(f), ry = rx * 0.3, y = cy - Rg * Math.sin(f) * 0.62;
-        s += `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" stroke="${lat === 0 ? "rgba(244,244,245,.35)" : "rgba(244,244,245,.14)"}" stroke-width="1" fill="none"/>`;
+        const f = (lat * Math.PI) / 180, rx = R * Math.cos(f), ry = rx * 0.3, y = cy - R * Math.sin(f) * 0.62;
+        s += `<ellipse cx="${cx}" cy="${y}" rx="${rx}" ry="${ry}" stroke="${lat === 0 ? "rgba(244,244,245,.32)" : "rgba(244,244,245,.12)"}" stroke-width="1" fill="none"/>`;
       }
       for (let i = 0; i < 8; i++) {
-        const w = Math.cos(ph + (i * Math.PI) / 8), rx = Math.abs(w) * Rg, op = (0.1 + 0.22 * Math.abs(w)).toFixed(3);
-        s += `<ellipse cx="${cx}" cy="${cy}" rx="${rx.toFixed(1)}" ry="${Rg}" stroke="rgba(244,244,245,${op})" stroke-width="1" fill="none"/>`;
+        const w = Math.cos(ph + (i * Math.PI) / 8), rx = Math.abs(w) * R, op = (0.08 + 0.20 * Math.abs(w)).toFixed(3);
+        s += `<ellipse cx="${cx}" cy="${cy}" rx="${rx.toFixed(1)}" ry="${R}" stroke="rgba(244,244,245,${op})" stroke-width="1" fill="none"/>`;
       }
-      [0.4, 1.7, 2.9, 4.3, 5.6].forEach((a) => {
-        const an = ph + a, px = cx + Rg * Math.sin(an), fr = Math.cos(an) > 0;
-        s += `<circle cx="${px.toFixed(1)}" cy="${cy}" r="${fr ? 2.4 : 1.2}" fill="#f4f4f5" opacity="${fr ? 1 : 0.25}"/>`;
+
+      // constellation links between nearby front-facing nodes
+      const pts = nodes.map((n) => project(n, t));
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          if (!pts[i].front || !pts[j].front) continue;
+          const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y, d = Math.hypot(dx, dy);
+          if (d < 74) s += `<line x1="${pts[i].x.toFixed(1)}" y1="${pts[i].y.toFixed(1)}" x2="${pts[j].x.toFixed(1)}" y2="${pts[j].y.toFixed(1)}" stroke="rgba(94,207,214,${(0.16 * (1 - d / 74)).toFixed(3)})"/>`;
+        }
+      }
+      // orbiting memory nodes (occasional cyan sync pulse)
+      nodes.forEach((n, i) => {
+        const p = pts[i];
+        if (Math.random() < 0.004) n.syncAt = t;
+        const syncing = t - n.syncAt < 700;
+        const size = (p.front ? 2.6 : 1.4) * (0.6 + p.depth * 0.6);
+        const fill = syncing ? "var(--live)" : "#f4f4f5";
+        const op = p.front ? 1 : 0.3;
+        if (syncing) {
+          const age = (t - n.syncAt) / 700;
+          s += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${(3 + age * 9).toFixed(1)}" stroke="rgba(94,207,214,${(0.5 * (1 - age)).toFixed(2)})" fill="none"/>`;
+        }
+        s += `<rect x="${(p.x - size).toFixed(1)}" y="${(p.y - size).toFixed(1)}" width="${(size * 2).toFixed(1)}" height="${(size * 2).toFixed(1)}" transform="rotate(45 ${p.x.toFixed(1)} ${p.y.toFixed(1)})" fill="${fill}" opacity="${op}"/>`;
       });
-      el.innerHTML = s;
+
+      el.innerHTML =
+        `<defs><radialGradient id="gcore" cx="50%" cy="50%" r="50%">` +
+        `<stop offset="0%" stop-color="rgba(94,207,214,0.06)"/><stop offset="70%" stop-color="rgba(94,207,214,0.015)"/><stop offset="100%" stop-color="transparent"/>` +
+        `</radialGradient></defs>` + s;
     };
-    frame();
+
+    frame(0);
     if (!reduced) {
-      const loop = (t: number) => { if (t - last > 33) { ph += 0.012; frame(); last = t; } raf = requestAnimationFrame(loop); };
+      const loop = (t: number) => { if (t - last > 33) { ph += 0.012; frame(t); last = t; } raf = requestAnimationFrame(loop); };
       raf = requestAnimationFrame(loop);
     }
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [nodeCount]);
   return <svg id="globe" ref={ref} viewBox="0 0 300 300" fill="none" />;
 }
 
@@ -232,7 +282,7 @@ export function CommandView({
           <div className="stack">
             <div className="cell hero">
               <Dial />
-              <Globe />
+              <Globe nodeCount={Math.round(stats.memories / 2) + 5} />
               <div className="greeting">
                 <div className="g1">Sage · Online</div>
                 <div className="g2">{greet}, {userName}</div>

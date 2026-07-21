@@ -82,7 +82,7 @@
 /* agenda */
 .ag { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(244,244,245,.06); }
 .ag:last-child { border-bottom: 0; }
-.ag .tm { font-family: var(--mono); font-size: 9.5px; color: var(--subtle); width: 40px; flex: 0 0 40px; }
+.ag .tm { font-family: var(--mono); font-size: 9px; color: var(--subtle); width: 62px; flex: 0 0 62px; line-height: 1.5; }
 .ag .mk2 { width: 7px; flex: 0 0 7px; display: flex; justify-content: center; position: relative; }
 .ag .mk2::before { content: ""; position: absolute; top: 5px; bottom: -14px; width: 1px; background: var(--hairbg); }
 .ag:last-child .mk2::before { display: none; }

@@ -7,7 +7,7 @@ import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
 export interface TaskRow { id: string; title: string; status: string; dueAt: string | null }
-export interface EventRow { summary: string; start: string }
+export interface EventRow { summary: string; start: string; allDay?: boolean }
 export interface NoteRow { id: string; title: string; createdAt: string }
 export interface LogRow { type: string; createdAt: string }
 export interface Stats { memories: number; sources: number; runs: number; notes: number }
@@ -355,7 +355,10 @@ export function CommandView({
                 const isNext = i === 0;
                 return (
                   <div className={`ag${isNext ? " now" : ""}`} key={i}>
-                    <span className="tm">{fmt(d, { weekday: "short" }).toUpperCase()} {fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+                    <span className="tm">
+                      {fmt(d, { weekday: "short" }).toUpperCase()}{" "}
+                      {e.allDay ? "ALL DAY" : fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    </span>
                     <span className="mk2"><i /></span>
                     <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
                   </div>

@@ -110,6 +110,7 @@ export interface CalendarEvent {
   summary: string;
   start: string;
   end: string;
+  allDay?: boolean;
   location?: string;
 }
 
@@ -139,6 +140,7 @@ export async function listUpcomingEvents(maxResults = 8): Promise<CalendarEvent[
     summary: e.summary ?? "(no title)",
     start: e.start?.dateTime ?? e.start?.date ?? "",
     end: e.end?.dateTime ?? e.end?.date ?? "",
+    allDay: !e.start?.dateTime && !!e.start?.date,
     ...(e.location ? { location: e.location } : {}),
   }));
 }

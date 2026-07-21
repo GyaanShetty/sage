@@ -16,6 +16,8 @@ export function GeoMap({ lat: LAT = 12.9716, lon: LON = 77.5946 }: { lat?: numbe
   const elRef = useRef<HTMLDivElement>(null);
   const [route, setRoute] = useState<RouteInfo | null>(null);
   const [routing, setRouting] = useState(false);
+  const [located, setLocated] = useState(false);
+  const originRef = useRef<{ lat: number; lon: number }>({ lat: LAT, lon: LON });
 
   useEffect(() => {
     let disposed = false;
@@ -33,8 +35,24 @@ export function GeoMap({ lat: LAT = 12.9716, lon: LON = 77.5946 }: { lat?: numbe
       }).addTo(map);
 
       const homeIcon = L.divIcon({ className: "geo-home", iconSize: [12, 12] });
-      L.marker([LAT, LON], { icon: homeIcon }).addTo(map);
-      L.circle([LAT, LON], { radius: 400, color: "#5ecfd6", weight: 1, opacity: 0.4, fillOpacity: 0.06 }).addTo(map);
+      const homeMarker = L.marker([LAT, LON], { icon: homeIcon }).addTo(map);
+      const homeRing = L.circle([LAT, LON], { radius: 400, color: "#5ecfd6", weight: 1, opacity: 0.4, fillOpacity: 0.06 }).addTo(map);
+
+      // Use the device's real position when the user allows it — the env
+      // coords are only a fallback so the map never opens on a blank spot.
+      navigator.geolocation?.getCurrentPosition(
+        (pos) => {
+          if (disposed || !map) return;
+          const { latitude, longitude } = pos.coords;
+          originRef.current = { lat: latitude, lon: longitude };
+          homeMarker.setLatLng([latitude, longitude]);
+          homeRing.setLatLng([latitude, longitude]);
+          map.setView([latitude, longitude], 14);
+          setLocated(true);
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
 
       let routeLine: import("leaflet").Polyline | null = null;
       let destMarker: import("leaflet").Marker | null = null;
@@ -47,8 +65,9 @@ export function GeoMap({ lat: LAT = 12.9716, lon: LON = 77.5946 }: { lat?: numbe
         destMarker?.remove();
         destMarker = L.marker(e.latlng, { icon: L.divIcon({ className: "geo-dest", iconSize: [10, 10] }) }).addTo(map);
         try {
+          const origin = originRef.current;
           const res = await fetch(
-            `https://router.project-osrm.org/route/v1/driving/${LON},${LAT};${e.latlng.lng},${e.latlng.lat}?overview=full&geometries=geojson`,
+            `https://router.project-osrm.org/route/v1/driving/${origin.lon},${origin.lat};${e.latlng.lng},${e.latlng.lat}?overview=full&geometries=geojson`,
           );
           const json = await res.json();
           const r = json?.routes?.[0];
@@ -80,7 +99,13 @@ export function GeoMap({ lat: LAT = 12.9716, lon: LON = 77.5946 }: { lat?: numbe
         <span className="i">GEO</span>
       </div>
       <div className="geo-readout">
-        {routing ? "ROUTING…" : route ? `${route.km.toFixed(1)} KM · ${Math.round(route.mins)} MIN DRIVE` : "TAP MAP FOR ROUTE + ETA"}
+        {routing
+          ? "ROUTING…"
+          : route
+            ? `${route.km.toFixed(1)} KM · ${Math.round(route.mins)} MIN DRIVE`
+            : located
+              ? "LOCKED ON YOU · TAP MAP FOR ROUTE + ETA"
+              : "TAP MAP FOR ROUTE + ETA"}
       </div>
       <div ref={elRef} className="geo-map" />
     </div>

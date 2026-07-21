@@ -168,3 +168,13 @@
 .jent .jx { font-size: 12.5px; line-height: 1.5; font-weight: 300; }
 
 @media (max-width: 1080px) { .deck3, .deck6, .deck7 { grid-template-columns: 1fr; } }
+
+/* ── Mission Control: markets + news ── */
+.deckmc { grid-template-columns: 1fr 1.4fr; }
+.news { display: block; padding: 9px 0; border-bottom: 1px solid rgba(244,244,245,.06); text-decoration: none; }
+.news:last-child { border-bottom: 0; }
+.news:hover .nh { color: var(--foreground); }
+.news .ns { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); }
+.news .nh { font-size: 12.5px; line-height: 1.45; color: var(--muted); margin-top: 2px; transition: .15s; }
+.news .nt { font-family: var(--mono); font-size: 8px; color: var(--faint); margin-top: 2px; }
+@media (max-width: 1080px) { .deckmc { grid-template-columns: 1fr; } }

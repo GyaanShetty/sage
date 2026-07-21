@@ -66,17 +66,48 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join("\n");
 
-  const { text: reply } = await generateText({
-    model,
-    system:
-      VOICE_PROMPT +
-      `\n\nCurrent datetime: ${new Date().toISOString()}` +
-      renderMemoryBlock(memories) +
-      (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : ""),
-    prompt: text,
-    tools: { ...nativeTools, ...planningTools },
-    stopWhen: stepCountIs(4),
-  });
+  const system =
+    VOICE_PROMPT +
+    `\n\nCurrent datetime: ${new Date().toISOString()}` +
+    renderMemoryBlock(memories) +
+    (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : "");
+
+  const run = (m: NonNullable<ReturnType<typeof getModel>>) =>
+    generateText({
+      model: m,
+      system,
+      prompt: text,
+      tools: { ...nativeTools, ...planningTools },
+      stopWhen: stepCountIs(4),
+    });
+
+  let reply: string;
+  try {
+    ({ text: reply } = await run(model));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "";
+    const quotaHit = /quota|429|RESOURCE_EXHAUSTED/i.test(msg);
+    // Each Gemini model has its own free-tier daily quota — fall back to the
+    // other one before giving up.
+    const backup = getModel("smart");
+    if (quotaHit && backup) {
+      try {
+        ({ text: reply } = await run(backup));
+      } catch {
+        return NextResponse.json({
+          ok: true,
+          data: { text: "I've used up today's free AI quota. It resets around 12:30 in the afternoon our time — I'll be back then." },
+        });
+      }
+    } else if (quotaHit) {
+      return NextResponse.json({
+        ok: true,
+        data: { text: "I've used up today's free AI quota. It resets around 12:30 in the afternoon our time — I'll be back then." },
+      });
+    } else {
+      throw err;
+    }
+  }
 
   const userMessage: UIMessage = {
     id: crypto.randomUUID(),

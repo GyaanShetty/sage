@@ -13,17 +13,26 @@ interface Card {
   topic: string;
 }
 
-// One generation per day — Gemini free tier friendly.
-let cache: { day: string; cards: Card[] } | null = null;
-
 function todayKey(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 }
 
 export async function GET() {
   const day = todayKey();
-  if (cache?.day === day && cache.cards.length) {
-    return NextResponse.json({ ok: true, data: cache.cards });
+
+  // One generation per day, persisted — serverless instances share nothing,
+  // and every regeneration burns scarce free-tier quota.
+  const { data: saved } = await db
+    .from("Event")
+    .select("payload")
+    .eq("userId", DEFAULT_USER_ID)
+    .eq("type", "flashcards.daily")
+    .order("createdAt", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const savedPayload = saved?.payload as { day?: string; cards?: Card[] } | null;
+  if (savedPayload?.day === day && savedPayload.cards?.length) {
+    return NextResponse.json({ ok: true, data: savedPayload.cards });
   }
 
   const model = getModel("fast");
@@ -60,7 +69,12 @@ export async function GET() {
       prompt: `Create 4 to 6 flashcards that test genuine understanding of this material the user saved to their knowledge base. Ask about the substance (concepts, claims, numbers), never about the document itself.\n\n${material}`,
     });
     const cards = object.cards.slice(0, 6);
-    cache = { day, cards };
+    await db.from("Event").insert({
+      id: crypto.randomUUID(),
+      userId: DEFAULT_USER_ID,
+      type: "flashcards.daily",
+      payload: { day, cards },
+    });
     return NextResponse.json({ ok: true, data: cards });
   } catch (err) {
     console.error("[flashcards]", err);

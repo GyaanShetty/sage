@@ -8,6 +8,7 @@ import {
   type TaskRow,
 } from "@/features/dashboard/components/command-view";
 import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/components/bands";
+import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getWeather } from "@/infrastructure/weather";
@@ -113,6 +114,7 @@ export default async function DashboardPage() {
         weather={weather}
         userName="Gyaan"
       />
+      <MissionControl />
       <WorldBand />
       <ConsoleBand stats={{ open, notes: noteCount, memories }} />
       <ReviewBand activity={activity} journal={journal} />

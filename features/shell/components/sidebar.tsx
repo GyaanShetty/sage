@@ -37,7 +37,7 @@ export function Sidebar() {
     <motion.aside
       animate={{ width: expanded ? 240 : 64 }}
       transition={springs.smooth}
-      className="flex h-full shrink-0 flex-col border-r border-border-glass bg-glass backdrop-blur-xl"
+      className="hidden h-full shrink-0 flex-col border-r border-border-glass bg-glass backdrop-blur-xl md:flex"
     >
       <div className="flex h-14 items-center gap-3 px-4">
         <SageMark size={22} online />

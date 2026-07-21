@@ -38,7 +38,8 @@ export async function POST(req: Request) {
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return NextResponse.json({ ok: false, error: "Empty" }, { status: 400 });
 
-  const model = getModel("smart");
+  // Fast model for low-latency conversational turns.
+  const model = getModel("fast");
   if (!model) return NextResponse.json({ ok: true, data: { text: "No model configured yet." } });
 
   const threadId = await voiceThreadId();
@@ -74,7 +75,7 @@ export async function POST(req: Request) {
       (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : ""),
     prompt: text,
     tools: { ...nativeTools, ...planningTools },
-    stopWhen: stepCountIs(8),
+    stopWhen: stepCountIs(4),
   });
 
   const userMessage: UIMessage = {

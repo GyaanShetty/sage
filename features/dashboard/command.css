@@ -286,3 +286,14 @@
   .geo-map { height: 240px; }
   .fcard .fc-q { font-size: 17px; }
 }
+
+/* ── cosmos (NASA APOD) ── */
+.cosmos-row { display: flex; gap: 18px; align-items: flex-start; }
+.cosmos-row img { width: 300px; max-width: 42%; height: auto; display: block; border: 1px solid var(--border-glass); filter: saturate(0.85); }
+.cosmos-tx { flex: 1; min-width: 0; }
+.cosmos-tx .ct2 { font-weight: 300; font-size: 16px; letter-spacing: 0.3px; }
+.cosmos-tx .cd2 { font-size: 12px; line-height: 1.7; color: var(--muted); margin-top: 8px; font-weight: 300; }
+@media (max-width: 767px) {
+  .cosmos-row { flex-direction: column; }
+  .cosmos-row img { width: 100%; max-width: 100%; }
+}

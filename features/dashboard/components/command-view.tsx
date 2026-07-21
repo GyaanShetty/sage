@@ -11,7 +11,7 @@ export interface EventRow { summary: string; start: string; allDay?: boolean }
 export interface NoteRow { id: string; title: string; createdAt: string }
 export interface LogRow { type: string; createdAt: string }
 export interface Stats { memories: number; sources: number; runs: number; notes: number }
-export interface WeatherRow { temp: number; high: number; low: number; label: string; wind: number; place: string }
+export interface WeatherRow { temp: number; high: number; low: number; label: string; wind: number; place: string; aqi?: number | null }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -322,7 +322,10 @@ export function CommandView({
                 {weather && (
                   <>
                     <div className="vv num">{weather.temp}°</div>
-                    <div className="vk">{weather.place} · {weather.high}°/{weather.low}°</div>
+                    <div className="vk">
+                      {weather.place} · {weather.high}°/{weather.low}°
+                      {typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}
+                    </div>
                     <div className="dv" />
                   </>
                 )}

@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
 interface Headline { source: string; title: string; link: string; published: number }
 interface Stock { symbol: string; price: number; change: number }
+interface Fx { pair: string; rate: number }
+interface Apod { title: string; url: string; explanation: string; date: string; copyright?: string }
 
 function Spark({ data, up }: { data: number[]; up: boolean }) {
   if (!data.length) return null;
@@ -29,11 +31,15 @@ export function MissionControl() {
   const [coins, setCoins] = useState<Coin[] | null>(null);
   const [news, setNews] = useState<Headline[] | null>(null);
   const [stocks, setStocks] = useState<Stock[] | null>(null);
+  const [fx, setFx] = useState<Fx[] | null>(null);
+  const [apod, setApod] = useState<Apod | null>(null);
 
   useEffect(() => {
     fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => setCoins([]));
     fetch("/api/news").then((r) => r.json()).then((j) => setNews(j.data ?? [])).catch(() => setNews([]));
     fetch("/api/stocks").then((r) => r.json()).then((j) => setStocks(j.data ?? [])).catch(() => setStocks([]));
+    fetch("/api/fx").then((r) => r.json()).then((j) => setFx(j.data ?? [])).catch(() => setFx([]));
+    fetch("/api/cosmos").then((r) => r.json()).then((j) => setApod(j.data ?? null)).catch(() => {});
     const t = setInterval(() => {
       fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => {});
     }, 120000);
@@ -68,6 +74,18 @@ export function MissionControl() {
               ))}
             </>
           )}
+          {fx && fx.length > 0 && (
+            <>
+              <p className="lbl" style={{ margin: "12px 0 4px" }}>CURRENCY · INR</p>
+              {fx.map((f) => (
+                <div className="mkt" key={f.pair}>
+                  <span className="sym" style={{ flex: 1, width: "auto" }}>{f.pair}</span>
+                  <span className="px">₹{f.rate.toFixed(2)}</span>
+                  <span className="chg">{f.pair.startsWith("JPY") ? "PER 100" : ""}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
         <div className="cell">
           <div className="bh"><span className="t">Newswire</span><span className="i">RSS</span><span className="r">FT · MINT · COINDESK · MIT · TED</span></div>
@@ -81,6 +99,20 @@ export function MissionControl() {
             </a>
           ))}
         </div>
+        {apod && (
+          <div className="cell cosmos" style={{ gridColumn: "1 / -1" }}>
+            <div className="bh"><span className="t">Cosmos</span><span className="i">NASA</span><span className="r">{apod.date} · APOD</span></div>
+            <div className="cosmos-row">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={apod.url} alt={apod.title} loading="lazy" />
+              <div className="cosmos-tx">
+                <div className="ct2">{apod.title}</div>
+                <p className="cd2">{apod.explanation}…</p>
+                {apod.copyright && <p className="lbl" style={{ marginTop: 8 }}>© {apod.copyright}</p>}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

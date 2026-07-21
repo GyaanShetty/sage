@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { springs } from "@/lib/motion";
 import { APP_NAME } from "@/lib/config";
 import { useShellStore } from "../store";
+import { SageMark } from "@/components/ui/sage-mark";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -38,13 +39,13 @@ export function Sidebar() {
       transition={springs.smooth}
       className="flex h-full shrink-0 flex-col border-r border-border-glass bg-glass backdrop-blur-xl"
     >
-      <div className="flex h-14 items-center gap-3 px-5">
-        <div className="size-6 shrink-0 rounded-md bg-accent/90 shadow-[0_0_16px_var(--accent-glow)]" />
+      <div className="flex h-14 items-center gap-3 px-4">
+        <SageMark size={22} online />
         {expanded && (
           <motion.span
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-sm font-semibold tracking-tight"
+            className="text-sm font-medium tracking-[0.3em]"
           >
             {APP_NAME}
           </motion.span>
@@ -60,9 +61,9 @@ export function Sidebar() {
               href={href}
               title={expanded ? undefined : label}
               className={cn(
-                "flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm transition-colors",
+                "relative flex h-10 items-center gap-3 px-2.5 text-sm transition-colors",
                 active
-                  ? "bg-glass-strong text-foreground"
+                  ? "bg-glass-strong text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:bg-[var(--live)] before:content-['']"
                   : "text-muted hover:bg-glass hover:text-foreground",
               )}
             >
@@ -78,7 +79,7 @@ export function Sidebar() {
           href="/settings"
           title={expanded ? undefined : "Settings"}
           className={cn(
-            "flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm transition-colors",
+            "flex h-10 items-center gap-3 px-2.5 text-sm transition-colors",
             pathname.startsWith("/settings")
               ? "bg-glass-strong text-foreground"
               : "text-muted hover:bg-glass hover:text-foreground",
@@ -90,7 +91,7 @@ export function Sidebar() {
         <button
           onClick={toggleSidebar}
           title={expanded ? "Collapse" : "Expand"}
-          className="flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm text-subtle transition-colors hover:bg-glass hover:text-foreground"
+          className="flex h-10 items-center gap-3 px-2.5 text-sm text-subtle transition-colors hover:bg-glass hover:text-foreground"
         >
           <PanelLeft className="size-[18px] shrink-0" strokeWidth={1.75} />
           {expanded && <span>Collapse</span>}

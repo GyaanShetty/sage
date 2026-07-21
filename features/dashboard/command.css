@@ -178,3 +178,45 @@
 .news .nh { font-size: 12.5px; line-height: 1.45; color: var(--muted); margin-top: 2px; transition: .15s; }
 .news .nt { font-family: var(--mono); font-size: 8px; color: var(--faint); margin-top: 2px; }
 @media (max-width: 1080px) { .deckmc { grid-template-columns: 1fr; } }
+
+/* ── premium refinements (identity + polish pass) ── */
+/* panel elevation + hover lift */
+.grid > .cell:hover, .grid > .stack:hover > .cell:hover { background: var(--panel-hi); }
+.cell:hover { border-color: var(--border-glass-strong); }
+/* subtle top inner-light on every panel for depth */
+.cell { position: relative; }
+.cell::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(244,245,247,.06) 30%, rgba(244,245,247,.06) 70%, transparent);
+  pointer-events: none;
+}
+
+/* greeting — tighter, more confident */
+.greeting .g2 { letter-spacing: -0.5px; font-weight: 300; }
+.greeting .g1 { color: var(--live); opacity: 0.85; }
+
+/* accent on live/now/today states */
+.ag.now .mk2 i { background: var(--live); border-color: var(--live); box-shadow: 0 0 6px var(--live-glow); }
+.cal .d.today { outline-color: var(--live); color: var(--live); }
+.task .box:hover, .task:hover .box { border-color: var(--live); }
+.chip:hover { border-color: var(--live-dim); color: var(--foreground); }
+.chip:focus-visible { border-color: var(--live); }
+
+/* buttons: tiny lift on hover */
+.notein button:hover, .jbtn:hover, .gita .nxt:hover { transform: translateY(-1px); }
+.notein button, .jbtn { box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+
+/* markets/news hover */
+.mkt:hover .sym { color: var(--foreground); }
+.news:hover { background: var(--glass); }
+
+/* ask box focus glow */
+.askbox:focus-within { border-color: var(--live-dim); box-shadow: 0 0 0 1px var(--live-glow), 0 0 24px -8px var(--live-glow); }
+.askbox .sig { transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.askbox:focus-within .sig { border-color: var(--live); box-shadow: 0 0 8px var(--live-glow); }
+
+/* elegant empty state */
+.empty-state { padding: 28px 16px; text-align: center; }
+.empty-state .es-mark { opacity: 0.4; margin: 0 auto 10px; }
+.empty-state .es-t { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--subtle); text-transform: uppercase; }
+.empty-state .es-d { font-size: 11px; color: var(--faint); margin-top: 5px; }

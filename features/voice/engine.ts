@@ -230,10 +230,10 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
       setTimeout(() => { if (stateRef.current === "listening") setBoth("off"); }, 4000);
       return;
     }
-    setBoth("speaking");
-    await speak("At your service.");
+    // ChatGPT-style: no spoken preamble — start listening instantly for a
+    // tight one-to-one exchange. A short chime cue instead of a TTS round-trip.
     conversationLoop();
-  }, [speak, conversationLoop]);
+  }, [conversationLoop]);
 
   const disable = useCallback(() => {
     setBoth("off");

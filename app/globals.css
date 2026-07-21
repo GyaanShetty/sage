@@ -1,28 +1,38 @@
 @import "tailwindcss";
 
 /* ============================================================
-   SAGE · COMMAND design system (ported from prototype)
-   Monochrome. White is the only accent. Hairlines structure.
+   SAGE · COMMAND design system
+   Monochrome base. ONE accent (soft cyan) for live/focus/thinking.
+   Depth via elevation + ambient light. Spring micro-interactions.
    ============================================================ */
 :root {
-  --background: #070708;
-  --panel: #0a0a0b;
-  --foreground: #f4f4f5;
-  --muted: #9a9a9f;
-  --subtle: #5c5c62;
-  --faint: #2c2c30;
-  --hairbg: #1c1c1f;
+  --background: #08090b;
+  --panel: #0c0d0f;
+  --panel-hi: #101113;      /* raised elevation */
+  --foreground: #f4f5f7;
+  --muted: #9a9ba1;
+  --subtle: #5c5d64;
+  --faint: #2a2b30;
+  --hairbg: #1b1c20;
 
-  --glass: rgba(244, 244, 245, 0.03);
-  --glass-strong: rgba(244, 244, 245, 0.07);
-  --border-glass: rgba(244, 244, 245, 0.13);
-  --border-glass-strong: rgba(244, 244, 245, 0.32);
+  --glass: rgba(244, 245, 247, 0.03);
+  --glass-strong: rgba(244, 245, 247, 0.07);
+  --border-glass: rgba(244, 245, 247, 0.11);
+  --border-glass-strong: rgba(244, 245, 247, 0.30);
 
-  --accent: #f4f4f5;
-  --accent-glow: rgba(244, 244, 245, 0.18);
+  /* neutral (white) accent for general UI weight */
+  --accent: #f4f5f7;
+  --accent-glow: rgba(244, 245, 247, 0.16);
+
+  /* THE accent — soft cyan, used ONLY for online/focus/thinking/success */
+  --live: #5ecfd6;
+  --live-dim: rgba(94, 207, 214, 0.55);
+  --live-glow: rgba(94, 207, 214, 0.35);
+
   --warn: #d4b106;
   --danger: #e5484d;
 
+  --ease: cubic-bezier(0.22, 1, 0.36, 1); /* spring-like, no bounce */
   --radius: 0;
   --disp: var(--font-disp), sans-serif;
   --mono: var(--font-mono-f), monospace;
@@ -40,6 +50,7 @@
   --color-border-glass: var(--border-glass);
   --color-border-glass-strong: var(--border-glass-strong);
   --color-accent: var(--accent);
+  --color-live: var(--live);
   --color-warn: var(--warn);
   --font-sans: var(--font-disp);
   --font-mono: var(--font-mono-f);
@@ -49,26 +60,38 @@ html { scroll-behavior: smooth; }
 html, body { height: 100%; }
 
 body {
-  background: var(--background);
+  /* ambient depth: faint cool light from top, warmth pooling at center */
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(94, 207, 214, 0.035), transparent 60%),
+    radial-gradient(80% 50% at 50% 110%, rgba(244, 245, 247, 0.02), transparent 70%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--disp);
   font-size: 13px;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   overscroll-behavior: none;
 }
 
-::selection { background: var(--foreground); color: var(--background); }
+::selection { background: var(--live-dim); color: var(--background); }
 * { scrollbar-width: thin; scrollbar-color: var(--faint) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--subtle); }
+::-webkit-scrollbar-track { background: transparent; }
 
-/* technical micro-label */
+/* ── typography hierarchy ── */
 .hud-label,
 .lbl {
   font-family: var(--mono);
   font-size: 9px;
-  letter-spacing: 2.5px;
+  letter-spacing: 2.8px;   /* labels: airier, more subdued */
   text-transform: uppercase;
   color: var(--subtle);
 }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 
 /* modular hairline grid */
 .mono-grid {
@@ -81,19 +104,47 @@ body {
 
 /* section frame */
 .sectitle { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; }
-.sectitle .sn { font-family: var(--mono); font-size: 10px; color: var(--subtle); letter-spacing: 2px; }
-.sectitle h2 { font-weight: 300; font-size: 20px; letter-spacing: 3px; text-transform: uppercase; }
-.sectitle .line { flex: 1; height: 1px; background: rgba(244, 244, 245, 0.06); }
+.sectitle .sn { font-family: var(--mono); font-size: 10px; color: var(--live); letter-spacing: 2px; opacity: 0.8; }
+.sectitle h2 { font-weight: 300; font-size: 21px; letter-spacing: 1.5px; text-transform: uppercase; }
+.sectitle .line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--border-glass), transparent); }
 .sectitle .tag { font-family: var(--mono); font-size: 9px; color: var(--subtle); letter-spacing: 1px; }
 
 /* cell header */
 .bh { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
-.bh .t { font-weight: 500; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; }
+.bh .t { font-weight: 500; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
 .bh .i { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); }
 .bh .r { margin-left: auto; font-family: var(--mono); font-size: 8.5px; color: var(--subtle); letter-spacing: 1px; }
 
-.hud-grid { background: var(--background); }
-.num { font-variant-numeric: tabular-nums; }
+.hud-grid { background: transparent; }
 
-:focus-visible { outline: 1px solid var(--foreground); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+/* ── identity mark ── */
+.sage-mark { color: var(--foreground); transition: filter 0.3s var(--ease); }
+.sage-mark .s { transform-box: fill-box; transform-origin: center; transition: transform 0.35s var(--ease), stroke 0.3s var(--ease); }
+.sage-mark .s-tr { transform: translate(0.6px, -0.6px); }
+.sage-mark .s-br { transform: translate(0.6px, 0.6px); }
+.sage-mark .s-bl { transform: translate(-0.6px, 0.6px); }
+.sage-mark .s-tl { transform: translate(-0.6px, -0.6px); }
+.sage-mark__core { transition: fill 0.3s var(--ease); transform-box: fill-box; transform-origin: center; }
+/* hover: segments breathe outward, core brightens */
+.sage-mark:hover .s-tr { transform: translate(1.5px, -1.5px); }
+.sage-mark:hover .s-br { transform: translate(1.5px, 1.5px); }
+.sage-mark:hover .s-bl { transform: translate(-1.5px, 1.5px); }
+.sage-mark:hover .s-tl { transform: translate(-1.5px, -1.5px); }
+.sage-mark:hover .sage-mark__core { animation: corePulse 1.4s var(--ease) infinite; }
+/* online: soft cyan glow + tinted core */
+.sage-mark--online { filter: drop-shadow(0 0 5px var(--live-glow)); }
+.sage-mark--online .sage-mark__core { fill: var(--live); }
+.sage-mark--online .s { stroke: color-mix(in srgb, var(--foreground) 82%, var(--live)); }
+@keyframes corePulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.5); } }
+
+/* ── micro-interactions ── */
+.cell { transition: border-color 0.18s var(--ease), background 0.18s var(--ease), transform 0.18s var(--ease); }
+button, a, .chip, .task, .note, .news { transition: color 0.15s var(--ease), border-color 0.15s var(--ease), background 0.15s var(--ease), transform 0.15s var(--ease), box-shadow 0.15s var(--ease); }
+button:active, .chip:active { transform: translateY(1px); }
+
+/* live accent utility hooks */
+.live { color: var(--live); }
+.live-dot { background: var(--live); box-shadow: 0 0 8px var(--live-glow); }
+
+:focus-visible { outline: 1px solid var(--live); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; } }

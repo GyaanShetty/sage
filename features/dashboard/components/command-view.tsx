@@ -10,6 +10,7 @@ export interface EventRow { summary: string; start: string }
 export interface NoteRow { id: string; title: string; createdAt: string }
 export interface LogRow { type: string; createdAt: string }
 export interface Stats { memories: number; sources: number; runs: number; notes: number }
+export interface WeatherRow { temp: number; high: number; low: number; label: string; wind: number; place: string }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -90,6 +91,7 @@ export function CommandView({
   notes: initialNotes,
   log,
   stats,
+  weather,
   userName,
 }: {
   tasks: TaskRow[];
@@ -97,6 +99,7 @@ export function CommandView({
   notes: NoteRow[];
   log: LogRow[];
   stats: Stats;
+  weather: WeatherRow | null;
   userName: string;
 }) {
   const router = useRouter();
@@ -233,9 +236,19 @@ export function CommandView({
               <div className="greeting">
                 <div className="g1">Sage · Online</div>
                 <div className="g2">{greet}, {userName}</div>
-                <div className="g3">{todays.length} events today · {open} open · {stats.memories} memories</div>
+                <div className="g3">
+                  {weather ? `${weather.place} ${weather.temp}° · ${weather.label} · ` : ""}
+                  {todays.length} events today · {open} open
+                </div>
               </div>
               <div className="vitrow">
+                {weather && (
+                  <>
+                    <div className="vv num">{weather.temp}°</div>
+                    <div className="vk">{weather.place} · {weather.high}°/{weather.low}°</div>
+                    <div className="dv" />
+                  </>
+                )}
                 <div className="vv num">{open}</div><div className="vk">Open</div>
                 <div className="dv" />
                 <div className="vv num">{todays.length}</div><div className="vk">Events</div>

@@ -143,6 +143,7 @@ export function CommandView({
   log,
   stats,
   weather,
+  steps,
   userName,
 }: {
   tasks: TaskRow[];
@@ -151,6 +152,7 @@ export function CommandView({
   log: LogRow[];
   stats: Stats;
   weather: WeatherRow | null;
+  steps?: number | null;
   userName: string;
 }) {
   const router = useRouter();
@@ -303,6 +305,13 @@ export function CommandView({
                 <div className="vv num">{open}</div><div className="vk">Open</div>
                 <div className="dv" />
                 <div className="vv num">{todays.length}</div><div className="vk">Events</div>
+                {typeof steps === "number" && steps > 0 && (
+                  <>
+                    <div className="dv" />
+                    <div className="vv num">{Math.round(steps).toLocaleString("en-IN")}</div>
+                    <div className="vk">Steps</div>
+                  </>
+                )}
               </div>
             </div>
             <div className="cell ask">

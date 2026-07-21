@@ -131,6 +131,7 @@ export default async function DashboardPage() {
         log={(log ?? []) as LogRow[]}
         stats={stats}
         weather={weather}
+        steps={typeof health?.steps === "number" ? health.steps : Number(health?.steps) || null}
         userName="Gyaan"
       />
       <MissionControl />

@@ -10,7 +10,15 @@ export async function middleware(req: NextRequest) {
   if (!password) return NextResponse.next(); // gate disabled (local dev)
 
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/login") || pathname.startsWith("/api/auth") || pathname.startsWith("/api/cron")) {
+  // Public: login, auth, cron, and PWA install assets (manifest, SW, icons).
+  if (
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname.startsWith("/icon-")
+  ) {
     return NextResponse.next();
   }
 

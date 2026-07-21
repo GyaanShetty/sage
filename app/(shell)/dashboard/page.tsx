@@ -10,6 +10,7 @@ import {
 import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/components/bands";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
+import { getWeather } from "@/infrastructure/weather";
 
 export const metadata: Metadata = { title: "Command" };
 export const dynamic = "force-dynamic";
@@ -42,6 +43,7 @@ export default async function DashboardPage() {
     noteCount,
     { data: weekEvents },
     { data: journalNote },
+    weather,
   ] = await Promise.all([
     db
       .from("Task")
@@ -82,6 +84,7 @@ export default async function DashboardPage() {
       .eq("kind", "journal")
       .eq("journalDate", today.toISOString())
       .maybeSingle(),
+    getWeather(),
   ]);
 
   // Mon..Sun real event counts
@@ -107,6 +110,7 @@ export default async function DashboardPage() {
         notes={(notes ?? []) as NoteRow[]}
         log={(log ?? []) as LogRow[]}
         stats={stats}
+        weather={weather}
         userName="Gyaan"
       />
       <WorldBand />

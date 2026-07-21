@@ -73,6 +73,27 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  /**
+   * Mobile browsers only allow audio started by a user gesture. Call this
+   * inside the tap: it primes one persistent <audio> element (and the speech
+   * synth) that speak() then reuses, so replies are allowed to play later.
+   */
+  const unlockAudio = useCallback(() => {
+    try {
+      const a = audioRef.current ?? new Audio();
+      // 1-sample silent WAV — playing it inside the gesture unlocks the element.
+      a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+      a.play().catch(() => {});
+      audioRef.current = a;
+      const synth = window.speechSynthesis;
+      if (synth) {
+        const u = new SpeechSynthesisUtterance(" ");
+        u.volume = 0;
+        synth.speak(u);
+      }
+    } catch {}
+  }, []);
+
   const speak = useCallback(async (text: string) => {
     const clean = text
       .replace(/```[\s\S]*?```/g, " I've put the code on screen. ")
@@ -89,15 +110,19 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
       if (res.ok) {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
+        let played = true;
         await new Promise<void>((resolve) => {
-          const audio = new Audio(url);
+          // Reuse the gesture-unlocked element — a fresh Audio() would be
+          // blocked by mobile autoplay policy.
+          const audio = audioRef.current ?? new Audio();
           audioRef.current = audio;
+          audio.src = url;
           audio.onended = () => resolve();
-          audio.onerror = () => resolve();
-          audio.play().catch(() => resolve());
+          audio.onerror = () => { played = false; resolve(); };
+          audio.play().catch(() => { played = false; resolve(); });
         });
         URL.revokeObjectURL(url);
-        return;
+        if (played) return;
       }
     } catch {}
 
@@ -219,13 +244,15 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
 
   const enable = useCallback(() => {
     if (stateRef.current !== "off") return;
+    unlockAudio();
     wakeLoop();
-  }, [wakeLoop]);
+  }, [wakeLoop, unlockAudio]);
 
   /** Skip the wake word: jump straight into conversation. */
   const engage = useCallback(async () => {
     if (stateRef.current !== "off") return;
     setError(null);
+    unlockAudio();
     // Force the mic permission prompt up front so failures are visible.
     try {
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -252,7 +279,7 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
     // ChatGPT-style: no spoken preamble — start listening instantly for a
     // tight one-to-one exchange. A short chime cue instead of a TTS round-trip.
     conversationLoop();
-  }, [conversationLoop]);
+  }, [conversationLoop, unlockAudio]);
 
   const disable = useCallback(() => {
     setBoth("off");

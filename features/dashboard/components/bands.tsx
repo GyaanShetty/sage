@@ -326,7 +326,8 @@ export function ReviewBand({ activity, journal, health }: { activity: number[]; 
   if (health) {
     const num = (x: unknown) => (typeof x === "number" ? x : typeof x === "string" ? parseFloat(x) : NaN);
     const steps = num(health.steps);
-    const sleep = num(health.sleepHours ?? health.sleep);
+    const sleepMin = num(health.sleepMinutes);
+    const sleep = !Number.isNaN(sleepMin) ? sleepMin / 60 : num(health.sleepHours ?? health.sleep);
     const kcal = num(health.activeKcal ?? health.calories);
     const hr = num(health.restingHr ?? health.hr);
     if (!Number.isNaN(steps)) vitals.push({ k: "STEPS", v: Math.round(steps).toLocaleString("en-IN") });

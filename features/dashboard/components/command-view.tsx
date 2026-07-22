@@ -312,10 +312,26 @@ export function CommandView({
 
           {/* center */}
           <div className="stack">
-            <div className="cell hero">
-              <div className="radar-sweep" />
-              <Dial />
-              <Globe nodeCount={Math.round(stats.memories / 2) + 5} />
+            <div
+              className="cell hero"
+              onPointerMove={(e) => {
+                const el = e.currentTarget.querySelector<HTMLElement>(".hero-3d");
+                if (!el) return;
+                const r = e.currentTarget.getBoundingClientRect();
+                const rx = ((e.clientY - r.top) / r.height - 0.5) * -7;
+                const ry = ((e.clientX - r.left) / r.width - 0.5) * 9;
+                el.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+              }}
+              onPointerLeave={(e) => {
+                const el = e.currentTarget.querySelector<HTMLElement>(".hero-3d");
+                if (el) el.style.transform = "perspective(900px) rotateX(0deg) rotateY(0deg)";
+              }}
+            >
+              <div className="hero-3d">
+                <div className="radar-sweep" />
+                <Dial />
+                <Globe nodeCount={Math.round(stats.memories / 2) + 5} />
+              </div>
               <div className="greeting">
                 <div className="g1">Sage · Online</div>
                 <div className="g2">{greet}, {userName}</div>

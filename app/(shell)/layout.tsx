@@ -6,10 +6,14 @@ import { VoiceOverlay } from "@/features/voice/components/voice-overlay";
 import { TickerTape } from "@/components/ticker-tape";
 import { Toaster } from "@/components/toaster";
 import { MotionLayer } from "@/components/motion-layer";
+import { AmbientCanvas } from "@/components/ambient-canvas";
+import { BootSequence } from "@/components/boot-sequence";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
+      <AmbientCanvas />
+      <BootSequence />
       <StatusBar />
       <TickerTape />
       <div className="flex min-h-0 flex-1">

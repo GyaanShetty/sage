@@ -205,3 +205,25 @@ button:active, .chip:active { transform: translateY(1px); }
 @media (prefers-reduced-motion: reduce) {
   .radar-sweep, .sectitle .line::after, .live-dot::after { animation: none; }
 }
+
+/* ── LEVEL UP: atmosphere + boot + holo ── */
+:root { --spot-x: 50vw; --spot-y: 30vh; }
+
+.ambient-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+
+/* cursor spotlight over the whole app */
+@media (hover: hover) {
+  body::after { content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(560px circle at var(--spot-x) var(--spot-y), rgba(94,207,214,0.045), transparent 65%); }
+}
+
+/* boot sequence */
+.boot { position: fixed; inset: 0; z-index: 200; background: #070708; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; cursor: pointer; }
+.boot-lines { min-height: 132px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; width: 300px; }
+.boot-line { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); white-space: pre; }
+.boot-line.ok { color: var(--live); }
+.boot-bar { width: 300px; height: 1px; background: rgba(244,244,245,.1); overflow: hidden; }
+.boot-bar span { display: block; height: 100%; background: var(--live); box-shadow: 0 0 8px var(--live-glow); }
+
+/* holo tilt wrapper — inherits the hero's padding so centering matches */
+.hero-3d { position: absolute; inset: 0; padding: inherit; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; transition: transform 0.5s var(--ease); will-change: transform; }

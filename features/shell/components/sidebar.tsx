@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  CandlestickChart,
   LayoutDashboard,
   MessageSquare,
   FolderKanban,
@@ -22,6 +23,7 @@ import { SageMark } from "@/components/ui/sage-mark";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/chat", label: "Chat", icon: MessageSquare },
+  { href: "/markets", label: "Markets", icon: CandlestickChart },
   { href: "/workspace", label: "Workspace", icon: FolderKanban },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/automations", label: "Automations", icon: Zap },

@@ -40,8 +40,55 @@ function base64ToPcm(b64: string): Float32Array<ArrayBuffer> {
 
 interface LiveSessionLike {
   sendRealtimeInput(input: { audio: { data: string; mimeType: string } }): void;
+  sendToolResponse(input: { functionResponses: { id?: string; name: string; response: Record<string, unknown> }[] }): void;
   close(): void;
 }
+
+// Tools the live session can call; executed server-side via /api/voice/tool.
+const LIVE_TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: "create_task",
+        description: "Add a task/directive to the user's list. Optional dueAt ISO datetime.",
+        parameters: {
+          type: "OBJECT" as const,
+          properties: {
+            title: { type: "STRING" as const },
+            dueAt: { type: "STRING" as const, description: "ISO datetime, optional" },
+          },
+          required: ["title"],
+        },
+      },
+      {
+        name: "create_note",
+        description: "Save a quick note for the user.",
+        parameters: {
+          type: "OBJECT" as const,
+          properties: { text: { type: "STRING" as const } },
+          required: ["text"],
+        },
+      },
+      {
+        name: "create_reminder",
+        description: "Set a reminder at a specific time. remindAt must be an ISO datetime in the future.",
+        parameters: {
+          type: "OBJECT" as const,
+          properties: {
+            text: { type: "STRING" as const },
+            remindAt: { type: "STRING" as const },
+          },
+          required: ["text", "remindAt"],
+        },
+      },
+      {
+        name: "get_briefing",
+        description: "Fetch the user's open tasks, upcoming calendar events, and unread email — use when asked about their day, plan, schedule, or inbox.",
+        parameters: { type: "OBJECT" as const, properties: {} },
+      },
+    ],
+  },
+];
 
 /**
  * GPT-voice-style realtime conversation over the Gemini Live API:
@@ -110,6 +157,7 @@ export function useLiveVoice() {
 
       const outCtx = new AudioContext();
       outCtxRef.current = outCtx;
+      outCtx.resume().catch(() => {}); // iOS suspends fresh contexts
       nextStartRef.current = 0;
 
       const markSpeaking = () => {
@@ -126,15 +174,20 @@ export function useLiveVoice() {
         model,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: SYSTEM,
+          systemInstruction:
+            SYSTEM +
+            ` Current datetime: ${new Date().toISOString()} (user timezone: Asia/Kolkata). Use your tools whenever they apply, then confirm the outcome briefly.`,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
+          // Plain-JSON declarations; the SDK's Type enum values are these strings.
+          tools: LIVE_TOOLS as never,
         },
         callbacks: {
           onopen: () => {
             if (stateRef.current === "connecting") setBoth("listening");
           },
           onmessage: (m: {
+            toolCall?: { functionCalls?: { id?: string; name?: string; args?: Record<string, unknown> }[] };
             serverContent?: {
               interrupted?: boolean;
               inputTranscription?: { text?: string };
@@ -143,6 +196,27 @@ export function useLiveVoice() {
               modelTurn?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] };
             };
           }) => {
+            // Function calls from the model → run server-side, stream result back.
+            if (m.toolCall?.functionCalls?.length) {
+              (async () => {
+                const responses = await Promise.all(
+                  m.toolCall!.functionCalls!.map(async (fc) => {
+                    const r = await fetch("/api/voice/tool", {
+                      method: "POST",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ name: fc.name, args: fc.args ?? {} }),
+                    })
+                      .then((x) => x.json())
+                      .catch(() => ({ ok: false, error: "network" }));
+                    return { id: fc.id, name: fc.name ?? "", response: r as Record<string, unknown> };
+                  }),
+                );
+                try {
+                  sessionRef.current?.sendToolResponse({ functionResponses: responses });
+                } catch {}
+              })();
+              return;
+            }
             const sc = m.serverContent;
             if (!sc) return;
             if (sc.interrupted) {
@@ -195,6 +269,7 @@ export function useLiveVoice() {
       // 4. Stream the mic: capture at native rate, downsample to 16 kHz PCM.
       const micCtx = new AudioContext();
       micCtxRef.current = micCtx;
+      micCtx.resume().catch(() => {});
       const srcNode = micCtx.createMediaStreamSource(stream);
       const proc = micCtx.createScriptProcessor(4096, 1, 1);
       proc.onaudioprocess = (e) => {

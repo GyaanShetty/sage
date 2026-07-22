@@ -124,7 +124,7 @@ export function VoiceOverlay() {
           whileHover={{ scale: 1.08 }}
           onClick={engage}
           title="Talk to SAGE"
-          className="fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center rounded-full border border-[var(--live-dim)] bg-[var(--panel-hi)] text-[var(--live)] shadow-[0_0_24px_var(--live-glow)] backdrop-blur-xl md:bottom-6 md:right-6"
+          className="fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center rounded-full border border-[var(--live-dim)] bg-[var(--panel-hi)] text-[var(--live)] backdrop-blur-xl [animation:micHalo_3s_ease-in-out_infinite] md:bottom-6 md:right-6"
         >
           <Mic className="size-5" strokeWidth={1.75} />
         </motion.button>

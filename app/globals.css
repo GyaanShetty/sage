@@ -227,3 +227,77 @@ button:active, .chip:active { transform: translateY(1px); }
 
 /* holo tilt wrapper — inherits the hero's padding so centering matches */
 .hero-3d { position: absolute; inset: 0; padding: inherit; display: flex; align-items: center; justify-content: center; transform-style: preserve-3d; transition: transform 0.5s var(--ease); will-change: transform; }
+
+/* ── FANCY PASS ── */
+
+/* aurora depth field — two huge blurred drifting glows behind everything */
+body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(38% 30% at 22% 18%, rgba(94,207,214,0.055), transparent 70%),
+    radial-gradient(34% 28% at 78% 78%, rgba(96,120,220,0.045), transparent 70%),
+    radial-gradient(26% 22% at 68% 12%, rgba(94,207,214,0.03), transparent 70%);
+  animation: aurora 26s ease-in-out infinite alternate; filter: blur(30px); }
+@keyframes aurora {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2.5%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-2%, 2.5%, 0) scale(1.02); }
+}
+
+/* cursor-lit borders: hairlines ignite cyan where the pointer is */
+@media (hover: hover) {
+  .grid > .cell, .grid .stack > .cell { position: relative; }
+  .grid > .cell::after, .grid .stack > .cell::after {
+    content: ""; position: absolute; inset: 0; padding: 1px; pointer-events: none; z-index: 2;
+    background: radial-gradient(340px circle at var(--spot-x) var(--spot-y), rgba(94,207,214,0.5), rgba(94,207,214,0.06) 55%, transparent 70%);
+    background-attachment: fixed;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0; transition: opacity 0.35s var(--ease);
+  }
+  .grid > .cell:hover::after, .grid .stack > .cell:hover::after { opacity: 1; }
+}
+
+/* HUD corner brackets on hover */
+@media (hover: hover) {
+  .grid > .cell::before, .grid .stack > .cell::before {
+    content: ""; position: absolute; inset: 5px; pointer-events: none; z-index: 2; opacity: 0;
+    transition: opacity 0.3s var(--ease), inset 0.3s var(--ease);
+    background:
+      linear-gradient(var(--live) 0 0) top left / 10px 1px,
+      linear-gradient(var(--live) 0 0) top left / 1px 10px,
+      linear-gradient(var(--live) 0 0) top right / 10px 1px,
+      linear-gradient(var(--live) 0 0) top right / 1px 10px,
+      linear-gradient(var(--live) 0 0) bottom left / 10px 1px,
+      linear-gradient(var(--live) 0 0) bottom left / 1px 10px,
+      linear-gradient(var(--live) 0 0) bottom right / 10px 1px,
+      linear-gradient(var(--live) 0 0) bottom right / 1px 10px;
+    background-repeat: no-repeat;
+  }
+  .grid > .cell:hover::before, .grid .stack > .cell:hover::before { opacity: 0.55; inset: 3px; }
+}
+
+/* luxe headline: soft metallic gradient on the greeting + section titles */
+.greeting .g2, .sectitle h2 {
+  background: linear-gradient(180deg, #ffffff 15%, #d8d9dd 55%, #8c8e96 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.greeting .g2 { text-shadow: 0 0 34px rgba(94,207,214,0.14); }
+
+/* scroll progress hairline pinned under the header */
+.scroll-progress { position: fixed; top: 0; left: 0; height: 2px; z-index: 120; width: var(--scroll-p, 0%);
+  background: linear-gradient(90deg, transparent, var(--live)); box-shadow: 0 0 8px var(--live-glow);
+  transition: width 0.12s linear; pointer-events: none; }
+
+/* ask box: breathing focus aura */
+.askbox:focus-within { animation: askBreathe 2.6s ease-in-out infinite; }
+@keyframes askBreathe {
+  0%, 100% { box-shadow: 0 0 0 1px var(--live-glow), 0 0 22px -8px var(--live-glow); }
+  50% { box-shadow: 0 0 0 1px var(--live-glow), 0 0 40px -6px var(--live-glow); }
+}
+
+/* mic button: idle halo pulse */
+@keyframes micHalo { 0%, 100% { box-shadow: 0 0 22px var(--live-glow); } 50% { box-shadow: 0 0 34px var(--live-glow), 0 0 60px -12px var(--live-glow); } }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, .askbox:focus-within { animation: none; }
+}

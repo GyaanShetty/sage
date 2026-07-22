@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Ear, Mic, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceAssistant, type AssistantState } from "../engine";
+import { useLiveVoice } from "../live";
 
 const STATE_LABEL: Record<AssistantState, string> = {
   off: "",
@@ -20,7 +21,6 @@ function Orb({ state }: { state: AssistantState }) {
   const speaking = state === "speaking";
   return (
     <div className="relative flex size-40 items-center justify-center">
-      {/* outer rings */}
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
@@ -36,7 +36,6 @@ function Orb({ state }: { state: AssistantState }) {
           transition={{ duration: 1.6 + i * 0.3, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
-      {/* core */}
       <motion.div
         className="size-20 rounded-full bg-accent shadow-[0_0_80px_var(--accent-glow)]"
         animate={
@@ -56,6 +55,7 @@ function Orb({ state }: { state: AssistantState }) {
 
 export function VoiceOverlay() {
   const [transcript, setTranscript] = useState<{ role: "you" | "sage"; text: string }[]>([]);
+  const [mode, setMode] = useState<"live" | "classic">("live");
 
   const onUtterance = useCallback(async (text: string) => {
     setTranscript((t) => [...t.slice(-4), { role: "you", text }]);
@@ -71,31 +71,58 @@ export function VoiceOverlay() {
   }, []);
 
   const assistant = useVoiceAssistant({ onUtterance });
-  const open = assistant.state !== "off";
+  const live = useLiveVoice();
 
-  // Allow other surfaces (e.g. the dashboard Core) to engage voice mode.
+  const open = live.state !== "off" || assistant.state !== "off";
+  const liveActive = live.state !== "off";
+
+  // Live first (GPT-style full duplex); classic pipeline as fallback.
+  const engage = useCallback(async () => {
+    if (live.state !== "off" || assistant.state !== "off") return;
+    setMode("live");
+    const ok = await live.start();
+    if (!ok) {
+      setMode("classic");
+      assistant.engage();
+    }
+  }, [live, assistant]);
+
+  const closeAll = useCallback(() => {
+    live.stop();
+    assistant.disable();
+  }, [live, assistant]);
+
   useEffect(() => {
-    const handler = () => assistant.engage();
+    const handler = () => engage();
     window.addEventListener("sage:engage-voice", handler);
     return () => window.removeEventListener("sage:engage-voice", handler);
-  }, [assistant]);
+  }, [engage]);
 
-  // Broadcast state so the Core (and future surfaces) can react.
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("sage:voice-state", { detail: assistant.state }));
-  }, [assistant.state]);
+    const s = liveActive
+      ? live.state === "connecting"
+        ? "thinking"
+        : live.state
+      : assistant.state;
+    window.dispatchEvent(new CustomEvent("sage:voice-state", { detail: s }));
+  }, [live.state, assistant.state, liveActive]);
 
-  if (!assistant.supported) return null;
+  const orbState: AssistantState = liveActive
+    ? live.state === "connecting"
+      ? "thinking"
+      : (live.state as AssistantState)
+    : assistant.state;
+
+  const error = liveActive || mode === "live" ? live.error ?? assistant.error : assistant.error;
 
   return (
     <>
-      {/* floating activator */}
       {!open && (
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           whileHover={{ scale: 1.08 }}
-          onClick={() => assistant.engage()}
+          onClick={engage}
           title="Talk to SAGE"
           className="fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center rounded-full border border-[var(--live-dim)] bg-[var(--panel-hi)] text-[var(--live)] shadow-[0_0_24px_var(--live-glow)] backdrop-blur-xl md:bottom-6 md:right-6"
         >
@@ -112,56 +139,82 @@ export function VoiceOverlay() {
             className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/85 backdrop-blur-2xl"
           >
             <button
-              onClick={assistant.disable}
+              onClick={closeAll}
               className="absolute right-6 top-6 rounded-full border border-border-glass p-2.5 text-muted transition-colors hover:text-foreground"
               aria-label="Close voice mode"
             >
               <X className="size-5" />
             </button>
 
-            <Orb state={assistant.state} />
+            {liveActive && (
+              <span className="lbl live absolute left-6 top-7 flex items-center gap-2 !opacity-90">
+                <span className="live-dot size-1.5 animate-pulse rounded-full" />
+                REALTIME LINK
+              </span>
+            )}
+
+            <Orb state={orbState} />
 
             <motion.p
-              key={assistant.state}
+              key={orbState}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-8 h-5 text-sm tracking-wide text-muted"
             >
-              {STATE_LABEL[assistant.state]}
+              {liveActive
+                ? live.state === "connecting"
+                  ? "Opening link…"
+                  : live.state === "listening"
+                    ? "Listening — just talk, interrupt any time"
+                    : ""
+                : STATE_LABEL[assistant.state]}
             </motion.p>
-            {assistant.error && (
+            {error && (
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="lbl mt-2 max-w-sm text-center !text-red-400"
               >
-                {assistant.error}
+                {error}
               </motion.p>
             )}
 
             <div className="mt-6 flex max-w-xl flex-col gap-2 px-6 text-center">
-              {transcript.slice(-2).map((line, i) => (
-                <motion.p
-                  key={`${line.text}-${i}`}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    "text-[15px] leading-relaxed",
-                    line.role === "you" ? "text-subtle" : "text-foreground",
+              {liveActive ? (
+                <>
+                  {live.captions.you && (
+                    <p className="text-[15px] leading-relaxed text-subtle">&ldquo;{live.captions.you}&rdquo;</p>
                   )}
-                >
-                  {line.role === "you" ? `"${line.text}"` : line.text}
-                </motion.p>
-              ))}
+                  {live.captions.sage && (
+                    <p className="text-[15px] leading-relaxed text-foreground">{live.captions.sage}</p>
+                  )}
+                </>
+              ) : (
+                transcript.slice(-2).map((line, i) => (
+                  <motion.p
+                    key={`${line.text}-${i}`}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={cn(
+                      "text-[15px] leading-relaxed",
+                      line.role === "you" ? "text-subtle" : "text-foreground",
+                    )}
+                  >
+                    {line.role === "you" ? `"${line.text}"` : line.text}
+                  </motion.p>
+                ))
+              )}
             </div>
 
-            <button
-              onClick={() => (assistant.state === "sleeping" ? assistant.engage() : assistant.enable())}
-              className="absolute bottom-8 flex items-center gap-2 rounded-full border border-border-glass bg-glass px-4 py-2 text-xs text-muted transition-colors hover:text-foreground"
-            >
-              <Ear className="size-3.5" />
-              {assistant.state === "sleeping" ? "Tap to talk now" : "Wake-word mode"}
-            </button>
+            {!liveActive && (
+              <button
+                onClick={() => (assistant.state === "sleeping" ? assistant.engage() : assistant.enable())}
+                className="absolute bottom-8 flex items-center gap-2 rounded-full border border-border-glass bg-glass px-4 py-2 text-xs text-muted transition-colors hover:text-foreground"
+              >
+                <Ear className="size-3.5" />
+                {assistant.state === "sleeping" ? "Tap to talk now" : "Wake-word mode"}
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import "@/features/dashboard/command.css";
+import { NumberTicker } from "@/components/number-ticker";
 
 interface Quote { symbol: string; name: string; price: number; change: number; changePct: number; currency: string; spark: number[] }
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
@@ -157,7 +158,7 @@ export function MarketsView() {
         <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(indices?.length ?? cfg.indices.length, 1)}, 1fr)`, marginBottom: 1 }}>
           {(indices ?? []).map((q) => (
             <div className="cell ct" key={q.symbol}>
-              <div className="cv num">{fmtPx(q.price, q.currency)}</div>
+              <div className="cv num"><NumberTicker value={q.price} format={(v) => fmtPx(v, q.currency)} /></div>
               <div className="ck">{q.name} <span className={q.changePct >= 0 ? "up-txt" : "dn-txt"}>{q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(2)}%</span></div>
             </div>
           ))}

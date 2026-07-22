@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../command.css";
+import { NumberTicker } from "@/components/number-ticker";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
@@ -284,10 +285,10 @@ export function CommandView({
             <div className="cell">
               <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
               <div className="counters" style={{ margin: 0 }}>
-                <div className="ct"><div className="cv num">{stats.memories}</div><div className="ck">Memories</div></div>
-                <div className="ct"><div className="cv num">{stats.sources}</div><div className="ck">Sources</div></div>
-                <div className="ct"><div className="cv num">{stats.runs}</div><div className="ck">Agent runs</div></div>
-                <div className="ct"><div className="cv num">{stats.notes}</div><div className="ck">Notes</div></div>
+                <div className="ct"><div className="cv num"><NumberTicker value={stats.memories} /></div><div className="ck">Memories</div></div>
+                <div className="ct"><div className="cv num"><NumberTicker value={stats.sources} /></div><div className="ck">Sources</div></div>
+                <div className="ct"><div className="cv num"><NumberTicker value={stats.runs} /></div><div className="ck">Agent runs</div></div>
+                <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
               </div>
             </div>
             <div className="cell" style={{ flex: 1 }}>
@@ -312,6 +313,7 @@ export function CommandView({
           {/* center */}
           <div className="stack">
             <div className="cell hero">
+              <div className="radar-sweep" />
               <Dial />
               <Globe nodeCount={Math.round(stats.memories / 2) + 5} />
               <div className="greeting">
@@ -339,7 +341,7 @@ export function CommandView({
                 {typeof steps === "number" && steps > 0 && (
                   <>
                     <div className="dv" />
-                    <div className="vv num">{Math.round(steps).toLocaleString("en-IN")}</div>
+                    <div className="vv num"><NumberTicker value={steps} /></div>
                     <div className="vk">Steps</div>
                   </>
                 )}

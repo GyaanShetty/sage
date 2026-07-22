@@ -5,6 +5,7 @@ import { CommandPalette } from "@/features/command-palette/components/command-pa
 import { VoiceOverlay } from "@/features/voice/components/voice-overlay";
 import { TickerTape } from "@/components/ticker-tape";
 import { Toaster } from "@/components/toaster";
+import { MotionLayer } from "@/components/motion-layer";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       </div>
       <MobileNav />
       <Toaster />
+      <MotionLayer />
       <CommandPalette />
       <VoiceOverlay />
     </div>

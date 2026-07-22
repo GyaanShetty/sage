@@ -11,10 +11,11 @@ export interface Coin {
 const IDS = ["bitcoin", "ethereum", "solana", "chainlink"];
 
 /** Live crypto prices + 7d sparklines from CoinGecko (free, no key). */
-export async function getMarkets(): Promise<Coin[] | null> {
+export async function getMarkets(ids?: string[]): Promise<Coin[] | null> {
   try {
+    const list = ids?.length ? ids : IDS;
     const url =
-      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${IDS.join(",")}` +
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${list.join(",")}` +
       `&order=market_cap_desc&sparkline=true&price_change_percentage=24h`;
     const res = await proxyFetch(url, { signal: AbortSignal.timeout(9000), headers: { accept: "application/json" } });
     if (!res.ok) return null;

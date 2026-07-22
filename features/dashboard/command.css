@@ -310,3 +310,16 @@
 .stream-swap { margin-left: auto; background: none; border: 1px solid rgba(244,244,245,.06); color: var(--subtle); font-family: var(--mono); font-size: 8px; letter-spacing: 1px; padding: 2px 7px; cursor: pointer; }
 .stream-swap:hover { color: var(--foreground); border-color: var(--subtle); }
 @media (max-width: 767px) { .streams-grid { grid-template-columns: 1fr; } }
+
+/* ── markets page ── */
+.deckmkt { grid-template-columns: 1.3fr 1fr 1.1fr; }
+@media (max-width: 1080px) { .deckmkt { grid-template-columns: 1fr; } }
+.up-txt { color: var(--foreground); }
+.dn-txt { color: var(--subtle); }
+.mkta-text { font-size: 12.5px; line-height: 1.75; color: var(--muted); font-weight: 300; white-space: pre-wrap; }
+.wl-editor { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center; }
+.wl-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--muted); border: 1px solid rgba(244,244,245,.12); padding: 4px 8px; }
+.wl-chip button { background: none; border: none; color: var(--subtle); cursor: pointer; font-size: 10px; padding: 0; }
+.wl-chip button:hover { color: var(--foreground); }
+.wl-editor input { background: none; border: 1px solid rgba(244,244,245,.06); color: var(--foreground); font-family: var(--mono); font-size: 10px; padding: 5px 8px; outline: none; width: 130px; }
+.wl-editor input:focus { border-color: var(--subtle); }

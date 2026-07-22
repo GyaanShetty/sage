@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquare, ListTodo, Brain, Settings } from "lucide-react";
+import { LayoutDashboard, MessageSquare, CandlestickChart, ListTodo, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/dashboard", label: "HOME", icon: LayoutDashboard },
   { href: "/chat", label: "CHAT", icon: MessageSquare },
+  { href: "/markets", label: "MARKETS", icon: CandlestickChart },
   { href: "/workspace", label: "TASKS", icon: ListTodo },
-  { href: "/memory", label: "MEMORY", icon: Brain },
   { href: "/settings", label: "CONFIG", icon: Settings },
 ];
 

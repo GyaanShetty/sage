@@ -17,11 +17,35 @@ export function MotionLayer() {
     const sections = Array.from(document.querySelectorAll<HTMLElement>("main .section"));
     if (!sections.length) return;
 
+    // Decrypt effect: title characters scramble, then resolve left→right.
+    const GLYPHS = "ABCDEFGHIKLMNOPRSTUVXZ0123456789░▓#$";
+    const decrypt = (el: HTMLElement) => {
+      const original = el.dataset.txt ?? el.textContent ?? "";
+      el.dataset.txt = original;
+      const steps = 14;
+      let n = 0;
+      const tick = () => {
+        n++;
+        const resolved = Math.floor((n / steps) * original.length);
+        el.textContent = original
+          .split("")
+          .map((ch, i) =>
+            i < resolved || ch === " " ? ch : GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+          )
+          .join("");
+        if (n < steps) setTimeout(tick, 34);
+        else el.textContent = original;
+      };
+      tick();
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
             e.target.classList.add("rv-in");
+            const h2 = e.target.querySelector<HTMLElement>(".sectitle h2");
+            if (h2) decrypt(h2);
             observer.unobserve(e.target);
           }
         }

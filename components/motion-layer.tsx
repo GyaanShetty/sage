@@ -12,6 +12,26 @@ import { usePathname } from "next/navigation";
 export function MotionLayer() {
   const pathname = usePathname();
 
+  // Scroll-progress hairline: width follows how deep into the page you are.
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    let pending = false;
+    const onScroll = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        const max = main.scrollHeight - main.clientHeight;
+        const p = max > 0 ? (main.scrollTop / max) * 100 : 0;
+        document.documentElement.style.setProperty("--scroll-p", `${p.toFixed(1)}%`);
+        pending = false;
+      });
+    };
+    onScroll();
+    main.addEventListener("scroll", onScroll, { passive: true });
+    return () => main.removeEventListener("scroll", onScroll);
+  }, [pathname]);
+
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const sections = Array.from(document.querySelectorAll<HTMLElement>("main .section"));
@@ -64,5 +84,5 @@ export function MotionLayer() {
     return () => observer.disconnect();
   }, [pathname]);
 
-  return null;
+  return <div className="scroll-progress" aria-hidden />;
 }

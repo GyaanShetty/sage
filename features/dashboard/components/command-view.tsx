@@ -232,6 +232,9 @@ export function CommandView({
   const toggleTask = async (task: TaskRow) => {
     const status = task.status === "done" ? "todo" : "done";
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
+    if (status === "done") {
+      window.dispatchEvent(new CustomEvent("sage:toast", { detail: { title: "DIRECTIVE COMPLETE", body: task.title, kind: "alert" } }));
+    }
     await fetch(`/api/task/${task.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -250,6 +253,7 @@ export function CommandView({
     });
     const { data } = await res.json();
     setNotes((prev) => [{ id: data.id, title: text, createdAt: new Date().toISOString() }, ...prev].slice(0, 6));
+    window.dispatchEvent(new CustomEvent("sage:toast", { detail: { title: "NOTE CAPTURED", body: text } }));
     router.refresh();
   };
 

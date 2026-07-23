@@ -7,6 +7,7 @@ import { NumberTicker } from "@/components/number-ticker";
 import { sound } from "@/lib/sound";
 import { ExpandModal } from "@/components/expand-modal";
 import { TaskManager } from "./task-manager";
+import { ExpandableCell } from "./expandable-cell";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
@@ -287,7 +288,7 @@ export function CommandView({
         <div className="grid deck1">
           {/* left */}
           <div className="stack">
-            <div className="cell">
+            <ExpandableCell title="Intelligence" tag="MEMORY CORE">
               <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
               <div className="counters" style={{ margin: 0 }}>
                 <div className="ct"><div className="cv num"><NumberTicker value={stats.memories} /></div><div className="ck">Memories</div></div>
@@ -295,8 +296,8 @@ export function CommandView({
                 <div className="ct"><div className="cv num"><NumberTicker value={stats.runs} /></div><div className="ck">Agent runs</div></div>
                 <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
               </div>
-            </div>
-            <div className="cell" style={{ flex: 1 }}>
+            </ExpandableCell>
+            <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: 1 }}>
               <div className="bh"><span className="t">Notes</span><span className="i">NTS</span><span className="r">{pad(notes.length)}</span></div>
               <div className="notein">
                 <input value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="capture a thought…" />
@@ -312,7 +313,7 @@ export function CommandView({
                   <button className="del" onClick={() => delNote(n.id)}>×</button>
                 </div>
               ))}
-            </div>
+            </ExpandableCell>
           </div>
 
           {/* center */}
@@ -390,15 +391,15 @@ export function CommandView({
 
           {/* right */}
           <div className="stack right">
-            <div className="cell gita">
+            <ExpandableCell title="Bhagavad Gita" tag="श्लोक" className="gita">
               <div className="bh"><span className="t">Gita</span><span className="i">श्लोक</span></div>
               <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
               <div className="dev">{gita.dev}</div>
               <div className="tr">{gita.tr}</div>
               <div className="en">{gita.en}</div>
               <div className="src"><span>अध्याय {gita.src}</span><i /><span>BHAGAVAD GITA</span></div>
-            </div>
-            <div className="cell">
+            </ExpandableCell>
+            <ExpandableCell title={`${now.toLocaleString("en", { month: "long" })} ${Y}`} tag="CALENDAR">
               <div className="bh"><span className="t">{now.toLocaleString("en", { month: "long" }).toUpperCase()} {Y}</span><span className="i">CAL</span></div>
               <div className="cal">
                 {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}
@@ -410,8 +411,8 @@ export function CommandView({
                   </div>
                 ))}
               </div>
-            </div>
-            <div className="cell" style={{ flex: 1 }}>
+            </ExpandableCell>
+            <ExpandableCell title="Agenda" tag="UPCOMING" style={{ flex: 1 }}>
               <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
               {(events ?? []).slice(0, 4).map((e, i) => {
                 const d = new Date(e.start);
@@ -429,7 +430,7 @@ export function CommandView({
               })}
               {events !== null && events.length === 0 && <p className="lbl">NO UPCOMING EVENTS</p>}
               {events === null && <p className="lbl">CONNECT GOOGLE IN SETTINGS</p>}
-            </div>
+            </ExpandableCell>
           </div>
         </div>
       </section>
@@ -450,7 +451,7 @@ export function CommandView({
             ))}
             {tasks.length === 0 && <p className="lbl">NO OPEN DIRECTIVES — TAP TO ADD</p>}
           </div>
-          <div className="cell">
+          <ExpandableCell title="Focus Cycle" tag="POMODORO">
             <div className="bh">
               <span className="t">Focus Cycle</span><span className="i">FCS</span>
               <span className="r" style={{ display: "flex", gap: 10 }}>
@@ -475,8 +476,8 @@ export function CommandView({
               <div className="ct"><div className="cv num">{todays.length}</div><div className="ck">Events</div></div>
               <div className="ct"><div className="cv num">{stats.runs}</div><div className="ck">Runs</div></div>
             </div>
-          </div>
-          <div className="cell" style={{ display: "flex", flexDirection: "column" }}>
+          </ExpandableCell>
+          <ExpandableCell title="Activity" tag="SYSTEM LOG" className="!flex flex-col">
             <div className="bh"><span className="t">Activity</span><span className="i">LOG</span><span className="r">SYSTEM</span></div>
             <div className="feed">
               {log.map((row, i) => (
@@ -487,7 +488,7 @@ export function CommandView({
               ))}
               {log.length === 0 && <div className="fr"><span className="ft">—</span> no activity yet</div>}
             </div>
-          </div>
+          </ExpandableCell>
         </div>
       </section>
 

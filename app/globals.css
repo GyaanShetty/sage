@@ -303,11 +303,13 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 }
 
 /* ── boot briefing caption ── */
-.debrief { position: fixed; left: 50%; transform: translateX(-50%); bottom: 84px; z-index: 95;
-  width: min(560px, calc(100vw - 32px)); display: flex; align-items: flex-start; gap: 14px;
-  padding: 16px 40px 16px 18px; background: rgba(10,11,13,.9); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14));
+/* centered via left/right + margin (NOT transform — framer-motion animates
+   transform and would clobber a translateX centering) */
+.debrief { position: fixed; left: 12px; right: 12px; margin: 0 auto; max-width: 560px; bottom: 84px; z-index: 95;
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 40px 16px 18px; background: rgba(10,11,13,.94); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14));
   backdrop-filter: blur(16px); box-shadow: 0 18px 60px rgba(0,0,0,.6), 0 0 0 1px var(--live-glow); }
-@media (min-width: 768px) { .debrief { bottom: 28px; } }
+@media (min-width: 768px) { .debrief { bottom: 28px; left: auto; right: 28px; margin: 0; } }
 .debrief-eq { display: flex; align-items: flex-end; gap: 2px; height: 20px; flex: 0 0 auto; margin-top: 2px; }
 .debrief-eq span { width: 2px; background: var(--live); box-shadow: 0 0 6px var(--live-glow); animation: eq 0.9s ease-in-out infinite; }
 .debrief-eq span:nth-child(1) { height: 40%; animation-delay: 0s; }

@@ -21,6 +21,23 @@ function greeting(): string {
 export async function GET(req: Request) {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
   const bucket = `${day}-${tzHour() < 13 ? "AM" : "PM"}`;
+  const claim = new URL(req.url).searchParams.get("claim") === "1";
+
+  // Once-per-day, across ALL devices: the first device to open SAGE today
+  // claims the spoken debrief; every other device/reload gets nothing.
+  if (claim) {
+    const { data: played } = await db
+      .from("Event")
+      .select("id")
+      .eq("userId", DEFAULT_USER_ID)
+      .eq("type", "debrief.played")
+      .gte("createdAt", `${day}T00:00:00`)
+      .limit(1)
+      .maybeSingle();
+    if (played) return NextResponse.json({ ok: true, data: { text: null, played: true } });
+    // stake the claim immediately so a second device loading now won't also play
+    await db.from("Event").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: "debrief.played", payload: { day } });
+  }
 
   const { data: cached } = await db
     .from("Event")

@@ -18,10 +18,9 @@ export function BootBriefing() {
   const startedRef = useRef(false);
 
   useEffect(() => {
-    try {
-      if (sessionStorage.getItem("sage-debriefed")) return;
-      sessionStorage.setItem("sage-debriefed", "1");
-    } catch {}
+    // Guard against double-invoke within a single page load only. The real
+    // once-per-day, cross-device dedup is decided by the server ?claim=1.
+    if (startedRef.current) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let cancelled = false;
@@ -54,10 +53,11 @@ export function BootBriefing() {
       try {
         const cfg = localStorage.getItem("sage-market-config");
         const indices = cfg ? (JSON.parse(cfg).indices as string[])?.join(",") : "^NSEI,^BSESN";
-        const res = await fetch(`/api/brief/debrief?symbols=${encodeURIComponent(indices || "^NSEI,^BSESN")}`);
+        // claim=1 → only the first device to open SAGE today gets the text.
+        const res = await fetch(`/api/brief/debrief?claim=1&symbols=${encodeURIComponent(indices || "^NSEI,^BSESN")}`);
         const json = await res.json();
         const text: string | null = json?.data?.text ?? null;
-        if (!text || cancelled) return;
+        if (!text || cancelled) return; // already played today on another device
         setCaption(text);
 
         if (!sound.isOn()) {
@@ -98,22 +98,27 @@ export function BootBriefing() {
       }
     };
 
-    // Arm playback on first tap in case autoplay is blocked.
-    const onTap = () => {
-      if (audioRef.current && audioRef.current.paused) {
+    // If the browser blocks gesture-free autoplay, fire on the FIRST
+    // interaction of any kind — tap, scroll, or key — so the user never has
+    // to deliberately press anything; simply using the app starts it.
+    const EVENTS = ["pointerdown", "touchstart", "keydown", "wheel", "scroll"] as const;
+    const onInteract = () => {
+      if (audioRef.current && audioRef.current.paused && audioRef.current.src) {
         audioRef.current.play().catch(() => {});
+      } else if (window.speechSynthesis?.paused) {
+        window.speechSynthesis.resume();
       }
       setNeedsTap(false);
     };
-    window.addEventListener("pointerdown", onTap);
+    EVENTS.forEach((e) => window.addEventListener(e, onInteract, { once: true, passive: true }));
 
-    // Start after the boot sequence has had its moment.
-    const t = setTimeout(run, 2600);
+    // Start shortly after boot (short, to stay within any residual activation).
+    const t = setTimeout(run, 1600);
 
     return () => {
       cancelled = true;
       clearTimeout(t);
-      window.removeEventListener("pointerdown", onTap);
+      EVENTS.forEach((e) => window.removeEventListener(e, onInteract));
       audioRef.current?.pause();
       window.speechSynthesis?.cancel();
     };

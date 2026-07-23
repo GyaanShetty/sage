@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { SageMark } from "@/components/ui/sage-mark";
+import { sound } from "@/lib/sound";
 
 const LINES = [
   "SAGE OS v0.2 — MISSION CONTROL",
@@ -33,6 +34,7 @@ export function BootSequence() {
       const t = setTimeout(() => setStep((s) => s + 1), step === 0 ? 260 : 190);
       return () => clearTimeout(t);
     }
+    sound.chime(); // may be silent pre-gesture; the visual carries it
     const t = setTimeout(() => setShow(false), 700);
     return () => clearTimeout(t);
   }, [show, step]);

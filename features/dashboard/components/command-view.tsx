@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../command.css";
 import { NumberTicker } from "@/components/number-ticker";
+import { sound } from "@/lib/sound";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
@@ -234,6 +235,7 @@ export function CommandView({
     const status = task.status === "done" ? "todo" : "done";
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
     if (status === "done") {
+      sound.blip();
       window.dispatchEvent(new CustomEvent("sage:toast", { detail: { title: "DIRECTIVE COMPLETE", body: task.title, kind: "alert" } }));
     }
     await fetch(`/api/task/${task.id}`, {

@@ -70,18 +70,23 @@ export function KnowledgeGraph() {
         dx /= d; dy /= d;
         e.a.vx += dx * f; e.a.vy += dy * f; e.b.vx -= dx * f; e.b.vy -= dy * f;
       }
-      // centering + integrate
+      // centering + integrate (guard against NaN blowups)
       for (const n of nodes) {
         n.vx += (W / 2 - n.x) * 0.006;
         n.vy += (H / 2 - n.y) * 0.006;
-        n.vx *= 0.86; n.vy *= 0.86;
+        n.vx = Number.isFinite(n.vx) ? n.vx * 0.86 : 0;
+        n.vy = Number.isFinite(n.vy) ? n.vy * 0.86 : 0;
         if (n !== drag) { n.x += n.vx; n.y += n.vy; }
+        if (!Number.isFinite(n.x)) n.x = W / 2;
+        if (!Number.isFinite(n.y)) n.y = H / 2;
       }
       if (drag) { drag.x = mouse.x; drag.y = mouse.y; }
     };
 
     const draw = () => {
-      ctx.clearRect(0, 0, W, H);
+      // solid dark fill so the canvas is never transparent-white
+      ctx.fillStyle = "#08090b";
+      ctx.fillRect(0, 0, W, H);
       ctx.lineWidth = 1;
       for (const e of edges) {
         ctx.strokeStyle = "rgba(94,207,214,0.12)";

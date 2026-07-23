@@ -5,7 +5,7 @@ export const maxDuration = 60;
 
 // ElevenLabs default British male voices: "Daniel" (deep news presenter),
 // "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
-const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "onwK4e9ZLuTAKqWW03F9"; // Daniel
+const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb"; // George — warm, mature British
 // Gemini deep male voices: Charon (informative), Gacrux (mature),
 // Algenib (gravelly), Iapetus (clear). Default to the mature, calm one.
 const GEMINI_VOICE = process.env.SAGE_TTS_VOICE ?? "Charon";

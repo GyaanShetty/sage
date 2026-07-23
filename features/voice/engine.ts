@@ -34,12 +34,14 @@ function createRecognition(): RecognitionLike | null {
 const WAKE_RE = /\b(hey\s+)?sage\b.*\b(wake|up|hello|hi)\b|\bwake\s+up\b.*\bsage\b|\bhey\s+sage\b/i;
 const SLEEP_RE = /\b(go\s+to\s+sleep|goodbye|good\s*night|stand\s+down|that('?s| is)\s+all)\b/i;
 
-/** Fallback browser voice: prefer a natural female English voice. */
+/** Fallback browser voice: prefer a deep British male English voice. */
 function pickVoice(): SpeechSynthesisVoice | null {
   const voices = window.speechSynthesis?.getVoices() ?? [];
   return (
-    voices.find((v) => /^en/i.test(v.lang) && /female|samantha|zira|victoria|karen|moira|tessa|serena/i.test(v.name)) ??
-    voices.find((v) => v.name === "Google UK English Female") ??
+    voices.find((v) => /en-GB/i.test(v.lang) && /male|daniel|george|arthur|oliver/i.test(v.name)) ??
+    voices.find((v) => v.name === "Google UK English Male") ??
+    voices.find((v) => /en-GB/i.test(v.lang)) ??
+    voices.find((v) => /^en/i.test(v.lang) && /male|daniel|alex|fred|aaron/i.test(v.name)) ??
     voices.find((v) => /^en/i.test(v.lang)) ??
     null
   );
@@ -133,8 +135,8 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
       const utterance = new SpeechSynthesisUtterance(clean);
       const voice = pickVoice();
       if (voice) utterance.voice = voice;
-      utterance.rate = 1.0;
-      utterance.pitch = 0.92;
+      utterance.rate = 0.94;
+      utterance.pitch = 0.78; // deeper
       utterance.onend = () => resolve();
       utterance.onerror = () => resolve();
       synth.speak(utterance);

@@ -1,17 +1,56 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { VOICE_DIRECTION } from "@/lib/config";
 
 export const maxDuration = 60;
 
+// ElevenLabs default British male voices: "Daniel" (deep news presenter),
+// "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
+const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "onwK4e9ZLuTAKqWW03F9"; // Daniel
+// Gemini deep male voices: Charon (informative), Gacrux (mature),
+// Algenib (gravelly), Iapetus (clear). Default to the mature, calm one.
+const GEMINI_VOICE = process.env.SAGE_TTS_VOICE ?? "Charon";
+
 /**
- * Neural TTS via Gemini (free tier). Returns WAV audio.
- * The client falls back to browser speechSynthesis if this fails.
+ * Neural TTS. Prefers ElevenLabs (richer, truly British) when
+ * ELEVENLABS_API_KEY is set; otherwise Gemini's free tier with a deep male
+ * voice + British delivery direction. Client falls back to browser speech.
  */
 export async function POST(req: Request) {
-  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!key) return new Response("TTS not configured", { status: 400 });
-
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return new Response("Empty", { status: 400 });
+  const clean = text.slice(0, 1400);
+
+  // ── ElevenLabs (premium) ──────────────────────────────────
+  const elevenKey = process.env.ELEVENLABS_API_KEY;
+  if (elevenKey) {
+    try {
+      const res = await proxyFetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}?output_format=mp3_44100_128`,
+        {
+          method: "POST",
+          headers: { "xi-api-key": elevenKey, "content-type": "application/json" },
+          body: JSON.stringify({
+            text: clean,
+            model_id: "eleven_turbo_v2_5",
+            voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.15, use_speaker_boost: true },
+          }),
+          signal: AbortSignal.timeout(45_000),
+        },
+      );
+      if (res.ok) {
+        return new Response(await res.arrayBuffer(), {
+          headers: { "content-type": "audio/mpeg", "cache-control": "no-store" },
+        });
+      }
+      // fall through to Gemini on failure
+    } catch {
+      // fall through
+    }
+  }
+
+  // ── Gemini free tier (deep British male) ──────────────────
+  const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!key) return new Response("TTS not configured", { status: 400 });
 
   const res = await proxyFetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${key}`,
@@ -19,20 +58,10 @@ export async function POST(req: Request) {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Speak as a composed, brilliant female AI assistant — calm, warm, articulate, quietly confident: ${text.slice(0, 1200)}`,
-              },
-            ],
-          },
-        ],
+        contents: [{ parts: [{ text: `${VOICE_DIRECTION} ${clean}` }] }],
         generationConfig: {
           responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
-          },
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } },
         },
       }),
       signal: AbortSignal.timeout(45_000),

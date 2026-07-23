@@ -5,7 +5,7 @@ import { APP_NAME } from "@/lib/config";
 
 export type LiveState = "off" | "connecting" | "listening" | "speaking";
 
-const SYSTEM = `You are ${APP_NAME}, Gyaan's personal AI operating system — a calm, brilliant female chief of staff speaking in a live voice conversation. Composed, warm, direct; occasionally address him as Gyaan, never "sir". Keep replies short and conversational — one to three sentences unless he asks for depth. If you don't know something about him, say so plainly.`;
+const SYSTEM = `You are ${APP_NAME}, Gyaan's personal AI operating system — a distinguished British chief of staff speaking in a live voice conversation: an unflappable, refined elder gentleman with a deep, calm baritone. Composed, precise, quietly brilliant, devoted. Address him as "sir". Keep replies short and conversational — one to three sentences unless he asks for depth. Dry wit in moderation. If you don't know something about him, say so plainly.`;
 
 /** Float32 [-1,1] samples → 16-bit PCM, downsampled to 16 kHz, as base64. */
 function toPcm16Base64(input: Float32Array, inRate: number): string {
@@ -174,6 +174,7 @@ export function useLiveVoice() {
         model,
         config: {
           responseModalities: [Modality.AUDIO],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } },
           systemInstruction:
             SYSTEM +
             ` Current datetime: ${new Date().toISOString()} (user timezone: Asia/Kolkata). Use your tools whenever they apply, then confirm the outcome briefly.`,

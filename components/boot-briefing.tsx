@@ -33,15 +33,17 @@ export function BootBriefing() {
       const pick = () => {
         const vs = synth.getVoices();
         return (
-          vs.find((v) => /^en/i.test(v.lang) && /female|samantha|zira|victoria|karen|moira|tessa|serena/i.test(v.name)) ??
+          vs.find((v) => /en-GB/i.test(v.lang) && /male|daniel|george|arthur|oliver/i.test(v.name)) ??
+          vs.find((v) => v.name === "Google UK English Male") ??
+          vs.find((v) => /en-GB/i.test(v.lang)) ??
           vs.find((v) => /^en/i.test(v.lang)) ??
           null
         );
       };
       const v = pick();
       if (v) u.voice = v;
-      u.rate = 1.0;
-      u.pitch = 0.96;
+      u.rate = 0.94;
+      u.pitch = 0.78; // deeper
       u.onend = () => !cancelled && setCaption(null);
       synth.speak(u);
     };

@@ -371,3 +371,27 @@
 .ghcell.l2 { background: rgba(94,207,214,.45); }
 .ghcell.l3 { background: rgba(94,207,214,.7); }
 .ghcell.l4 { background: var(--live); box-shadow: 0 0 4px var(--live-glow); }
+
+/* ── ATLAS intelligence map ── */
+.atlas { position: relative; width: 100%; height: 520px; border: 1px solid var(--border-glass); background: #08090b; overflow: hidden; }
+.atlas-map { position: absolute; inset: 0; z-index: 1; }
+.atlas-map .leaflet-container { background: #08090b; font-family: var(--mono); }
+.atlas-map .leaflet-tooltip { background: rgba(8,9,11,.95); border: 1px solid var(--live-dim); color: var(--foreground); font-family: var(--mono); font-size: 9px; letter-spacing: .5px; box-shadow: 0 0 14px var(--live-glow); }
+.atlas-map .leaflet-tooltip::before { display: none; }
+.leaflet-control-zoom a { background: var(--panel-hi) !important; color: var(--muted) !important; border-color: var(--border-glass) !important; }
+.atlas-plane { color: rgba(244,244,245,.85); font-size: 10px; line-height: 12px; text-align: center; }
+.atlas-sat { color: var(--foreground); font-size: 9px; line-height: 10px; text-align: center; opacity: .8; }
+.atlas-sat.iss { color: var(--live); font-size: 12px; text-shadow: 0 0 8px var(--live-glow); }
+
+.atlas-hud { position: absolute; left: 14px; top: 14px; z-index: 500; max-width: calc(100% - 28px); }
+.atlas-title { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--live); display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
+.atlas-title .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live); box-shadow: 0 0 6px var(--live-glow); }
+.atlas-layers { display: flex; flex-wrap: wrap; gap: 6px; }
+.atlas-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 5px 9px; cursor: pointer; backdrop-filter: blur(6px); transition: 0.18s var(--ease); }
+.atlas-chip:hover { color: var(--foreground); border-color: var(--subtle); }
+.atlas-chip.on { color: var(--foreground); border-color: var(--live-dim); background: rgba(94,207,214,.08); }
+.atlas-chip .ac-ic { font-size: 10px; }
+.atlas-chip .ac-live { width: 4px; height: 4px; border-radius: 50%; background: var(--subtle); }
+.atlas-chip.on .ac-live { background: var(--live); box-shadow: 0 0 5px var(--live-glow); animation: dotRipple 2s ease-out infinite; }
+.atlas-note { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); margin-top: 8px; opacity: .7; }
+@media (max-width: 767px) { .atlas { height: 400px; } .atlas-note { display: none; } }

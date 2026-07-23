@@ -12,6 +12,7 @@ import { LearnBand } from "@/features/dashboard/components/learn-band";
 import { StreamsBand } from "@/features/dashboard/components/streams-band";
 import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
 import { SitrepBand } from "@/features/dashboard/components/sitrep-band";
+import { DashboardLayout } from "@/features/dashboard/components/dashboard-layout";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
@@ -125,9 +126,8 @@ export default async function DashboardPage() {
   const stats: Stats = { memories, sources, runs, notes: noteCount };
   const open = (tasks ?? []).filter((t) => t.status !== "done").length;
 
-  return (
-    <div>
-      <SitrepBand />
+  const bands = [
+    { id: "command", label: "01 · Home", node: (
       <CommandView
         tasks={(tasks ?? []) as TaskRow[]}
         events={events}
@@ -138,23 +138,21 @@ export default async function DashboardPage() {
         steps={typeof health?.steps === "number" ? health.steps : Number(health?.steps) || null}
         userName="Gyaan"
       />
-      <MissionControl />
-      <OpsBand />
-      <WorldBand
-        geo={{
-          lat: Number(process.env.SAGE_LAT ?? 12.9716),
-          lon: Number(process.env.SAGE_LON ?? 77.5946),
-        }}
-      />
-      <ConsoleBand stats={{ open, notes: noteCount, memories }} />
-      <ReviewBand
-        activity={activity}
-        journal={journal}
-        health={health}
-      />
-      <LearnBand />
-      <TickTickBand />
-      <StreamsBand />
+    ) },
+    { id: "mission", label: "03 · Mission Control", node: <MissionControl /> },
+    { id: "ops", label: "04 · Operations", node: <OpsBand /> },
+    { id: "world", label: "05 · World", node: <WorldBand geo={{ lat: Number(process.env.SAGE_LAT ?? 12.9716), lon: Number(process.env.SAGE_LON ?? 77.5946) }} /> },
+    { id: "console", label: "06 · Console", node: <ConsoleBand stats={{ open, notes: noteCount, memories }} /> },
+    { id: "review", label: "07 · Review", node: <ReviewBand activity={activity} journal={journal} health={health} /> },
+    { id: "learn", label: "08 · Learn", node: <LearnBand /> },
+    { id: "deadlines", label: "10 · Deadlines", node: <TickTickBand /> },
+    { id: "feeds", label: "09 · Feeds", node: <StreamsBand /> },
+  ];
+
+  return (
+    <div>
+      <SitrepBand />
+      <DashboardLayout bands={bands} />
     </div>
   );
 }

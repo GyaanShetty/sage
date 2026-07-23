@@ -44,6 +44,8 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
   const [name, setName] = useState("");
   const [time, setTime] = useState("03:00");
   const [directive, setDirective] = useState("");
+  const [when, setWhen] = useState<"daily" | "task_overdue" | "aqi_above" | "crypto_move" | "low_steps" | "unread_email">("daily");
+  const [threshold, setThreshold] = useState(150);
   const [busy, setBusy] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [reports, setReports] = useState<Record<string, string>>({});
@@ -51,10 +53,13 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
   const create = async () => {
     if (!name.trim() || !directive.trim() || busy) return;
     setBusy(true);
+    const trigger = when === "daily"
+      ? { type: "daily" as const, time }
+      : { type: "condition" as const, when, ...(["aqi_above", "crypto_move", "low_steps"].includes(when) ? { threshold } : {}) };
     await fetch("/api/automation", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), time, directive: directive.trim() }),
+      body: JSON.stringify({ name: name.trim(), directive: directive.trim(), trigger }),
     });
     setBusy(false);
     setShowForm(false);
@@ -130,27 +135,42 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
                       </button>
                     ))}
                   </div>
-                  <div className="flex gap-3">
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="DIRECTIVE NAME"
-                      className="h-10 flex-1 border border-border-glass bg-transparent px-3 font-mono text-sm outline-none placeholder:text-subtle focus:border-border-glass-strong"
-                    />
-                    <div className="flex items-center gap-2 border border-border-glass px-3">
-                      <span className="hud-label">DAILY · UTC</span>
-                      <input
-                        type="time"
-                        value={time}
-                        onChange={(e) => setTime(e.target.value)}
-                        className="bg-transparent font-mono text-sm outline-none"
-                      />
-                    </div>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="DIRECTIVE NAME"
+                    className="h-10 w-full border border-border-glass bg-transparent px-3 font-mono text-sm outline-none placeholder:text-subtle focus:border-border-glass-strong"
+                  />
+                  {/* WHEN → visual trigger */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="hud-label !text-live">WHEN</span>
+                    <select
+                      value={when}
+                      onChange={(e) => setWhen(e.target.value as typeof when)}
+                      className="h-9 border border-border-glass bg-background px-2 font-mono text-xs outline-none focus:border-border-glass-strong"
+                    >
+                      <option value="daily">every day at…</option>
+                      <option value="task_overdue">a task goes overdue</option>
+                      <option value="aqi_above">AQI rises above…</option>
+                      <option value="crypto_move">crypto moves more than…</option>
+                      <option value="low_steps">my steps fall below…</option>
+                      <option value="unread_email">a new email arrives</option>
+                    </select>
+                    {when === "daily" && (
+                      <div className="flex items-center gap-2 border border-border-glass px-3 h-9"><span className="hud-label">UTC</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="bg-transparent font-mono text-sm outline-none" /></div>
+                    )}
+                    {["aqi_above", "crypto_move", "low_steps"].includes(when) && (
+                      <div className="flex items-center gap-2 border border-border-glass px-3 h-9">
+                        <input type="number" value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="w-16 bg-transparent font-mono text-sm outline-none" />
+                        <span className="hud-label">{when === "crypto_move" ? "%" : when === "low_steps" ? "STEPS" : "AQI"}</span>
+                      </div>
+                    )}
                   </div>
+                  <div className="flex items-center gap-2"><span className="hud-label !text-live">THEN SAGE</span><span className="hud-label">·  FULL TOOL ACCESS</span></div>
                   <textarea
                     value={directive}
                     onChange={(e) => setDirective(e.target.value)}
-                    placeholder="WHAT SHOULD SAGE DO? IT HAS FULL TOOL ACCESS: TASKS, NOTES, MEMORY, WEB SEARCH, CALENDAR, EMAIL…"
+                    placeholder="…checks my unread email and drafts replies to anything urgent."
                     rows={3}
                     className="w-full resize-none border border-border-glass bg-transparent p-3 font-mono text-sm outline-none placeholder:text-subtle focus:border-border-glass-strong"
                   />

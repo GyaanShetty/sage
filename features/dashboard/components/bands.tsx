@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GeoMap } from "./geo-map";
 import { AtlasMap } from "@/features/atlas/atlas-map";
+import { ExpandableCell } from "./expandable-cell";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -271,7 +272,7 @@ function ReviewBandInner({ activity, journal, vitals }: { activity: number[]; jo
         </div>
       )}
       <div className="grid deck7">
-        <div className="cell">
+        <ExpandableCell title="System Activity" tag="EVENTS / DAY">
           <div className="bh"><span className="t">System Activity</span><span className="i">WKL</span><span className="r">EVENTS / DAY · REAL</span></div>
           <svg id="weekchart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
             {Array.from({ length: 5 }).map((_, i) => {
@@ -289,8 +290,8 @@ function ReviewBandInner({ activity, journal, vitals }: { activity: number[]; jo
               );
             })}
           </svg>
-        </div>
-        <div className="cell jrn">
+        </ExpandableCell>
+        <ExpandableCell title="Journal" tag="REFLECT" className="jrn">
           <div className="bh"><span className="t">Journal</span><span className="i">JRN</span><span className="r">{entries.length} TODAY</span></div>
           <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="End-of-day reflection…" />
           <button className="jbtn" onClick={log}>LOG ENTRY</button>
@@ -299,7 +300,7 @@ function ReviewBandInner({ activity, journal, vitals }: { activity: number[]; jo
               <div className="jent" key={i}><div className="jx">{e}</div></div>
             ))}
           </div>
-        </div>
+        </ExpandableCell>
       </div>
     </section>
   );

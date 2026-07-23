@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ExpandableCell } from "./expandable-cell";
 
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
 interface Headline { source: string; title: string; link: string; published: number }
@@ -50,7 +51,7 @@ export function MissionControl() {
     <section className="section" id="mission" style={{ paddingTop: 0 }}>
       <div className="sectitle"><span className="sn">03</span><h2>Mission Control</h2><span className="line" /><span className="tag">MARKETS · NEWSWIRE</span></div>
       <div className="grid deckmc">
-        <div className="cell">
+        <ExpandableCell title="Markets" tag="LIVE">
           <div className="bh"><span className="t">Markets</span><span className="i">MKT</span><span className="r">USD · LIVE</span></div>
           {coins === null && <p className="lbl">LOADING FEED…</p>}
           {coins?.length === 0 && <p className="lbl">FEED UNAVAILABLE</p>}
@@ -86,8 +87,8 @@ export function MissionControl() {
               ))}
             </>
           )}
-        </div>
-        <div className="cell">
+        </ExpandableCell>
+        <ExpandableCell title="Newswire" tag="RSS">
           <div className="bh"><span className="t">Newswire</span><span className="i">RSS</span><span className="r">FT · MINT · COINDESK · MIT · TED</span></div>
           {news === null && <p className="lbl">LOADING FEED…</p>}
           {news?.length === 0 && <p className="lbl">FEED UNAVAILABLE</p>}
@@ -98,9 +99,9 @@ export function MissionControl() {
               <div className="nt">{ago(h.published)} AGO</div>
             </a>
           ))}
-        </div>
+        </ExpandableCell>
         {apod && (
-          <div className="cell cosmos" style={{ gridColumn: "1 / -1" }}>
+          <ExpandableCell title="Cosmos" tag="NASA APOD" className="cosmos" style={{ gridColumn: "1 / -1" }}>
             <div className="bh"><span className="t">Cosmos</span><span className="i">NASA</span><span className="r">{apod.date} · APOD</span></div>
             <div className="cosmos-row">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -111,7 +112,7 @@ export function MissionControl() {
                 {apod.copyright && <p className="lbl" style={{ marginTop: 8 }}>© {apod.copyright}</p>}
               </div>
             </div>
-          </div>
+          </ExpandableCell>
         )}
       </div>
     </section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ExpandableCell } from "./expandable-cell";
 
 interface Card {
   q: string;
@@ -36,7 +37,7 @@ export function LearnBand() {
     <section className="section" id="learn" style={{ paddingTop: 0 }}>
       <div className="sectitle"><span className="sn">08</span><h2>Learn</h2><span className="line" /><span className="tag">DAILY RECALL · FROM YOUR KNOWLEDGE</span></div>
       <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-        <div className="cell fcard-cell">
+        <ExpandableCell title="Learn" tag="DAILY RECALL" className="fcard-cell">
           {cards === null ? (
             <div className="empty-state"><div className="es-t">GENERATING TODAY&apos;S CARDS…</div></div>
           ) : cards.length === 0 ? (
@@ -69,7 +70,7 @@ export function LearnBand() {
               )}
             </div>
           )}
-        </div>
+        </ExpandableCell>
       </div>
     </section>
   );

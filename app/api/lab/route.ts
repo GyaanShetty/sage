@@ -21,6 +21,7 @@ const schema = z.object({
     .min(5)
     .max(14),
   howItWorks: z.string().describe("a short narrative of how the whole thing operates, step by step"),
+  modelQuery: z.string().describe("2-4 word search phrase to find a realistic 3D model of this on a model library, e.g. 'V8 car engine' or 'human heart anatomy'"),
 });
 
 /** Generate a structured breakdown of any system/object for the 3D Holo-Lab. */

@@ -3,7 +3,8 @@ import { proxyFetch } from "@/infrastructure/http/fetch";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_SCOPES = [
-  "https://www.googleapis.com/auth/calendar.readonly",
+  // full calendar events read/write so SAGE can add, edit, and remove events
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/gmail.readonly",
   // compose = create drafts (safe: nothing sends without you hitting Send)
   "https://www.googleapis.com/auth/gmail.compose",
@@ -107,6 +108,7 @@ export async function getGoogleAccessToken(): Promise<string | null> {
 // ── API helpers ──────────────────────────────────────────────
 
 export interface CalendarEvent {
+  id?: string;
   summary: string;
   start: string;
   end: string;
@@ -130,6 +132,7 @@ export async function listUpcomingEvents(maxResults = 8): Promise<CalendarEvent[
   if (!res.ok) throw new Error(`Calendar ${res.status}`);
   const json = (await res.json()) as {
     items?: {
+      id?: string;
       summary?: string;
       location?: string;
       start?: { dateTime?: string; date?: string };
@@ -137,12 +140,61 @@ export async function listUpcomingEvents(maxResults = 8): Promise<CalendarEvent[
     }[];
   };
   return (json.items ?? []).map((e) => ({
+    ...(e.id ? { id: e.id } : {}),
     summary: e.summary ?? "(no title)",
     start: e.start?.dateTime ?? e.start?.date ?? "",
     end: e.end?.dateTime ?? e.end?.date ?? "",
     allDay: !e.start?.dateTime && !!e.start?.date,
     ...(e.location ? { location: e.location } : {}),
   }));
+}
+
+/** Create a calendar event. `start`/`end` are ISO datetimes; if allDay, pass YYYY-MM-DD dates. */
+export async function createCalendarEvent(input: { summary: string; start: string; end: string; allDay?: boolean; location?: string }): Promise<{ id: string } | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const body = {
+    summary: input.summary,
+    ...(input.location ? { location: input.location } : {}),
+    start: input.allDay ? { date: input.start.slice(0, 10) } : { dateTime: input.start, timeZone: "Asia/Kolkata" },
+    end: input.allDay ? { date: input.end.slice(0, 10) } : { dateTime: input.end, timeZone: "Asia/Kolkata" },
+  };
+  const res = await proxyFetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { id: string };
+  return { id: j.id };
+}
+
+/** Update an existing event (PATCH — only supplied fields change). */
+export async function updateCalendarEvent(id: string, input: { summary?: string; start?: string; end?: string; allDay?: boolean; location?: string }): Promise<boolean | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const body: Record<string, unknown> = {};
+  if (input.summary !== undefined) body.summary = input.summary;
+  if (input.location !== undefined) body.location = input.location;
+  if (input.start) body.start = input.allDay ? { date: input.start.slice(0, 10) } : { dateTime: input.start, timeZone: "Asia/Kolkata" };
+  if (input.end) body.end = input.allDay ? { date: input.end.slice(0, 10) } : { dateTime: input.end, timeZone: "Asia/Kolkata" };
+  const res = await proxyFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return res.ok;
+}
+
+/** Delete an event. */
+export async function deleteCalendarEvent(id: string): Promise<boolean | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const res = await proxyFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${token}` },
+  });
+  return res.ok || res.status === 410;
 }
 
 export interface EmailSummary {

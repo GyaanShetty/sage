@@ -432,3 +432,19 @@
 
 /* let the globe be fully draggable under the overlays */
 .hero-globe-cell .greeting, .hero-globe-cell .vitrow { pointer-events: none; }
+
+/* ── world view: globe ⇄ map crossfade ── */
+.worldview { position: absolute; inset: 0; }
+.wv-layer { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity 0.5s var(--ease); }
+.wv-layer.on { opacity: 1; visibility: visible; }
+.wv-layer .atlas { height: 100%; border: 0; }
+.wv-toggle { position: absolute; top: 14px; right: 14px; z-index: 6; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: var(--live); background: rgba(8,9,11,.82); border: 1px solid var(--live-dim); padding: 6px 11px; cursor: pointer; backdrop-filter: blur(6px); transition: 0.18s var(--ease); }
+.wv-toggle:hover { background: rgba(94,207,214,.12); }
+
+/* ── schedule manager (calendar edit) ── */
+.sm-add { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.sm-add .sm-title { flex: 2 1 160px; background: var(--background); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--disp); font-weight: 300; font-size: 14px; padding: 10px 12px; outline: none; }
+.sm-add .sm-when { flex: 1 1 150px; background: var(--background); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--mono); font-size: 12px; padding: 9px 10px; outline: none; color-scheme: dark; }
+.sm-add .sm-title:focus, .sm-add .sm-when:focus { border-color: var(--live-dim); }
+.sm-add button { display: flex; align-items: center; gap: 5px; background: var(--foreground); color: var(--background); border: none; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; padding: 0 14px; cursor: pointer; }
+.sm-date { font-family: var(--mono); font-size: 9px; letter-spacing: .5px; color: var(--live); flex: 0 0 116px; }

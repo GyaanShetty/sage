@@ -25,7 +25,7 @@ const INITIAL: LayerDef[] = [
 
 const CYAN = "#5ecfd6";
 
-export function AtlasMap({ lat = 20, lon = 40 }: { lat?: number; lon?: number }) {
+export function AtlasMap({ lat = 20, lon = 40, onZoomOut }: { lat?: number; lon?: number; onZoomOut?: () => void }) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
   const LRef = useRef<L | null>(null);
@@ -43,9 +43,11 @@ export function AtlasMap({ lat = 20, lon = 40 }: { lat?: number; lon?: number })
       const L = (await import("leaflet")).default as unknown as L;
       if (disposed || !elRef.current) return;
       LRef.current = L;
-      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2 }).setView([lat, lon], 3);
+      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2 }).setView([lat, lon], 5);
       mapRef.current = map;
       L.control.zoom({ position: "bottomright" }).addTo(map);
+      // Zoom all the way out → hand back to the globe view.
+      map.on("zoomend", () => { if (map.getZoom() <= 2 && onZoomOut) onZoomOut(); });
       L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 12 }).addTo(map);
 
       // group containers

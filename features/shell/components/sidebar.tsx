@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  Boxes,
   CandlestickChart,
   LayoutDashboard,
   MessageSquare,
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/markets", label: "Markets", icon: CandlestickChart },
   { href: "/workspace", label: "Workspace", icon: FolderKanban },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
+  { href: "/lab", label: "Holo-Lab", icon: Boxes },
   { href: "/automations", label: "Automations", icon: Zap },
   { href: "/memory", label: "Memory", icon: Brain },
 ] as const;

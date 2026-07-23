@@ -462,3 +462,36 @@
 .tt-pri { color: var(--subtle); }
 .tt-pri.p5 { color: #e0706a; }
 .tt-pri.p3 { color: #e8a13a; }
+
+/* ── Holo-Lab (3D learn) ── */
+.holo { position: relative; height: calc(100dvh - 78px); overflow: hidden; }
+.holo-stage { position: absolute; inset: 0; z-index: 1; }
+.holo-hud { position: absolute; left: 22px; right: 22px; top: 18px; z-index: 5; max-width: 640px; }
+.holo-input { display: flex; gap: 8px; }
+.holo-input input { flex: 1; background: rgba(8,9,11,.7); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--disp); font-weight: 300; font-size: 15px; padding: 12px 14px; outline: none; backdrop-filter: blur(6px); }
+.holo-input input:focus { border-color: var(--live-dim); box-shadow: 0 0 22px -8px var(--live-glow); }
+.holo-input button { background: var(--live); color: var(--background); border: none; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; padding: 0 18px; cursor: pointer; }
+.holo-input button:disabled { opacity: .5; }
+.holo-loading { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--live); }
+.holo-spinner { width: 40px; height: 40px; border: 1px solid var(--border-glass); border-top-color: var(--live); border-radius: 50%; animation: spin 0.9s linear infinite; }
+.holo-overview { position: absolute; left: 22px; bottom: 22px; z-index: 5; max-width: 320px; background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 14px 16px; backdrop-filter: blur(10px); }
+.holo-overview .ho-title { font-weight: 300; font-size: 18px; letter-spacing: .3px; }
+.holo-overview .ho-text { font-size: 12px; line-height: 1.6; color: var(--muted); margin-top: 6px; font-weight: 300; }
+.holo-part { position: absolute; right: 22px; bottom: 22px; z-index: 5; width: min(340px, calc(100% - 44px)); background: rgba(8,9,11,.9); border: 1px solid var(--live-dim); padding: 16px 18px; backdrop-filter: blur(12px); box-shadow: 0 0 30px -10px var(--live-glow); }
+.holo-howto { border-color: var(--border-glass); box-shadow: none; }
+.holo-part .hp-name { font-weight: 400; font-size: 16px; color: var(--live); }
+.holo-part .hp-role { font-size: 13px; line-height: 1.65; color: var(--foreground); margin-top: 8px; font-weight: 300; }
+.holo-part .hp-conn { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); margin-top: 10px; }
+@media (max-width: 767px) { .holo-overview { display: none; } .holo-part { left: 12px; right: 12px; width: auto; bottom: 12px; } }
+
+/* ── sitrep ── */
+.sitrep-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sitrep-chip { display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: var(--panel); border: 1px solid var(--border-glass); border-left-width: 2px; max-width: 100%; }
+.sitrep-chip .sc-ic { font-size: 12px; flex: 0 0 auto; }
+.sitrep-chip .sc-tx { font-size: 12px; color: var(--foreground); font-weight: 300; }
+.sitrep-chip.high { border-left-color: #e0706a; }
+.sitrep-chip.high .sc-ic { color: #e0706a; }
+.sitrep-chip.warn { border-left-color: #e8a13a; }
+.sitrep-chip.warn .sc-ic { color: #e8a13a; }
+.sitrep-chip.info { border-left-color: var(--live-dim); }
+.sitrep-chip.info .sc-ic { color: var(--live); }

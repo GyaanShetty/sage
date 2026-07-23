@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GitPullRequest, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { ExpandableCell } from "./expandable-cell";
 
 interface Repo { name: string; language: string | null; pushed_at: string; private: boolean }
 interface PrItem { title: string; repo: string; number: number; url: string }
@@ -40,7 +41,7 @@ export function OpsBand() {
       <div className="sectitle"><span className="sn">04</span><h2>Operations</h2><span className="line" /><span className="tag">GITHUB · MEDIA</span></div>
       <div className="grid deckmc">
         {/* GitHub */}
-        <div className="cell">
+        <ExpandableCell title="GitHub" tag="OPS">
           <div className="bh"><span className="t">GitHub</span><span className="i">GIT</span><span className="r">{gh?.login ? `@${gh.login}` : "—"}</span></div>
           {gh === undefined && <p className="lbl">SYNCING…</p>}
           {gh === null && (
@@ -89,10 +90,9 @@ export function OpsBand() {
               )}
             </>
           )}
-        </div>
-
+        </ExpandableCell>
         {/* Spotify */}
-        <div className="cell" style={{ display: "flex", flexDirection: "column" }}>
+        <ExpandableCell title="Now Playing" tag="SPOTIFY" className="!flex flex-col">
           <div className="bh"><span className="t">Now Playing</span><span className="i">SPO</span><span className="r">SPOTIFY</span></div>
           {now === undefined && <p className="lbl">CONNECTING…</p>}
           {now === null && (
@@ -132,7 +132,7 @@ export function OpsBand() {
               </div>
             </div>
           )}
-        </div>
+        </ExpandableCell>
       </div>
     </section>
   );

@@ -118,8 +118,8 @@ export function HeroGlobe({ nodeCount = 8 }: { nodeCount?: number }) {
       globeRef.current = world;
 
       const mat = world.globeMaterial();
-      mat.color.set("#0b0c0e");
-      if (mat.emissive) { mat.emissive.set("#0b0c0e"); mat.emissiveIntensity = 0.1; }
+      mat.color.set("#0d1013");
+      if (mat.emissive) { mat.emissive.set("#0a1214"); mat.emissiveIntensity = 0.28; }
 
       // dark hex-dot continents from world-atlas topojson
       try {
@@ -128,7 +128,7 @@ export function HeroGlobe({ nodeCount = 8 }: { nodeCount?: number }) {
         const feats = topojson && topo?.objects?.countries
           ? ((topojson.feature(topo, topo.objects.countries) as unknown) as { features: unknown[] }).features
           : [];
-        world.hexPolygonsData(feats).hexPolygonResolution(3).hexPolygonMargin(0.35).hexPolygonUseDots(true).hexPolygonColor(() => "rgba(94,207,214,0.32)");
+        world.hexPolygonsData(feats).hexPolygonResolution(3).hexPolygonMargin(0.28).hexPolygonUseDots(true).hexPolygonColor(() => "rgba(94,207,214,0.6)");
       } catch {}
 
       const size = () => { world.width(el.clientWidth).height(el.clientHeight); };
@@ -138,11 +138,11 @@ export function HeroGlobe({ nodeCount = 8 }: { nodeCount?: number }) {
 
       const ctr = world.controls();
       ctr.autoRotate = true;
-      ctr.autoRotateSpeed = 0.45;
+      ctr.autoRotateSpeed = 0.32;
       ctr.enableZoom = true;
-      ctr.minDistance = 140;
-      ctr.maxDistance = 500;
-      world.pointOfView({ lat: 18, lng: 78, altitude: 2.4 }, 0);
+      ctr.minDistance = 115;
+      ctr.maxDistance = 480;
+      world.pointOfView({ lat: 18, lng: 78, altitude: 2.05 }, 0);
       el.addEventListener("pointerdown", () => { ctr.autoRotate = false; });
 
       setReady(true);

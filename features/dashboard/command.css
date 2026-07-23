@@ -395,3 +395,21 @@
 .atlas-chip.on .ac-live { background: var(--live); box-shadow: 0 0 5px var(--live-glow); animation: dotRipple 2s ease-out infinite; }
 .atlas-note { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); margin-top: 8px; opacity: .7; }
 @media (max-width: 767px) { .atlas { height: 400px; } .atlas-note { display: none; } }
+
+/* ── expandable cell (magnify affordance on every panel) ── */
+.xcell { position: relative; }
+.xc-btn { position: absolute; top: 10px; right: 10px; z-index: 4; background: rgba(8,9,11,.6); border: 1px solid var(--border-glass); color: var(--subtle); cursor: pointer; padding: 4px; display: flex; opacity: 0; transition: opacity 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease); }
+.xcell:hover .xc-btn { opacity: 1; }
+.xc-btn:hover { color: var(--live); border-color: var(--live-dim); }
+/* enlarged content inside the modal — scale up type + spacing */
+.xc-big { font-size: 1.06em; }
+.xc-big .bh { display: none; } /* modal already shows the title */
+.xc-big .counters { grid-template-columns: 1fr 1fr; }
+.xc-big .ct .cv { font-size: 30px; }
+.xc-big .cal .d { font-size: 10px; }
+.xc-big .note .ntx, .xc-big .ag .en2 { font-size: 15px; }
+.xc-big .gita .dev, .xc-big .dev { font-size: 19px; }
+.xc-big .en { font-size: 15px; }
+.xc-big .fr { font-size: 12px; line-height: 2; }
+.xc-big .fring svg { max-width: 180px; }
+.xc-big .nxt { display: none; }

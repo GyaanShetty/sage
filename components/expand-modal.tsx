@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { sound } from "@/lib/sound";
@@ -22,6 +23,9 @@ export function ExpandModal({
   tag?: string;
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     sound.tick();
@@ -30,7 +34,10 @@ export function ExpandModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  // Portal to body so a CSS-transformed ancestor can't trap the fixed scrim.
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
@@ -57,6 +64,7 @@ export function ExpandModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

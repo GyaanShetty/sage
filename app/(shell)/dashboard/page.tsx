@@ -10,6 +10,7 @@ import {
 import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/components/bands";
 import { LearnBand } from "@/features/dashboard/components/learn-band";
 import { StreamsBand } from "@/features/dashboard/components/streams-band";
+import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
@@ -150,6 +151,7 @@ export default async function DashboardPage() {
         health={health}
       />
       <LearnBand />
+      <TickTickBand />
       <StreamsBand />
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CalendarDays, Check, Mail, Music } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, Mail, Music } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
@@ -36,11 +36,15 @@ export function SettingsView({
   googleConfigured,
   spotifyConnected,
   spotifyConfigured,
+  ticktickConnected = false,
+  ticktickConfigured = false,
 }: {
   googleConnected: boolean;
   googleConfigured: boolean;
   spotifyConnected: boolean;
   spotifyConfigured: boolean;
+  ticktickConnected?: boolean;
+  ticktickConfigured?: boolean;
 }) {
   const router = useRouter();
   const refresh = () => router.refresh();
@@ -94,6 +98,25 @@ export function SettingsView({
               </a>
             ) : (
               <span className="text-xs text-subtle">Set SPOTIFY_CLIENT_ID/SECRET</span>
+            )}
+          </GlassPanel>
+
+          <GlassPanel className="mt-3 flex items-center gap-4 p-5">
+            <CheckCircle2 className="size-5 text-muted" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">TickTick</p>
+              <p className="text-xs text-subtle">
+                Your TickTick tasks &amp; deadlines flow into the Deadlines panel.
+              </p>
+            </div>
+            {ticktickConnected ? (
+              <ConnectedBadge provider="ticktick" onDone={refresh} />
+            ) : ticktickConfigured ? (
+              <a href="/api/integrations/ticktick" className="bg-accent px-3.5 py-1.5 text-xs font-medium text-background">
+                Connect
+              </a>
+            ) : (
+              <span className="text-xs text-subtle">Set TICKTICK_CLIENT_ID/SECRET</span>
             )}
           </GlassPanel>
         </motion.div>

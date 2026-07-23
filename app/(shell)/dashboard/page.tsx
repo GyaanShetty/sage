@@ -11,6 +11,7 @@ import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/compone
 import { LearnBand } from "@/features/dashboard/components/learn-band";
 import { StreamsBand } from "@/features/dashboard/components/streams-band";
 import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
+import { SitrepBand } from "@/features/dashboard/components/sitrep-band";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
@@ -126,6 +127,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      <SitrepBand />
       <CommandView
         tasks={(tasks ?? []) as TaskRow[]}
         events={events}

@@ -65,7 +65,7 @@ export async function GET(req: Request) {
   const fallback = (() => {
     const openN = (tasks ?? []).length;
     const mailN = (emails ?? []).length;
-    const bits = [`${g}, Gyaan.`];
+    const bits = [`${g}, sir.`];
     bits.push(openN ? `You have ${openN} open ${openN === 1 ? "task" : "tasks"}.` : `Your task list is clear.`);
     if (mailN) bits.push(`${mailN} unread ${mailN === 1 ? "email" : "emails"} waiting.`);
     const nifty = (quotes as { name: string; changePct: number }[]).find((q) => /nifty/i.test(q.name));
@@ -78,7 +78,7 @@ export async function GET(req: Request) {
   try {
     const { text } = await generateText({
       model,
-      prompt: `You are SAGE, Gyaan's female AI chief of staff, delivering a short SPOKEN briefing as he opens his console. This is read ALOUD, so: no markdown, no lists, no headers, no URLs. Start with exactly "${g}, Gyaan." then in 3 to 5 short flowing sentences cover, in this order and only what's non-empty: his open tasks (call out the most important one), any pending important emails (who from / what about), his next calendar event if soon, and a one-line market read (Nifty/Sensex direction). Warm, composed, quietly confident. End with one short forward-looking line like "Shall we begin?" or "I'm ready when you are." Keep it under 90 words.
+      prompt: `You are SAGE, Gyaan's distinguished British AI chief of staff — a refined elder gentleman with a deep, calm baritone — delivering a short SPOKEN briefing as he opens his console. This is read ALOUD, so: no markdown, no lists, no headers, no URLs. Start with exactly "${g}, sir." then in 3 to 5 short flowing sentences cover, in this order and only what's non-empty: his open tasks (call out the most important one), any pending important emails (who from / what about), his next calendar event if soon, and a one-line market read (Nifty/Sensex direction). Refined, composed, quietly confident; dry wit in moderation. End with one short forward-looking line like "Shall we begin, sir?" or "I stand ready." Keep it under 90 words.
 
 Time: ${new Date().toString()} IST
 Open tasks: ${JSON.stringify(tasks ?? [])}

@@ -18,7 +18,8 @@ const INITIAL: LayerDef[] = [
   { key: "sats", label: "SATELLITES", icon: "🛰", on: true, live: true },
   { key: "rain", label: "RAIN RADAR", icon: "🌧", on: false, live: true },
   { key: "trade", label: "TRADE LANES", icon: "⚓", on: true },
-  { key: "conflict", label: "CONFLICTS", icon: "⚔", on: true },
+  { key: "conflict", label: "CONFLICTS", icon: "⚔", on: true, live: true },
+  { key: "seismic", label: "SEISMIC", icon: "◈", on: false, live: true },
   ...(HAS_TRAFFIC ? [{ key: "traffic", label: "TRAFFIC", icon: "🚦", on: false, live: true }] : []),
 ];
 
@@ -32,6 +33,8 @@ export function AtlasMap({ lat = 20, lon = 40 }: { lat?: number; lon?: number })
   const [layers, setLayers] = useState<LayerDef[]>(INITIAL);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState("BOOTING ATLAS…");
+  const [conflictNews, setConflictNews] = useState<{ title: string; source: string; url: string }[]>([]);
+  const [ticker, setTicker] = useState(0);
 
   // ── init map + static layers ─────────────────────────────
   useEffect(() => {
@@ -185,6 +188,45 @@ export function AtlasMap({ lat = 20, lon = 40 }: { lat?: number; lon?: number })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, layers]);
 
+  // ── live seismic (USGS earthquakes) ──────────────────────
+  useEffect(() => {
+    if (!ready || !isOn("seismic")) return;
+    const L = LRef.current!;
+    const g = groups.current.seismic;
+    let stop = false;
+    const load = async () => {
+      if (stop) return;
+      try {
+        const j = await fetch("/api/atlas/seismic").then((r) => r.json());
+        g.clearLayers();
+        for (const q of j?.data ?? []) {
+          L.circleMarker([q.lat, q.lon], { radius: 2 + q.mag * 1.6, color: "#e8a13a", weight: 1, fillColor: "#e8a13a", fillOpacity: 0.15 })
+            .bindTooltip(`◈ M${q.mag.toFixed(1)} · ${q.place} · ${new Date(q.time).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })} IST`, { sticky: true })
+            .addTo(g);
+        }
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 300000);
+    return () => { stop = true; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, layers]);
+
+  // ── live conflict headlines (GDELT) for the HUD ticker ────
+  useEffect(() => {
+    if (!ready) return;
+    const load = () => fetch("/api/atlas/conflicts").then((r) => r.json()).then((j) => setConflictNews(j?.data ?? [])).catch(() => {});
+    load();
+    const t = setInterval(load, 900000);
+    return () => clearInterval(t);
+  }, [ready]);
+
+  useEffect(() => {
+    if (conflictNews.length < 2) return;
+    const t = setInterval(() => setTicker((i) => (i + 1) % conflictNews.length), 6000);
+    return () => clearInterval(t);
+  }, [conflictNews]);
+
   const toggle = (k: string) => setLayers((ls) => ls.map((l) => (l.key === k ? { ...l, on: !l.on } : l)));
 
   return (
@@ -201,6 +243,12 @@ export function AtlasMap({ lat = 20, lon = 40 }: { lat?: number; lon?: number })
         </div>
         <div className="atlas-note">HOVER ANY OBJECT TO IDENTIFY · DRAG TO PAN · SCROLL TO ZOOM</div>
       </div>
+      {isOn("conflict") && conflictNews.length > 0 && (
+        <a className="atlas-ticker" href={conflictNews[ticker]?.url ?? "#"} target="_blank" rel="noreferrer">
+          <span className="at-tag">⚔ LIVE</span>
+          <span className="at-txt" key={ticker}>{conflictNews[ticker]?.title}</span>
+        </a>
+      )}
     </div>
   );
 }

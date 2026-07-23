@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   Boxes,
   CandlestickChart,
+  Network,
   LayoutDashboard,
   MessageSquare,
   FolderKanban,
@@ -30,6 +31,7 @@ const NAV = [
   { href: "/lab", label: "Holo-Lab", icon: Boxes },
   { href: "/automations", label: "Automations", icon: Zap },
   { href: "/memory", label: "Memory", icon: Brain },
+  { href: "/graph", label: "Mind Graph", icon: Network },
 ] as const;
 
 export function Sidebar() {

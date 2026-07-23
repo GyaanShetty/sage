@@ -1,0 +1,149 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import "@/features/dashboard/command.css";
+
+interface GNode { id: string; label: string; kind: string; group: string; weight: number }
+interface GEdge { a: string; b: string }
+interface Sim extends GNode { x: number; y: number; vx: number; vy: number }
+
+const COLOR: Record<string, string> = { memory: "#5ecfd6", note: "#e8e9ec", source: "#e8a13a" };
+
+export function KnowledgeGraph() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [hover, setHover] = useState<GNode | null>(null);
+  const [empty, setEmpty] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d")!;
+    let raf = 0, disposed = false;
+    let nodes: Sim[] = [];
+    let edges: { a: Sim; b: Sim }[] = [];
+    let W = 0, H = 0;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    let drag: Sim | null = null;
+    const mouse = { x: 0, y: 0, down: false };
+
+    const size = () => {
+      W = canvas.clientWidth; H = canvas.clientHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    size();
+    const ro = new ResizeObserver(size); ro.observe(canvas);
+
+    fetch("/api/graph").then((r) => r.json()).then((j) => {
+      if (disposed) return;
+      const gn: GNode[] = j?.data?.nodes ?? [];
+      if (!gn.length) { setEmpty(true); return; }
+      const byId = new Map<string, Sim>();
+      const cx = (canvas.clientWidth || 800) / 2, cy = (canvas.clientHeight || 500) / 2;
+      const R = Math.min(cx, cy) * 0.8;
+      nodes = gn.map((n, i) => {
+        const ang = (i / gn.length) * Math.PI * 2;
+        const s: Sim = { ...n, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, vx: 0, vy: 0 };
+        byId.set(n.id, s); return s;
+      });
+      edges = (j.data.edges as GEdge[]).map((e) => ({ a: byId.get(e.a)!, b: byId.get(e.b)! })).filter((e) => e.a && e.b);
+    });
+
+    const step = () => {
+      // repulsion
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          let dx = a.x - b.x, dy = a.y - b.y;
+          let d2 = dx * dx + dy * dy || 0.01;
+          const f = 1400 / d2;
+          const d = Math.sqrt(d2);
+          dx /= d; dy /= d;
+          a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+        }
+      }
+      // spring along edges
+      for (const e of edges) {
+        let dx = e.b.x - e.a.x, dy = e.b.y - e.a.y;
+        const d = Math.hypot(dx, dy) || 0.01;
+        const f = (d - 90) * 0.008;
+        dx /= d; dy /= d;
+        e.a.vx += dx * f; e.a.vy += dy * f; e.b.vx -= dx * f; e.b.vy -= dy * f;
+      }
+      // centering + integrate
+      for (const n of nodes) {
+        n.vx += (W / 2 - n.x) * 0.006;
+        n.vy += (H / 2 - n.y) * 0.006;
+        n.vx *= 0.86; n.vy *= 0.86;
+        if (n !== drag) { n.x += n.vx; n.y += n.vy; }
+      }
+      if (drag) { drag.x = mouse.x; drag.y = mouse.y; }
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      ctx.lineWidth = 1;
+      for (const e of edges) {
+        ctx.strokeStyle = "rgba(94,207,214,0.12)";
+        ctx.beginPath(); ctx.moveTo(e.a.x, e.a.y); ctx.lineTo(e.b.x, e.b.y); ctx.stroke();
+      }
+      let hov: GNode | null = null;
+      for (const n of nodes) {
+        const r = 3 + n.weight * 2.2;
+        const near = Math.hypot(n.x - mouse.x, n.y - mouse.y) < r + 6;
+        if (near) hov = n;
+        const col = COLOR[n.kind] ?? "#9a9a9f";
+        ctx.beginPath(); ctx.arc(n.x, n.y, r + (near ? 3 : 0), 0, Math.PI * 2);
+        ctx.fillStyle = col; ctx.globalAlpha = near ? 1 : 0.85; ctx.fill();
+        ctx.globalAlpha = 0.12; ctx.beginPath(); ctx.arc(n.x, n.y, r + 6, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
+        ctx.globalAlpha = 1;
+        if (near || n.weight > 1.6) {
+          ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = near ? "#eef2f2" : "rgba(238,242,242,0.5)"; ctx.textAlign = "center";
+          ctx.fillText(n.label.slice(0, near ? 40 : 18), n.x, n.y - r - 6);
+        }
+      }
+      if (hov !== hover) setHover(hov);
+      canvas.style.cursor = hov ? "pointer" : "grab";
+    };
+
+    const loop = () => { step(); draw(); raf = requestAnimationFrame(loop); };
+    loop();
+
+    const pos = (e: PointerEvent) => { const r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; };
+    const onDown = (e: PointerEvent) => { pos(e); mouse.down = true; drag = nodes.find((n) => Math.hypot(n.x - mouse.x, n.y - mouse.y) < 3 + n.weight * 2.2 + 6) ?? null; };
+    const onMove = (e: PointerEvent) => pos(e);
+    const onUp = () => { mouse.down = false; drag = null; };
+    canvas.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+
+    return () => {
+      disposed = true; cancelAnimationFrame(raf); ro.disconnect();
+      canvas.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="holo">
+      <div className="holo-hud">
+        <div className="sectitle" style={{ marginBottom: 4 }}><span className="sn">KG</span><h2>Mind Graph</h2><span className="line" /><span className="tag">MEMORIES · NOTES · KNOWLEDGE</span></div>
+        <div className="kg-legend">
+          <span><i style={{ background: COLOR.memory }} /> MEMORY</span>
+          <span><i style={{ background: COLOR.note }} /> NOTE</span>
+          <span><i style={{ background: COLOR.source }} /> SOURCE</span>
+        </div>
+      </div>
+      <canvas ref={canvasRef} className="holo-stage" />
+      {empty && <div className="holo-nomodel">NO MEMORIES YET — TALK TO SAGE AND INGEST KNOWLEDGE TO GROW YOUR GRAPH</div>}
+      {hover && (
+        <div className="kg-tip">
+          <div className="kg-kind" style={{ color: COLOR[hover.kind] }}>{hover.kind.toUpperCase()} · {hover.group}</div>
+          <div className="kg-label">{hover.label}</div>
+        </div>
+      )}
+    </div>
+  );
+}

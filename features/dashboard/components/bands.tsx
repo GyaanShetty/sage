@@ -19,41 +19,58 @@ const CITIES: [number, number, string][] = [
   [139.7, 35.7, "TOK"], [-0.1, 51.5, "LDN"], [151.2, -33.9, "SYD"], [-122.4, 37.8, "SFO"],
 ];
 
+interface Plane { lat: number; lon: number; callsign: string; origin: string; alt: number; vel: number; heading: number }
+interface SkyData {
+  iss: { lat: number; lon: number; alt: number; vel: number } | null;
+  planes: Plane[];
+  sun: { sunrise: string; sunset: string } | null;
+  moon: { phase: number; illum: number; name: string };
+}
+interface Marker { x: number; y: number; label: string }
+
 export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
   const mapRef = useRef<SVGSVGElement>(null);
   const [clocks, setClocks] = useState<Record<string, string>>({});
+  const [sky, setSky] = useState<SkyData | null>(null);
+  const skyRef = useRef<SkyData | null>(null);
+  const markersRef = useRef<Marker[]>([]);
+  const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
+
+  // Pull live sky data (ISS + planes + sun/moon) and refresh.
+  useEffect(() => {
+    const load = () => {
+      const q = geo ? `?lat=${geo.lat}&lon=${geo.lon}` : "";
+      fetch(`/api/sky${q}`)
+        .then((r) => r.json())
+        .then((j) => { skyRef.current = j.data; setSky(j.data); })
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 20000);
+    return () => clearInterval(t);
+  }, [geo]);
 
   useEffect(() => {
     const el = mapRef.current;
     if (!el) return;
     const WW = 720, WH = 360;
     const WPT = (lo: number, la: number): [number, number] => [((lo + 180) / 360) * WW, ((90 - la) / 180) * WH];
-    let satPhase = 0, raf = 0, last = 0, t0 = performance.now();
+    let raf = 0, last = 0;
 
-    // Live data links between hubs (BLR ↔ world). Packets travel along arcs.
-    const HUB = 0; // BLR
-    const links = [1, 2, 3, 4, 5, 6, 7].map((to, i) => ({ from: HUB, to, phase: (i / 7) * Math.PI * 2, speed: 0.35 + (i % 3) * 0.15 }));
-    const arrivals: { x: number; y: number; t: number }[] = [];
-
-    const draw = (nowMs: number) => {
-      const T = (nowMs - t0) / 1000;
+    const draw = () => {
       const now = new Date();
       const doy = Math.floor((now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 864e5);
       const decl = ((23.44 * Math.sin((2 * Math.PI * (doy - 81)) / 365)) * Math.PI) / 180;
       const subLon = -15 * (now.getUTCHours() + now.getUTCMinutes() / 60 - 12);
+      const markers: Marker[] = [];
       let s = "";
-      for (let lon = -180; lon <= 180; lon += 30) {
-        const [x] = WPT(lon, 0);
-        s += `<line x1="${x}" y1="0" x2="${x}" y2="${WH}" stroke="rgba(244,244,245,.05)"/>`;
-      }
-      for (let lat = -60; lat <= 60; lat += 30) {
-        const [, y] = WPT(0, lat);
-        s += `<line x1="0" y1="${y}" x2="${WW}" y2="${y}" stroke="rgba(244,244,245,.05)"/>`;
-      }
+      for (let lon = -180; lon <= 180; lon += 30) { const [x] = WPT(lon, 0); s += `<line x1="${x}" y1="0" x2="${x}" y2="${WH}" stroke="rgba(244,244,245,.05)"/>`; }
+      for (let lat = -60; lat <= 60; lat += 30) { const [, y] = WPT(0, lat); s += `<line x1="0" y1="${y}" x2="${WW}" y2="${y}" stroke="rgba(244,244,245,.05)"/>`; }
       SHAPES.forEach((sh) => {
         const pts = sh.map(([lo, la]) => WPT(lo, la).map((v) => v.toFixed(1)).join(",")).join(" ");
         s += `<polygon points="${pts}" stroke="rgba(244,244,245,.25)" stroke-width="1" fill="rgba(244,244,245,.04)"/>`;
       });
+      // real day/night terminator
       const tp: [number, number][] = [];
       for (let lon = -180; lon <= 180; lon += 4) {
         const H = ((lon - subLon) * Math.PI) / 180;
@@ -62,79 +79,90 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
       const d = "M" + tp.map((p) => p.map((n) => n.toFixed(1)).join(",")).join(" L") + ` L${WW},${decl >= 0 ? WH : 0} L0,${decl >= 0 ? WH : 0} Z`;
       s += `<path d="${d}" fill="rgba(0,0,0,.42)" stroke="rgba(244,244,245,.18)" stroke-dasharray="3 3"/>`;
       const [sx, sy] = WPT(subLon, (decl * 180) / Math.PI);
-      s += `<circle cx="${sx}" cy="${sy}" r="5" stroke="#f4f4f5" fill="none"/><circle cx="${sx}" cy="${sy}" r="1.5" fill="#f4f4f5"/>`;
-      for (let pass = 0; pass < 2; pass++) {
-        let pts = "";
-        for (let lon = -180; lon <= 180; lon += 4) {
-          const lat = 52 * Math.sin((lon * Math.PI) / 180 + satPhase + pass * 2.83);
-          const [x, y] = WPT(lon, lat);
-          pts += `${x.toFixed(1)},${y.toFixed(1)} `;
-        }
-        s += `<polyline points="${pts}" stroke="rgba(244,244,245,${pass ? ".14" : ".35"})" fill="none" ${pass ? 'stroke-dasharray="2 4"' : ""}/>`;
-      }
-      const slon = (((Date.now() / 200) % 720) / 2) - 180, slat = 52 * Math.sin((slon * Math.PI) / 180 + satPhase);
-      const [mx2, my2] = WPT(slon, slat);
-      s += `<rect x="${mx2 - 3}" y="${my2 - 3}" width="6" height="6" fill="#f4f4f5" transform="rotate(45 ${mx2} ${my2})"/><text x="${mx2 + 8}" y="${my2 - 6}" fill="#9a9a9f" font-size="7" font-family="var(--mono)">SAGE-1</text>`;
-      // ── live data links: arcs + travelling packets ──
-      links.forEach((lk) => {
-        const [ax, ay] = WPT(CITIES[lk.from][0], CITIES[lk.from][1]);
-        const [bx, by] = WPT(CITIES[lk.to][0], CITIES[lk.to][1]);
-        const mx = (ax + bx) / 2, my = (ay + by) / 2 - Math.hypot(bx - ax, by - ay) * 0.28; // arc apex
-        s += `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} Q${mx.toFixed(1)} ${my.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}" stroke="rgba(94,207,214,.10)" fill="none"/>`;
-        // packet position along the quadratic bezier
-        const u = (T * lk.speed + lk.phase / (Math.PI * 2)) % 1;
-        const qx = (1 - u) * (1 - u) * ax + 2 * (1 - u) * u * mx + u * u * bx;
-        const qy = (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * my + u * u * by;
-        s += `<circle cx="${qx.toFixed(1)}" cy="${qy.toFixed(1)}" r="1.8" fill="var(--live)"/>`;
-        s += `<circle cx="${qx.toFixed(1)}" cy="${qy.toFixed(1)}" r="3.4" fill="none" stroke="rgba(94,207,214,.3)"/>`;
-        if (u > 0.985) arrivals.push({ x: bx, y: by, t: nowMs });
-      });
-      // arrival pulses
-      for (let i = arrivals.length - 1; i >= 0; i--) {
-        const age = (nowMs - arrivals[i].t) / 900;
-        if (age > 1) { arrivals.splice(i, 1); continue; }
-        s += `<circle cx="${arrivals[i].x.toFixed(1)}" cy="${arrivals[i].y.toFixed(1)}" r="${(2 + age * 12).toFixed(1)}" stroke="rgba(94,207,214,${(0.5 * (1 - age)).toFixed(2)})" fill="none"/>`;
-      }
+      s += `<circle cx="${sx}" cy="${sy}" r="6" stroke="#f4f4f5" fill="none"/><circle cx="${sx}" cy="${sy}" r="2" fill="#f4f4f5"/>`;
+      for (let r = 8; r < 16; r += 3) s += `<circle cx="${sx}" cy="${sy}" r="${r}" stroke="rgba(244,244,245,.12)" fill="none"/>`;
+      markers.push({ x: sx, y: sy, label: "☉ SUBSOLAR — sun directly overhead here" });
 
+      const data = skyRef.current;
+      // real aircraft
+      for (const p of data?.planes ?? []) {
+        const [x, y] = WPT(p.lon, p.lat);
+        const a = ((p.heading - 90) * Math.PI) / 180;
+        const tipx = x + 4 * Math.cos(a), tipy = y + 4 * Math.sin(a);
+        const l1x = x + 3 * Math.cos(a + 2.5), l1y = y + 3 * Math.sin(a + 2.5);
+        const l2x = x + 3 * Math.cos(a - 2.5), l2y = y + 3 * Math.sin(a - 2.5);
+        s += `<polygon points="${tipx.toFixed(1)},${tipy.toFixed(1)} ${l1x.toFixed(1)},${l1y.toFixed(1)} ${l2x.toFixed(1)},${l2y.toFixed(1)}" fill="rgba(244,244,245,.7)"/>`;
+        markers.push({ x, y, label: `✈ ${p.callsign} · ${p.origin} · ${Math.round(p.alt).toLocaleString()}m · ${Math.round(p.vel * 3.6)}km/h` });
+      }
+      // ISS: ground track + marker
+      if (data?.iss) {
+        let track = "";
+        for (let lon = -180; lon <= 180; lon += 4) {
+          const lat = 51.6 * Math.sin(((lon - data.iss.lon) * Math.PI) / 180);
+          const [x, y] = WPT(lon, lat + (data.iss.lat - 51.6 * Math.sin(0)));
+          track += `${x.toFixed(1)},${y.toFixed(1)} `;
+        }
+        s += `<polyline points="${track}" stroke="rgba(94,207,214,.35)" fill="none" stroke-dasharray="2 4"/>`;
+        const [ix, iy] = WPT(data.iss.lon, data.iss.lat);
+        s += `<circle cx="${ix}" cy="${iy}" r="10" fill="none" stroke="rgba(94,207,214,.35)"/>`;
+        s += `<rect x="${ix - 3.5}" y="${iy - 3.5}" width="7" height="7" fill="var(--live)" transform="rotate(45 ${ix} ${iy})"/>`;
+        s += `<text x="${ix + 10}" y="${iy - 6}" fill="var(--live)" font-size="7.5" font-family="var(--mono)">ISS</text>`;
+        markers.push({ x: ix, y: iy, label: `🛰 ISS · ${Math.round(data.iss.alt)}km alt · ${Math.round(data.iss.vel).toLocaleString()}km/h` });
+      }
       CITIES.forEach(([lo, la, l], i) => {
         const [x, y] = WPT(lo, la);
-        const hub = i === HUB;
-        s += `<circle cx="${x}" cy="${y}" r="${hub ? 3 : 2}" fill="${hub ? "var(--live)" : "#f4f4f5"}"/><text x="${x + 5}" y="${y + 3}" fill="#5c5c62" font-size="7" font-family="var(--mono)">${l}</text>`;
+        const hub = i === 0;
+        s += `<circle cx="${x}" cy="${y}" r="${hub ? 3 : 2}" fill="${hub ? "var(--live)" : "#5c5c62"}"/><text x="${x + 5}" y="${y + 3}" fill="#5c5c62" font-size="7" font-family="var(--mono)">${l}</text>`;
       });
       el.innerHTML = s;
+      markersRef.current = markers;
     };
 
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    draw(performance.now());
+    draw();
     if (!reduced) {
-      const loop = (ts: number) => { if (ts - last > 40) { satPhase += 0.0016 * (ts - last); draw(ts); last = ts; } raf = requestAnimationFrame(loop); };
+      const loop = (ts: number) => { if (ts - last > 1000) { draw(); last = ts; } raf = requestAnimationFrame(loop); };
       raf = requestAnimationFrame(loop);
     }
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [sky]);
+
+  // Hover-identify: hit-test markers in viewBox space.
+  const onMapMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const el = mapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vx = ((e.clientX - rect.left) / rect.width) * 720;
+    const vy = ((e.clientY - rect.top) / rect.height) * 360;
+    let best: Marker | null = null, bestD = 12;
+    for (const m of markersRef.current) {
+      const dd = Math.hypot(m.x - vx, m.y - vy);
+      if (dd < bestD) { bestD = dd; best = m; }
+    }
+    setTip(best ? { x: e.clientX - rect.left, y: e.clientY - rect.top, text: best.label } : null);
+  };
 
   useEffect(() => {
     const fmt = (tz: string) => {
       const d = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
       return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
-    const update = () =>
-      setClocks({ BLR: fmt("Asia/Kolkata"), UTC: fmt("UTC"), NYC: fmt("America/New_York"), TOK: fmt("Asia/Tokyo") });
+    const update = () => setClocks({ BLR: fmt("Asia/Kolkata"), UTC: fmt("UTC"), NYC: fmt("America/New_York"), TOK: fmt("Asia/Tokyo") });
     update();
     const t = setInterval(update, 5000);
     return () => clearInterval(t);
   }, []);
 
-  const LAT = [[0, 142, 215, 38], [142, 0, 88, 168], [215, 88, 0, 232], [38, 168, 232, 0]];
-  const NODES = ["BLR", "FRA", "NYC", "SGP"];
+  const istTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
 
   return (
     <section className="section" id="world" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · CLOCKS · MESH · GEO</span></div>
+      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · AIRCRAFT · ISS · SKY</span></div>
       <div className="grid deck3">
-        <div className="cell">
-          <div className="bh"><span className="t">Global Monitor</span><span className="i">EYE</span><span className="r">DAY/NIGHT LIVE</span></div>
-          <svg id="worldmap" ref={mapRef} viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet" />
+        <div className="cell" style={{ position: "relative" }}>
+          <div className="bh"><span className="t">Global Monitor</span><span className="i">EYE</span><span className="r">{sky ? `${sky.planes.length} AIRCRAFT · LIVE` : "LINKING…"}</span></div>
+          <svg id="worldmap" ref={mapRef} viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet" onPointerMove={onMapMove} onPointerLeave={() => setTip(null)} style={{ cursor: "crosshair" }} />
+          {tip && <div className="map-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div>}
         </div>
         <div className="stack">
           <div className="cell">
@@ -149,13 +177,13 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
             </div>
           </div>
           <div className="cell" style={{ flex: 1 }}>
-            <div className="bh"><span className="t" style={{ fontSize: 10 }}>Latency Matrix</span><span className="i">LAT</span><span className="r">MS · SIM</span></div>
-            <div className="mx">
-              <div className="mxc mxh" />
-              {NODES.map((n) => <div className="mxc mxh" key={n}>{n}</div>)}
-              {NODES.map((r, i) => (
-                <FragmentRow key={r} label={r} row={LAT[i]} />
-              ))}
+            <div className="bh"><span className="t" style={{ fontSize: 10 }}>Sky</span><span className="i">SKY</span><span className="r">LIVE</span></div>
+            <div className="skygrid">
+              <div className="skyrow"><span className="skk">MOON</span><span className="skv">{moonGlyph(sky?.moon.phase ?? 0)} {sky?.moon.name ?? "—"}{sky ? ` · ${Math.round(sky.moon.illum * 100)}%` : ""}</span></div>
+              <div className="skyrow"><span className="skk">SUNRISE</span><span className="skv">{sky?.sun ? `${istTime(sky.sun.sunrise)} IST` : "—"}</span></div>
+              <div className="skyrow"><span className="skk">SUNSET</span><span className="skv">{sky?.sun ? `${istTime(sky.sun.sunset)} IST` : "—"}</span></div>
+              <div className="skyrow"><span className="skk">ISS ALT</span><span className="skv">{sky?.iss ? `${Math.round(sky.iss.alt)} km · ${Math.round(sky.iss.vel).toLocaleString()} km/h` : "—"}</span></div>
+              <div className="skyrow"><span className="skk">AIRCRAFT</span><span className="skv">{sky ? `${sky.planes.length} tracked nearby` : "—"}</span></div>
             </div>
           </div>
         </div>
@@ -167,22 +195,9 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
   );
 }
 
-function FragmentRow({ label, row }: { label: string; row: number[] }) {
-  return (
-    <>
-      <div className="mxc mxh">{label}</div>
-      {row.map((v, j) => {
-        if (v === 0) return <div className="mxc mxv" key={j}><span>—</span></div>;
-        const op = Math.max(0, 1 - v / 260);
-        return (
-          <div className={`mxc mxv${op > 0.55 ? " dark" : ""}`} key={j}>
-            <div className="fill" style={{ opacity: op }} />
-            <span>{v}</span>
-          </div>
-        );
-      })}
-    </>
-  );
+function moonGlyph(phase: number): string {
+  const g = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
+  return g[Math.round(phase * 8) % 8];
 }
 
 /* ============ 04 CONSOLE ============ */

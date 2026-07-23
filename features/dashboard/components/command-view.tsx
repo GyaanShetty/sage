@@ -8,12 +8,13 @@ import { sound } from "@/lib/sound";
 import { ExpandModal } from "@/components/expand-modal";
 import { TaskManager } from "./task-manager";
 import { ExpandableCell } from "./expandable-cell";
-import { HeroGlobe } from "@/features/atlas/hero-globe";
+import { ScheduleManager } from "./schedule-manager";
+import { WorldView } from "@/features/atlas/world-view";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
 export interface TaskRow { id: string; title: string; status: string; dueAt: string | null }
-export interface EventRow { summary: string; start: string; allDay?: boolean }
+export interface EventRow { id?: string; summary: string; start: string; allDay?: boolean }
 export interface NoteRow { id: string; title: string; createdAt: string }
 export interface LogRow { type: string; createdAt: string }
 export interface Stats { memories: number; sources: number; runs: number; notes: number }
@@ -216,7 +217,7 @@ export function CommandView({
           {/* center — interactive Google-Earth-style intelligence globe */}
           <div className="stack">
             <div className="cell hero hero-globe-cell">
-              <HeroGlobe nodeCount={Math.round(stats.memories / 2) + 5} />
+              <WorldView lat={18} lon={78} />
               <div className="greeting">
                 <div className="g1">Sage · Online</div>
                 <div className="g2">{greet}, {userName}</div>
@@ -291,7 +292,7 @@ export function CommandView({
                 ))}
               </div>
             </ExpandableCell>
-            <ExpandableCell title="Agenda" tag="UPCOMING" style={{ flex: 1 }}>
+            <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: 1 }} expanded={<ScheduleManager events={events} />}>
               <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
               {(events ?? []).slice(0, 4).map((e, i) => {
                 const d = new Date(e.start);

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GeoMap } from "./geo-map";
-import { AtlasMap } from "@/features/atlas/atlas-map";
 import { ExpandableCell } from "./expandable-cell";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -45,11 +44,7 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
 
   return (
     <section className="section" id="world" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">ATLAS · FLIGHTS · SATS · RAIN · TRADE · CONFLICT</span></div>
-      {/* Google-Earth-style intelligence atlas with toggleable live layers */}
-      <div style={{ marginBottom: 1 }}>
-        <AtlasMap lat={geo?.lat ?? 20} lon={geo?.lon ?? 40} />
-      </div>
+      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">CLOCKS · SKY · GROUND OPS</span></div>
       <div className="grid deck3">
         <div className="cell">
           <div className="bh"><span className="t" style={{ fontSize: 10 }}>World Clocks</span><span className="i">TZ</span></div>

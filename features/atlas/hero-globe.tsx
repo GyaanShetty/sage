@@ -40,8 +40,8 @@ type GlobeInstance = {
   pointLabel: (fn: (d: Pt) => string) => GlobeInstance;
   pointsMerge: (b: boolean) => GlobeInstance;
   pointsTransitionDuration: (n: number) => GlobeInstance;
-  controls: () => { autoRotate: boolean; autoRotateSpeed: number; enableZoom: boolean; minDistance: number; maxDistance: number };
-  pointOfView: (o: { lat?: number; lng?: number; altitude?: number }, ms?: number) => GlobeInstance;
+  controls: () => { autoRotate: boolean; autoRotateSpeed: number; enableZoom: boolean; minDistance: number; maxDistance: number; addEventListener?: (t: string, fn: () => void) => void };
+  pointOfView: { (o: { lat?: number; lng?: number; altitude?: number }, ms?: number): GlobeInstance; (): { lat: number; lng: number; altitude: number } };
   _destructor?: () => void;
 };
 interface Arc { sLat: number; sLng: number; eLat: number; eLng: number; color: string; label: string }
@@ -60,7 +60,7 @@ const INITIAL: LayerDef[] = [
 const CYAN = "#5ecfd6";
 const COUNTRIES_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-export function HeroGlobe({ nodeCount = 8 }: { nodeCount?: number }) {
+export function HeroGlobe({ onZoomIn }: { nodeCount?: number; onZoomIn?: () => void }) {
   const elRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeInstance | null>(null);
   const [layers, setLayers] = useState<LayerDef[]>(INITIAL);
@@ -144,6 +144,14 @@ export function HeroGlobe({ nodeCount = 8 }: { nodeCount?: number }) {
       ctr.maxDistance = 480;
       world.pointOfView({ lat: 18, lng: 78, altitude: 2.05 }, 0);
       el.addEventListener("pointerdown", () => { ctr.autoRotate = false; });
+
+      // Dive past a threshold → hand off to the flat map view.
+      let handed = false;
+      ctr.addEventListener?.("change", () => {
+        const alt = world.pointOfView().altitude ?? 2;
+        if (alt < 0.62 && !handed) { handed = true; onZoomIn?.(); }
+        if (alt > 0.9) handed = false;
+      });
 
       setReady(true);
       rebuild();

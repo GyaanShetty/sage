@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { sound } from "@/lib/sound";
 
 interface Toast {
   id: string;
@@ -51,6 +52,7 @@ export function Toaster() {
 
   const push = useCallback((t: Omit<Toast, "id">) => {
     const id = crypto.randomUUID();
+    sound.tick();
     setToasts((prev) => [...prev.slice(-3), { ...t, id }]);
     setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 7000);
   }, []);

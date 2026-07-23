@@ -6,6 +6,7 @@ import { Ear, Mic, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceAssistant, type AssistantState } from "../engine";
 import { useLiveVoice } from "../live";
+import { sound } from "@/lib/sound";
 
 const STATE_LABEL: Record<AssistantState, string> = {
   off: "",
@@ -79,6 +80,7 @@ export function VoiceOverlay() {
   // Live first (GPT-style full duplex); classic pipeline as fallback.
   const engage = useCallback(async () => {
     if (live.state !== "off" || assistant.state !== "off") return;
+    sound.swoosh();
     setMode("live");
     const ok = await live.start();
     if (!ok) {

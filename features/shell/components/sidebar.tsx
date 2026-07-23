@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Boxes,
+  Bot,
   CandlestickChart,
   Network,
   LayoutDashboard,
@@ -32,6 +33,7 @@ const NAV = [
   { href: "/automations", label: "Automations", icon: Zap },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/graph", label: "Mind Graph", icon: Network },
+  { href: "/agents", label: "Research Agent", icon: Bot },
 ] as const;
 
 export function Sidebar() {

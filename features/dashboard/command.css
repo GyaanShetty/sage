@@ -464,7 +464,7 @@
 .tt-pri.p3 { color: #e8a13a; }
 
 /* ── Holo-Lab (3D learn) ── */
-.holo { position: relative; height: calc(100dvh - 78px); overflow: hidden; }
+.holo { position: relative; height: calc(100dvh - 78px); overflow: hidden; background: var(--background); }
 .holo-stage { position: absolute; inset: 0; z-index: 1; }
 .holo-hud { position: absolute; left: 22px; right: 22px; top: 18px; z-index: 5; max-width: 640px; }
 .holo-input { display: flex; gap: 8px; }
@@ -522,3 +522,17 @@
 .kg-tip { position: absolute; left: 22px; bottom: 22px; z-index: 5; max-width: 360px; background: rgba(8,9,11,.9); border: 1px solid var(--border-glass); padding: 12px 14px; backdrop-filter: blur(10px); }
 .kg-tip .kg-kind { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; }
 .kg-tip .kg-label { font-size: 13px; color: var(--foreground); margin-top: 5px; font-weight: 300; line-height: 1.5; }
+
+/* ── research agent ── */
+.agentview { min-height: calc(100dvh - 78px); }
+.agent-trace { margin-top: 18px; display: flex; flex-direction: column; gap: 2px; border-left: 1px solid var(--border-glass); }
+.atrace-step { display: flex; gap: 12px; padding: 10px 0 10px 16px; position: relative; animation: tickerFade 0.4s var(--ease); }
+.atrace-step::before { content: ""; position: absolute; left: -4px; top: 15px; width: 7px; height: 7px; border-radius: 50%; background: var(--live); box-shadow: 0 0 6px var(--live-glow); }
+.atrace-step.result::before { background: var(--subtle); box-shadow: none; }
+.atrace-step .ats-ic { color: var(--live); flex: 0 0 auto; margin-top: 1px; }
+.atrace-step.result .ats-ic { color: var(--subtle); }
+.atrace-step .ats-head { font-size: 12.5px; color: var(--foreground); font-weight: 400; }
+.atrace-step .ats-tx { font-family: var(--mono); font-size: 10px; color: var(--subtle); margin-top: 2px; line-height: 1.5; word-break: break-word; }
+.agent-report { margin-top: 22px; border: 1px solid var(--live-dim); background: var(--panel); padding: 20px 22px; box-shadow: 0 0 30px -12px var(--live-glow); }
+.agent-report .ar-head { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--live); margin-bottom: 12px; }
+.agent-report .ar-body { font-size: 14px; line-height: 1.75; color: var(--foreground); font-weight: 300; white-space: pre-wrap; }

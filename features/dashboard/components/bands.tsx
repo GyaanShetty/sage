@@ -2,145 +2,32 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GeoMap } from "./geo-map";
+import { AtlasMap } from "@/features/atlas/atlas-map";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/* ============ 03 WORLD ============ */
-const SHAPES: [number, number][][] = [
-  [[-166,68],[-140,70],[-120,72],[-95,74],[-80,72],[-70,62],[-55,52],[-65,45],[-75,40],[-80,32],[-82,26],[-90,22],[-97,20],[-105,22],[-112,28],[-118,34],[-124,42],[-132,52],[-145,60],[-160,62],[-166,68]],
-  [[-80,8],[-72,10],[-62,8],[-52,2],[-44,-4],[-38,-10],[-40,-20],[-48,-28],[-56,-36],[-64,-44],[-70,-52],[-72,-46],[-74,-36],[-76,-24],[-80,-12],[-82,-2],[-80,8]],
-  [[-16,32],[-6,36],[8,38],[20,33],[32,31],[42,12],[50,10],[46,0],[40,-12],[34,-22],[26,-33],[18,-34],[14,-24],[10,-8],[2,4],[-8,10],[-16,20],[-16,32]],
-  [[-10,44],[-8,52],[-2,58],[6,62],[16,66],[28,70],[40,66],[46,58],[38,52],[30,48],[22,44],[12,42],[2,42],[-10,44]],
-  [[46,58],[60,68],[80,72],[100,74],[120,72],[140,66],[155,60],[162,52],[150,46],[142,38],[130,32],[122,24],[110,18],[104,10],[98,8],[92,16],[80,10],[76,18],[68,24],[58,28],[50,34],[44,42],[40,50],[46,58]],
-  [[114,-22],[122,-14],[132,-12],[142,-14],[150,-24],[152,-32],[146,-38],[136,-36],[126,-32],[116,-30],[114,-22]],
-];
-const CITIES: [number, number, string][] = [
-  [77.6, 13.0, "BLR"], [8.7, 50.1, "FRA"], [-74, 40.7, "NYC"], [103.8, 1.35, "SGP"],
-  [139.7, 35.7, "TOK"], [-0.1, 51.5, "LDN"], [151.2, -33.9, "SYD"], [-122.4, 37.8, "SFO"],
-];
-
-interface Plane { lat: number; lon: number; callsign: string; origin: string; alt: number; vel: number; heading: number }
+/* ============ 05 WORLD — atlas + sky panel ============ */
 interface SkyData {
   iss: { lat: number; lon: number; alt: number; vel: number } | null;
-  planes: Plane[];
+  planes: { lat: number; lon: number }[];
   sun: { sunrise: string; sunset: string } | null;
   moon: { phase: number; illum: number; name: string };
 }
-interface Marker { x: number; y: number; label: string }
 
 export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
-  const mapRef = useRef<SVGSVGElement>(null);
   const [clocks, setClocks] = useState<Record<string, string>>({});
   const [sky, setSky] = useState<SkyData | null>(null);
-  const skyRef = useRef<SkyData | null>(null);
-  const markersRef = useRef<Marker[]>([]);
-  const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
 
-  // Pull live sky data (ISS + planes + sun/moon) and refresh.
+  // Pull live sky data (ISS + sun/moon) for the SKY panel.
   useEffect(() => {
     const load = () => {
       const q = geo ? `?lat=${geo.lat}&lon=${geo.lon}` : "";
-      fetch(`/api/sky${q}`)
-        .then((r) => r.json())
-        .then((j) => { skyRef.current = j.data; setSky(j.data); })
-        .catch(() => {});
+      fetch(`/api/sky${q}`).then((r) => r.json()).then((j) => setSky(j.data)).catch(() => {});
     };
     load();
     const t = setInterval(load, 20000);
     return () => clearInterval(t);
   }, [geo]);
-
-  useEffect(() => {
-    const el = mapRef.current;
-    if (!el) return;
-    const WW = 720, WH = 360;
-    const WPT = (lo: number, la: number): [number, number] => [((lo + 180) / 360) * WW, ((90 - la) / 180) * WH];
-    let raf = 0, last = 0;
-
-    const draw = () => {
-      const now = new Date();
-      const doy = Math.floor((now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 864e5);
-      const decl = ((23.44 * Math.sin((2 * Math.PI * (doy - 81)) / 365)) * Math.PI) / 180;
-      const subLon = -15 * (now.getUTCHours() + now.getUTCMinutes() / 60 - 12);
-      const markers: Marker[] = [];
-      let s = "";
-      for (let lon = -180; lon <= 180; lon += 30) { const [x] = WPT(lon, 0); s += `<line x1="${x}" y1="0" x2="${x}" y2="${WH}" stroke="rgba(244,244,245,.05)"/>`; }
-      for (let lat = -60; lat <= 60; lat += 30) { const [, y] = WPT(0, lat); s += `<line x1="0" y1="${y}" x2="${WW}" y2="${y}" stroke="rgba(244,244,245,.05)"/>`; }
-      SHAPES.forEach((sh) => {
-        const pts = sh.map(([lo, la]) => WPT(lo, la).map((v) => v.toFixed(1)).join(",")).join(" ");
-        s += `<polygon points="${pts}" stroke="rgba(244,244,245,.25)" stroke-width="1" fill="rgba(244,244,245,.04)"/>`;
-      });
-      // real day/night terminator
-      const tp: [number, number][] = [];
-      for (let lon = -180; lon <= 180; lon += 4) {
-        const H = ((lon - subLon) * Math.PI) / 180;
-        tp.push(WPT(lon, (Math.atan(-Math.cos(H) / Math.tan(decl || 1e-6)) * 180) / Math.PI));
-      }
-      const d = "M" + tp.map((p) => p.map((n) => n.toFixed(1)).join(",")).join(" L") + ` L${WW},${decl >= 0 ? WH : 0} L0,${decl >= 0 ? WH : 0} Z`;
-      s += `<path d="${d}" fill="rgba(0,0,0,.42)" stroke="rgba(244,244,245,.18)" stroke-dasharray="3 3"/>`;
-      const [sx, sy] = WPT(subLon, (decl * 180) / Math.PI);
-      s += `<circle cx="${sx}" cy="${sy}" r="6" stroke="#f4f4f5" fill="none"/><circle cx="${sx}" cy="${sy}" r="2" fill="#f4f4f5"/>`;
-      for (let r = 8; r < 16; r += 3) s += `<circle cx="${sx}" cy="${sy}" r="${r}" stroke="rgba(244,244,245,.12)" fill="none"/>`;
-      markers.push({ x: sx, y: sy, label: "☉ SUBSOLAR — sun directly overhead here" });
-
-      const data = skyRef.current;
-      // real aircraft
-      for (const p of data?.planes ?? []) {
-        const [x, y] = WPT(p.lon, p.lat);
-        const a = ((p.heading - 90) * Math.PI) / 180;
-        const tipx = x + 4 * Math.cos(a), tipy = y + 4 * Math.sin(a);
-        const l1x = x + 3 * Math.cos(a + 2.5), l1y = y + 3 * Math.sin(a + 2.5);
-        const l2x = x + 3 * Math.cos(a - 2.5), l2y = y + 3 * Math.sin(a - 2.5);
-        s += `<polygon points="${tipx.toFixed(1)},${tipy.toFixed(1)} ${l1x.toFixed(1)},${l1y.toFixed(1)} ${l2x.toFixed(1)},${l2y.toFixed(1)}" fill="rgba(244,244,245,.7)"/>`;
-        markers.push({ x, y, label: `✈ ${p.callsign} · ${p.origin} · ${Math.round(p.alt).toLocaleString()}m · ${Math.round(p.vel * 3.6)}km/h` });
-      }
-      // ISS: ground track + marker
-      if (data?.iss) {
-        let track = "";
-        for (let lon = -180; lon <= 180; lon += 4) {
-          const lat = 51.6 * Math.sin(((lon - data.iss.lon) * Math.PI) / 180);
-          const [x, y] = WPT(lon, lat + (data.iss.lat - 51.6 * Math.sin(0)));
-          track += `${x.toFixed(1)},${y.toFixed(1)} `;
-        }
-        s += `<polyline points="${track}" stroke="rgba(94,207,214,.35)" fill="none" stroke-dasharray="2 4"/>`;
-        const [ix, iy] = WPT(data.iss.lon, data.iss.lat);
-        s += `<circle cx="${ix}" cy="${iy}" r="10" fill="none" stroke="rgba(94,207,214,.35)"/>`;
-        s += `<rect x="${ix - 3.5}" y="${iy - 3.5}" width="7" height="7" fill="var(--live)" transform="rotate(45 ${ix} ${iy})"/>`;
-        s += `<text x="${ix + 10}" y="${iy - 6}" fill="var(--live)" font-size="7.5" font-family="var(--mono)">ISS</text>`;
-        markers.push({ x: ix, y: iy, label: `🛰 ISS · ${Math.round(data.iss.alt)}km alt · ${Math.round(data.iss.vel).toLocaleString()}km/h` });
-      }
-      CITIES.forEach(([lo, la, l], i) => {
-        const [x, y] = WPT(lo, la);
-        const hub = i === 0;
-        s += `<circle cx="${x}" cy="${y}" r="${hub ? 3 : 2}" fill="${hub ? "var(--live)" : "#5c5c62"}"/><text x="${x + 5}" y="${y + 3}" fill="#5c5c62" font-size="7" font-family="var(--mono)">${l}</text>`;
-      });
-      el.innerHTML = s;
-      markersRef.current = markers;
-    };
-
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    draw();
-    if (!reduced) {
-      const loop = (ts: number) => { if (ts - last > 1000) { draw(); last = ts; } raf = requestAnimationFrame(loop); };
-      raf = requestAnimationFrame(loop);
-    }
-    return () => cancelAnimationFrame(raf);
-  }, [sky]);
-
-  // Hover-identify: hit-test markers in viewBox space.
-  const onMapMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    const el = mapRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const vx = ((e.clientX - rect.left) / rect.width) * 720;
-    const vy = ((e.clientY - rect.top) / rect.height) * 360;
-    let best: Marker | null = null, bestD = 12;
-    for (const m of markersRef.current) {
-      const dd = Math.hypot(m.x - vx, m.y - vy);
-      if (dd < bestD) { bestD = dd; best = m; }
-    }
-    setTip(best ? { x: e.clientX - rect.left, y: e.clientY - rect.top, text: best.label } : null);
-  };
 
   useEffect(() => {
     const fmt = (tz: string) => {
@@ -157,34 +44,30 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
 
   return (
     <section className="section" id="world" style={{ paddingTop: 0 }}>
-      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">TERMINATOR · AIRCRAFT · ISS · SKY</span></div>
+      <div className="sectitle"><span className="sn">05</span><h2>World</h2><span className="line" /><span className="tag">ATLAS · FLIGHTS · SATS · RAIN · TRADE · CONFLICT</span></div>
+      {/* Google-Earth-style intelligence atlas with toggleable live layers */}
+      <div style={{ marginBottom: 1 }}>
+        <AtlasMap lat={geo?.lat ?? 20} lon={geo?.lon ?? 40} />
+      </div>
       <div className="grid deck3">
-        <div className="cell" style={{ position: "relative" }}>
-          <div className="bh"><span className="t">Global Monitor</span><span className="i">EYE</span><span className="r">{sky ? `${sky.planes.length} AIRCRAFT · LIVE` : "LINKING…"}</span></div>
-          <svg id="worldmap" ref={mapRef} viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet" onPointerMove={onMapMove} onPointerLeave={() => setTip(null)} style={{ cursor: "crosshair" }} />
-          {tip && <div className="map-tip" style={{ left: tip.x, top: tip.y }}>{tip.text}</div>}
-        </div>
-        <div className="stack">
-          <div className="cell">
-            <div className="bh"><span className="t" style={{ fontSize: 10 }}>World Clocks</span><span className="i">TZ</span></div>
-            <div className="clocks">
-              {(["BLR", "UTC", "NYC", "TOK"] as const).map((k) => (
-                <div className="ck2" key={k}>
-                  <div className="cv num">{clocks[k] ?? "--:--"}</div>
-                  <div className="ckk">{k === "BLR" ? "Bengaluru" : k === "NYC" ? "New York" : k === "TOK" ? "Tokyo" : "UTC"}</div>
-                </div>
-              ))}
-            </div>
+        <div className="cell">
+          <div className="bh"><span className="t" style={{ fontSize: 10 }}>World Clocks</span><span className="i">TZ</span></div>
+          <div className="clocks">
+            {(["BLR", "UTC", "NYC", "TOK"] as const).map((k) => (
+              <div className="ck2" key={k}>
+                <div className="cv num">{clocks[k] ?? "--:--"}</div>
+                <div className="ckk">{k === "BLR" ? "Bengaluru" : k === "NYC" ? "New York" : k === "TOK" ? "Tokyo" : "UTC"}</div>
+              </div>
+            ))}
           </div>
-          <div className="cell" style={{ flex: 1 }}>
-            <div className="bh"><span className="t" style={{ fontSize: 10 }}>Sky</span><span className="i">SKY</span><span className="r">LIVE</span></div>
-            <div className="skygrid">
-              <div className="skyrow"><span className="skk">MOON</span><span className="skv">{moonGlyph(sky?.moon.phase ?? 0)} {sky?.moon.name ?? "—"}{sky ? ` · ${Math.round(sky.moon.illum * 100)}%` : ""}</span></div>
-              <div className="skyrow"><span className="skk">SUNRISE</span><span className="skv">{sky?.sun ? `${istTime(sky.sun.sunrise)} IST` : "—"}</span></div>
-              <div className="skyrow"><span className="skk">SUNSET</span><span className="skv">{sky?.sun ? `${istTime(sky.sun.sunset)} IST` : "—"}</span></div>
-              <div className="skyrow"><span className="skk">ISS ALT</span><span className="skv">{sky?.iss ? `${Math.round(sky.iss.alt)} km · ${Math.round(sky.iss.vel).toLocaleString()} km/h` : "—"}</span></div>
-              <div className="skyrow"><span className="skk">AIRCRAFT</span><span className="skv">{sky ? `${sky.planes.length} tracked nearby` : "—"}</span></div>
-            </div>
+        </div>
+        <div className="cell">
+          <div className="bh"><span className="t" style={{ fontSize: 10 }}>Sky</span><span className="i">SKY</span><span className="r">LIVE</span></div>
+          <div className="skygrid">
+            <div className="skyrow"><span className="skk">MOON</span><span className="skv">{moonGlyph(sky?.moon.phase ?? 0)} {sky?.moon.name ?? "—"}{sky ? ` · ${Math.round(sky.moon.illum * 100)}%` : ""}</span></div>
+            <div className="skyrow"><span className="skk">SUNRISE</span><span className="skv">{sky?.sun ? `${istTime(sky.sun.sunrise)} IST` : "—"}</span></div>
+            <div className="skyrow"><span className="skk">SUNSET</span><span className="skv">{sky?.sun ? `${istTime(sky.sun.sunset)} IST` : "—"}</span></div>
+            <div className="skyrow"><span className="skk">ISS ALT</span><span className="skv">{sky?.iss ? `${Math.round(sky.iss.alt)} km · ${Math.round(sky.iss.vel).toLocaleString()} km/h` : "—"}</span></div>
           </div>
         </div>
         <div style={{ gridColumn: "1 / -1", display: "grid" }}>

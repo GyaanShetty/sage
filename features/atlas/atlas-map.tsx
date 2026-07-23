@@ -25,7 +25,7 @@ const INITIAL: LayerDef[] = [
 
 const CYAN = "#5ecfd6";
 
-export function AtlasMap({ lat = 20, lon = 40, onZoomOut }: { lat?: number; lon?: number; onZoomOut?: () => void }) {
+export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: number; lon?: number; onZoomOut?: () => void; center?: [number, number] }) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
   const LRef = useRef<L | null>(null);
@@ -43,7 +43,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut }: { lat?: number; lon?
       const L = (await import("leaflet")).default as unknown as L;
       if (disposed || !elRef.current) return;
       LRef.current = L;
-      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2 }).setView([lat, lon], 5);
+      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2 }).setView(center ?? [lat, lon], 5);
       mapRef.current = map;
       L.control.zoom({ position: "bottomright" }).addTo(map);
       // Zoom all the way out → hand back to the globe view.
@@ -228,6 +228,13 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut }: { lat?: number; lon?
     const t = setInterval(() => setTicker((i) => (i + 1) % conflictNews.length), 6000);
     return () => clearInterval(t);
   }, [conflictNews]);
+
+  // Re-center when the caller hands a new focus point (globe → map).
+  useEffect(() => {
+    if (!ready || !center || !mapRef.current) return;
+    mapRef.current.setView(center, Math.max(4, mapRef.current.getZoom()), { animate: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, center?.[0], center?.[1]]);
 
   const toggle = (k: string) => setLayers((ls) => ls.map((l) => (l.key === k ? { ...l, on: !l.on } : l)));
 

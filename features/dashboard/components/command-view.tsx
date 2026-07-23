@@ -279,7 +279,7 @@ export function CommandView({
               <div className="en">{gita.en}</div>
               <div className="src"><span>अध्याय {gita.src}</span><i /><span>BHAGAVAD GITA</span></div>
             </ExpandableCell>
-            <ExpandableCell title={`${now.toLocaleString("en", { month: "long" })} ${Y}`} tag="CALENDAR">
+            <ExpandableCell title={`${now.toLocaleString("en", { month: "long" })} ${Y}`} tag="ADD EVENTS" expanded={<ScheduleManager events={events} />}>
               <div className="bh"><span className="t">{now.toLocaleString("en", { month: "long" }).toUpperCase()} {Y}</span><span className="i">CAL</span></div>
               <div className="cal">
                 {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}

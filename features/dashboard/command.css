@@ -448,3 +448,17 @@
 .sm-add .sm-title:focus, .sm-add .sm-when:focus { border-color: var(--live-dim); }
 .sm-add button { display: flex; align-items: center; gap: 5px; background: var(--foreground); color: var(--background); border: none; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; padding: 0 14px; cursor: pointer; }
 .sm-date { font-family: var(--mono); font-size: 9px; letter-spacing: .5px; color: var(--live); flex: 0 0 116px; }
+
+/* ── ticktick deadlines ── */
+.tt-list { display: flex; flex-direction: column; }
+.tt-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-glass); }
+.tt-row:last-child { border-bottom: 0; }
+.tt-check { background: none; border: none; color: var(--subtle); cursor: pointer; padding: 1px; display: flex; margin-top: 1px; }
+.tt-check:hover { color: var(--live); }
+.tt-main { flex: 1; min-width: 0; }
+.tt-title { font-size: 13px; font-weight: 300; }
+.tt-meta { display: flex; align-items: center; gap: 10px; margin-top: 3px; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); }
+.tt-due { color: var(--live); }
+.tt-pri { color: var(--subtle); }
+.tt-pri.p5 { color: #e0706a; }
+.tt-pri.p3 { color: #e8a13a; }

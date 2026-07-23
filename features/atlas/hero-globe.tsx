@@ -60,7 +60,7 @@ const INITIAL: LayerDef[] = [
 const CYAN = "#5ecfd6";
 const COUNTRIES_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-export function HeroGlobe({ onZoomIn }: { nodeCount?: number; onZoomIn?: () => void }) {
+export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn?: (c: { lat: number; lng: number }) => void; onCenter?: (c: { lat: number; lng: number }) => void }) {
   const elRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeInstance | null>(null);
   const [layers, setLayers] = useState<LayerDef[]>(INITIAL);
@@ -145,12 +145,14 @@ export function HeroGlobe({ onZoomIn }: { nodeCount?: number; onZoomIn?: () => v
       world.pointOfView({ lat: 18, lng: 78, altitude: 2.05 }, 0);
       el.addEventListener("pointerdown", () => { ctr.autoRotate = false; });
 
-      // Dive past a threshold → hand off to the flat map view.
+      // Dive past a threshold → hand off to the flat map view, centred where
+      // the globe was looking (zoom in on Africa → the map opens on Africa).
       let handed = false;
       ctr.addEventListener?.("change", () => {
-        const alt = world.pointOfView().altitude ?? 2;
-        if (alt < 0.62 && !handed) { handed = true; onZoomIn?.(); }
-        if (alt > 0.9) handed = false;
+        const pov = world.pointOfView();
+        onCenter?.({ lat: pov.lat, lng: pov.lng });
+        if ((pov.altitude ?? 2) < 0.62 && !handed) { handed = true; onZoomIn?.({ lat: pov.lat, lng: pov.lng }); }
+        if ((pov.altitude ?? 2) > 0.9) handed = false;
       });
 
       setReady(true);

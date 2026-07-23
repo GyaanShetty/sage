@@ -12,8 +12,15 @@ import { AtlasMap } from "./atlas-map";
 export function WorldView({ lat = 18, lon = 78 }: { lat?: number; lon?: number }) {
   const [mode, setMode] = useState<"globe" | "map">("globe");
   const [mapMounted, setMapMounted] = useState(false);
+  const centerRef = useRef<[number, number]>([lat, lon]);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([lat, lon]);
 
-  const toMap = () => { setMapMounted(true); setMode("map"); };
+  const toMap = (c?: { lat: number; lng: number }) => {
+    if (c) centerRef.current = [c.lat, c.lng];
+    setMapCenter([...centerRef.current] as [number, number]);
+    setMapMounted(true);
+    setMode("map");
+  };
   const toGlobe = () => setMode("globe");
 
   // Leaflet needs a size recalculation when it becomes visible.
@@ -27,11 +34,11 @@ export function WorldView({ lat = 18, lon = 78 }: { lat?: number; lon?: number }
   return (
     <div className="worldview">
       <div className={`wv-layer${mode === "globe" ? " on" : ""}`}>
-        <HeroGlobe onZoomIn={toMap} />
+        <HeroGlobe onZoomIn={toMap} onCenter={(c) => { centerRef.current = [c.lat, c.lng]; }} />
       </div>
       {mapMounted && (
         <div className={`wv-layer${mode === "map" ? " on" : ""}`} ref={mapWrapRef}>
-          <AtlasMap lat={lat} lon={lon} onZoomOut={toGlobe} />
+          <AtlasMap lat={mapCenter[0]} lon={mapCenter[1]} center={mapCenter} onZoomOut={toGlobe} />
         </div>
       )}
       <button className="wv-toggle" onClick={() => (mode === "globe" ? toMap() : toGlobe())}>

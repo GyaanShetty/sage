@@ -17,13 +17,15 @@ async function connected(provider: string): Promise<boolean> {
 }
 
 export default async function SettingsPage() {
-  const [google, spotify] = await Promise.all([connected("google"), connected("spotify")]);
+  const [google, spotify, ticktick] = await Promise.all([connected("google"), connected("spotify"), connected("ticktick")]);
   return (
     <SettingsView
       googleConnected={google}
       googleConfigured={!!process.env.GOOGLE_OAUTH_CLIENT_ID}
       spotifyConnected={spotify}
       spotifyConfigured={!!process.env.SPOTIFY_CLIENT_ID}
+      ticktickConnected={ticktick}
+      ticktickConfigured={!!process.env.TICKTICK_CLIENT_ID}
     />
   );
 }

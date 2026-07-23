@@ -141,7 +141,7 @@ export function KnowledgeGraph() {
           <span><i style={{ background: COLOR.source }} /> SOURCE</span>
         </div>
       </div>
-      <canvas ref={canvasRef} className="holo-stage" />
+      <canvas ref={canvasRef} className="holo-stage" style={{ background: "#08090b", display: "block" }} />
       {empty && <div className="holo-nomodel">NO MEMORIES YET — TALK TO SAGE AND INGEST KNOWLEDGE TO GROW YOUR GRAPH</div>}
       {hover && (
         <div className="kg-tip">

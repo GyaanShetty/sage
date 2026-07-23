@@ -8,12 +8,14 @@ import { Toaster } from "@/components/toaster";
 import { MotionLayer } from "@/components/motion-layer";
 import { AmbientCanvas } from "@/components/ambient-canvas";
 import { BootSequence } from "@/components/boot-sequence";
+import { BootBriefing } from "@/components/boot-briefing";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <AmbientCanvas />
       <BootSequence />
+      <BootBriefing />
       <StatusBar />
       <TickerTape />
       <div className="flex min-h-0 flex-1">

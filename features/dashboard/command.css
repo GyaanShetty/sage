@@ -323,3 +323,51 @@
 .wl-chip button:hover { color: var(--foreground); }
 .wl-editor input { background: none; border: 1px solid rgba(244,244,245,.06); color: var(--foreground); font-family: var(--mono); font-size: 10px; padding: 5px 8px; outline: none; width: 130px; }
 .wl-editor input:focus { border-color: var(--subtle); }
+
+/* ── world map tooltip + sky panel ── */
+.map-tip { position: absolute; z-index: 20; transform: translate(-50%, calc(-100% - 10px)); background: rgba(8,9,11,.95); border: 1px solid var(--live-dim); color: var(--foreground); font-family: var(--mono); font-size: 9px; letter-spacing: .5px; padding: 5px 9px; white-space: nowrap; pointer-events: none; box-shadow: 0 0 16px var(--live-glow); }
+.skygrid { display: flex; flex-direction: column; gap: 1px; }
+.skyrow { display: flex; align-items: baseline; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(244,244,245,.06); }
+.skyrow:last-child { border-bottom: 0; }
+.skyrow .skk { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); }
+.skyrow .skv { font-size: 11px; color: var(--foreground); font-weight: 300; text-align: right; }
+
+/* ── expandable cell affordance ── */
+.expandable { cursor: pointer; }
+.expand-hint { color: var(--live); opacity: 0.8; transition: opacity 0.2s var(--ease); }
+.expandable:hover .expand-hint { opacity: 1; }
+
+/* ── expand modal ── */
+.xm-scrim { position: fixed; inset: 0; z-index: 150; background: rgba(4,5,6,.72); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.xm-panel { width: min(560px, 100%); max-height: 82vh; display: flex; flex-direction: column; background: var(--panel-hi); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.16)); box-shadow: 0 30px 90px rgba(0,0,0,.6), 0 0 0 1px var(--live-glow); }
+.xm-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border-glass); }
+.xm-title { font-weight: 500; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+.xm-tag { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--live); }
+.xm-x { margin-left: auto; background: none; border: none; color: var(--subtle); cursor: pointer; display: flex; }
+.xm-x:hover { color: var(--foreground); }
+.xm-body { padding: 16px 18px; overflow-y: auto; }
+
+/* ── task manager ── */
+.tm-add { display: flex; gap: 8px; margin-bottom: 14px; }
+.tm-add input { flex: 1; background: var(--background); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--disp); font-weight: 300; font-size: 14px; padding: 10px 12px; outline: none; }
+.tm-add input:focus { border-color: var(--live-dim); }
+.tm-add button { display: flex; align-items: center; gap: 5px; background: var(--foreground); color: var(--background); border: none; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; padding: 0 14px; cursor: pointer; }
+.tm-list { display: flex; flex-direction: column; }
+.tm-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-glass); }
+.tm-row:last-child { border-bottom: 0; }
+.tm-check { width: 16px; height: 16px; flex: 0 0 16px; border: 1px solid var(--subtle); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--background); }
+.tm-row.done .tm-check { background: var(--live); border-color: var(--live); }
+.tm-title { flex: 1; font-size: 13.5px; font-weight: 300; cursor: text; min-width: 0; }
+.tm-row.done .tm-title { text-decoration: line-through; color: var(--subtle); }
+.tm-edit { flex: 1; background: var(--background); border: 1px solid var(--live-dim); color: var(--foreground); font-size: 13.5px; padding: 4px 8px; outline: none; }
+.tm-ic { background: none; border: none; color: var(--subtle); cursor: pointer; display: flex; padding: 4px; }
+.tm-ic:hover { color: var(--foreground); }
+.tm-ic.danger:hover { color: #e07070; }
+
+/* ── github contributions ── */
+.ghgrid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 2px; overflow-x: auto; padding-bottom: 2px; }
+.ghcell { width: 9px; height: 9px; border-radius: 1px; background: rgba(244,244,245,.05); }
+.ghcell.l1 { background: rgba(94,207,214,.25); }
+.ghcell.l2 { background: rgba(94,207,214,.45); }
+.ghcell.l3 { background: rgba(94,207,214,.7); }
+.ghcell.l4 { background: var(--live); box-shadow: 0 0 4px var(--live-glow); }

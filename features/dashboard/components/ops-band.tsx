@@ -6,6 +6,7 @@ import { GitPullRequest, Pause, Play, SkipBack, SkipForward } from "lucide-react
 interface Repo { name: string; language: string | null; pushed_at: string; private: boolean }
 interface PrItem { title: string; repo: string; number: number; url: string }
 interface Github { login: string | null; repos: Repo[]; openPrs: PrItem[]; reviewRequests: PrItem[] }
+interface Contrib { total: number; weeks: number[][]; max: number }
 interface Now { playing: boolean; track: string; artist: string; art: string | null; progress: number; duration: number }
 
 function ago(iso: string) {
@@ -18,9 +19,11 @@ function ago(iso: string) {
 export function OpsBand() {
   const [gh, setGh] = useState<Github | null | undefined>(undefined);
   const [now, setNow] = useState<Now | null | undefined>(undefined);
+  const [contrib, setContrib] = useState<Contrib | null>(null);
 
   useEffect(() => {
     fetch("/api/github").then((r) => r.json()).then((j) => setGh(j.data)).catch(() => setGh(null));
+    fetch("/api/github/contributions").then((r) => r.json()).then((j) => setContrib(j.data)).catch(() => {});
     const pull = () => fetch("/api/spotify").then((r) => r.json()).then((j) => setNow(j.data)).catch(() => setNow(null));
     pull();
     const t = setInterval(pull, 15000);
@@ -58,6 +61,19 @@ export function OpsBand() {
                       <div className="nh">{p.title}</div>
                     </a>
                   ))}
+                </>
+              )}
+              {contrib && (
+                <>
+                  <p className="lbl" style={{ margin: "10px 0 6px" }}>{contrib.total.toLocaleString()} CONTRIBUTIONS · PAST YEAR</p>
+                  <div className="ghgrid">
+                    {contrib.weeks.flatMap((w, wi) =>
+                      w.map((c, di) => {
+                        const lvl = c === 0 ? 0 : Math.min(4, Math.ceil((c / contrib.max) * 4));
+                        return <div className={`ghcell${lvl ? ` l${lvl}` : ""}`} key={`${wi}-${di}`} title={`${c} on this day`} />;
+                      }),
+                    )}
+                  </div>
                 </>
               )}
               <p className="lbl" style={{ margin: "10px 0 6px" }}>RECENT REPOS</p>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import "../command.css";
 import { NumberTicker } from "@/components/number-ticker";
 import { sound } from "@/lib/sound";
+import { ExpandModal } from "@/components/expand-modal";
+import { TaskManager } from "./task-manager";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
@@ -191,6 +193,7 @@ export function CommandView({
   const [noteText, setNoteText] = useState("");
   const [focusSec, setFocusSec] = useState(25 * 60);
   const [focusRun, setFocusRun] = useState(false);
+  const [taskModal, setTaskModal] = useState(false);
 
   const now = new Date();
   const hour = tzHour(now);
@@ -435,14 +438,17 @@ export function CommandView({
       <section className="section" id="exec" style={{ paddingTop: 0 }}>
         <div className="sectitle"><span className="sn">02</span><h2>Execute</h2><span className="line" /><span className="tag">DIRECTIVES · FOCUS · ACTIVITY</span></div>
         <div className="grid deck2a">
-          <div className="cell">
-            <div className="bh"><span className="t">Directives</span><span className="i">TSK</span><span className="r">{tasks.filter((t) => t.status === "done").length}/{tasks.length}</span></div>
+          <div className="cell expandable" onClick={() => setTaskModal(true)}>
+            <div className="bh">
+              <span className="t">Directives</span><span className="i">TSK</span>
+              <span className="r">{tasks.filter((t) => t.status === "done").length}/{tasks.length} · <span className="expand-hint">MANAGE ⤢</span></span>
+            </div>
             {tasks.map((t, i) => (
-              <div className={`task${t.status === "done" ? " done" : ""}`} key={t.id} onClick={() => toggleTask(t)}>
+              <div className={`task${t.status === "done" ? " done" : ""}`} key={t.id} onClick={(e) => { e.stopPropagation(); toggleTask(t); }}>
                 <span className="box" /><span className="tx">{t.title}</span><span className="rank">{pad(i + 1)}</span>
               </div>
             ))}
-            {tasks.length === 0 && <p className="lbl">NO OPEN DIRECTIVES</p>}
+            {tasks.length === 0 && <p className="lbl">NO OPEN DIRECTIVES — TAP TO ADD</p>}
           </div>
           <div className="cell">
             <div className="bh">
@@ -484,6 +490,10 @@ export function CommandView({
           </div>
         </div>
       </section>
+
+      <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">
+        <TaskManager tasks={tasks} setTasks={setTasks} />
+      </ExpandModal>
     </div>
   );
 }

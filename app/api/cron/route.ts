@@ -3,6 +3,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { runDueAutomations } from "@/core/automation/run";
 import { maybeSendWeeklyReview } from "@/core/review/weekly";
 import { maybeSaveDailyDigest } from "@/core/review/daily";
+import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
 
@@ -40,6 +41,8 @@ export async function GET(req: Request) {
       type: "reminder.fired",
       payload: { text: reminder.text, remindAt: reminder.remindAt },
     });
+    // Reach the user's devices directly if they've enabled push.
+    await sendPush({ title: "⏰ Reminder", body: reminder.text, tag: `reminder-${reminder.id}`, url: "/workspace" }).catch(() => 0);
   }
 
   const automationsRan = await runDueAutomations().catch(() => 0);

@@ -1,10 +1,12 @@
 "use client";
 
-import { Mic, Moon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Mic, Moon } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { disablePush, enablePush, pushEnabled, pushSupported } from "@/features/notifications/push-client";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -26,6 +28,32 @@ export function Preferences() {
   const setWakeWord = useShellStore((s) => s.setWakeWord);
   const ambientArmed = useShellStore((s) => s.ambientArmed);
   const setAmbientArmed = useShellStore((s) => s.setAmbientArmed);
+
+  const [notify, setNotify] = useState(false);
+  const [notifyMsg, setNotifyMsg] = useState<string | null>(null);
+  const [notifyBusy, setNotifyBusy] = useState(false);
+
+  useEffect(() => {
+    pushEnabled().then(setNotify).catch(() => {});
+  }, []);
+
+  const toggleNotify = async () => {
+    if (notifyBusy) return;
+    setNotifyBusy(true);
+    setNotifyMsg(null);
+    try {
+      if (notify) {
+        await disablePush();
+        setNotify(false);
+      } else {
+        const r = await enablePush();
+        setNotify(r.ok);
+        if (!r.ok) setNotifyMsg(r.reason ?? "Couldn't enable notifications.");
+      }
+    } finally {
+      setNotifyBusy(false);
+    }
+  };
 
   return (
     <div className="mt-8">
@@ -52,6 +80,19 @@ export function Preferences() {
         </div>
         <Toggle on={ambientArmed} onClick={() => setAmbientArmed(!ambientArmed)} />
       </GlassPanel>
+
+      {pushSupported() && (
+        <GlassPanel className="mt-3 flex items-center gap-4 p-5">
+          <Bell className="size-5 text-muted" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Push notifications</p>
+            <p className="text-xs text-subtle">
+              {notifyMsg ?? `Let ${APP_NAME} reach this device — reminders, overdue tasks and important alerts, even when the app is closed.`}
+            </p>
+          </div>
+          <Toggle on={notify} onClick={toggleNotify} />
+        </GlassPanel>
+      )}
     </div>
   );
 }

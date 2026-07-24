@@ -32,8 +32,12 @@ export function Preferences() {
   const [notify, setNotify] = useState(false);
   const [notifyMsg, setNotifyMsg] = useState<string | null>(null);
   const [notifyBusy, setNotifyBusy] = useState(false);
+  // Client-only capability check — gate behind mount so SSR and first client
+  // render agree (avoids a hydration mismatch).
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     pushEnabled().then(setNotify).catch(() => {});
   }, []);
 
@@ -81,7 +85,7 @@ export function Preferences() {
         <Toggle on={ambientArmed} onClick={() => setAmbientArmed(!ambientArmed)} />
       </GlassPanel>
 
-      {pushSupported() && (
+      {mounted && pushSupported() && (
         <GlassPanel className="mt-3 flex items-center gap-4 p-5">
           <Bell className="size-5 text-muted" />
           <div className="flex-1">

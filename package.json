@@ -40,6 +40,7 @@
     "three": "^0.185.1",
     "topojson-client": "^3.1.0",
     "undici": "^8.7.0",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
@@ -53,6 +54,7 @@
     "@types/react-dom": "^19",
     "@types/three": "^0.185.1",
     "@types/topojson-client": "^3.1.5",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "15.5.20",
     "prisma": "^6.19.3",

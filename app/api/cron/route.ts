@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { runDueAutomations } from "@/core/automation/run";
 import { maybeSendWeeklyReview } from "@/core/review/weekly";
+import { maybeSaveDailyDigest } from "@/core/review/daily";
 
 export const maxDuration = 300;
 
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
 
   const automationsRan = await runDueAutomations().catch(() => 0);
   const weeklyReviewSent = await maybeSendWeeklyReview().catch(() => false);
+  const dailyDigestSaved = await maybeSaveDailyDigest().catch(() => false);
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved });
 }

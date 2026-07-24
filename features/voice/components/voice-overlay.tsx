@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Mic, Volume2, VolumeX, X } from "lucide-react";
+import { Loader2, Mic, Send, Volume2, VolumeX, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
@@ -61,10 +61,44 @@ function MiniOrb({ active, speaking, thinking }: { active: boolean; speaking: bo
   );
 }
 
+/** Speak a reply aloud with SAGE's voice (neural TTS, browser fallback). */
+async function speakReply(text: string) {
+  if (!sound.isOn() || !text) return;
+  try {
+    const res = await fetch("/api/voice/speak", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (res.ok) {
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+      return;
+    }
+  } catch {
+    /* fall through to browser synth */
+  }
+  const synth = window.speechSynthesis;
+  if (!synth) return;
+  const u = new SpeechSynthesisUtterance(text.replace(/[*_#`>[\]()]/g, ""));
+  const v =
+    synth.getVoices().find((x) => /en-GB/i.test(x.lang) && /male|daniel|george|arthur/i.test(x.name)) ??
+    synth.getVoices().find((x) => /en-GB/i.test(x.lang)) ??
+    null;
+  if (v) u.voice = v;
+  u.rate = 0.96;
+  u.pitch = 0.8;
+  synth.speak(u);
+}
+
 export function VoiceOverlay() {
   const [transcript, setTranscript] = useState<Msg[]>([]);
   const [mode, setMode] = useState<"live" | "classic">("live");
   const [muted, setMuted] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const onUtterance = useCallback(async (text: string) => {
@@ -79,6 +113,21 @@ export function VoiceOverlay() {
     setTranscript((t) => [...t.slice(-30), { role: "sage", text: reply }]);
     return reply;
   }, []);
+
+  // Typed turn: works whether or not the mic is live. SAGE always speaks the
+  // reply aloud (unless muted), so text and voice feel identical.
+  const sendTyped = useCallback(async () => {
+    const q = typed.trim();
+    if (!q || sending) return;
+    setTyped("");
+    setSending(true);
+    try {
+      const reply = await onUtterance(q);
+      await speakReply(reply);
+    } finally {
+      setSending(false);
+    }
+  }, [typed, sending, onUtterance]);
 
   const assistant = useVoiceAssistant({ onUtterance });
   const live = useLiveVoice();
@@ -116,10 +165,11 @@ export function VoiceOverlay() {
     window.dispatchEvent(new CustomEvent("sage:voice-state", { detail: s }));
   }, [live.state, assistant.state, liveActive]);
 
-  // Unified message list: history + the in-flight live caption as a ghost turn.
+  // Unified message list: spoken history + typed turns + the in-flight live
+  // caption as a ghost line. In live mode `transcript` only holds typed turns.
   const messages = useMemo<(Msg & { pending?: boolean })[]>(() => {
     if (liveActive) {
-      const out: (Msg & { pending?: boolean })[] = [...live.turns];
+      const out: (Msg & { pending?: boolean })[] = [...live.turns, ...transcript];
       if (live.captions.you) out.push({ role: "you", text: live.captions.you, pending: true });
       if (live.captions.sage) out.push({ role: "sage", text: live.captions.sage, pending: true });
       return out;
@@ -255,11 +305,31 @@ export function VoiceOverlay() {
                 )}
               </div>
 
-              {/* Footer: live waveform */}
+              {/* Footer: live waveform + type-instead-of-speak box */}
               <div className="border-t border-border-glass px-4 py-3">
                 <Wave active={listening} speaking={speaking} />
+                <form
+                  onSubmit={(e) => { e.preventDefault(); sendTyped(); }}
+                  className="mt-2 flex items-center gap-2 rounded-xl border border-border-glass bg-glass px-3 py-1.5 focus-within:border-[var(--live-dim)]"
+                >
+                  <input
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                    placeholder="Type instead — SAGE still speaks…"
+                    aria-label="Type to SAGE"
+                    className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-subtle"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !typed.trim()}
+                    aria-label="Send"
+                    className="text-muted transition-colors hover:text-[var(--live)] disabled:opacity-30"
+                  >
+                    {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  </button>
+                </form>
                 <p className="mt-1.5 text-center text-[10px] tracking-wide text-subtle">
-                  {liveActive ? "Full-duplex · speak any time, even over me" : "Tap-to-talk mode"}
+                  {liveActive ? "Full-duplex · speak, or type — SAGE replies aloud" : "Speak or type — SAGE replies aloud"}
                 </p>
               </div>
             </motion.aside>

@@ -298,6 +298,14 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 /* mic button: idle halo pulse */
 @keyframes micHalo { 0%, 100% { box-shadow: 0 0 22px var(--live-glow); } 50% { box-shadow: 0 0 34px var(--live-glow), 0 0 60px -12px var(--live-glow); } }
 
+/* HUD grounding: SAGE flashes the panel it's talking about / just acted on. */
+.hud-flash { animation: hudFlash 2.5s cubic-bezier(0.22, 1, 0.36, 1); position: relative; z-index: 2; }
+@keyframes hudFlash {
+  0%   { box-shadow: 0 0 0 0 var(--live-glow), inset 0 0 0 0 transparent; outline: 1px solid transparent; }
+  12%  { box-shadow: 0 0 0 2px var(--live), 0 0 34px -4px var(--live-glow), inset 0 0 40px -20px var(--live-glow); outline: 1px solid var(--live-dim); }
+  100% { box-shadow: 0 0 0 0 transparent, inset 0 0 0 0 transparent; outline: 1px solid transparent; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body::before, .askbox:focus-within { animation: none; }
 }

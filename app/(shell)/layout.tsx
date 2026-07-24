@@ -11,6 +11,8 @@ import { AmbientMode } from "@/components/ambient-mode";
 import { BootSequence } from "@/components/boot-sequence";
 import { BootBriefing } from "@/components/boot-briefing";
 import { WakeWord } from "@/features/voice/wake-word";
+import { HudLayer } from "@/components/hud-layer";
+import { ProactiveVoice } from "@/components/proactive-voice";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -31,6 +33,8 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <VoiceOverlay />
       <WakeWord />
       <AmbientMode />
+      <HudLayer />
+      <ProactiveVoice />
     </div>
   );
 }

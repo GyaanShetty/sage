@@ -218,6 +218,17 @@ export function useLiveVoice() {
                     })
                       .then((x) => x.json())
                       .catch(() => ({ ok: false, error: "network" }));
+                    // Broadcast to the UI so panels light up + refresh live.
+                    const res = r as { ok?: boolean; result?: unknown; error?: string };
+                    window.dispatchEvent(
+                      new CustomEvent("sage:action", {
+                        detail: {
+                          name: fc.name ?? "",
+                          ok: res?.ok !== false,
+                          result: typeof res?.result === "string" ? res.result : res?.error,
+                        },
+                      }),
+                    );
                     return { id: fc.id, name: fc.name ?? "", response: r as Record<string, unknown> };
                   }),
                 );

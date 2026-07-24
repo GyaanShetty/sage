@@ -27,6 +27,8 @@ export function MemoryView({ memories }: { memories: MemoryItem[] }) {
   const forget = async (id: string) => {
     await fetch(`/api/memory/${id}`, { method: "DELETE" });
     router.refresh();
+    // Nudge the Mind Graph to redraw without this memory.
+    window.dispatchEvent(new CustomEvent("sage:memory-updated"));
   };
 
   return (

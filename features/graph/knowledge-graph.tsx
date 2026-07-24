@@ -17,37 +17,58 @@ export function KnowledgeGraph() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     let raf = 0, disposed = false;
     let nodes: Sim[] = [];
     let edges: { a: Sim; b: Sim }[] = [];
+    let pending: GNode[] | null = null;      // data awaiting a valid canvas size
+    let pendingEdges: GEdge[] = [];
+    let seeded = false;
     let W = 0, H = 0;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let drag: Sim | null = null;
     const mouse = { x: 0, y: 0, down: false };
 
     const size = () => {
-      W = canvas.clientWidth; H = canvas.clientHeight;
+      const cw = canvas.clientWidth, ch = canvas.clientHeight;
+      // Ignore zero-size layout passes — sizing the backing store to 0 blanks
+      // the canvas (the "white screen") and makes the centering target (0,0),
+      // which yanks every node into the corner.
+      if (cw <= 0 || ch <= 0) return;
+      W = cw; H = ch;
       canvas.width = W * dpr; canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     size();
     const ro = new ResizeObserver(size); ro.observe(canvas);
 
-    fetch("/api/graph").then((r) => r.json()).then((j) => {
-      if (disposed) return;
-      const gn: GNode[] = j?.data?.nodes ?? [];
-      if (!gn.length) { setEmpty(true); return; }
+    // Seed node positions around the LIVE centre once we actually have size.
+    const seed = () => {
+      if (seeded || !pending || W <= 0 || H <= 0) return;
+      const gn = pending;
       const byId = new Map<string, Sim>();
-      const cx = (canvas.clientWidth || 800) / 2, cy = (canvas.clientHeight || 500) / 2;
+      const cx = W / 2, cy = H / 2;
       const R = Math.min(cx, cy) * 0.8;
       nodes = gn.map((n, i) => {
         const ang = (i / gn.length) * Math.PI * 2;
         const s: Sim = { ...n, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, vx: 0, vy: 0 };
         byId.set(n.id, s); return s;
       });
-      edges = (j.data.edges as GEdge[]).map((e) => ({ a: byId.get(e.a)!, b: byId.get(e.b)! })).filter((e) => e.a && e.b);
-    });
+      edges = pendingEdges
+        .map((e) => ({ a: byId.get(e.a), b: byId.get(e.b) }))
+        .filter((e): e is { a: Sim; b: Sim } => !!e.a && !!e.b);
+      seeded = true;
+    };
+
+    fetch("/api/graph").then((r) => r.json()).then((j) => {
+      if (disposed) return;
+      const gn: GNode[] = j?.data?.nodes ?? [];
+      if (!gn.length) { setEmpty(true); return; }
+      pending = gn;
+      pendingEdges = Array.isArray(j?.data?.edges) ? (j.data.edges as GEdge[]) : [];
+      seed(); // seed now if size is already known; otherwise the loop retries
+    }).catch(() => setEmpty(true));
 
     const step = () => {
       // repulsion
@@ -84,6 +105,7 @@ export function KnowledgeGraph() {
     };
 
     const draw = () => {
+      if (W <= 0 || H <= 0) return; // nothing to paint until we have real size
       // solid dark fill so the canvas is never transparent-white
       ctx.fillStyle = "#08090b";
       ctx.fillRect(0, 0, W, H);
@@ -111,7 +133,13 @@ export function KnowledgeGraph() {
       canvas.style.cursor = hov ? "pointer" : "grab";
     };
 
-    const loop = () => { step(); draw(); raf = requestAnimationFrame(loop); };
+    const loop = () => {
+      if (W <= 0 || H <= 0) size(); // retry sizing until layout gives real dims
+      if (!seeded) seed();          // data may have arrived before a valid size
+      step();
+      draw();
+      raf = requestAnimationFrame(loop);
+    };
     loop();
 
     const pos = (e: PointerEvent) => { const r = canvas.getBoundingClientRect(); mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top; };
@@ -141,7 +169,7 @@ export function KnowledgeGraph() {
           <span><i style={{ background: COLOR.source }} /> SOURCE</span>
         </div>
       </div>
-      <canvas ref={canvasRef} className="holo-stage" style={{ background: "#08090b", display: "block" }} />
+      <canvas ref={canvasRef} className="holo-stage" style={{ background: "#08090b", display: "block", width: "100%", height: "100%" }} />
       {empty && <div className="holo-nomodel">NO MEMORIES YET — TALK TO SAGE AND INGEST KNOWLEDGE TO GROW YOUR GRAPH</div>}
       {hover && (
         <div className="kg-tip">

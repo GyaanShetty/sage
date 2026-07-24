@@ -7,8 +7,10 @@ import { TickerTape } from "@/components/ticker-tape";
 import { Toaster } from "@/components/toaster";
 import { MotionLayer } from "@/components/motion-layer";
 import { AmbientCanvas } from "@/components/ambient-canvas";
+import { AmbientMode } from "@/components/ambient-mode";
 import { BootSequence } from "@/components/boot-sequence";
 import { BootBriefing } from "@/components/boot-briefing";
+import { WakeWord } from "@/features/voice/wake-word";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -27,6 +29,8 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <MotionLayer />
       <CommandPalette />
       <VoiceOverlay />
+      <WakeWord />
+      <AmbientMode />
     </div>
   );
 }

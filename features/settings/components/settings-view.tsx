@@ -6,6 +6,7 @@ import { CalendarDays, Check, CheckCircle2, Mail, Music } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
+import { Preferences } from "./preferences";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
   const disconnect = async () => {
@@ -119,6 +120,10 @@ export function SettingsView({
               <span className="text-xs text-subtle">Set TICKTICK_CLIENT_ID/SECRET</span>
             )}
           </GlassPanel>
+        </motion.div>
+
+        <motion.div variants={fadeRise}>
+          <Preferences />
         </motion.div>
       </motion.div>
     </div>

@@ -25,14 +25,22 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", onKey);
   }, [setOpen]);
 
+  const setWakeWord = useShellStore((s) => s.setWakeWord);
+
   const run = (action: PaletteAction) => {
     setOpen(false);
     if (action.id === "ask" && query.trim()) {
       router.push(`/chat?ask=${encodeURIComponent(query.trim())}`);
+    } else if (action.command === "voice") {
+      window.dispatchEvent(new CustomEvent("sage:engage-voice"));
+    } else if (action.command === "toggle-wake") {
+      setWakeWord(!useShellStore.getState().wakeWord);
+    } else if (action.command === "ambient-now") {
+      window.dispatchEvent(new CustomEvent("sage:ambient-now"));
     } else if (action.href) {
       router.push(action.href);
     } else if (action.command) {
-      // `command` actions pre-fill chat until their dedicated flows land
+      // Slash flows pre-fill chat until their dedicated UIs land.
       router.push(`/chat?ask=${encodeURIComponent("/" + action.command + " ")}`);
     }
     setQuery("");
@@ -71,7 +79,7 @@ export function CommandPalette() {
                 <Command.Empty className="py-8 text-center text-sm text-subtle">
                   No results.
                 </Command.Empty>
-                {(["Actions", "Navigate"] as const).map((group) => (
+                {(["Actions", "Navigate", "System"] as const).map((group) => (
                   <Command.Group
                     key={group}
                     heading={group}

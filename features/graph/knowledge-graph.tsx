@@ -25,6 +25,7 @@ export function KnowledgeGraph() {
     let pending: GNode[] | null = null;      // data awaiting a valid canvas size
     let pendingEdges: GEdge[] = [];
     let seeded = false;
+    const prevPos = new Map<string, { x: number; y: number }>();
     let W = 0, H = 0;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     let drag: Sim | null = null;
@@ -52,7 +53,12 @@ export function KnowledgeGraph() {
       const R = Math.min(cx, cy) * 0.8;
       nodes = gn.map((n, i) => {
         const ang = (i / gn.length) * Math.PI * 2;
-        const s: Sim = { ...n, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, vx: 0, vy: 0 };
+        // Reuse a prior position if this node already existed, so live updates
+        // grow the graph smoothly instead of reshuffling everything.
+        const prev = prevPos.get(n.id);
+        const s: Sim = prev
+          ? { ...n, x: prev.x, y: prev.y, vx: 0, vy: 0 }
+          : { ...n, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, vx: 0, vy: 0 };
         byId.set(n.id, s); return s;
       });
       edges = pendingEdges
@@ -61,14 +67,33 @@ export function KnowledgeGraph() {
       seeded = true;
     };
 
-    fetch("/api/graph").then((r) => r.json()).then((j) => {
-      if (disposed) return;
-      const gn: GNode[] = j?.data?.nodes ?? [];
-      if (!gn.length) { setEmpty(true); return; }
-      pending = gn;
-      pendingEdges = Array.isArray(j?.data?.edges) ? (j.data.edges as GEdge[]) : [];
-      seed(); // seed now if size is already known; otherwise the loop retries
-    }).catch(() => setEmpty(true));
+    let sig = "";
+    const load = () => {
+      fetch("/api/graph", { cache: "no-store" }).then((r) => r.json()).then((j) => {
+        if (disposed) return;
+        const gn: GNode[] = j?.data?.nodes ?? [];
+        if (!gn.length) { setEmpty(true); return; }
+        const nextSig = gn.map((n) => n.id).sort().join("|");
+        if (nextSig === sig) return; // nothing new — leave the running sim alone
+        sig = nextSig;
+        setEmpty(false);
+        // Remember current positions so unchanged nodes stay put.
+        prevPos.clear();
+        for (const n of nodes) prevPos.set(n.id, { x: n.x, y: n.y });
+        pending = gn;
+        pendingEdges = Array.isArray(j?.data?.edges) ? (j.data.edges as GEdge[]) : [];
+        seeded = false; // let the loop re-seed with the new set
+        seed();
+      }).catch(() => { if (!nodes.length) setEmpty(true); });
+    };
+    load();
+
+    // Live refresh: poll, on tab focus, and whenever memory changes elsewhere.
+    const poll = window.setInterval(load, 30000);
+    const onFocus = () => load();
+    const onMem = () => load();
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("sage:memory-updated", onMem);
 
     const step = () => {
       // repulsion
@@ -152,6 +177,9 @@ export function KnowledgeGraph() {
 
     return () => {
       disposed = true; cancelAnimationFrame(raf); ro.disconnect();
+      window.clearInterval(poll);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("sage:memory-updated", onMem);
       canvas.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);

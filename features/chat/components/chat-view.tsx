@@ -52,6 +52,9 @@ export function ChatView({
     messages: initialMessages,
     transport: new DefaultChatTransport({ api: "/api/chat", body: { threadId } }),
     onFinish: ({ message }) => {
+      // A turn just completed → memory extraction may have added facts; nudge
+      // the Mind Graph to redraw.
+      window.dispatchEvent(new CustomEvent("sage:memory-updated"));
       if (!voiceMode.current) return;
       voiceMode.current = false;
       const text = message.parts

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
-export const revalidate = 120;
+// Always fresh: the graph must reflect new memories the moment they're saved.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export interface GNode { id: string; label: string; kind: "memory" | "note" | "source"; group: string; weight: number }
 export interface GEdge { a: string; b: string }

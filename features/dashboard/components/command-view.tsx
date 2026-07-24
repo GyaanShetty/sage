@@ -195,7 +195,7 @@ export function CommandView({
                 <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
               </div>
             </ExpandableCell>
-            <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: 1 }}>
+            <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: 1 }} hud="notes">
               <div className="bh"><span className="t">Notes</span><span className="i">NTS</span><span className="r">{pad(notes.length)}</span></div>
               <div className="notein">
                 <input value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="capture a thought…" />
@@ -292,7 +292,7 @@ export function CommandView({
                 ))}
               </div>
             </ExpandableCell>
-            <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: 1 }} expanded={<ScheduleManager events={events} />}>
+            <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: 1 }} hud="agenda" expanded={<ScheduleManager events={events} />}>
               <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
               {(events ?? []).slice(0, 4).map((e, i) => {
                 const d = new Date(e.start);
@@ -319,7 +319,7 @@ export function CommandView({
       <section className="section" id="exec" style={{ paddingTop: 0 }}>
         <div className="sectitle"><span className="sn">02</span><h2>Execute</h2><span className="line" /><span className="tag">DIRECTIVES · FOCUS · ACTIVITY</span></div>
         <div className="grid deck2a">
-          <div className="cell expandable" onClick={() => setTaskModal(true)}>
+          <div className="cell expandable" data-hud="tasks" onClick={() => setTaskModal(true)}>
             <div className="bh">
               <span className="t">Directives</span><span className="i">TSK</span>
               <span className="r">{tasks.filter((t) => t.status === "done").length}/{tasks.length} · <span className="expand-hint">MANAGE ⤢</span></span>

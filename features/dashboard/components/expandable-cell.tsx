@@ -16,6 +16,7 @@ export function ExpandableCell({
   style,
   children,
   expanded,
+  hud,
 }: {
   title: string;
   tag?: string;
@@ -23,10 +24,11 @@ export function ExpandableCell({
   style?: React.CSSProperties;
   children: React.ReactNode;
   expanded?: React.ReactNode;
+  hud?: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className={`cell xcell ${className ?? ""}`} style={style}>
+    <div className={`cell xcell ${className ?? ""}`} style={style} data-hud={hud}>
       <button className="xc-btn" onClick={() => setOpen(true)} aria-label={`Expand ${title}`}>
         <Maximize2 className="size-3" />
       </button>

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Mic,
   Moon,
+  Shapes,
   type LucideIcon,
 } from "lucide-react";
 
@@ -50,6 +51,7 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "nav-workspace", label: "Workspace", icon: FolderKanban, group: "Navigate", href: "/workspace" },
   { id: "nav-knowledge", label: "Knowledge", icon: BookOpen, group: "Navigate", href: "/knowledge" },
   { id: "nav-lab", label: "Holo-Lab", icon: Boxes, group: "Navigate", href: "/lab" },
+  { id: "nav-forge", label: "Forge", icon: Shapes, group: "Navigate", href: "/forge" },
   { id: "nav-graph", label: "Mind Graph", icon: Network, group: "Navigate", href: "/graph" },
   { id: "nav-agents", label: "Research Agent", icon: Bot, group: "Navigate", href: "/agents" },
   { id: "nav-automations", label: "Automations", icon: Zap, group: "Navigate", href: "/automations" },

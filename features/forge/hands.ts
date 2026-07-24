@@ -1,0 +1,100 @@
+"use client";
+
+/**
+ * Computer-vision hand controller. Lazy-loads MediaPipe's HandLandmarker (WASM +
+ * model from CDN — only fetched when the user turns Hand Control on), opens the
+ * webcam, and reports a normalized fingertip position + pinch state each frame.
+ * The Forge maps that onto the 3D scene so you sculpt with your hand, holotable
+ * style. Everything is optional and degrades to pointer control on failure.
+ */
+
+export interface HandFrame {
+  /** Index-fingertip position, normalized 0..1, already mirrored for a selfie view. */
+  x: number;
+  y: number;
+  /** True while thumb + index are pinched together (grab). */
+  pinch: boolean;
+  /** Raw pinch distance (for debugging / thresholds). */
+  pinchDist: number;
+}
+
+const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
+const MODEL =
+  "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+
+export class HandController {
+  private video: HTMLVideoElement | null = null;
+  private stream: MediaStream | null = null;
+  private landmarker: unknown = null;
+  private raf = 0;
+  private running = false;
+  private onFrame: (f: HandFrame | null) => void;
+
+  constructor(onFrame: (f: HandFrame | null) => void) {
+    this.onFrame = onFrame;
+  }
+
+  /** Attach a <video> element to draw the camera into (small PIP preview). */
+  async start(video: HTMLVideoElement): Promise<void> {
+    this.video = video;
+    const { HandLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
+    const vision = await FilesetResolver.forVisionTasks(WASM);
+    this.landmarker = await HandLandmarker.createFromOptions(vision, {
+      baseOptions: { modelAssetPath: MODEL, delegate: "GPU" },
+      runningMode: "VIDEO",
+      numHands: 1,
+    });
+
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: 640, height: 480 },
+      audio: false,
+    });
+    video.srcObject = this.stream;
+    await video.play();
+    this.running = true;
+    this.loop();
+  }
+
+  private loop = () => {
+    if (!this.running || !this.video || !this.landmarker) return;
+    const lm = this.landmarker as {
+      detectForVideo: (v: HTMLVideoElement, t: number) => { landmarks?: { x: number; y: number; z: number }[][] };
+    };
+    try {
+      if (this.video.readyState >= 2) {
+        const res = lm.detectForVideo(this.video, performance.now());
+        const hand = res.landmarks?.[0];
+        if (hand && hand.length >= 9) {
+          const thumb = hand[4];
+          const index = hand[8];
+          const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+          this.onFrame({
+            x: 1 - index.x, // mirror for selfie view
+            y: index.y,
+            pinch: dist < 0.06,
+            pinchDist: dist,
+          });
+        } else {
+          this.onFrame(null);
+        }
+      }
+    } catch {
+      /* skip this frame */
+    }
+    this.raf = requestAnimationFrame(this.loop);
+  };
+
+  stop(): void {
+    this.running = false;
+    cancelAnimationFrame(this.raf);
+    this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
+    try {
+      (this.landmarker as { close?: () => void })?.close?.();
+    } catch {
+      /* noop */
+    }
+    this.landmarker = null;
+    if (this.video) this.video.srcObject = null;
+  }
+}

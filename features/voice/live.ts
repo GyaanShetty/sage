@@ -99,6 +99,12 @@ export function useLiveVoice() {
   const [state, setState] = useState<LiveState>("off");
   const [error, setError] = useState<string | null>(null);
   const [captions, setCaptions] = useState<{ you: string; sage: string }>({ you: "", sage: "" });
+  const [turns, setTurns] = useState<{ role: "you" | "sage"; text: string }[]>([]);
+
+  // Buffers for the in-flight turn; flushed into `turns` on turnComplete so the
+  // side panel shows a clean, scrollable chat history.
+  const youBufRef = useRef("");
+  const sageBufRef = useRef("");
 
   const sessionRef = useRef<LiveSessionLike | null>(null);
   const micCtxRef = useRef<AudioContext | null>(null);
@@ -136,6 +142,9 @@ export function useLiveVoice() {
     if (stateRef.current !== "off") return true;
     setError(null);
     setCaptions({ you: "", sage: "" });
+    setTurns([]);
+    youBufRef.current = "";
+    sageBufRef.current = "";
     setBoth("connecting");
 
     try {
@@ -229,13 +238,26 @@ export function useLiveVoice() {
               return;
             }
             if (sc.inputTranscription?.text) {
-              setCaptions((c) => ({ ...c, you: (c.you + sc.inputTranscription!.text!).slice(-160) }));
+              youBufRef.current = (youBufRef.current + sc.inputTranscription.text).slice(-600);
+              setCaptions((c) => ({ ...c, you: youBufRef.current.slice(-160) }));
             }
             if (sc.outputTranscription?.text) {
-              setCaptions((c) => ({ ...c, sage: (c.sage + sc.outputTranscription!.text!).slice(-220) }));
+              sageBufRef.current = (sageBufRef.current + sc.outputTranscription.text).slice(-1200);
+              setCaptions((c) => ({ ...c, sage: sageBufRef.current.slice(-220) }));
             }
             if (sc.turnComplete) {
-              setCaptions((c) => ({ you: "", sage: c.sage }));
+              // Flush the completed exchange into the scrollable history.
+              const you = youBufRef.current.trim();
+              const sage = sageBufRef.current.trim();
+              setTurns((t) => {
+                const next = [...t];
+                if (you) next.push({ role: "you", text: you });
+                if (sage) next.push({ role: "sage", text: sage });
+                return next.slice(-40);
+              });
+              youBufRef.current = "";
+              sageBufRef.current = "";
+              setCaptions({ you: "", sage: "" });
             }
             for (const part of sc.modelTurn?.parts ?? []) {
               const data = part.inlineData?.data;
@@ -297,5 +319,5 @@ export function useLiveVoice() {
     }
   }, [stop]);
 
-  return { state, error, captions, start, stop };
+  return { state, error, captions, turns, start, stop };
 }

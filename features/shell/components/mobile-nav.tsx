@@ -18,6 +18,7 @@ import {
   Brain,
   FolderKanban,
   LayoutGrid,
+  Shapes,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const TABS = [
 const MORE = [
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/lab", label: "Holo-Lab", icon: Boxes },
+  { href: "/forge", label: "Forge", icon: Shapes },
   { href: "/graph", label: "Mind Graph", icon: Network },
   { href: "/agents", label: "Research Agent", icon: Bot },
   { href: "/automations", label: "Automations", icon: Zap },

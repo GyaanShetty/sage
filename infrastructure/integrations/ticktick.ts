@@ -111,3 +111,16 @@ export async function completeTickTask(projectId: string, taskId: string): Promi
   });
   return res.ok;
 }
+
+/** Change a task's priority — the axis behind the Eisenhower matrix. TickTick
+ *  priorities: 0 none, 1 low, 3 medium, 5 high. */
+export async function updateTickTaskPriority(projectId: string, taskId: string, priority: number): Promise<boolean | null> {
+  const t = await token();
+  if (!t) return null;
+  const res = await proxyFetch(`${API}/task/${taskId}`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${t}`, "content-type": "application/json" },
+    body: JSON.stringify({ id: taskId, projectId, priority }),
+  });
+  return res.ok;
+}

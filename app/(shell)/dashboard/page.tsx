@@ -11,6 +11,7 @@ import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/compone
 import { LearnBand } from "@/features/dashboard/components/learn-band";
 import { StreamsBand } from "@/features/dashboard/components/streams-band";
 import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
+import { EisenhowerBand } from "@/features/dashboard/components/eisenhower-band";
 import { SitrepBand } from "@/features/dashboard/components/sitrep-band";
 import { DashboardLayout } from "@/features/dashboard/components/dashboard-layout";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
@@ -145,8 +146,9 @@ export default async function DashboardPage() {
     { id: "console", label: "06 · Console", node: <ConsoleBand stats={{ open, notes: noteCount, memories }} /> },
     { id: "review", label: "07 · Review", node: <ReviewBand activity={activity} journal={journal} health={health} /> },
     { id: "learn", label: "08 · Learn", node: <LearnBand /> },
+    { id: "matrix", label: "09 · Eisenhower Matrix", node: <EisenhowerBand /> },
     { id: "deadlines", label: "10 · Deadlines", node: <TickTickBand /> },
-    { id: "feeds", label: "09 · Feeds", node: <StreamsBand /> },
+    { id: "feeds", label: "11 · Feeds", node: <StreamsBand /> },
   ];
 
   return (

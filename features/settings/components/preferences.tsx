@@ -92,7 +92,7 @@ export function Preferences() {
         <div className="flex-1">
           <p className="text-sm font-medium">Gesture control</p>
           <p className="text-xs text-subtle">
-            Navigate hands-free with the webcam — open palm, raise/lower to scroll, swipe to change pages. Uses computer vision; the camera runs only while this is on.
+            Navigate hands-free with the webcam — open palm and twist like a ball to scroll, make a fist and slide left/right to change pages. Uses computer vision; the camera runs only while this is on.
           </p>
         </div>
         <Toggle on={gestureNav} onClick={() => setGestureNav(!gestureNav)} />

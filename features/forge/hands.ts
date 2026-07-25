@@ -21,6 +21,9 @@ export interface HandFrame {
   pinchDist: number;
   /** Roughly how open the hand is (fist ≈ 1, open palm ≳ 1.7). */
   openness: number;
+  /** Hand roll in radians — angle of the knuckle line (index→pinky MCP). Twisting
+   *  the hand like a knob/ball changes this; used for rotation-based scrolling. */
+  roll: number;
 }
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
@@ -69,15 +72,19 @@ export class HandController {
       if (this.video.readyState >= 2) {
         const res = lm.detectForVideo(this.video, performance.now());
         const hand = res.landmarks?.[0];
-        if (hand && hand.length >= 13) {
+        if (hand && hand.length >= 18) {
           const wrist = hand[0];
           const thumb = hand[4];
           const index = hand[8];
           const midMcp = hand[9];
           const midTip = hand[12];
+          const indexMcp = hand[5];
+          const pinkyMcp = hand[17];
           const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
           const handSpan = Math.hypot(midMcp.x - wrist.x, midMcp.y - wrist.y) || 0.001;
           const openness = Math.hypot(midTip.x - wrist.x, midTip.y - wrist.y) / handSpan;
+          // knuckle line in mirrored space → roll angle
+          const roll = Math.atan2(pinkyMcp.y - indexMcp.y, (1 - pinkyMcp.x) - (1 - indexMcp.x));
           this.onFrame({
             x: 1 - index.x, // mirror for selfie view
             y: index.y,
@@ -86,6 +93,7 @@ export class HandController {
             pinch: dist < 0.06,
             pinchDist: dist,
             openness,
+            roll,
           });
         } else {
           this.onFrame(null);

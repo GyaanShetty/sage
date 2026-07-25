@@ -26,6 +26,7 @@ export function CommandPalette() {
   }, [setOpen]);
 
   const setWakeWord = useShellStore((s) => s.setWakeWord);
+  const setGestureNav = useShellStore((s) => s.setGestureNav);
 
   const run = (action: PaletteAction) => {
     setOpen(false);
@@ -35,6 +36,8 @@ export function CommandPalette() {
       window.dispatchEvent(new CustomEvent("sage:engage-voice"));
     } else if (action.command === "toggle-wake") {
       setWakeWord(!useShellStore.getState().wakeWord);
+    } else if (action.command === "toggle-gesture") {
+      setGestureNav(!useShellStore.getState().gestureNav);
     } else if (action.command === "ambient-now") {
       window.dispatchEvent(new CustomEvent("sage:ambient-now"));
     } else if (action.href) {

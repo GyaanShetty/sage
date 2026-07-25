@@ -12,10 +12,15 @@ export interface HandFrame {
   /** Index-fingertip position, normalized 0..1, already mirrored for a selfie view. */
   x: number;
   y: number;
+  /** Palm centre (middle-finger base), normalized + mirrored — used for scroll/swipe. */
+  palmX: number;
+  palmY: number;
   /** True while thumb + index are pinched together (grab). */
   pinch: boolean;
   /** Raw pinch distance (for debugging / thresholds). */
   pinchDist: number;
+  /** Roughly how open the hand is (fist ≈ 1, open palm ≳ 1.7). */
+  openness: number;
 }
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
@@ -64,15 +69,23 @@ export class HandController {
       if (this.video.readyState >= 2) {
         const res = lm.detectForVideo(this.video, performance.now());
         const hand = res.landmarks?.[0];
-        if (hand && hand.length >= 9) {
+        if (hand && hand.length >= 13) {
+          const wrist = hand[0];
           const thumb = hand[4];
           const index = hand[8];
+          const midMcp = hand[9];
+          const midTip = hand[12];
           const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+          const handSpan = Math.hypot(midMcp.x - wrist.x, midMcp.y - wrist.y) || 0.001;
+          const openness = Math.hypot(midTip.x - wrist.x, midTip.y - wrist.y) / handSpan;
           this.onFrame({
             x: 1 - index.x, // mirror for selfie view
             y: index.y,
+            palmX: 1 - midMcp.x,
+            palmY: midMcp.y,
             pinch: dist < 0.06,
             pinchDist: dist,
+            openness,
           });
         } else {
           this.onFrame(null);

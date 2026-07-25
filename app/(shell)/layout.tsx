@@ -13,6 +13,7 @@ import { BootBriefing } from "@/components/boot-briefing";
 import { WakeWord } from "@/features/voice/wake-word";
 import { HudLayer } from "@/components/hud-layer";
 import { ProactiveVoice } from "@/components/proactive-voice";
+import { GestureNav } from "@/features/gestures/gesture-nav";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -35,6 +36,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <AmbientMode />
       <HudLayer />
       <ProactiveVoice />
+      <GestureNav />
     </div>
   );
 }

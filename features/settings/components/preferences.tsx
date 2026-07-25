@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Mic, Moon } from "lucide-react";
+import { Bell, Hand, Mic, Moon } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
@@ -28,6 +28,8 @@ export function Preferences() {
   const setWakeWord = useShellStore((s) => s.setWakeWord);
   const ambientArmed = useShellStore((s) => s.ambientArmed);
   const setAmbientArmed = useShellStore((s) => s.setAmbientArmed);
+  const gestureNav = useShellStore((s) => s.gestureNav);
+  const setGestureNav = useShellStore((s) => s.setGestureNav);
 
   const [notify, setNotify] = useState(false);
   const [notifyMsg, setNotifyMsg] = useState<string | null>(null);
@@ -83,6 +85,17 @@ export function Preferences() {
           </p>
         </div>
         <Toggle on={ambientArmed} onClick={() => setAmbientArmed(!ambientArmed)} />
+      </GlassPanel>
+
+      <GlassPanel className="mt-3 flex items-center gap-4 p-5">
+        <Hand className="size-5 text-muted" />
+        <div className="flex-1">
+          <p className="text-sm font-medium">Gesture control</p>
+          <p className="text-xs text-subtle">
+            Navigate hands-free with the webcam — open palm, raise/lower to scroll, swipe to change pages. Uses computer vision; the camera runs only while this is on.
+          </p>
+        </div>
+        <Toggle on={gestureNav} onClick={() => setGestureNav(!gestureNav)} />
       </GlassPanel>
 
       {mounted && pushSupported() && (

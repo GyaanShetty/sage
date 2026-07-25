@@ -8,10 +8,12 @@ interface ShellState {
   paletteOpen: boolean;
   wakeWord: boolean;
   ambientArmed: boolean;
+  gestureNav: boolean;
   toggleSidebar: () => void;
   setPaletteOpen: (open: boolean) => void;
   setWakeWord: (on: boolean) => void;
   setAmbientArmed: (on: boolean) => void;
+  setGestureNav: (on: boolean) => void;
 }
 
 export const useShellStore = create<ShellState>()(
@@ -21,10 +23,12 @@ export const useShellStore = create<ShellState>()(
       paletteOpen: false,
       wakeWord: false,
       ambientArmed: true,
+      gestureNav: false,
       toggleSidebar: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setWakeWord: (wakeWord) => set({ wakeWord }),
       setAmbientArmed: (ambientArmed) => set({ ambientArmed }),
+      setGestureNav: (gestureNav) => set({ gestureNav }),
     }),
     {
       name: "sage-shell",
@@ -32,6 +36,7 @@ export const useShellStore = create<ShellState>()(
         sidebarExpanded: s.sidebarExpanded,
         wakeWord: s.wakeWord,
         ambientArmed: s.ambientArmed,
+        gestureNav: s.gestureNav,
       }),
     },
   ),

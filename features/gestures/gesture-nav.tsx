@@ -12,27 +12,18 @@ const ROUTES = [
   "/lab", "/forge", "/automations", "/memory", "/graph", "/agents", "/settings",
 ];
 
-const OPEN_MIN = 1.45;        // open palm → twist-to-scroll mode
 const FIST_MAX = 1.15;        // closed fist → page-change mode
-const ROLL_DEAD = 0.02;       // ignore tiny wobble (radians/frame)
-const ROLL_GAIN = 900;        // px scrolled per radian of twist
+const DRAG_GAIN = 1.5;        // page travel relative to hand travel (1 = 1:1)
 const FIST_DEVIATE = 0.16;    // how far a fist must slide sideways to flip a page
 const NAV_COOLDOWN = 1100;
 
-function angleDelta(a: number, b: number): number {
-  let d = a - b;
-  if (d > Math.PI) d -= 2 * Math.PI;
-  if (d < -Math.PI) d += 2 * Math.PI;
-  return d;
-}
-
 /**
- * Hands-free gesture navigation (opt-in). Open palm → twist your hand like
- * rolling a ball to scroll (rotate clockwise to go down, back to go up — twist
- * more/faster to scroll more). Make a fist and slide it left/right to flip
- * between pages. Uses the same MediaPipe tracker as the Forge, lazy-loaded only
- * when enabled. A small camera preview + status chip show while it's live;
- * everything degrades to a friendly message on camera failure.
+ * Hands-free gesture navigation (opt-in). Pinch (thumb + index) to grab the page
+ * and move your hand up/down to drag it — like scrolling a touchscreen in the
+ * air; unpinch to let go. Make a fist and slide it left/right to flip between
+ * pages. Uses the same MediaPipe tracker as the Forge, lazy-loaded only when
+ * enabled. A small camera preview + status chip show while it's live; everything
+ * degrades to a friendly message on camera failure.
  */
 export function GestureNav() {
   const enabled = useShellStore((s) => s.gestureNav);
@@ -47,7 +38,7 @@ export function GestureNav() {
   const [status, setStatus] = useState<string>("");
   const [dir, setDir] = useState<"up" | "down" | null>(null);
 
-  const prevRoll = useRef<number | null>(null);
+  const dragY = useRef<number | null>(null);   // last palmY while pinched
   const fistAnchor = useRef<number | null>(null);
   const lastNav = useRef(0);
 
@@ -57,32 +48,29 @@ export function GestureNav() {
     if (next && !pathRef.current.startsWith(next)) router.push(next);
   }, [router]);
 
-  const scroller = () => document.querySelector("main") as HTMLElement | null;
+  const scroller = () => (document.querySelector("main") as HTMLElement | null);
 
   const onFrame = useCallback((f: HandFrame | null) => {
-    if (!f) { setDir(null); prevRoll.current = null; fistAnchor.current = null; return; }
+    if (!f) { setDir(null); dragY.current = null; fistAnchor.current = null; return; }
     const now = performance.now();
 
-    // ---- OPEN PALM → twist to scroll (like rolling a ball) ----
-    if (f.openness >= OPEN_MIN) {
+    // ---- PINCH → grab & drag the page (touchscreen-style) ----
+    if (f.pinch) {
       fistAnchor.current = null;
-      if (prevRoll.current !== null) {
-        const d = angleDelta(f.roll, prevRoll.current);
-        if (Math.abs(d) > ROLL_DEAD) {
-          const amt = d * ROLL_GAIN; // clockwise twist → positive → scroll down
-          (scroller() ?? document.scrollingElement ?? document.documentElement)?.scrollBy({ top: amt });
-          setDir(amt > 0 ? "down" : "up");
-        } else {
-          setDir(null);
-        }
+      const el = scroller() ?? (document.scrollingElement as HTMLElement) ?? document.documentElement;
+      const h = el?.clientHeight || window.innerHeight;
+      if (dragY.current !== null && el) {
+        const dy = f.palmY - dragY.current;          // + when hand moves down
+        el.scrollBy({ top: -dy * h * DRAG_GAIN });   // pull page down → go up
+        if (Math.abs(dy) > 0.002) setDir(dy > 0 ? "up" : "down");
       }
-      prevRoll.current = f.roll;
+      dragY.current = f.palmY;
       return;
     }
+    dragY.current = null;
+    setDir(null);
 
     // ---- CLOSED FIST → slide left/right to change page ----
-    prevRoll.current = null;
-    setDir(null);
     if (f.openness <= FIST_MAX) {
       if (fistAnchor.current === null) fistAnchor.current = f.palmX;
       const dev = f.palmX - fistAnchor.current;
@@ -92,7 +80,6 @@ export function GestureNav() {
         navigate(dev < 0 ? 1 : -1); // fist slides left → next page
       }
     } else {
-      // half-open — neither mode
       fistAnchor.current = null;
     }
   }, [navigate]);
@@ -107,7 +94,7 @@ export function GestureNav() {
         await c.start(videoRef.current!);
         if (cancelled) { c.stop(); return; }
         ctrl.current = c;
-        setStatus("Open palm & twist to scroll · fist + slide to change page");
+        setStatus("Pinch & drag to scroll · fist + slide to change page");
       } catch (err) {
         setStatus(
           /denied|NotAllowed/i.test(String(err))

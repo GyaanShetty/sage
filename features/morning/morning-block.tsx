@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
+import { speakLowLatency } from "@/lib/speak";
 import "@/features/dashboard/command.css";
 
 type StepKind = "gmail" | "feed" | "leetcode" | "synthesis" | "watch";
@@ -139,25 +140,9 @@ export function MorningBlock() {
 
   const speakText = useCallback(async (text: string) => {
     setSpeaking(true);
-    try {
-      const res = await fetch("/api/voice/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
-      if (res.ok) {
-        const url = URL.createObjectURL(await res.blob());
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
-        await audio.play();
-        return;
-      }
-      throw new Error("tts");
-    } catch {
-      const u = new SpeechSynthesisUtterance(text.replace(/[*_#`>[\]()]/g, ""));
-      const v = window.speechSynthesis?.getVoices().find((x) => /en-GB/i.test(x.lang) && /male|daniel|george|arthur/i.test(x.name)) ?? null;
-      if (v) u.voice = v;
-      u.rate = 0.96; u.pitch = 0.8;
-      u.onend = () => setSpeaking(false);
-      window.speechSynthesis?.speak(u);
-    }
+    const audio = await speakLowLatency(text, { fast: true, onended: () => setSpeaking(false) });
+    audioRef.current = audio;
+    if (!audio) setSpeaking(false); // browser-synth path manages its own end
   }, []);
 
   const speakSynthesis = () => {

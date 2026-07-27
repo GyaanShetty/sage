@@ -19,6 +19,9 @@ const GEMINI_VOICE = process.env.SAGE_TTS_VOICE ?? "Charon";
  * voice + British delivery direction. Client falls back to browser speech.
  */
 export async function POST(req: Request) {
+  const url = new URL(req.url);
+  const fast = url.searchParams.get("fast") === "1";   // low-latency flash model
+  const stream = url.searchParams.get("stream") === "1"; // pass audio through as it generates
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return new Response("Empty", { status: 400 });
   const clean = text.slice(0, 1400);
@@ -27,22 +30,32 @@ export async function POST(req: Request) {
   const elevenKey = process.env.ELEVENLABS_API_KEY;
   if (elevenKey) {
     try {
+      // flash_v2_5 ≈ 75ms model latency (vs multilingual_v2's ~hundreds of ms);
+      // the /stream endpoint + latency optimizer + lighter bitrate get audio to
+      // the client almost immediately for briefs.
+      const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? "eleven_flash_v2_5") : ELEVEN_MODEL;
+      const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
+      const path = stream
+        ? `${ELEVEN_VOICE}/stream?output_format=${fmt}&optimize_streaming_latency=3`
+        : `${ELEVEN_VOICE}?output_format=${fmt}`;
       const res = await proxyFetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}?output_format=mp3_44100_128`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${path}`,
         {
           method: "POST",
           headers: { "xi-api-key": elevenKey, "content-type": "application/json" },
           body: JSON.stringify({
             text: clean,
-            model_id: ELEVEN_MODEL,
-            // Lower stability = more emotional/animated; higher style = more
-            // personality & playfulness. Tuned for a warm, expressive delivery.
+            model_id: model,
             voice_settings: { stability: 0.3, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
           }),
           signal: AbortSignal.timeout(45_000),
         },
       );
       if (res.ok) {
+        // Stream the bytes straight through so playback can begin on chunk 1.
+        if (stream && res.body) {
+          return new Response(res.body, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
+        }
         return new Response(await res.arrayBuffer(), {
           headers: { "content-type": "audio/mpeg", "cache-control": "no-store" },
         });

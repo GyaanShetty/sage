@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { sound } from "@/lib/sound";
+import { speakLowLatency } from "@/lib/speak";
 
 /**
  * Spoken JARVIS-style debrief once per session, just after the boot
@@ -66,22 +67,12 @@ export function BootBriefing() {
           return;
         }
 
-        // Neural TTS first.
+        // Neural TTS first — streamed, low-latency (flash model).
         let played = false;
         try {
-          const tts = await fetch("/api/voice/speak", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ text }),
-          });
-          if (tts.ok && !cancelled) {
-            const url = URL.createObjectURL(await tts.blob());
-            const audio = new Audio(url);
-            audioRef.current = audio;
-            audio.onended = () => { setCaption(null); URL.revokeObjectURL(url); };
-            await audio.play();
-            played = true;
-          }
+          const audio = await speakLowLatency(text, { fast: true, onended: () => setCaption(null) });
+          if (audio && !cancelled) { audioRef.current = audio; played = true; }
+          else if (audio === null && "speechSynthesis" in window) played = true; // browser path handled inside
         } catch {
           played = false;
         }

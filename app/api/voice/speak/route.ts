@@ -5,7 +5,7 @@ export const maxDuration = 60;
 
 // ElevenLabs default British male voices: "Daniel" (deep news presenter),
 // "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
-const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb"; // George — warm, mature British
+const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "ZbAwehCkhEdz5R21COAP"; // Gyaan's chosen SAGE voice
 // eleven_multilingual_v2 is markedly more natural/expressive than turbo (turbo
 // trades quality for latency). Override with ELEVENLABS_MODEL if desired.
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";

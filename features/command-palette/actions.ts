@@ -21,6 +21,7 @@ import {
   Hand,
   Sunrise,
   Briefcase,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,6 +54,7 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "nav-chat", label: "Chat", icon: MessageSquare, group: "Navigate", href: "/chat" },
   { id: "nav-markets", label: "Markets", icon: CandlestickChart, group: "Navigate", href: "/markets" },
   { id: "nav-career", label: "Career", icon: Briefcase, group: "Navigate", href: "/career" },
+  { id: "nav-portfolio", label: "Portfolio", icon: Wallet, group: "Navigate", href: "/portfolio" },
   { id: "nav-workspace", label: "Workspace", icon: FolderKanban, group: "Navigate", href: "/workspace" },
   { id: "nav-knowledge", label: "Knowledge", icon: BookOpen, group: "Navigate", href: "/knowledge" },
   { id: "nav-lab", label: "Holo-Lab", icon: Boxes, group: "Navigate", href: "/lab" },

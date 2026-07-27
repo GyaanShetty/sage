@@ -21,6 +21,7 @@ import {
   Shapes,
   Sunrise,
   Briefcase,
+  Wallet,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ const TABS = [
 const MORE = [
   { href: "/morning", label: "Morning Block", icon: Sunrise },
   { href: "/career", label: "Career", icon: Briefcase },
+  { href: "/portfolio", label: "Portfolio", icon: Wallet },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/lab", label: "Holo-Lab", icon: Boxes },
   { href: "/forge", label: "Forge", icon: Shapes },

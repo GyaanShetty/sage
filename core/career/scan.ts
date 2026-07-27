@@ -7,6 +7,8 @@ import { searchGmail } from "@/infrastructure/integrations/google";
 export const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as const;
 export type Stage = (typeof STAGES)[number];
 
+export interface Attachment { name: string; path: string; size: number; addedAt: string }
+
 export interface Application {
   id: string;
   company: string;
@@ -14,6 +16,7 @@ export interface Application {
   stage: Stage;
   deadline?: string | null;
   notes?: string | null;
+  attachments?: Attachment[];
   source: "gmail" | "manual";
   updatedAt: string;
 }

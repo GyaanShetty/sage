@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Briefcase, Plus, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Loader2, Calendar, X,
+  Paperclip, FileText, Download, Save, Maximize2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
@@ -18,7 +19,8 @@ const STAGE_META: Record<Stage, { label: string; color: string }> = {
   rejected: { label: "Closed", color: "#8a8a90" },
 };
 
-interface App { id: string; company: string; role: string; stage: Stage; deadline?: string | null; notes?: string | null; source: string }
+interface Attachment { name: string; path: string; size: number; addedAt: string }
+interface App { id: string; company: string; role: string; stage: Stage; deadline?: string | null; notes?: string | null; attachments?: Attachment[]; source: string }
 interface Prep { overview: string; recentNews: string[]; likelyQuestions: string[]; yourFit: string; tips: string[] }
 
 export function CareerView() {
@@ -30,6 +32,10 @@ export function CareerView() {
   const [prepFor, setPrepFor] = useState<App | null>(null);
   const [prep, setPrep] = useState<Prep | null>(null);
   const [prepLoading, setPrepLoading] = useState(false);
+  const [openApp, setOpenApp] = useState<App | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/career").then((r) => r.json()).catch(() => null);
@@ -64,6 +70,41 @@ export function CareerView() {
     await fetch("/api/career", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ company: nc.company.trim(), role: nc.role.trim() || "—", stage: "applied", source: "manual" }) });
     setNc({ company: "", role: "" });
     load();
+  };
+
+  const open = (a: App) => { setOpenApp(a); setNoteDraft(a.notes ?? ""); };
+
+  const saveNote = async () => {
+    if (!openApp) return;
+    setSavingNote(true);
+    await fetch("/api/career", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: openApp.id, notes: noteDraft }) });
+    setSavingNote(false);
+    setApps((p) => p?.map((x) => (x.id === openApp.id ? { ...x, notes: noteDraft } : x)) ?? p);
+    setOpenApp((o) => (o ? { ...o, notes: noteDraft } : o));
+  };
+
+  const upload = async (files: FileList | null) => {
+    if (!files?.length || !openApp) return;
+    setUploading(true);
+    let latest = openApp.attachments ?? [];
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("appId", openApp.id);
+      fd.append("file", file);
+      const j = await fetch("/api/career/attach", { method: "POST", body: fd }).then((r) => r.json()).catch(() => null);
+      if (j?.data?.attachments) latest = j.data.attachments;
+    }
+    setUploading(false);
+    setOpenApp((o) => (o ? { ...o, attachments: latest } : o));
+    setApps((p) => p?.map((x) => (x.id === openApp.id ? { ...x, attachments: latest } : x)) ?? p);
+  };
+
+  const removeAttachment = async (path: string) => {
+    if (!openApp) return;
+    const j = await fetch(`/api/career/attach?appId=${openApp.id}&path=${encodeURIComponent(path)}`, { method: "DELETE" }).then((r) => r.json()).catch(() => null);
+    const latest = j?.data?.attachments ?? (openApp.attachments ?? []).filter((a) => a.path !== path);
+    setOpenApp((o) => (o ? { ...o, attachments: latest } : o));
+    setApps((p) => p?.map((x) => (x.id === openApp.id ? { ...x, attachments: latest } : x)) ?? p);
   };
 
   const openPrep = async (a: App) => {
@@ -114,9 +155,13 @@ export function CareerView() {
               {apps === null && <p className="lbl" style={{ padding: "8px 0" }}>LOADING…</p>}
               {apps?.filter((a) => a.stage === s).map((a) => (
                 <div key={a.id} className="cc-card">
-                  <div className="cc-company">{a.company}</div>
-                  <div className="cc-role">{a.role}</div>
-                  {a.deadline && <div className="cc-deadline"><Calendar className="size-3" /> {new Date(a.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
+                  <div className="cc-cardtop" onClick={() => open(a)}>
+                    <div className="cc-company">{a.company} {(a.attachments?.length ?? 0) > 0 && <span className="cc-clip"><Paperclip className="size-3" />{a.attachments!.length}</span>}</div>
+                    <div className="cc-role">{a.role}</div>
+                    {a.deadline && <div className="cc-deadline"><Calendar className="size-3" /> {new Date(a.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
+                    <span className="cc-openhint"><Maximize2 className="size-3" /></span>
+                  </div>
+                  {/* cc-cardtop end */}
                   <div className="cc-cardbtns">
                     <button onClick={() => move(a, -1)} disabled={si === 0} title="Back"><ChevronLeft className="size-3.5" /></button>
                     <button onClick={() => move(a, 1)} disabled={si === STAGES.length - 1} title="Advance"><ChevronRight className="size-3.5" /></button>
@@ -134,6 +179,52 @@ export function CareerView() {
       {apps && apps.length === 0 && (
         <div className="cc-zero"><Briefcase className="size-6 opacity-40" /><p>No applications yet. Hit <b>Scan inbox</b> and SAGE will build your pipeline from Gmail.</p></div>
       )}
+
+      {/* detail drawer — notes + attachments */}
+      <AnimatePresence>
+        {openApp && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="cc-prepwrap" onClick={() => setOpenApp(null)}>
+            <motion.div initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: 40, opacity: 0 }} className="cc-prepdrawer" onClick={(e) => e.stopPropagation()}>
+              <div className="cc-prephead">
+                <div><span className="lbl !text-[9px]">{STAGE_META[openApp.stage].label.toUpperCase()}</span><h3>{openApp.company}</h3><span className="cc-role">{openApp.role}</span></div>
+                <button onClick={() => setOpenApp(null)}><X className="size-4" /></button>
+              </div>
+
+              <div className="cc-prepbody">
+                <div className="cc-prepsec">
+                  <span className="lbl !text-[9px]">NOTES</span>
+                  <textarea value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Anything to remember — recruiter name, referral, prep notes, deadlines…" rows={6} className="cc-notes" />
+                  <button onClick={saveNote} disabled={savingNote} className="cc-btn cc-scan" style={{ alignSelf: "flex-start" }}>{savingNote ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />} Save notes</button>
+                </div>
+
+                <div className="cc-prepsec">
+                  <span className="lbl !text-[9px]">DOCUMENTS</span>
+                  <div className="cc-files">
+                    {(openApp.attachments ?? []).map((f) => (
+                      <div key={f.path} className="cc-file">
+                        <FileText className="size-4 shrink-0" style={{ color: "var(--live)" }} />
+                        <a href={`/api/career/attach?path=${encodeURIComponent(f.path)}`} target="_blank" rel="noreferrer" className="cc-fname">{f.name}</a>
+                        <span className="cc-fsize">{(f.size / 1024).toFixed(0)} KB</span>
+                        <a href={`/api/career/attach?path=${encodeURIComponent(f.path)}`} target="_blank" rel="noreferrer" title="Open" className="cc-ficon"><Download className="size-3.5" /></a>
+                        <button onClick={() => removeAttachment(f.path)} title="Remove" className="cc-ficon cc-del"><Trash2 className="size-3.5" /></button>
+                      </div>
+                    ))}
+                    {(openApp.attachments?.length ?? 0) === 0 && <p className="cc-empty" style={{ padding: 0 }}>No documents yet.</p>}
+                  </div>
+                  <label className="cc-upload">
+                    {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Paperclip className="size-3.5" />} Add PDF / doc / anything
+                    <input type="file" multiple hidden onChange={(e) => upload(e.target.files)} />
+                  </label>
+                </div>
+
+                {(openApp.stage === "interview" || openApp.stage === "assessment") && (
+                  <button onClick={() => { const a = openApp; setOpenApp(null); openPrep(a); }} className="cc-btn cc-scan" style={{ alignSelf: "flex-start" }}><Sparkles className="size-3.5" /> Prep me for this</button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* prep drawer */}
       <AnimatePresence>

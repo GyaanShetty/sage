@@ -35,9 +35,9 @@ export async function POST(req: Request) {
           body: JSON.stringify({
             text: clean,
             model_id: ELEVEN_MODEL,
-            // Lower stability = more expressive/human; higher similarity keeps the
-            // voice's timbre; a touch of style adds warmth without over-acting.
-            voice_settings: { stability: 0.4, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true },
+            // Lower stability = more emotional/animated; higher style = more
+            // personality & playfulness. Tuned for a warm, expressive delivery.
+            voice_settings: { stability: 0.3, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
           }),
           signal: AbortSignal.timeout(45_000),
         },

@@ -4,14 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Mail, Newspaper, Coins, Cpu, TrendingUp, Code2, Check, ChevronRight,
-  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart, Volume2, Square,
+  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart, Volume2, Square, Video, Play,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
 import "@/features/dashboard/command.css";
 
-type StepKind = "gmail" | "feed" | "leetcode" | "synthesis";
+type StepKind = "gmail" | "feed" | "leetcode" | "synthesis" | "watch";
 interface Step { id: string; label: string; kind: StepKind; source?: string; icon: typeof Mail; tint: string }
 
 // Gyaan's morning block, in order.
@@ -22,13 +22,15 @@ const STEPS: Step[] = [
   { id: "finexpress", label: "Financial Express", kind: "feed", source: "finexpress", icon: Newspaper, tint: "#5ecfd6" },
   { id: "coindesk", label: "CoinDesk", kind: "feed", source: "coindesk", icon: Coins, tint: "#e8c14a" },
   { id: "mittr", label: "MIT Tech Review", kind: "feed", source: "mittr", icon: Cpu, tint: "#9a7bff" },
+  { id: "watch", label: "Watch", kind: "watch", icon: Video, tint: "#ff4d4d" },
   { id: "leetcode", label: "LeetCode", kind: "leetcode", icon: Code2, tint: "#ffa116" },
   { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "#5ecfd6" },
 ];
 
 interface Synthesis { summary: string; connections: string[]; watch: string[]; actions: string[] }
+interface Video { id: string; title: string; channel: string; thumb: string }
 
-interface Headline { source: string; title: string; link: string; published: number }
+interface Headline { source: string; title: string; link: string; published: number; image?: string }
 interface Email { from: string; subject: string; snippet: string }
 interface Daily { link: string; title: string; difficulty: string }
 interface Stats { streak: number; solved: { all: number }; todaySolved: number }
@@ -65,6 +67,8 @@ export function MorningBlock() {
   const [emails, setEmails] = useState<Email[] | null | undefined>(undefined);
   const [lc, setLc] = useState<{ daily: Daily | null; stats: Stats | null; hasUser: boolean } | null>(null);
   const [syn, setSyn] = useState<Synthesis | null>(null);
+  const [videos, setVideos] = useState<Video[] | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
   const [savedTasks, setSavedTasks] = useState<Set<string>>(new Set());
   const [savedNote, setSavedNote] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -93,6 +97,9 @@ export function MorningBlock() {
       } else if (step.kind === "leetcode") {
         const j = await fetch("/api/leetcode").then((r) => r.json()).catch(() => null);
         if (!cancel) setLc(j?.data ?? null);
+      } else if (step.kind === "watch") {
+        const j = await fetch("/api/youtube").then((r) => r.json()).catch(() => null);
+        if (!cancel) setVideos(j?.data?.videos ?? []);
       } else if (step.kind === "synthesis") {
         const j = await fetch("/api/morning/synthesis").then((r) => r.json()).catch(() => null);
         const data: Synthesis | null = j?.data ?? null;
@@ -230,9 +237,12 @@ export function MorningBlock() {
             feed && feed.length ? (
               <div className="mb-list">
                 {feed.map((h, i) => (
-                  <a key={i} href={h.link} target="_blank" rel="noreferrer" className="mb-item">
-                    <div className="mb-title">{h.title} <ExternalLink className="inline size-3 opacity-40" /></div>
-                    {h.published > 0 && <div className="mb-snip">{new Date(h.published).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>}
+                  <a key={i} href={h.link} target="_blank" rel="noreferrer" className={cn("mb-item", h.image && "mb-item-img")}>
+                    {h.image && <img src={h.image} alt="" className="mb-thumb" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
+                    <div className="mb-itemtext">
+                      <div className="mb-title">{h.title} <ExternalLink className="inline size-3 opacity-40" /></div>
+                      {h.published > 0 && <div className="mb-snip">{new Date(h.published).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>}
+                    </div>
                   </a>
                 ))}
               </div>
@@ -259,6 +269,36 @@ export function MorningBlock() {
                 <p className="mb-hint">Add <code>LEETCODE_USERNAME</code> to see your streak &amp; solved count.</p>
               ) : null}
             </div>
+          )}
+
+          {!loading && step.kind === "watch" && (
+            videos && videos.length ? (
+              <div className="mb-vids">
+                {videos.map((v) => (
+                  <div key={v.id} className="mb-vid">
+                    {playing === v.id ? (
+                      <div className="mb-vidframe">
+                        <iframe
+                          src={`https://www.youtube-nocookie.com/embed/${v.id}?autoplay=1`}
+                          title={v.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : (
+                      <button className="mb-vidthumb" onClick={() => setPlaying(v.id)}>
+                        <img src={v.thumb} alt="" loading="lazy" />
+                        <span className="mb-vidplay"><Play className="size-5" /></span>
+                      </button>
+                    )}
+                    <div className="mb-vidmeta">
+                      <div className="mb-vidtitle">{v.title}</div>
+                      <div className="mb-vidch">{v.channel}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : <div className="mb-empty">No videos right now. Set <code>MORNING_YT_CHANNELS</code> to your favourite channels.</div>
           )}
 
           {!loading && step.kind === "synthesis" && (

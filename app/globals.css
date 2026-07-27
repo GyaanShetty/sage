@@ -341,3 +341,8 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .gn-arrow.down { bottom: 96px; top: auto; transform: none; }
 @keyframes gnPulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
 @media (max-width: 768px) { .gn-cam { width: 104px; height: 78px; } .gn-wrap { bottom: 88px; } }
+
+/* mood range slider */
+.mood-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--faint), var(--live-dim)); outline: none; }
+.mood-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--live); cursor: pointer; box-shadow: 0 0 14px var(--live-glow); border: 2px solid var(--background); }
+.mood-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--live); cursor: pointer; border: 2px solid var(--background); box-shadow: 0 0 14px var(--live-glow); }

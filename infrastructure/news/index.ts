@@ -6,6 +6,7 @@ export interface Headline {
   title: string;
   link: string;
   published: number;
+  image?: string;
 }
 
 /** Curated RSS sources (all public feeds). LinkedIn/HEY have no open RSS — see integrations. */
@@ -80,10 +81,34 @@ async function fetchFeed(source: string, url: string, limit = 4): Promise<Headli
       title: text(it.title).trim(),
       link: href(it.link),
       published: new Date(it.pubDate ?? it.published ?? Date.now()).getTime(),
+      image: imageOf(it as Record<string, unknown>),
     })).filter((h) => h.title);
   } catch {
     return [];
   }
+}
+
+/** Pull a thumbnail from the many places RSS hides one. */
+function imageOf(it: Record<string, unknown>): string | undefined {
+  const attrUrl = (v: unknown): string | undefined => {
+    const o = Array.isArray(v) ? v[0] : v;
+    const u = o && typeof o === "object" ? (o as Record<string, string>)["@_url"] : undefined;
+    return u || undefined;
+  };
+  const media = attrUrl(it["media:content"]) ?? attrUrl(it["media:thumbnail"]);
+  if (media) return media;
+  const grp = it["media:group"] as Record<string, unknown> | undefined;
+  if (grp) { const g = attrUrl(grp["media:content"]) ?? attrUrl(grp["media:thumbnail"]); if (g) return g; }
+  const enc = it["enclosure"];
+  const encO = Array.isArray(enc) ? enc[0] : enc;
+  if (encO && typeof encO === "object") {
+    const o = encO as Record<string, string>;
+    if (/image/i.test(o["@_type"] ?? "") || /\.(jpe?g|png|webp)/i.test(o["@_url"] ?? "")) return o["@_url"];
+  }
+  // first <img> in description / content:encoded
+  const html = text(it["content:encoded"]) || text(it["description"]);
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return m?.[1];
 }
 
 /** Aggregate latest headlines across all sources, newest first. */

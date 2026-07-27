@@ -8,6 +8,7 @@ import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
 import { sound } from "@/lib/sound";
 import { APP_NAME } from "@/lib/config";
+import { useShellStore } from "@/features/shell/store";
 
 type Msg = { role: "you" | "sage"; text: string };
 
@@ -106,7 +107,7 @@ export function VoiceOverlay() {
     const res = await fetch("/api/voice", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, mood: useShellStore.getState().mood }),
     });
     const json = await res.json();
     const reply: string = json?.data?.text ?? "Something went wrong.";

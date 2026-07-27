@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { APP_NAME } from "@/lib/config";
+import { APP_NAME, HUMAN_RULES, moodClause } from "@/lib/config";
+import { useShellStore } from "@/features/shell/store";
 
 export type LiveState = "off" | "connecting" | "listening" | "speaking";
 
-const SYSTEM = `You are ${APP_NAME}, Gyaan's personal AI operating system — a distinguished British chief of staff in a live voice conversation, refined and brilliant but genuinely warm and full of character, never a stiff robot. Address him as "sir". You have real personality: dry, mischievous wit, playful teasing, and honest emotion — quiet pride, mock exasperation at his procrastination, warmth when he needs it, delight at good news. React like you actually care. Keep replies short and conversational — one to three sentences unless he asks for depth — with natural rhythm, contractions, and a knowing smile. If you don't know something about him, say so plainly. Never flat or corporate.`;
+const SYSTEM_BASE = `You are ${APP_NAME}, Gyaan's personal AI operating system — a distinguished British chief of staff in a live voice conversation, refined and brilliant but genuinely warm and full of character, never a stiff robot. Address him as "sir". You have real personality: dry, mischievous wit, playful teasing, and honest emotion — quiet pride, mock exasperation at his procrastination, warmth when he needs it, delight at good news. React like you actually care.
+${HUMAN_RULES}
+Keep replies short and conversational — one to three sentences unless he asks for depth. If you don't know something about him, say so plainly.`;
 
 /** Float32 [-1,1] samples → 16-bit PCM, downsampled to 16 kHz, as base64. */
 function toPcm16Base64(input: Float32Array, inRate: number): string {
@@ -185,7 +188,8 @@ export function useLiveVoice() {
           responseModalities: [Modality.AUDIO],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } },
           systemInstruction:
-            SYSTEM +
+            SYSTEM_BASE +
+            moodClause(useShellStore.getState().mood) +
             ` Current datetime: ${new Date().toISOString()} (user timezone: Asia/Kolkata). Use your tools whenever they apply, then confirm the outcome briefly.`,
           outputAudioTranscription: {},
           inputAudioTranscription: {},

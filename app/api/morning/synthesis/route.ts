@@ -19,7 +19,7 @@ const schema = z.object({
 
 /** Morning synthesis: reads across all the feeds + live markets + tasks + day
  *  and connects them into one insight brief. Cached per half-day to save quota. */
-export async function GET(req: Request) {
+export async function GET() {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
   const bucket = `${day}-${tzHour() < 13 ? "AM" : "PM"}`;
 

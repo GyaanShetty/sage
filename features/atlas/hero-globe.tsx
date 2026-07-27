@@ -117,6 +117,13 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
         .pointsTransitionDuration(0);
       globeRef.current = world;
 
+      // Cap renderer pixel ratio — retina (DPR 2, e.g. iPad) quadruples the
+      // fragment work; 1.5 looks near-identical for a fraction of the GPU cost.
+      try {
+        (world as unknown as { renderer(): { setPixelRatio(n: number): void } })
+          .renderer().setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
+      } catch {}
+
       const mat = world.globeMaterial();
       mat.color.set("#0d1013");
       if (mat.emissive) { mat.emissive.set("#0a1214"); mat.emissiveIntensity = 0.28; }
@@ -155,9 +162,14 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
         if ((pov.altitude ?? 2) > 0.9) handed = false;
       });
 
+      // Pause the WebGL render loop while the tab is hidden.
+      const anim = world as unknown as { pauseAnimation?: () => void; resumeAnimation?: () => void };
+      const onVis = () => (document.visibilityState === "hidden" ? anim.pauseAnimation?.() : anim.resumeAnimation?.());
+      document.addEventListener("visibilitychange", onVis);
+
       setReady(true);
       rebuild();
-      return () => { ro.disconnect(); world._destructor?.(); };
+      return () => { ro.disconnect(); document.removeEventListener("visibilitychange", onVis); world._destructor?.(); };
     })();
     return () => { disposed = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

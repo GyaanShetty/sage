@@ -89,6 +89,15 @@ const LIVE_TOOLS = [
         description: "Fetch the user's open tasks, upcoming calendar events, and unread email — use when asked about their day, plan, schedule, or inbox.",
         parameters: { type: "OBJECT" as const, properties: {} },
       },
+      {
+        name: "navigate",
+        description: "Open a page in the app when the user asks to go somewhere ('open portfolio', 'take me to career', 'show my morning block'). page is the destination name.",
+        parameters: {
+          type: "OBJECT" as const,
+          properties: { page: { type: "STRING" as const, description: "Destination, e.g. portfolio, career, markets, morning, dashboard, memory" } },
+          required: ["page"],
+        },
+      },
     ],
   },
 ];
@@ -215,6 +224,12 @@ export function useLiveVoice() {
               (async () => {
                 const responses = await Promise.all(
                   m.toolCall!.functionCalls!.map(async (fc) => {
+                    // `navigate` is handled client-side — spin the wheel / route.
+                    if (fc.name === "navigate") {
+                      const page = String((fc.args as { page?: string })?.page ?? "");
+                      window.dispatchEvent(new CustomEvent("sage:navigate", { detail: page }));
+                      return { id: fc.id, name: "navigate", response: { ok: true, result: `Opening ${page}.` } };
+                    }
                     const r = await fetch("/api/voice/tool", {
                       method: "POST",
                       headers: { "content-type": "application/json" },

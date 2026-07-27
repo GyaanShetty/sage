@@ -62,6 +62,48 @@ export function RadialNav() {
     if (i >= 0) setRot(-i * step);
   }, [open, pathname, step]);
 
+  // Fuzzy-match a spoken/typed target to a page.
+  const matchPage = useCallback((q: string): number => {
+    const s = q.toLowerCase().replace(/[^a-z ]/g, "").trim();
+    let best = -1, bestLen = 0;
+    PAGES.forEach((p, i) => {
+      const label = p.label.toLowerCase();
+      const href = p.href.slice(1);
+      if (s.includes(label) || s.includes(href) || label.includes(s) || (s.length > 2 && href.includes(s))) {
+        if (label.length > bestLen) { best = i; bestLen = label.length; }
+      }
+    });
+    // a few aliases
+    if (best < 0) {
+      if (/task|to.?do|work/.test(s)) best = PAGES.findIndex((p) => p.href === "/workspace");
+      else if (/money|stock|crypto|invest/.test(s)) best = PAGES.findIndex((p) => p.href === "/portfolio");
+      else if (/job|intern|applic/.test(s)) best = PAGES.findIndex((p) => p.href === "/career");
+      else if (/note|doc|learn/.test(s)) best = PAGES.findIndex((p) => p.href === "/knowledge");
+      else if (/home|main/.test(s)) best = PAGES.findIndex((p) => p.href === "/dashboard");
+    }
+    return best;
+  }, []);
+
+  // Voice / external triggers.
+  useEffect(() => {
+    const onOpen = () => { sound.swoosh?.(); setOpen(true); };
+    const onNav = (e: Event) => {
+      const q = String((e as CustomEvent).detail ?? "");
+      const i = matchPage(q);
+      if (i < 0) return;
+      setOpen(true);
+      setRot(-i * step);
+      // let the wheel visibly spin to it, then navigate
+      window.setTimeout(() => go(PAGES[i].href), 620);
+    };
+    window.addEventListener("sage:open-wheel", onOpen);
+    window.addEventListener("sage:navigate", onNav as EventListener);
+    return () => {
+      window.removeEventListener("sage:open-wheel", onOpen);
+      window.removeEventListener("sage:navigate", onNav as EventListener);
+    };
+  }, [matchPage, step, go]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

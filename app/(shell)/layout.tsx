@@ -1,4 +1,3 @@
-import { Sidebar } from "@/features/shell/components/sidebar";
 import { StatusBar } from "@/features/shell/components/status-bar";
 import { MobileNav } from "@/features/shell/components/mobile-nav";
 import { RadialNav } from "@/features/shell/components/radial-nav";
@@ -25,7 +24,6 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <StatusBar />
       <TickerTape />
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
         <main className="hud-grid flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
       </div>
       <MobileNav />

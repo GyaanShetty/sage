@@ -6,6 +6,9 @@ export const maxDuration = 60;
 // ElevenLabs default British male voices: "Daniel" (deep news presenter),
 // "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb"; // George — warm, mature British
+// eleven_multilingual_v2 is markedly more natural/expressive than turbo (turbo
+// trades quality for latency). Override with ELEVENLABS_MODEL if desired.
+const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
 // Gemini deep male voices: Charon (informative), Gacrux (mature),
 // Algenib (gravelly), Iapetus (clear). Default to the mature, calm one.
 const GEMINI_VOICE = process.env.SAGE_TTS_VOICE ?? "Charon";
@@ -31,8 +34,10 @@ export async function POST(req: Request) {
           headers: { "xi-api-key": elevenKey, "content-type": "application/json" },
           body: JSON.stringify({
             text: clean,
-            model_id: "eleven_turbo_v2_5",
-            voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.15, use_speaker_boost: true },
+            model_id: ELEVEN_MODEL,
+            // Lower stability = more expressive/human; higher similarity keeps the
+            // voice's timbre; a touch of style adds warmth without over-acting.
+            voice_settings: { stability: 0.4, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true },
           }),
           signal: AbortSignal.timeout(45_000),
         },

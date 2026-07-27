@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Mail, Newspaper, Coins, Cpu, TrendingUp, Code2, Check, ChevronRight,
-  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart,
+  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart, Volume2, Square,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -67,8 +67,10 @@ export function MorningBlock() {
   const [syn, setSyn] = useState<Synthesis | null>(null);
   const [savedTasks, setSavedTasks] = useState<Set<string>>(new Set());
   const [savedNote, setSavedNote] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
   const cache = useRef<Record<string, Headline[]>>({});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const step = STEPS[active];
 
@@ -93,11 +95,17 @@ export function MorningBlock() {
         if (!cancel) setLc(j?.data ?? null);
       } else if (step.kind === "synthesis") {
         const j = await fetch("/api/morning/synthesis").then((r) => r.json()).catch(() => null);
-        if (!cancel) setSyn(j?.data ?? null);
+        const data: Synthesis | null = j?.data ?? null;
+        if (!cancel) {
+          setSyn(data);
+          // Speak the brief aloud automatically (arriving here is a user gesture,
+          // so autoplay is allowed) — unless muted.
+          if (data?.summary && sound.isOn()) speakText(synText(data));
+        }
       }
       if (!cancel) setLoading(false);
     })();
-    return () => { cancel = true; };
+    return () => { cancel = true; stopSpeak(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
@@ -110,6 +118,44 @@ export function MorningBlock() {
   const addTask = async (title: string) => {
     setSavedTasks((s) => new Set(s).add(title));
     await fetch("/api/task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }).catch(() => {});
+  };
+
+  const stopSpeak = useCallback(() => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }, []);
+
+  const synText = (s: Synthesis) =>
+    [s.summary, ...s.connections.slice(0, 3), s.watch.length ? `To watch today: ${s.watch[0]}` : ""].filter(Boolean).join(". ");
+
+  const speakText = useCallback(async (text: string) => {
+    setSpeaking(true);
+    try {
+      const res = await fetch("/api/voice/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+      if (res.ok) {
+        const url = URL.createObjectURL(await res.blob());
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => { setSpeaking(false); URL.revokeObjectURL(url); };
+        await audio.play();
+        return;
+      }
+      throw new Error("tts");
+    } catch {
+      const u = new SpeechSynthesisUtterance(text.replace(/[*_#`>[\]()]/g, ""));
+      const v = window.speechSynthesis?.getVoices().find((x) => /en-GB/i.test(x.lang) && /male|daniel|george|arthur/i.test(x.name)) ?? null;
+      if (v) u.voice = v;
+      u.rate = 0.96; u.pitch = 0.8;
+      u.onend = () => setSpeaking(false);
+      window.speechSynthesis?.speak(u);
+    }
+  }, []);
+
+  const speakSynthesis = () => {
+    if (speaking) { stopSpeak(); return; }
+    if (syn) speakText(synText(syn));
   };
 
   const saveBrief = async () => {
@@ -218,6 +264,12 @@ export function MorningBlock() {
           {!loading && step.kind === "synthesis" && (
             syn ? (
               <div className="mb-syn">
+                <div className="mb-synhead">
+                  <button onClick={speakSynthesis} className={cn("mb-synspeak", speaking && "on")}>
+                    {speaking ? <Square className="size-3.5" /> : <Volume2 className="size-3.5" />}
+                    {speaking ? "Stop" : "Listen"}
+                  </button>
+                </div>
                 <p className="mb-synsum">{syn.summary}</p>
 
                 {syn.connections.length > 0 && (

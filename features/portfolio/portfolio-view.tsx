@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, Trash2, TrendingUp, TrendingDown, Loader2, Newspaper, Wallet, X, PencilLine } from "lucide-react";
+import { Plus, Trash2, Loader2, Newspaper, Wallet, PencilLine, RefreshCw, Receipt, Sparkles, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 
@@ -12,6 +12,10 @@ interface Position {
 }
 interface Totals { value: number; cost: number; pnl: number; pnlPct: number }
 interface NewsLink { symbol: string; title: string; link: string; source: string }
+interface Expense { id: string; amount: number; merchant: string; category: string; date: string; recurring: boolean }
+interface Summary { total: number; byCategory: Record<string, number>; recurring: { merchant: string; amount: number }[] }
+const CATS = ["food", "transport", "shopping", "subscriptions", "bills", "entertainment", "health", "other"];
+const inr = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 
 const fmt = (n: number | null, d = 2) => (n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
 const money = (n: number | null) => (n == null ? "—" : (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 }));
@@ -24,6 +28,15 @@ export function PortfolioView() {
   const [form, setForm] = useState({ symbol: "", kind: "crypto", qty: "", avgCost: "", thesis: "" });
   const [editThesis, setEditThesis] = useState<string | null>(null);
   const [thesisText, setThesisText] = useState("");
+  // expenses
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [exp, setExp] = useState({ amount: "", merchant: "", category: "food" });
+  const [scanning, setScanning] = useState(false);
+  // mentor
+  const [mentorQ, setMentorQ] = useState("");
+  const [mentorA, setMentorA] = useState<string | null>(null);
+  const [mentorBusy, setMentorBusy] = useState(false);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/portfolio").then((r) => r.json()).catch(() => null);
@@ -31,7 +44,28 @@ export function PortfolioView() {
     setTotals(j?.data?.totals ?? null);
     fetch("/api/portfolio/news").then((r) => r.json()).then((n) => setNews(n?.data ?? [])).catch(() => {});
   }, []);
-  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load]);
+  const loadExp = useCallback(async () => {
+    const j = await fetch("/api/expenses").then((r) => r.json()).catch(() => null);
+    setExpenses(j?.data?.expenses ?? []); setSummary(j?.data?.summary ?? null);
+  }, []);
+  useEffect(() => { load(); loadExp(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load, loadExp]);
+
+  const addExp = async () => {
+    if (!exp.amount) return;
+    await fetch("/api/expenses", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ amount: Number(exp.amount), merchant: exp.merchant || "—", category: exp.category, recurring: exp.category === "subscriptions" }) });
+    setExp({ amount: "", merchant: "", category: "food" }); loadExp();
+  };
+  const scanReceipts = async () => {
+    setScanning(true);
+    await fetch("/api/expenses", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "scan" }) });
+    setScanning(false); loadExp();
+  };
+  const delExp = async (id: string) => { setExpenses((e) => e.filter((x) => x.id !== id)); await fetch(`/api/expenses?id=${id}`, { method: "DELETE" }); loadExp(); };
+  const askMentor = async (q?: string) => {
+    setMentorBusy(true); setMentorA(null);
+    const j = await fetch("/api/finance/mentor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q ?? mentorQ }) }).then((r) => r.json()).catch(() => null);
+    setMentorA(j?.data?.answer ?? "Couldn't reach the mentor just now."); setMentorBusy(false);
+  };
 
   const add = async () => {
     if (!form.symbol.trim() || !form.qty) return;
@@ -130,6 +164,66 @@ export function PortfolioView() {
           </div>
         </div>
       )}
+
+      {/* Expenses & subscriptions */}
+      <div className="pf-exp">
+        <div className="cc-head" style={{ margin: "6px 0 12px" }}>
+          <div className="sectitle" style={{ marginBottom: 0 }}><span className="sn"><Receipt className="size-3.5" /></span><h2 style={{ fontSize: 15 }}>Expenses</h2><span className="line" />{summary && <span className="tag">{inr(summary.total)} / 30D</span>}</div>
+          <button onClick={scanReceipts} disabled={scanning} className="cc-btn cc-scan">{scanning ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} Scan receipts</button>
+        </div>
+
+        {summary && Object.keys(summary.byCategory).length > 0 && (
+          <div className="pf-cats">
+            {Object.entries(summary.byCategory).sort((a, b) => b[1] - a[1]).map(([c, v]) => (
+              <div key={c} className="pf-cat">
+                <div className="pf-catbar"><span style={{ width: `${Math.min(100, (v / (summary.total || 1)) * 100)}%` }} /></div>
+                <span className="pf-catlbl">{c}</span><span className="pf-catv">{inr(v)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {summary && summary.recurring.length > 0 && (
+          <div className="pf-subs">
+            <span className="lbl !text-[9px]">SUBSCRIPTIONS</span>
+            <div className="pf-subrow">{summary.recurring.map((s, i) => <span key={i} className="pf-sub">{s.merchant} · {inr(s.amount)}</span>)}</div>
+          </div>
+        )}
+
+        <div className="pf-addform" style={{ marginTop: 12 }}>
+          <input value={exp.amount} onChange={(e) => setExp({ ...exp, amount: e.target.value })} placeholder="₹ amount" type="number" />
+          <input value={exp.merchant} onChange={(e) => setExp({ ...exp, merchant: e.target.value })} placeholder="Merchant" onKeyDown={(e) => e.key === "Enter" && addExp()} />
+          <select value={exp.category} onChange={(e) => setExp({ ...exp, category: e.target.value })}>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+          <button onClick={addExp} className="cc-btn cc-scan"><Plus className="size-3.5" /> Add</button>
+        </div>
+
+        {expenses.length > 0 && (
+          <div className="pf-explist">
+            {expenses.slice(0, 12).map((e) => (
+              <div key={e.id} className="pf-exprow">
+                <span className="pf-expm">{e.merchant}{e.recurring && <i> · sub</i>}</span>
+                <span className="pf-expc">{e.category}</span>
+                <span className="pf-expd">{new Date(e.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                <span className="pf-expa">{inr(e.amount)}</span>
+                <button onClick={() => delExp(e.id)} className="cc-del" title="Remove"><Trash2 className="size-3.5" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Financial mentor */}
+      <div className="pf-mentor">
+        <div className="sectitle" style={{ margin: "6px 0 12px" }}><span className="sn"><Sparkles className="size-3.5" /></span><h2 style={{ fontSize: 15 }}>Financial Mentor</h2><span className="line" /></div>
+        <div className="pf-mentorbox">
+          <div className="pf-mentorask">
+            <input value={mentorQ} onChange={(e) => setMentorQ(e.target.value)} placeholder="Ask about your money — 'am I overspending?', 'should I rebalance?'…" onKeyDown={(e) => e.key === "Enter" && mentorQ.trim() && askMentor()} />
+            <button onClick={() => askMentor()} disabled={mentorBusy || !mentorQ.trim()} className="cc-btn cc-scan">{mentorBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}</button>
+          </div>
+          <button onClick={() => askMentor("Give me my monthly financial read")} disabled={mentorBusy} className="pf-mentorquick">{mentorBusy ? "Thinking…" : "Get my monthly read →"}</button>
+          {mentorA && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pf-mentorans">{mentorA}</motion.div>}
+        </div>
+      </div>
     </div>
   );
 }

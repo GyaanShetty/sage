@@ -819,3 +819,29 @@
 .cc-ficon:hover { color: var(--foreground); }
 .cc-upload { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); border: 1px dashed var(--live-dim); padding: 10px 14px; border-radius: 8px; cursor: pointer; align-self: flex-start; }
 .cc-upload:hover { background: color-mix(in srgb, var(--live) 10%, transparent); }
+
+/* ---- Expenses + Financial mentor ---- */
+.pf-exp, .pf-mentor { margin-top: 26px; }
+.pf-cats { display: flex; flex-direction: column; gap: 6px; }
+.pf-cat { display: grid; grid-template-columns: 1fr 90px 80px; align-items: center; gap: 10px; }
+.pf-catbar { grid-column: 1; height: 8px; background: var(--faint); border-radius: 4px; overflow: hidden; }
+.pf-catbar span { display: block; height: 100%; background: linear-gradient(90deg, var(--live-dim), var(--live)); }
+.pf-catlbl { font-size: 11px; color: var(--muted); text-transform: capitalize; }
+.pf-catv { font-family: var(--mono); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+.pf-subs { margin-top: 12px; }
+.pf-subrow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pf-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); border: 1px solid var(--border-glass); padding: 4px 8px; border-radius: 5px; }
+.pf-explist { border: 1px solid var(--border-glass); margin-top: 12px; }
+.pf-exprow { display: grid; grid-template-columns: 1.4fr .8fr .7fr .8fr auto; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--border-glass); font-size: 12.5px; }
+.pf-exprow:last-child { border-bottom: 0; }
+.pf-expm i { font-family: var(--mono); font-style: normal; font-size: 8px; color: var(--live); }
+.pf-expc { font-family: var(--mono); font-size: 9px; color: var(--subtle); text-transform: uppercase; }
+.pf-expd { font-family: var(--mono); font-size: 10px; color: var(--subtle); }
+.pf-expa { text-align: right; font-variant-numeric: tabular-nums; }
+.pf-mentorbox { border: 1px solid var(--border-glass); border-radius: 10px; padding: 16px; }
+.pf-mentorask { display: flex; gap: 8px; }
+.pf-mentorask input { flex: 1; background: var(--panel); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 13px; padding: 10px 13px; outline: none; border-radius: 8px; }
+.pf-mentorask input:focus { border-color: var(--live-dim); }
+.pf-mentorquick { margin-top: 10px; background: none; border: none; color: var(--live); font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+.pf-mentorans { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-glass); font-size: 14px; line-height: 1.65; white-space: pre-wrap; }
+@media (max-width: 760px) { .pf-exprow { grid-template-columns: 1.3fr .7fr auto; } .pf-exprow > :nth-child(3) { display: none; } }

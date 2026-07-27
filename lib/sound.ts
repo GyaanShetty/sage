@@ -105,6 +105,30 @@ function chime() {
   });
 }
 
+/** Dry mechanical detent — a ratchet click as a wheel/dial passes a notch. */
+function detent() {
+  if (!on()) return;
+  const a = ac();
+  if (!a) return;
+  const t = a.currentTime;
+  // short filtered noise burst = a crisp "tock"
+  const n = a.createBuffer(1, Math.floor(a.sampleRate * 0.03), a.sampleRate);
+  const d = n.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = a.createBufferSource();
+  src.buffer = n;
+  const bp = a.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 2400;
+  bp.Q.value = 1.4;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.06, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+  src.connect(bp).connect(g).connect(a.destination);
+  src.start(t);
+  src.stop(t + 0.05);
+}
+
 function toggle(): boolean {
   const next = !on();
   try {
@@ -114,4 +138,4 @@ function toggle(): boolean {
   return next;
 }
 
-export const sound = { tick, blip, swoosh, chime, toggle, isOn: on };
+export const sound = { tick, detent, blip, swoosh, chime, toggle, isOn: on };

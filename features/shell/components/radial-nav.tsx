@@ -49,6 +49,13 @@ export function RadialNav() {
   // Which item sits nearest the top slot right now.
   const activeIndex = ((Math.round(-rot / step) % N) + N) % N;
 
+  // Ratchet click as each page clicks past the selector while rotating.
+  const prevActive = useRef(activeIndex);
+  useEffect(() => {
+    if (open && prevActive.current !== activeIndex) sound.detent?.();
+    prevActive.current = activeIndex;
+  }, [activeIndex, open]);
+
   const go = useCallback((href: string) => {
     sound.blip?.();
     setOpen(false);

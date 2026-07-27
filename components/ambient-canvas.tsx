@@ -18,7 +18,7 @@ export function AmbientCanvas() {
     if (!ctx) return;
 
     let w = 0, h = 0, raf = 0;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1); // cap DPR — cheaper fill
     const resize = () => {
       w = window.innerWidth;
       h = window.innerHeight;
@@ -29,7 +29,8 @@ export function AmbientCanvas() {
     resize();
     window.addEventListener("resize", resize);
 
-    const N = 90;
+    // Fewer particles on phones; frame-rate throttled to ~30fps to halve cost.
+    const N = window.innerWidth < 768 ? 40 : 70;
     const pts = Array.from({ length: N }, () => ({
       x: Math.random() * 2000,
       y: Math.random() * 1400,
@@ -39,7 +40,11 @@ export function AmbientCanvas() {
     let streak: { x: number; y: number; vx: number; vy: number; life: number } | null = null;
     let nextStreak = performance.now() + 6000 + Math.random() * 9000;
 
+    let last = 0;
     const draw = (t: number) => {
+      raf = requestAnimationFrame(draw);
+      if (t - last < 33) return; // ~30fps cap
+      last = t;
       ctx.clearRect(0, 0, w, h);
       for (const p of pts) {
         p.x -= 0.028 * p.z;
@@ -80,9 +85,15 @@ export function AmbientCanvas() {
         ctx.stroke();
         if (streak.life <= 0 || streak.x > w + 60 || streak.y > h + 60) streak = null;
       }
-      raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
+
+    // Stop drawing entirely when the tab is hidden — saves battery/CPU.
+    const onVis = () => {
+      cancelAnimationFrame(raf);
+      if (document.visibilityState === "visible") { last = 0; raf = requestAnimationFrame(draw); }
+    };
+    document.addEventListener("visibilitychange", onVis);
 
     // cursor spotlight → CSS vars
     let pending = false;
@@ -101,6 +112,7 @@ export function AmbientCanvas() {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, []);
 

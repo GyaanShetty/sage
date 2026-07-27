@@ -1,6 +1,7 @@
 import { Sidebar } from "@/features/shell/components/sidebar";
 import { StatusBar } from "@/features/shell/components/status-bar";
 import { MobileNav } from "@/features/shell/components/mobile-nav";
+import { RadialNav } from "@/features/shell/components/radial-nav";
 import { CommandPalette } from "@/features/command-palette/components/command-palette";
 import { VoiceOverlay } from "@/features/voice/components/voice-overlay";
 import { TickerTape } from "@/components/ticker-tape";
@@ -28,6 +29,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         <main className="hud-grid flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
       </div>
       <MobileNav />
+      <RadialNav />
       <Toaster />
       <MotionLayer />
       <CommandPalette />

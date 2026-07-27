@@ -18,6 +18,7 @@ import {
   BookOpen,
   Zap,
   Brain,
+  GraduationCap,
   Settings,
   PanelLeft,
 } from "lucide-react";
@@ -39,6 +40,7 @@ const NAV = [
   { href: "/lab", label: "Holo-Lab", icon: Boxes },
   { href: "/forge", label: "Forge", icon: Shapes },
   { href: "/automations", label: "Automations", icon: Zap },
+  { href: "/review", label: "Review", icon: GraduationCap },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/graph", label: "Mind Graph", icon: Network },
   { href: "/agents", label: "Research Agent", icon: Bot },

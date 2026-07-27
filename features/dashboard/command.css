@@ -784,3 +784,21 @@
   .pf-throw { grid-template-columns: 1.3fr 1fr 1fr .8fr; font-size: 12px; }
   .pf-throw > :nth-child(3), .pf-throw > :nth-child(4), .pf-thead > :nth-child(3), .pf-thead > :nth-child(4) { display: none; }
 }
+
+/* ---- Review (spaced repetition) ---- */
+.rv-wrap { padding: 22px; }
+.rv-stage { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 30px; }
+.rv-progress { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--subtle); }
+.rv-card { position: relative; width: min(560px, 92vw); min-height: 240px; background: var(--panel); border: 1px solid var(--border-glass); border-radius: 14px; padding: 40px 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; }
+.rv-card:hover { border-color: var(--live-dim); }
+.rv-src { position: absolute; top: 14px; left: 16px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); }
+.rv-face { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.rv-q { font-size: 20px; font-weight: 300; line-height: 1.4; }
+.rv-a { font-size: 16px; line-height: 1.6; color: var(--foreground); }
+.rv-hint { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: var(--subtle); text-transform: uppercase; }
+.rv-grades { display: flex; gap: 10px; }
+.rv-g { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 10px 20px; border: 1px solid var(--border-glass); background: var(--panel); color: var(--muted); cursor: pointer; border-radius: 8px; }
+.rv-g:hover { color: var(--foreground); }
+.rv-g.again:hover { border-color: #e86a6a; color: #e86a6a; }
+.rv-g.good:hover { border-color: var(--live-dim); color: var(--live); }
+.rv-g.easy:hover { border-color: #54c98a; color: #54c98a; }

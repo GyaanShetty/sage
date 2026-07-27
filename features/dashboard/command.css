@@ -682,3 +682,24 @@
 .mb-synspeak { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--live); background: none; border: 1px solid var(--live-dim); padding: 6px 12px; border-radius: 20px; cursor: pointer; }
 .mb-synspeak:hover { background: color-mix(in srgb, var(--live) 12%, transparent); }
 .mb-synspeak.on { background: var(--live); color: #07080a; }
+
+/* ---- Morning block: article images + video ---- */
+.mb-item-img { display: flex; gap: 14px; align-items: flex-start; }
+.mb-thumb { width: 116px; height: 74px; object-fit: cover; border-radius: 6px; flex: 0 0 116px; background: var(--faint); }
+.mb-itemtext { flex: 1; min-width: 0; }
+.mb-vids { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mb-vid { border: 1px solid var(--border-glass); background: var(--panel); border-radius: 8px; overflow: hidden; }
+.mb-vidthumb { position: relative; display: block; width: 100%; aspect-ratio: 16/9; border: none; padding: 0; cursor: pointer; background: #000; }
+.mb-vidthumb img { width: 100%; height: 100%; object-fit: cover; }
+.mb-vidplay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; background: rgba(0,0,0,.25); transition: background .15s; }
+.mb-vidthumb:hover .mb-vidplay { background: rgba(0,0,0,.1); }
+.mb-vidplay svg { filter: drop-shadow(0 0 8px rgba(0,0,0,.5)); }
+.mb-vidframe { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; }
+.mb-vidframe iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.mb-vidmeta { padding: 10px 12px; }
+.mb-vidtitle { font-size: 13px; line-height: 1.35; }
+.mb-vidch { font-family: var(--mono); font-size: 9px; letter-spacing: .5px; color: var(--subtle); margin-top: 4px; text-transform: uppercase; }
+@media (max-width: 768px) {
+  .mb-vids { grid-template-columns: 1fr; }
+  .mb-thumb { width: 92px; height: 60px; flex: 0 0 92px; }
+}

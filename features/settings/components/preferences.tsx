@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Hand, Mic, Moon } from "lucide-react";
+import { Bell, Hand, Mic, Moon, Sparkles } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
@@ -30,6 +30,9 @@ export function Preferences() {
   const setAmbientArmed = useShellStore((s) => s.setAmbientArmed);
   const gestureNav = useShellStore((s) => s.gestureNav);
   const setGestureNav = useShellStore((s) => s.setGestureNav);
+  const moodValue = useShellStore((s) => s.moodValue);
+  const mood = useShellStore((s) => s.mood);
+  const setMoodValue = useShellStore((s) => s.setMoodValue);
 
   const [notify, setNotify] = useState(false);
   const [notifyMsg, setNotifyMsg] = useState<string | null>(null);
@@ -61,9 +64,33 @@ export function Preferences() {
     }
   };
 
+  const moodLabel = mood === "formal" ? "Formal & composed" : mood === "playful" ? "Playful & warm" : "Balanced";
+
   return (
     <div className="mt-8">
       <h2 className="text-sm font-medium text-muted">Preferences · this device</h2>
+
+      <GlassPanel className="mt-3 p-5">
+        <div className="flex items-center gap-4">
+          <Sparkles className="size-5 text-muted" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">SAGE&apos;s mood</p>
+            <p className="text-xs text-subtle">How much personality SAGE shows in voice &amp; chat.</p>
+          </div>
+          <span className="text-xs font-medium text-live">{moodLabel}</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={moodValue}
+          onChange={(e) => setMoodValue(Number(e.target.value))}
+          className="mood-range mt-4 w-full"
+        />
+        <div className="mt-1 flex justify-between text-[10px] uppercase tracking-wide text-subtle">
+          <span>Formal</span><span>Balanced</span><span>Playful</span>
+        </div>
+      </GlassPanel>
 
       <GlassPanel className="mt-3 flex items-center gap-4 p-5">
         <Mic className="size-5 text-muted" />

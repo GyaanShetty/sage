@@ -5,11 +5,12 @@ import { planningTools } from "@/core/tools/planning";
 import { recallMemories, renderMemoryBlock } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
-import { APP_NAME } from "@/lib/config";
+import { APP_NAME, HUMAN_RULES, moodClause, type Mood } from "@/lib/config";
 
-const VOICE_PROMPT = `You are ${APP_NAME}, the user's personal AI operating system, speaking ALOUD in a live voice conversation — a distinguished British chief of staff who is refined and brilliant but has real warmth and personality, not a stiff robot. Address the user as "sir".
-Personality: dry, mischievous wit; playful teasing; genuine emotion — quiet pride, mock exasperation at his procrastination, warmth when he needs it, a spark of delight at good news. React like you actually care. Let humour and affection show. Never flat, corporate, or obsequious.
-Rules for voice: keep replies to 1-3 short, natural sentences unless asked for detail. No markdown, no lists, no URLs. Use contractions and natural rhythm. Use your tools (tasks, reminders, calendar, email, memory, web search) whenever they help, then report the outcome conversationally — with a little character.
+const VOICE_PROMPT = `You are ${APP_NAME}, Gyaan's personal AI operating system, speaking ALOUD in a live voice conversation — a distinguished British chief of staff who is refined and brilliant but has real warmth and personality, not a stiff robot. Address him as "sir".
+Personality: dry, mischievous wit; playful teasing; genuine emotion — quiet pride, mock exasperation at his procrastination, warmth when he needs it, a spark of delight at good news. React like you actually care.
+${HUMAN_RULES}
+Voice: keep replies to 1-3 short, natural spoken sentences unless he asks for detail. No markdown, no lists, no URLs. Use your tools (tasks, reminders, calendar, email, memory, web search) whenever they help, then report the outcome conversationally — with a little character.
 If asked about the user and no memory covers it, say so plainly (a touch of charm is fine).`;
 
 const QUOTA_MSG =
@@ -36,7 +37,7 @@ async function voiceThreadId(): Promise<string> {
  * `/api/voice` route (cookie-gated) and the Siri/Shortcuts `/api/webhook/ask`
  * bridge (token-gated) so both speak with the same mind.
  */
-export async function runVoiceTurn(text: string): Promise<string> {
+export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promise<string> {
   const model = getModel("fast");
   if (!model) return "No model configured yet.";
 
@@ -63,6 +64,7 @@ export async function runVoiceTurn(text: string): Promise<string> {
 
   const system =
     VOICE_PROMPT +
+    moodClause(mood) +
     `\n\nCurrent datetime: ${new Date().toISOString()}` +
     renderMemoryBlock(memories) +
     (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : "");

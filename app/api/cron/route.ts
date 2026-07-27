@@ -5,6 +5,8 @@ import { maybeSendWeeklyReview } from "@/core/review/weekly";
 import { maybeSaveDailyDigest } from "@/core/review/daily";
 import { runAnticipation } from "@/core/anticipate/engine";
 import { runNotifications } from "@/core/notify/engine";
+import { generateDailyCards } from "@/core/retention/cards";
+import { maybeScanInbox } from "@/core/career/scan";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -52,6 +54,8 @@ export async function GET(req: Request) {
   const dailyDigestSaved = await maybeSaveDailyDigest().catch(() => false);
   const anticipated = await runAnticipation().catch(() => 0);
   const notifications = await runNotifications().catch(() => ({}));
+  const cardsGenerated = await generateDailyCards().catch(() => 0);
+  const careerScan = await maybeScanInbox().catch(() => ({ added: 0, updated: 0 }));
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan });
 }

@@ -97,3 +97,15 @@ export async function scanInbox(): Promise<{ added: number; updated: number }> {
   }
   return { added, updated };
 }
+
+/** Cron-safe: runs the inbox scan at most once per day (the /career button uses
+ *  scanInbox directly, un-throttled). */
+export async function maybeScanInbox(): Promise<{ added: number; updated: number }> {
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const { data } = await db.from("Event").select("id")
+    .eq("userId", DEFAULT_USER_ID).eq("type", "career.autoscan")
+    .gte("createdAt", `${day}T00:00:00`).limit(1).maybeSingle();
+  if (data) return { added: 0, updated: 0 };
+  await db.from("Event").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: "career.autoscan", payload: { day } });
+  return scanInbox();
+}

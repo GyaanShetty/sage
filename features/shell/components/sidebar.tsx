@@ -9,6 +9,7 @@ import {
   CandlestickChart,
   Network,
   Shapes,
+  Sunrise,
   LayoutDashboard,
   MessageSquare,
   FolderKanban,
@@ -26,6 +27,7 @@ import { SageMark } from "@/components/ui/sage-mark";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/morning", label: "Morning Block", icon: Sunrise },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/markets", label: "Markets", icon: CandlestickChart },
   { href: "/workspace", label: "Workspace", icon: FolderKanban },

@@ -19,6 +19,7 @@ import {
   Moon,
   Shapes,
   Hand,
+  Sunrise,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,7 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "create-project", label: "/create project", icon: FolderKanban, group: "Actions", command: "create-project" },
 
   { id: "nav-dashboard", label: "Dashboard", icon: LayoutDashboard, group: "Navigate", href: "/dashboard" },
+  { id: "nav-morning", label: "Morning Block", icon: Sunrise, group: "Navigate", href: "/morning" },
   { id: "nav-chat", label: "Chat", icon: MessageSquare, group: "Navigate", href: "/chat" },
   { id: "nav-markets", label: "Markets", icon: CandlestickChart, group: "Navigate", href: "/markets" },
   { id: "nav-workspace", label: "Workspace", icon: FolderKanban, group: "Navigate", href: "/workspace" },

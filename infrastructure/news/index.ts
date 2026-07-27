@@ -17,20 +17,35 @@ const FEEDS: { source: string; url: string }[] = [
   { source: "FT", url: "https://www.ft.com/rss/home" },
 ];
 
-/** Named sources for the Morning Block, in the order Gyaan reads them. */
-export const NEWS_SOURCES: Record<string, { source: string; url: string }> = {
-  ft: { source: "Financial Times", url: "https://www.ft.com/rss/home" },
-  mint: { source: "Mint", url: "https://www.livemint.com/rss/news" },
-  finexpress: { source: "Financial Express", url: "https://www.financialexpress.com/feed/" },
-  coindesk: { source: "CoinDesk", url: "https://www.coindesk.com/arc/outboundfeeds/rss/" },
-  mittr: { source: "MIT Tech Review", url: "https://www.technologyreview.com/feed/" },
+/** Named sources for the Morning Block, in the order Gyaan reads them.
+ *  `site` is the domain used for the Google News fallback when a publisher's
+ *  own RSS is blocked (Cloudflare) or empty. */
+export const NEWS_SOURCES: Record<string, { source: string; url: string; site: string }> = {
+  ft: { source: "Financial Times", url: "https://www.ft.com/rss/home", site: "ft.com" },
+  mint: { source: "Mint", url: "https://www.livemint.com/rss/news", site: "livemint.com" },
+  finexpress: { source: "Financial Express", url: "https://www.financialexpress.com/feed/", site: "financialexpress.com" },
+  coindesk: { source: "CoinDesk", url: "https://www.coindesk.com/arc/outboundfeeds/rss/", site: "coindesk.com" },
+  mittr: { source: "MIT Tech Review", url: "https://www.technologyreview.com/feed/", site: "technologyreview.com" },
 };
 
-/** Headlines for a single named source (Morning Block reader). */
+/** Google News RSS scoped to a publisher — reliable when the direct feed is
+ *  blocked. Titles arrive as "Headline - Publisher"; strip the suffix. */
+async function googleNewsFeed(source: string, site: string, limit: number): Promise<Headline[]> {
+  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(`site:${site} when:2d`)}&hl=en-IN&gl=IN&ceid=IN:en`;
+  const items = await fetchFeed(source, url, limit);
+  return items.map((h) => ({ ...h, title: h.title.replace(/\s+-\s+[^-]+$/, "").trim() }));
+}
+
+/** Headlines for a single named source (Morning Block reader). Tries the
+ *  publisher's own RSS first, then falls back to Google News so a blocked feed
+ *  (e.g. Financial Express) still returns headlines. */
 export async function getSourceHeadlines(key: string, limit = 6): Promise<Headline[]> {
   const s = NEWS_SOURCES[key];
   if (!s) return [];
-  return fetchFeed(s.source, s.url, limit);
+  const direct = await fetchFeed(s.source, s.url, limit);
+  if (direct.length >= 2) return direct;
+  const fallback = await googleNewsFeed(s.source, s.site, limit);
+  return fallback.length ? fallback : direct;
 }
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });

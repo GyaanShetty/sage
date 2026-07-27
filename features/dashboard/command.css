@@ -678,3 +678,7 @@
 .mb-synsave { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 8px 12px; border-radius: 8px; cursor: pointer; }
 .mb-synsave:hover { color: var(--foreground); border-color: var(--border-glass-strong); }
 .mb-synsave:disabled { color: var(--live); border-color: var(--live-dim); }
+.mb-synhead { display: flex; justify-content: flex-end; }
+.mb-synspeak { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--live); background: none; border: 1px solid var(--live-dim); padding: 6px 12px; border-radius: 20px; cursor: pointer; }
+.mb-synspeak:hover { background: color-mix(in srgb, var(--live) 12%, transparent); }
+.mb-synspeak.on { background: var(--live); color: #07080a; }

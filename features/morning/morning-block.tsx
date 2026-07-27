@@ -9,6 +9,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
+import "@/features/dashboard/command.css";
 
 type StepKind = "gmail" | "feed" | "leetcode" | "synthesis";
 interface Step { id: string; label: string; kind: StepKind; source?: string; icon: typeof Mail; tint: string }

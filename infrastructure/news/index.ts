@@ -17,6 +17,22 @@ const FEEDS: { source: string; url: string }[] = [
   { source: "FT", url: "https://www.ft.com/rss/home" },
 ];
 
+/** Named sources for the Morning Block, in the order Gyaan reads them. */
+export const NEWS_SOURCES: Record<string, { source: string; url: string }> = {
+  ft: { source: "Financial Times", url: "https://www.ft.com/rss/home" },
+  mint: { source: "Mint", url: "https://www.livemint.com/rss/news" },
+  finexpress: { source: "Financial Express", url: "https://www.financialexpress.com/feed/" },
+  coindesk: { source: "CoinDesk", url: "https://www.coindesk.com/arc/outboundfeeds/rss/" },
+  mittr: { source: "MIT Tech Review", url: "https://www.technologyreview.com/feed/" },
+};
+
+/** Headlines for a single named source (Morning Block reader). */
+export async function getSourceHeadlines(key: string, limit = 6): Promise<Headline[]> {
+  const s = NEWS_SOURCES[key];
+  if (!s) return [];
+  return fetchFeed(s.source, s.url, limit);
+}
+
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
 
 interface RssItem { title?: string | { "#text"?: string }; link?: string | { "@_href"?: string }; pubDate?: string; published?: string }
@@ -33,7 +49,7 @@ function href(link: unknown): string {
   return "";
 }
 
-async function fetchFeed(source: string, url: string): Promise<Headline[]> {
+async function fetchFeed(source: string, url: string, limit = 4): Promise<Headline[]> {
   try {
     const res = await proxyFetch(url, {
       signal: AbortSignal.timeout(8000),
@@ -44,7 +60,7 @@ async function fetchFeed(source: string, url: string): Promise<Headline[]> {
     const doc = parser.parse(xml);
     const items: RssItem[] = doc?.rss?.channel?.item ?? doc?.feed?.entry ?? [];
     const arr = Array.isArray(items) ? items : [items];
-    return arr.slice(0, 4).map((it) => ({
+    return arr.slice(0, limit).map((it) => ({
       source,
       title: text(it.title).trim(),
       link: href(it.link),

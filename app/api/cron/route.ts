@@ -4,6 +4,7 @@ import { runDueAutomations } from "@/core/automation/run";
 import { maybeSendWeeklyReview } from "@/core/review/weekly";
 import { maybeSaveDailyDigest } from "@/core/review/daily";
 import { runAnticipation } from "@/core/anticipate/engine";
+import { runNotifications } from "@/core/notify/engine";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -50,6 +51,7 @@ export async function GET(req: Request) {
   const weeklyReviewSent = await maybeSendWeeklyReview().catch(() => false);
   const dailyDigestSaved = await maybeSaveDailyDigest().catch(() => false);
   const anticipated = await runAnticipation().catch(() => 0);
+  const notifications = await runNotifications().catch(() => ({}));
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications });
 }

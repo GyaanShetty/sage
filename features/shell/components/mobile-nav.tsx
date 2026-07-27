@@ -19,6 +19,7 @@ import {
   FolderKanban,
   LayoutGrid,
   Shapes,
+  Sunrise,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ const TABS = [
 
 // Everything else, reachable from the MORE sheet.
 const MORE = [
+  { href: "/morning", label: "Morning Block", icon: Sunrise },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/lab", label: "Holo-Lab", icon: Boxes },
   { href: "/forge", label: "Forge", icon: Shapes },

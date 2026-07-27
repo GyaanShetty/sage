@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   Boxes,
   Bot,
+  Briefcase,
   CandlestickChart,
   Network,
   Shapes,
@@ -30,6 +31,7 @@ const NAV = [
   { href: "/morning", label: "Morning Block", icon: Sunrise },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/markets", label: "Markets", icon: CandlestickChart },
+  { href: "/career", label: "Career", icon: Briefcase },
   { href: "/workspace", label: "Workspace", icon: FolderKanban },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/lab", label: "Holo-Lab", icon: Boxes },

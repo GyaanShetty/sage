@@ -32,12 +32,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, data: note });
   }
 
+  const paragraphs =
+    typeof body.content === "string" && body.content.trim()
+      ? body.content.split(/\n{2,}|\n/).filter(Boolean).map((p: string) => ({ type: "paragraph", content: [{ type: "text", text: p }] }))
+      : [];
   const note = {
     id: crypto.randomUUID(),
     userId: DEFAULT_USER_ID,
     kind: "doc",
     title: typeof body.title === "string" && body.title ? body.title.slice(0, 120) : "Untitled",
-    content: { type: "doc", content: [] },
+    content: { type: "doc", content: paragraphs },
     updatedAt: new Date().toISOString(),
   };
   const { error } = await db.from("Note").insert(note);

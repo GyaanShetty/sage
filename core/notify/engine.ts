@@ -1,8 +1,11 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents, searchGmail } from "@/infrastructure/integrations/google";
 import { getMarkets } from "@/infrastructure/markets";
+import { getDailyChallenge, getLeetStats } from "@/infrastructure/integrations/leetcode";
 import { sendPush } from "@/infrastructure/push";
 import { TZ, tzHour, fmt } from "@/lib/config";
+
+const LEET_USER = process.env.LEETCODE_USERNAME ?? "gyaanshetty";
 
 function today(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
@@ -120,14 +123,34 @@ async function overdueTasks(): Promise<number> {
   return 1;
 }
 
+/** Evening nudge if today's LeetCode is still unsolved (after 6pm IST). */
+async function leetcodeNudge(): Promise<number> {
+  if (tzHour() < 18) return 0;
+  if (await seenToday("leetcode")) return 0;
+  const [stats, daily] = await Promise.all([
+    getLeetStats(LEET_USER).catch(() => null),
+    getDailyChallenge().catch(() => null),
+  ]);
+  if (!stats || stats.todaySolved > 0) return 0; // already solved (or unknown) → stay quiet
+  await sendPush({
+    title: "🧩 LeetCode still pending",
+    body: daily ? `Today's "${daily.title}" (${daily.difficulty}) is unsolved — keep the ${stats.streak}-day streak alive, sir.` : "Today's problem is still unsolved — keep the streak alive, sir.",
+    tag: "leetcode",
+    url: "/morning",
+  });
+  await markSent("leetcode");
+  return 1;
+}
+
 /** Full notification sweep — called each cron tick. Every channel dedupes
  *  itself so a 15-minute cron never spams. */
 export async function runNotifications(): Promise<Record<string, number>> {
-  const [morning, email, market, tasks] = await Promise.all([
+  const [morning, email, market, tasks, leetcode] = await Promise.all([
     morningUpdate().catch(() => 0),
     importantEmails().catch(() => 0),
     marketMoves().catch(() => 0),
     overdueTasks().catch(() => 0),
+    leetcodeNudge().catch(() => 0),
   ]);
-  return { morning, email, market, tasks };
+  return { morning, email, market, tasks, leetcode };
 }

@@ -103,6 +103,10 @@ export function VoiceOverlay() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const onUtterance = useCallback(async (text: string) => {
+    // "open/go to/show me X" → spin the wheel there (works in classic + typed).
+    if (/\b(open|go to|take me to|show me|navigate|switch to|jump to)\b/i.test(text)) {
+      window.dispatchEvent(new CustomEvent("sage:navigate", { detail: text }));
+    }
     setTranscript((t) => [...t.slice(-30), { role: "you", text }]);
     const res = await fetch("/api/voice", {
       method: "POST",

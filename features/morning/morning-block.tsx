@@ -4,12 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Mail, Newspaper, Coins, Cpu, TrendingUp, Code2, Check, ChevronRight,
-  ExternalLink, Loader2, Circle, CheckCircle2, RotateCcw,
+  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart,
 } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
 
-type StepKind = "gmail" | "feed" | "leetcode";
+type StepKind = "gmail" | "feed" | "leetcode" | "synthesis";
 interface Step { id: string; label: string; kind: StepKind; source?: string; icon: typeof Mail; tint: string }
 
 // Gyaan's morning block, in order.
@@ -21,7 +22,10 @@ const STEPS: Step[] = [
   { id: "coindesk", label: "CoinDesk", kind: "feed", source: "coindesk", icon: Coins, tint: "#e8c14a" },
   { id: "mittr", label: "MIT Tech Review", kind: "feed", source: "mittr", icon: Cpu, tint: "#9a7bff" },
   { id: "leetcode", label: "LeetCode", kind: "leetcode", icon: Code2, tint: "#ffa116" },
+  { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "#5ecfd6" },
 ];
+
+interface Synthesis { summary: string; connections: string[]; watch: string[]; actions: string[] }
 
 interface Headline { source: string; title: string; link: string; published: number }
 interface Email { from: string; subject: string; snippet: string }
@@ -59,6 +63,9 @@ export function MorningBlock() {
   const [feed, setFeed] = useState<Headline[] | null>(null);
   const [emails, setEmails] = useState<Email[] | null | undefined>(undefined);
   const [lc, setLc] = useState<{ daily: Daily | null; stats: Stats | null; hasUser: boolean } | null>(null);
+  const [syn, setSyn] = useState<Synthesis | null>(null);
+  const [savedTasks, setSavedTasks] = useState<Set<string>>(new Set());
+  const [savedNote, setSavedNote] = useState(false);
   const [loading, setLoading] = useState(false);
   const cache = useRef<Record<string, Headline[]>>({});
 
@@ -83,6 +90,9 @@ export function MorningBlock() {
       } else if (step.kind === "leetcode") {
         const j = await fetch("/api/leetcode").then((r) => r.json()).catch(() => null);
         if (!cancel) setLc(j?.data ?? null);
+      } else if (step.kind === "synthesis") {
+        const j = await fetch("/api/morning/synthesis").then((r) => r.json()).catch(() => null);
+        if (!cancel) setSyn(j?.data ?? null);
       }
       if (!cancel) setLoading(false);
     })();
@@ -94,6 +104,23 @@ export function MorningBlock() {
     sound.blip();
     mark(step.id);
     if (active < STEPS.length - 1) setActive((a) => a + 1);
+  };
+
+  const addTask = async (title: string) => {
+    setSavedTasks((s) => new Set(s).add(title));
+    await fetch("/api/task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }).catch(() => {});
+  };
+
+  const saveBrief = async () => {
+    if (!syn || savedNote) return;
+    setSavedNote(true);
+    const body = [syn.summary, "", ...syn.connections.map((c) => `• ${c}`), "", "Watch: " + syn.watch.join("; ")].join("\n");
+    await fetch("/api/note", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: `Morning brief — ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date())}`, content: body }),
+    }).catch(() => {});
+    window.dispatchEvent(new CustomEvent("sage:memory-updated"));
   };
 
   const allDone = STEPS.every((s) => done.has(s.id));
@@ -185,6 +212,52 @@ export function MorningBlock() {
                 <p className="mb-hint">Add <code>LEETCODE_USERNAME</code> to see your streak &amp; solved count.</p>
               ) : null}
             </div>
+          )}
+
+          {!loading && step.kind === "synthesis" && (
+            syn ? (
+              <div className="mb-syn">
+                <p className="mb-synsum">{syn.summary}</p>
+
+                {syn.connections.length > 0 && (
+                  <div className="mb-synsec">
+                    <span className="lbl !text-[9px]"><Link2 className="inline size-3" /> HOW IT TOUCHES YOU</span>
+                    <ul className="mb-synlist">
+                      {syn.connections.map((c, i) => <li key={i}>{c}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {syn.watch.length > 0 && (
+                  <div className="mb-synsec">
+                    <div className="mb-synwatchhead">
+                      <span className="lbl !text-[9px]">WATCH TODAY</span>
+                      <Link href="/markets" className="mb-synmkt"><CandlestickChart className="size-3.5" /> Check Markets</Link>
+                    </div>
+                    <ul className="mb-synlist">
+                      {syn.watch.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {syn.actions.length > 0 && (
+                  <div className="mb-synsec">
+                    <span className="lbl !text-[9px]">SUGGESTED ACTIONS · TAP TO ADD</span>
+                    <div className="mb-synacts">
+                      {syn.actions.map((a, i) => (
+                        <button key={i} onClick={() => addTask(a)} disabled={savedTasks.has(a)} className="mb-synact">
+                          {savedTasks.has(a) ? <Check className="size-3.5" /> : <Plus className="size-3.5" />} {a}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={saveBrief} disabled={savedNote} className="mb-synsave">
+                  <FileText className="size-3.5" /> {savedNote ? "Saved to workspace" : "Save brief as note"}
+                </button>
+              </div>
+            ) : <div className="mb-empty">Synthesizing your morning…</div>
           )}
         </div>
 

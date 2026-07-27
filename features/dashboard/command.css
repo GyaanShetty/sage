@@ -660,3 +660,21 @@
   .mb-reset { display: none; }
   .mb-content { padding: 16px; overflow: visible; }
 }
+
+/* ---- Morning synthesis (interlink) ---- */
+.mb-syn { display: flex; flex-direction: column; gap: 18px; }
+.mb-synsum { font-size: 15px; line-height: 1.6; color: var(--foreground); font-weight: 300; }
+.mb-synsec { display: flex; flex-direction: column; gap: 8px; }
+.mb-synlist { display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 0; list-style: none; }
+.mb-synlist li { position: relative; padding-left: 16px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.mb-synlist li::before { content: ""; position: absolute; left: 3px; top: 8px; width: 5px; height: 5px; background: var(--live); transform: rotate(45deg); }
+.mb-synwatchhead { display: flex; align-items: center; justify-content: space-between; }
+.mb-synmkt { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); text-decoration: none; border: 1px solid var(--live-dim); padding: 4px 8px; border-radius: 6px; }
+.mb-synmkt:hover { background: color-mix(in srgb, var(--live) 12%, transparent); }
+.mb-synacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.mb-synact { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px 11px; border-radius: 8px; cursor: pointer; text-align: left; transition: .15s; }
+.mb-synact:hover { border-color: var(--live-dim); color: var(--foreground); }
+.mb-synact:disabled { color: var(--live); border-color: var(--live-dim); opacity: .8; cursor: default; }
+.mb-synsave { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+.mb-synsave:hover { color: var(--foreground); border-color: var(--border-glass-strong); }
+.mb-synsave:disabled { color: var(--live); border-color: var(--live-dim); }

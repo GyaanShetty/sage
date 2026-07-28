@@ -82,6 +82,14 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--subtle); }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* No stray horizontal scroll anywhere, and let touch devices use their own
+   overlay scrollbars (the 8px gutter looks broken on phones). */
+html, body { overflow-x: hidden; max-width: 100%; }
+@media (pointer: coarse) {
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  * { scrollbar-width: none; }
+}
+
 /* ── typography hierarchy ── */
 .hud-label,
 .lbl {

@@ -38,6 +38,7 @@ const TOP = -Math.PI / 2; // active slot at 12 o'clock
 export function RadialNav() {
   const [open, setOpen] = useState(false);
   const [rot, setRot] = useState(0);
+  const [R, setR] = useState(190); // ring radius — responsive so it fits phones
   const router = useRouter();
   const pathname = usePathname();
   const ringRef = useRef<HTMLDivElement>(null);
@@ -61,6 +62,17 @@ export function RadialNav() {
     setOpen(false);
     if (!pathname.startsWith(href)) router.push(href);
   }, [router, pathname]);
+
+  // Size the ring to the viewport so it never overflows (no phone h-scroll).
+  useEffect(() => {
+    const fit = () => {
+      const m = Math.min(window.innerWidth, window.innerHeight);
+      setR(Math.max(110, Math.min(190, (m - 150) / 2)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, []);
 
   // open on this page → align the wheel to the current page
   useEffect(() => {
@@ -156,8 +168,8 @@ export function RadialNav() {
     setRot((r) => r - Math.sign(e.deltaY) * step);
   };
 
-  const R = 190; // ring radius (px)
   const Active = PAGES[activeIndex].icon;
+  const box = R * 2 + 96; // container size with room for labels
 
   return (
     <>
@@ -176,7 +188,7 @@ export function RadialNav() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-background/80 backdrop-blur-2xl"
+            className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-background/80 backdrop-blur-2xl"
             onClick={() => setOpen(false)}
           >
             <button className="absolute right-6 top-6 text-muted transition-colors hover:text-foreground" onClick={() => setOpen(false)} aria-label="Close"><X className="size-5" /></button>
@@ -189,7 +201,7 @@ export function RadialNav() {
               exit={{ scale: 0.85, opacity: 0 }}
               transition={{ type: "spring", stiffness: 260, damping: 26 }}
               className="relative touch-none select-none"
-              style={{ width: R * 2 + 120, height: R * 2 + 120 }}
+              style={{ width: box, height: box }}
               onClick={(e) => e.stopPropagation()}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
@@ -206,7 +218,7 @@ export function RadialNav() {
               {/* items */}
               {PAGES.map((p, i) => {
                 const ang = i * step + rot + TOP;
-                const cx = R * 2 / 2 + 60;
+                const cx = box / 2;
                 const x = cx + R * Math.cos(ang);
                 const y = cx + R * Math.sin(ang);
                 const active = i === activeIndex;

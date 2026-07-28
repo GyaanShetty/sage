@@ -27,11 +27,15 @@ export async function speakLowLatency(
   }
   if (!res.ok || !res.body) return browserSpeak(clean, opts?.onended);
 
+  const ctype = res.headers.get("content-type") || "";
+  const isMpeg = ctype.includes("mpeg") || ctype.includes("mp3");
   const MS: typeof MediaSource | undefined =
     (typeof window !== "undefined" && (window.MediaSource || (window as unknown as { ManagedMediaSource?: typeof MediaSource }).ManagedMediaSource)) || undefined;
 
-  // Progressive streaming path (lowest latency).
-  if (MS && MS.isTypeSupported?.("audio/mpeg")) {
+  // Progressive streaming path (lowest latency) — MP3 only. When ElevenLabs is
+  // out of credits the server returns Gemini WAV, which must go through the blob
+  // path below (a WAV stream can't be appended to an audio/mpeg buffer).
+  if (isMpeg && MS && MS.isTypeSupported?.("audio/mpeg")) {
     try {
       const ms = new MS();
       const audio = new Audio();

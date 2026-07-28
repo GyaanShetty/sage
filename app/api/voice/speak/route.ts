@@ -13,6 +13,10 @@ const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
 // Algenib (gravelly), Iapetus (clear). Default to the mature, calm one.
 const GEMINI_VOICE = process.env.SAGE_TTS_VOICE ?? "Charon";
 
+// When ElevenLabs reports out-of-credits / rate-limit, skip it for a while so
+// we don't pay a failed round-trip on every request — go straight to Gemini.
+let elevenCooldownUntil = 0;
+
 /**
  * Neural TTS. Prefers ElevenLabs (richer, truly British) when
  * ELEVENLABS_API_KEY is set; otherwise Gemini's free tier with a deep male
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
 
   // ── ElevenLabs (premium) ──────────────────────────────────
   const elevenKey = process.env.ELEVENLABS_API_KEY;
-  if (elevenKey) {
+  if (elevenKey && Date.now() > elevenCooldownUntil) {
     try {
       // flash_v2_5 ≈ 75ms model latency (vs multilingual_v2's ~hundreds of ms);
       // the /stream endpoint + latency optimizer + lighter bitrate get audio to
@@ -59,6 +63,10 @@ export async function POST(req: Request) {
         return new Response(await res.arrayBuffer(), {
           headers: { "content-type": "audio/mpeg", "cache-control": "no-store" },
         });
+      }
+      // Out of credits / rate-limited → back off for 30 min and use Gemini.
+      if (res.status === 401 || res.status === 402 || res.status === 429) {
+        elevenCooldownUntil = Date.now() + 30 * 60_000;
       }
       // fall through to Gemini on failure
     } catch {

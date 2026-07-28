@@ -1,6 +1,8 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { VOICE_DIRECTION } from "@/lib/config";
 
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // ElevenLabs default British male voices: "Daniel" (deep news presenter),
@@ -31,7 +33,8 @@ export async function POST(req: Request) {
   const clean = text.slice(0, 1400);
 
   // ── ElevenLabs (premium) ──────────────────────────────────
-  const elevenKey = process.env.ELEVENLABS_API_KEY;
+  // Off by default so SAGE runs purely free. Set ELEVENLABS_ENABLED=1 to use it.
+  const elevenKey = process.env.ELEVENLABS_ENABLED === "1" ? process.env.ELEVENLABS_API_KEY : undefined;
   if (elevenKey && Date.now() > elevenCooldownUntil) {
     try {
       // flash_v2_5 ≈ 75ms model latency (vs multilingual_v2's ~hundreds of ms);
@@ -68,9 +71,17 @@ export async function POST(req: Request) {
       if (res.status === 401 || res.status === 402 || res.status === 429) {
         elevenCooldownUntil = Date.now() + 30 * 60_000;
       }
-      // fall through to Gemini on failure
+      // fall through on failure
     } catch {
       // fall through
+    }
+  }
+
+  // ── Microsoft Edge neural TTS (free, smart, streaming MP3) — default voice ──
+  if (process.env.SAGE_DISABLE_EDGE !== "1") {
+    const edge = await edgeSpeak(clean);
+    if (edge) {
+      return new Response(edge, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
     }
   }
 

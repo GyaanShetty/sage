@@ -33,6 +33,8 @@ export function Preferences() {
   const moodValue = useShellStore((s) => s.moodValue);
   const mood = useShellStore((s) => s.mood);
   const setMoodValue = useShellStore((s) => s.setMoodValue);
+  const voiceMode = useShellStore((s) => s.voiceMode);
+  const setVoiceMode = useShellStore((s) => s.setVoiceMode);
 
   const [notify, setNotify] = useState(false);
   const [notifyMsg, setNotifyMsg] = useState<string | null>(null);
@@ -89,6 +91,34 @@ export function Preferences() {
         />
         <div className="mt-1 flex justify-between text-[10px] uppercase tracking-wide text-subtle">
           <span>Formal</span><span>Balanced</span><span>Playful</span>
+        </div>
+      </GlassPanel>
+
+      <GlassPanel className="mt-3 p-5">
+        <div className="flex items-center gap-4">
+          <Mic className="size-5 text-muted" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Voice engine</p>
+            <p className="text-xs text-subtle">
+              {voiceMode === "device"
+                ? "On-device — instant, unlimited, 100% free. Quality depends on your device's voices."
+                : "Cloud — a real free neural voice (Microsoft Edge), rich and human. Falls back to on-device."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex gap-2">
+          {([["cloud", "Cloud (free)"], ["device", "On-device"]] as const).map(([v, label]) => (
+            <button
+              key={v}
+              onClick={() => setVoiceMode(v)}
+              className={cn(
+                "flex-1 rounded-lg border px-3 py-2 text-xs transition-colors",
+                voiceMode === v ? "border-live bg-glass-strong text-foreground" : "border-border-glass text-muted hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </GlassPanel>
 

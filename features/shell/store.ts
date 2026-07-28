@@ -12,12 +12,14 @@ interface ShellState {
   gestureNav: boolean;
   mood: "formal" | "balanced" | "playful";
   moodValue: number;
+  voiceMode: "cloud" | "device";
   toggleSidebar: () => void;
   setPaletteOpen: (open: boolean) => void;
   setWakeWord: (on: boolean) => void;
   setAmbientArmed: (on: boolean) => void;
   setGestureNav: (on: boolean) => void;
   setMoodValue: (v: number) => void;
+  setVoiceMode: (m: "cloud" | "device") => void;
 }
 
 export const useShellStore = create<ShellState>()(
@@ -30,12 +32,14 @@ export const useShellStore = create<ShellState>()(
       gestureNav: false,
       mood: "playful",
       moodValue: 80,
+      voiceMode: "cloud",
       toggleSidebar: () => set((s) => ({ sidebarExpanded: !s.sidebarExpanded })),
       setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
       setWakeWord: (wakeWord) => set({ wakeWord }),
       setAmbientArmed: (ambientArmed) => set({ ambientArmed }),
       setGestureNav: (gestureNav) => set({ gestureNav }),
       setMoodValue: (moodValue) => set({ moodValue, mood: moodFromValue(moodValue) }),
+      setVoiceMode: (voiceMode) => set({ voiceMode }),
     }),
     {
       name: "sage-shell",
@@ -46,6 +50,7 @@ export const useShellStore = create<ShellState>()(
         gestureNav: s.gestureNav,
         mood: s.mood,
         moodValue: s.moodValue,
+        voiceMode: s.voiceMode,
       }),
     },
   ),

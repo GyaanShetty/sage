@@ -15,6 +15,11 @@ export async function speakLowLatency(
   if (!clean) return null;
   const fast = opts?.fast !== false;
 
+  // "device" mode → speak entirely on-device (instant, unlimited, 100% free).
+  let mode = "cloud";
+  try { mode = JSON.parse(localStorage.getItem("sage-shell") || "{}")?.state?.voiceMode ?? "cloud"; } catch { /* default */ }
+  if (mode === "device") return browserSpeak(clean, opts?.onended);
+
   let res: Response;
   try {
     res = await fetch(`/api/voice/speak?stream=1${fast ? "&fast=1" : ""}`, {
@@ -113,24 +118,18 @@ function browserSpeak(text: string, onended?: () => void): null {
   synth.cancel();
 
   const clean = text.replace(/[*_#`>[\]()]/g, "");
-  // paragraphs → sentences; blank string marks a paragraph break (longer gap)
-  const chunks: string[] = [];
-  for (const para of clean.split(/\n{2,}|\n/).filter((p) => p.trim())) {
-    const sentences = para.match(/[^.!?]+[.!?]*/g) ?? [para];
-    sentences.forEach((s) => s.trim() && chunks.push(s.trim()));
-    chunks.push(""); // paragraph gap
-  }
+  // Chunk by PARAGRAPH only — let the voice handle sentence pauses itself, so
+  // abbreviations like "U.S." don't cause a hard stop mid-sentence.
+  const chunks = clean.split(/\n{2,}|\n/).map((p) => p.trim()).filter(Boolean);
 
   const speakOne = (i: number) => {
     if (i >= chunks.length) { onended?.(); return; }
-    const c = chunks[i];
-    if (!c) { window.setTimeout(() => speakOne(i + 1), 420); return; } // paragraph pause
-    const u = new SpeechSynthesisUtterance(c);
+    const u = new SpeechSynthesisUtterance(chunks[i]);
     const v = pickMaleVoice(synth);
     if (v) u.voice = v;
-    u.rate = 0.86;  // slow, deliberate
-    u.pitch = 0.78; // deep male
-    u.onend = () => window.setTimeout(() => speakOne(i + 1), 130); // sentence gap
+    u.rate = 0.95;  // natural, unhurried — not sluggish
+    u.pitch = 0.82; // deep male
+    u.onend = () => window.setTimeout(() => speakOne(i + 1), 300); // beat between paragraphs
     u.onerror = () => speakOne(i + 1);
     synth.speak(u);
   };

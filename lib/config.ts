@@ -38,7 +38,7 @@ export function moodFromValue(v: number): Mood {
 
 /** TTS delivery direction (accent/timbre) prepended to spoken lines. */
 export const VOICE_DIRECTION =
-  "Deliver this as a distinguished British gentleman with real warmth and personality — a witty, characterful confidant with a deep, smooth, rich baritone and a crisp Received Pronunciation accent. Expressive and human: let emotion, playfulness and a knowing smile colour the delivery. Vary the pace, land the jokes, sound alive — never monotone or robotic:";
+  "Read the following in the voice of a distinguished older British GENTLEMAN — a deep, smooth, rich male baritone with a crisp Received Pronunciation accent. Speak SLOWLY and deliberately, unhurried and calm. Leave a clear pause after each sentence and a longer, thoughtful beat between paragraphs. Warm, human, characterful — let emotion and a knowing half-smile colour it; never rushed, never monotone, never robotic. This is a mature man speaking, taking his time:";
 
 
 /** Current hour (0-23) in the app timezone. */

@@ -89,15 +89,58 @@ export async function speakLowLatency(
   }
 }
 
+// Never pick these — clearly female system voices.
+const FEMALE = /samantha|karen|moira|tessa|fiona|victoria|serena|kate|susan|zira|female|amelie|anna|ellen|joana|luciana|paulina|alice|amira/i;
+const MALE = /male|daniel|george|arthur|oliver|arthur|thomas|rishi|gordon|guy|david|fred|alex|aaron|reed|rocko/i;
+
+function pickMaleVoice(synth: SpeechSynthesis): SpeechSynthesisVoice | null {
+  const vs = synth.getVoices();
+  return (
+    vs.find((v) => /en-GB/i.test(v.lang) && MALE.test(v.name)) ??
+    vs.find((v) => v.name === "Google UK English Male") ??
+    vs.find((v) => /^en/i.test(v.lang) && MALE.test(v.name)) ??
+    vs.find((v) => /en-GB/i.test(v.lang) && !FEMALE.test(v.name)) ??
+    vs.find((v) => /^en/i.test(v.lang) && !FEMALE.test(v.name)) ??
+    null
+  );
+}
+
+/** Browser speech, made human: a deep male voice, slow pace, and real pauses —
+ *  each sentence is a separate utterance, with a longer beat between paragraphs. */
 function browserSpeak(text: string, onended?: () => void): null {
   const synth = typeof window !== "undefined" ? window.speechSynthesis : null;
   if (!synth) return null;
-  const u = new SpeechSynthesisUtterance(text.replace(/[*_#`>[\]()]/g, ""));
-  const v = synth.getVoices().find((x) => /en-GB/i.test(x.lang) && /male|daniel|george|arthur/i.test(x.name)) ?? null;
-  if (v) u.voice = v;
-  u.rate = 0.98;
-  u.pitch = 0.85;
-  if (onended) u.onend = onended;
-  synth.speak(u);
+  synth.cancel();
+
+  const clean = text.replace(/[*_#`>[\]()]/g, "");
+  // paragraphs → sentences; blank string marks a paragraph break (longer gap)
+  const chunks: string[] = [];
+  for (const para of clean.split(/\n{2,}|\n/).filter((p) => p.trim())) {
+    const sentences = para.match(/[^.!?]+[.!?]*/g) ?? [para];
+    sentences.forEach((s) => s.trim() && chunks.push(s.trim()));
+    chunks.push(""); // paragraph gap
+  }
+
+  const speakOne = (i: number) => {
+    if (i >= chunks.length) { onended?.(); return; }
+    const c = chunks[i];
+    if (!c) { window.setTimeout(() => speakOne(i + 1), 420); return; } // paragraph pause
+    const u = new SpeechSynthesisUtterance(c);
+    const v = pickMaleVoice(synth);
+    if (v) u.voice = v;
+    u.rate = 0.86;  // slow, deliberate
+    u.pitch = 0.78; // deep male
+    u.onend = () => window.setTimeout(() => speakOne(i + 1), 130); // sentence gap
+    u.onerror = () => speakOne(i + 1);
+    synth.speak(u);
+  };
+
+  // voices can load async
+  if (synth.getVoices().length === 0) {
+    synth.addEventListener("voiceschanged", () => speakOne(0), { once: true });
+    window.setTimeout(() => speakOne(0), 250);
+  } else {
+    speakOne(0);
+  }
   return null;
 }

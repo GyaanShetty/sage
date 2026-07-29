@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { NarrativePanel, PulsePanel, EventsCorrelationPanel } from "./intel-panels";
 import "@/features/dashboard/command.css";
 import { NumberTicker } from "@/components/number-ticker";
 
@@ -144,6 +145,19 @@ export function MarketsView() {
     setStreamDraft("");
   };
 
+  // one-tap add of a watchlist name into the portfolio (markets → portfolio link)
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const addToPortfolio = async (symbol: string, kind: "crypto" | "stock") => {
+    setAdded((s) => new Set(s).add(symbol));
+    await fetch("/api/portfolio", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbol, kind, qty: 0, avgCost: 0 }),
+    }).catch(() => {});
+    window.dispatchEvent(new CustomEvent("sage:toast", {
+      detail: { title: "ADDED TO PORTFOLIO", body: `${symbol} — set quantity and cost in Portfolio.` },
+    }));
+  };
+
   return (
     <div>
       <section className="section" id="markets">
@@ -171,6 +185,11 @@ export function MarketsView() {
           </div>
         )}
 
+        {/* ── market intelligence ── */}
+        <NarrativePanel />
+        <PulsePanel />
+        <EventsCorrelationPanel symbols={[...cfg.indices, ...cfg.stocks]} />
+
         <div className="grid deckmkt">
           {/* watchlist */}
           <div className="cell">
@@ -188,6 +207,12 @@ export function MarketsView() {
                 <Spark data={q.spark} up={q.changePct >= 0} />
                 <span className="px">{fmtPx(q.price, q.currency)}</span>
                 <span className={`chg${q.changePct >= 0 ? " up" : ""}`}>{q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(1)}%</span>
+                <button
+                  className="mkt-add"
+                  title={added.has(q.symbol) ? "Added to portfolio" : "Add to portfolio"}
+                  disabled={added.has(q.symbol)}
+                  onClick={() => addToPortfolio(q.symbol, "stock")}
+                >{added.has(q.symbol) ? "✓" : "+"}</button>
               </div>
             ))}
           </div>

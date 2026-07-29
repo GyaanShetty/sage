@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { speakLowLatency } from "@/lib/speak";
 
 export type AssistantState = "off" | "sleeping" | "listening" | "thinking" | "speaking";
 
@@ -102,31 +103,35 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
       .replace(/[*_#`>\[\]()|]/g, "")
       .slice(0, 1400);
 
-    // Prefer neural TTS (Gemini); fall back to browser synthesis.
+    // Neural TTS, streamed: playback starts on the first chunk instead of
+    // after the whole file arrives. The gesture-unlocked element is handed in
+    // so mobile autoplay policy still lets it sound.
     try {
-      const res = await fetch("/api/voice/speak?stream=1&fast=1", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: clean }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        let played = true;
-        await new Promise<void>((resolve) => {
-          // Reuse the gesture-unlocked element — a fresh Audio() would be
-          // blocked by mobile autoplay policy.
-          const audio = audioRef.current ?? new Audio();
-          audioRef.current = audio;
-          audio.src = url;
-          audio.onended = () => resolve();
-          audio.onerror = () => { played = false; resolve(); };
-          audio.play().catch(() => { played = false; resolve(); });
-        });
-        URL.revokeObjectURL(url);
-        if (played) return;
-      }
-    } catch {}
+      const audio = audioRef.current ?? new Audio();
+      audioRef.current = audio;
+
+      let settle: (() => void) | null = null;
+      const finished = new Promise<void>((resolve) => { settle = resolve; });
+      const done = () => { settle?.(); settle = null; };
+
+      // Never wait longer than the speech could plausibly take. Without this a
+      // stream that stalls, or a play() the browser quietly refuses, would
+      // hang the turn forever and the loop would never listen again.
+      const words = clean.split(/\s+/).length;
+      const ceiling = Math.min(90_000, 6_000 + (words / 2.3) * 1000);
+      const guard = window.setTimeout(done, ceiling);
+
+      // A null element means browser speech took over — it still calls
+      // onended, so we wait either way rather than talking over ourselves.
+      const el = await speakLowLatency(clean, { fast: true, audio, onended: done });
+      if (el) el.onerror = done;
+
+      await finished;
+      window.clearTimeout(guard);
+      return;
+    } catch {
+      /* fall through to browser synthesis */
+    }
 
     await new Promise<void>((resolve) => {
       const synth = window.speechSynthesis;

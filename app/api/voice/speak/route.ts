@@ -1,6 +1,7 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { fishSpeak, fishKeys } from "@/infrastructure/tts/fish";
+import { cartesiaSpeak, cartesiaKeys } from "@/infrastructure/tts/cartesia";
 import { VOICE_DIRECTION } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -49,6 +50,13 @@ export async function POST(req: Request) {
     return s ? mp3(s) : null;
   };
 
+  /** Cartesia Sonic — lowest latency of the neural providers. */
+  const tryCartesia = async (): Promise<Response | null> => {
+    if (!cartesiaKeys().length) return null;
+    const s = await cartesiaSpeak(clean, { fast });
+    return s ? mp3(s) : null;
+  };
+
   /** ElevenLabs — rotate across keys, skipping ones that are out of credit. */
   const tryEleven = async (): Promise<Response | null> => {
   const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? ELEVEN_MODEL) : ELEVEN_MODEL;
@@ -88,11 +96,14 @@ export async function POST(req: Request) {
     return null;
   };
 
-  // Which neural provider leads. Default keeps ElevenLabs first for continuity;
-  // set SAGE_TTS_PRIMARY=fish to lead with Fish Audio.
-  const order = process.env.SAGE_TTS_PRIMARY === "fish"
-    ? [tryFish, tryEleven]
-    : [tryEleven, tryFish];
+  // Which neural provider leads. SAGE_TTS_PRIMARY picks the head of the chain;
+  // the others still follow it, so one provider running dry is never fatal.
+  const chains: Record<string, (() => Promise<Response | null>)[]> = {
+    cartesia: [tryCartesia, tryFish, tryEleven],
+    fish: [tryFish, tryCartesia, tryEleven],
+    eleven: [tryEleven, tryFish, tryCartesia],
+  };
+  const order = chains[process.env.SAGE_TTS_PRIMARY ?? "eleven"] ?? chains.eleven;
   for (const attempt of order) {
     const out = await attempt();
     if (out) return out;

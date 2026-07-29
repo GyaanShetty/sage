@@ -21,6 +21,14 @@ type GlobeInstance = {
   hexPolygonMargin: (n: number) => GlobeInstance;
   hexPolygonUseDots: (b: boolean) => GlobeInstance;
   hexPolygonColor: (fn: () => string) => GlobeInstance;
+  polygonsData: (d: unknown[]) => GlobeInstance;
+  polygonAltitude: (fn: number | ((d: unknown) => number)) => GlobeInstance;
+  polygonCapColor: (fn: (d: unknown) => string) => GlobeInstance;
+  polygonSideColor: (fn: (d: unknown) => string) => GlobeInstance;
+  polygonStrokeColor: (fn: (d: unknown) => string) => GlobeInstance;
+  polygonLabel: (fn: (d: unknown) => string) => GlobeInstance;
+  polygonsTransitionDuration: (n: number) => GlobeInstance;
+  onPolygonHover: (fn: (d: unknown | null) => void) => GlobeInstance;
   arcsData: (d: unknown[]) => GlobeInstance;
   arcStartLat: (fn: (d: Arc) => number) => GlobeInstance;
   arcStartLng: (fn: (d: Arc) => number) => GlobeInstance;
@@ -60,8 +68,6 @@ const INITIAL: LayerDef[] = [
 
 const CYAN = "#f4f5f7";
 const AMBER = "#f59e0b";
-/** Land dots — near-white, like a surveillance plot rather than a map. */
-const LAND_DOT = "rgba(255,255,255,0.78)";
 // Vendored locally (public/geo) — a CDN outage used to leave the globe blank.
 // 50m rather than 110m: at hex resolution 4 the coarser set visibly rounds off
 // coastlines, so the extra detail actually lands.
@@ -75,6 +81,7 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
   layersRef.current = layers;
   const dataRef = useRef<{ planes: Pt[]; sats: Pt[]; quakes: Pt[] }>({ planes: [], sats: [], quakes: [] });
   const [ready, setReady] = useState(false);
+  const hoveredRef = useRef<string | null>(null);
 
   const isOn = (k: string) => layersRef.current.find((l) => l.key === k)?.on ?? false;
 
@@ -150,15 +157,37 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
         } catch { /* keep globe.gl's defaults */ }
       }
 
-      // dark hex-dot continents from world-atlas topojson
+      // Real country polygons, extruded off the sphere. The old hex-dot layer
+      // was a flat stipple with no borders — countries were unreadable and the
+      // globe looked like a 2D surface wrapped on a ball.
       try {
         const res = await fetch(COUNTRIES_URL);
         const topo = await res.json();
         const feats = topojson && topo?.objects?.countries
           ? ((topojson.feature(topo, topo.objects.countries) as unknown) as { features: unknown[] }).features
           : [];
-        // resolution 4 + tight margin gives the dense dot-matrix landmass look
-        world.hexPolygonsData(feats).hexPolygonResolution(4).hexPolygonMargin(0.2).hexPolygonUseDots(true).hexPolygonColor(() => LAND_DOT);
+
+        const nameOf = (d: unknown) =>
+          String((d as { properties?: { name?: string } })?.properties?.name ?? "");
+
+        world
+          .polygonsData(feats)
+          // a little relief so landmasses stand off the ocean
+          .polygonAltitude((d: unknown) => (nameOf(d) === hoveredRef.current ? 0.045 : 0.012))
+          .polygonCapColor((d: unknown) =>
+            nameOf(d) === hoveredRef.current ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.14)")
+          // the side wall is what actually reads as height
+          .polygonSideColor(() => "rgba(255,255,255,0.26)")
+          .polygonStrokeColor(() => "rgba(255,255,255,0.66)")
+          .polygonLabel((d: unknown) => nameOf(d).toUpperCase())
+          .polygonsTransitionDuration(220)
+          .onPolygonHover((d: unknown | null) => {
+            hoveredRef.current = d ? nameOf(d) : null;
+            // re-evaluate the accessors so the hovered country lifts
+            world.polygonAltitude((x: unknown) => (nameOf(x) === hoveredRef.current ? 0.045 : 0.012));
+            world.polygonCapColor((x: unknown) =>
+              nameOf(x) === hoveredRef.current ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.14)");
+          });
       } catch {}
 
       const size = () => { world.width(el.clientWidth).height(el.clientHeight); };

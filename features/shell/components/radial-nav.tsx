@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
-  Settings, Orbit, X, type LucideIcon,
+  Settings, Orbit, X, Activity, type LucideIcon,
 } from "lucide-react";
 import { sound } from "@/lib/sound";
 
@@ -17,6 +17,7 @@ const PAGES: Item[] = [
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/markets", label: "Markets", icon: CandlestickChart },
   { href: "/career", label: "Career", icon: Briefcase },
+  { href: "/health", label: "Health", icon: Activity },
   { href: "/portfolio", label: "Portfolio", icon: Wallet },
   { href: "/workspace", label: "Workspace", icon: FolderKanban },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
@@ -98,6 +99,7 @@ export function RadialNav() {
       else if (/money|stock|crypto|invest/.test(s)) best = PAGES.findIndex((p) => p.href === "/portfolio");
       else if (/job|intern|applic/.test(s)) best = PAGES.findIndex((p) => p.href === "/career");
       else if (/note|doc|learn/.test(s)) best = PAGES.findIndex((p) => p.href === "/knowledge");
+      else if (/sleep|steps|workout|fitness|gym|body/.test(s)) best = PAGES.findIndex((p) => p.href === "/health");
       else if (/home|main/.test(s)) best = PAGES.findIndex((p) => p.href === "/dashboard");
     }
     return best;

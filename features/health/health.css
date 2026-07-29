@@ -1,0 +1,85 @@
+/* Health — rings, trends, workouts, coach. Shares the command.css shell tokens. */
+
+.hl-wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── goals editor ───────────────────────────────────────────── */
+.hl-goals { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; overflow: hidden; border: 1px solid var(--border-glass); border-radius: 8px; padding: 12px; background: var(--panel); }
+.hl-goalfield { display: flex; flex-direction: column; gap: 4px; }
+.hl-goalfield span { font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--subtle); }
+.hl-goalfield input { width: 92px; background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 13px; padding: 7px 9px; border-radius: 6px; outline: none; }
+.hl-goalfield input:focus { border-color: var(--live-dim); }
+
+/* ── today's rings ──────────────────────────────────────────── */
+.hl-rings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.hl-ring { position: relative; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 14px; display: flex; align-items: center; gap: 12px; }
+.hl-ringsvg { width: 64px; height: 64px; flex: 0 0 64px; }
+.hl-ringtext { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.hl-ringico { display: block; margin-bottom: 2px; }
+.hl-ringval { font-size: 20px; font-weight: 300; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.hl-ringlbl { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); }
+.hl-ringsub { font-size: 10px; color: var(--muted); }
+
+/* ── quick actions ──────────────────────────────────────────── */
+.hl-quickrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hl-quick { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px 11px; border-radius: 6px; cursor: pointer; }
+.hl-quick:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.hl-quickmeta { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hl-quickmeta em { font-style: normal; color: #f59e0b; }
+
+/* ── cards + trends ─────────────────────────────────────────── */
+.hl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hl-card { border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 13px; }
+.hl-cardhead { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; color: var(--muted); }
+.hl-cardhead h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; color: var(--muted); margin: 0; }
+.hl-avg { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--subtle); }
+.hl-bars { display: flex; align-items: flex-end; gap: 2px; height: 76px; }
+.hl-bar { flex: 1; min-width: 3px; border-radius: 1px; transition: height .4s ease; }
+
+/* ── correlations ───────────────────────────────────────────── */
+.hl-corr { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 13px; }
+.hl-corrrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.hl-corrchip { display: inline-flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--muted); border: 1px solid var(--border-glass); border-left: 2px solid var(--border-glass-strong); padding: 8px 11px; border-radius: 6px; }
+.hl-corrchip b { color: var(--foreground); font-weight: 500; }
+.hl-corrchip i { font-style: normal; font-family: var(--mono); font-size: 8.5px; letter-spacing: .6px; color: var(--subtle); }
+.hl-corrchip.pos { border-left-color: var(--live); }
+.hl-corrchip.neg { border-left-color: #f87171; }
+
+/* ── forms ──────────────────────────────────────────────────── */
+.hl-addform { display: flex; flex-wrap: wrap; gap: 8px; }
+.hl-addform input, .hl-addform select { background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 13px; padding: 8px 10px; border-radius: 6px; outline: none; }
+.hl-addform input { flex: 1; min-width: 96px; }
+.hl-addform input:focus, .hl-addform select:focus { border-color: var(--live-dim); }
+.hl-hint { margin-top: 10px; font-size: 10.5px; color: var(--subtle); line-height: 1.6; }
+.hl-hint code { font-family: var(--mono); font-size: 10px; background: var(--glass); border: 1px solid var(--border-glass); padding: 1px 5px; border-radius: 4px; }
+
+/* ── workouts ───────────────────────────────────────────────── */
+.hl-wolist { display: flex; flex-direction: column; gap: 1px; margin-top: 12px; }
+.hl-worow { display: grid; grid-template-columns: 8px 1fr auto auto 44px 26px; gap: 10px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--border-glass); font-size: 12.5px; }
+.hl-worow:last-child { border-bottom: 0; }
+.hl-wodot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.hl-wodot.easy { background: #60a5fa; }
+.hl-wodot.moderate { background: var(--live); }
+.hl-wodot.hard { background: #f59e0b; }
+.hl-wotype { font-weight: 500; }
+.hl-womin, .hl-wokcal { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11.5px; }
+.hl-woday { font-family: var(--mono); font-size: 9px; color: var(--subtle); text-align: right; }
+.hl-empty { margin-top: 12px; font-size: 12px; color: var(--subtle); }
+
+/* ── coach ──────────────────────────────────────────────────── */
+.hl-ask { display: flex; gap: 8px; }
+.hl-ask input { flex: 1; background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 13px; padding: 9px 11px; border-radius: 6px; outline: none; }
+.hl-ask input:focus { border-color: var(--live-dim); }
+.hl-quickask { margin-top: 9px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); background: none; border: 0; cursor: pointer; padding: 0; }
+.hl-answer { margin-top: 12px; font-size: 13.5px; line-height: 1.7; color: var(--muted); border-left: 2px solid var(--live-dim); padding-left: 13px; white-space: pre-wrap; }
+
+/* ── responsive ─────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .hl-rings { grid-template-columns: repeat(2, 1fr); }
+  .hl-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .hl-rings { grid-template-columns: 1fr; }
+  .hl-worow { grid-template-columns: 8px 1fr auto 40px 26px; }
+  .hl-wokcal { display: none; }
+  .hl-quickmeta { margin-left: 0; width: 100%; }
+}

@@ -217,35 +217,38 @@ export function CommandView({
           {/* center — interactive Google-Earth-style intelligence globe */}
           <div className="stack">
             <div className="cell hero hero-globe-cell">
-              <WorldView lat={18} lon={78} />
-              <div className="greeting">
-                <div className="g1">Sage · Online</div>
-                <div className="g2">{greet}, {userName}</div>
-                <div className="g3">
-                  {weather ? `${weather.place} ${weather.temp}° · ${weather.label} · ` : ""}
-                  {todays.length} events today · {open} open
+              {/* header rail — greeting lives here, never over the globe */}
+              <div className="gs-head">
+                <span className="gs-code">A</span>
+                <div className="gs-title">
+                  <span className="gs-t1">{greet}, {userName}</span>
+                  <span className="gs-t2">
+                    {weather ? `${weather.place} ${weather.temp}° · ${weather.label}` : "SAGE"} · ONLINE
+                  </span>
                 </div>
+                <span className="gs-rule" />
+                <span className="gs-status"><i />LIVE</span>
               </div>
-              <div className="vitrow">
+
+              {/* clean globe stage */}
+              <div className="gs-stage">
+                <span className="gs-corner tl" /><span className="gs-corner tr" />
+                <span className="gs-corner bl" /><span className="gs-corner br" />
+                <WorldView lat={18} lon={78} />
+              </div>
+
+              {/* readouts below the globe, in their own strip */}
+              <div className="gs-foot">
                 {weather && (
-                  <>
-                    <div className="vv num">{weather.temp}°</div>
-                    <div className="vk">
-                      {weather.place} · {weather.high}°/{weather.low}°
-                      {typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}
-                    </div>
-                    <div className="dv" />
-                  </>
+                  <div className="gs-stat">
+                    <span className="gs-sv num">{weather.temp}°</span>
+                    <span className="gs-sk">{weather.high}°/{weather.low}°{typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}</span>
+                  </div>
                 )}
-                <div className="vv num">{open}</div><div className="vk">Open</div>
-                <div className="dv" />
-                <div className="vv num">{todays.length}</div><div className="vk">Events</div>
+                <div className="gs-stat"><span className="gs-sv num">{open}</span><span className="gs-sk">Open</span></div>
+                <div className="gs-stat"><span className="gs-sv num">{todays.length}</span><span className="gs-sk">Events</span></div>
                 {typeof steps === "number" && steps > 0 && (
-                  <>
-                    <div className="dv" />
-                    <div className="vv num"><NumberTicker value={steps} /></div>
-                    <div className="vk">Steps</div>
-                  </>
+                  <div className="gs-stat"><span className="gs-sv num"><NumberTicker value={steps} /></span><span className="gs-sk">Steps</span></div>
                 )}
               </div>
             </div>

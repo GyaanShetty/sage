@@ -200,7 +200,9 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
       for (const grp of ["stations", "visual"]) {
         try {
           const j = await fetch(`/api/atlas/satellites?group=${grp}`).then((r) => r.json());
-          for (const s of j?.data ?? []) out.push({ lat: s.lat, lng: s.lon, color: /ISS|ZARYA/i.test(s.name) ? CYAN : "#cfd6d8", alt: 0.14, r: /ISS/i.test(s.name) ? 0.55 : 0.3, label: `🛰 ${s.name} · ${s.alt}km` });
+          // Points extrude from the surface, so a tall altitude renders as a
+          // long spike; keep sats as small raised dots instead of scratches.
+          for (const s of j?.data ?? []) out.push({ lat: s.lat, lng: s.lon, color: /ISS|ZARYA/i.test(s.name) ? CYAN : "#cfd6d8", alt: 0.035, r: /ISS/i.test(s.name) ? 0.32 : 0.18, label: `🛰 ${s.name} · ${s.alt}km` });
         } catch {}
       }
       dataRef.current.sats = out;

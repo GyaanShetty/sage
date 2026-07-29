@@ -845,3 +845,19 @@
 .pf-mentorquick { margin-top: 10px; background: none; border: none; color: var(--live); font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
 .pf-mentorans { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-glass); font-size: 14px; line-height: 1.65; white-space: pre-wrap; }
 @media (max-width: 760px) { .pf-exprow { grid-template-columns: 1.3fr .7fr auto; } .pf-exprow > :nth-child(3) { display: none; } }
+
+/* ---- Morning block: gmail split, article summaries, leetcode heatmap ---- */
+.mb-mailsec { margin-bottom: 18px; }
+.mb-mailhead { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--subtle); margin-bottom: 8px; }
+.mb-mailhead.imp { color: var(--warn); }
+.mb-item-open { border-color: var(--live-dim) !important; }
+.mb-artbtn { display: flex; gap: 14px; align-items: flex-start; width: 100%; text-align: left; background: none; border: none; padding: 0; cursor: pointer; color: inherit; }
+.mb-artcue { color: var(--live); font-family: var(--mono); font-size: 9px; letter-spacing: .5px; text-transform: uppercase; }
+.mb-artsum { padding: 12px 14px 4px; border-top: 1px solid var(--border-glass); margin-top: 11px; }
+.mb-artsum p { font-size: 13px; line-height: 1.6; color: var(--muted); }
+.mb-artload { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--live); font-family: var(--mono); }
+.mb-artopen { display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); text-decoration: none; }
+.mb-heat { margin-top: 8px; }
+.mb-heatgrid { display: flex; gap: 3px; margin-top: 8px; overflow-x: auto; padding-bottom: 4px; }
+.mb-heatcol { display: flex; flex-direction: column; gap: 3px; }
+.mb-heatcol span { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 11px; }

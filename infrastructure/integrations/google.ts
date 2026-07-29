@@ -201,6 +201,8 @@ export interface EmailSummary {
   from: string;
   subject: string;
   snippet: string;
+  id?: string;
+  important?: boolean;
 }
 
 export async function listUnreadEmails(maxResults = 5): Promise<EmailSummary[] | null> {
@@ -221,11 +223,18 @@ export async function listUnreadEmails(maxResults = 5): Promise<EmailSummary[] |
     if (!res.ok) continue;
     const detail = (await res.json()) as {
       snippet?: string;
+      labelIds?: string[];
       payload?: { headers?: { name: string; value: string }[] };
     };
     const header = (name: string) =>
       detail.payload?.headers?.find((h) => h.name === name)?.value ?? "";
-    out.push({ from: header("From"), subject: header("Subject"), snippet: detail.snippet ?? "" });
+    out.push({
+      id: msg.id,
+      from: header("From"),
+      subject: header("Subject"),
+      snippet: detail.snippet ?? "",
+      important: detail.labelIds?.includes("IMPORTANT") ?? false,
+    });
   }
   return out;
 }

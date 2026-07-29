@@ -32,9 +32,9 @@ interface Synthesis { summary: string; connections: string[]; watch: string[]; a
 interface Video { id: string; title: string; channel: string; thumb: string }
 
 interface Headline { source: string; title: string; link: string; published: number; image?: string }
-interface Email { from: string; subject: string; snippet: string }
+interface Email { from: string; subject: string; snippet: string; id?: string; important?: boolean }
 interface Daily { link: string; title: string; difficulty: string }
-interface Stats { streak: number; solved: { all: number }; todaySolved: number }
+interface Stats { streak: number; solved: { all: number }; todaySolved: number; calendar?: Record<string, number> }
 
 const dayKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
 const LS = "sage-morning";
@@ -70,6 +70,9 @@ export function MorningBlock() {
   const [syn, setSyn] = useState<Synthesis | null>(null);
   const [videos, setVideos] = useState<Video[] | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
+  // article summaries: link → {loading, summary}
+  const [summaries, setSummaries] = useState<Record<string, { loading: boolean; summary?: string }>>({});
+  const [openArticle, setOpenArticle] = useState<string | null>(null);
   const [savedTasks, setSavedTasks] = useState<Set<string>>(new Set());
   const [savedNote, setSavedNote] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -117,6 +120,15 @@ export function MorningBlock() {
     sound.blip();
     mark(step.id);
     if (active < STEPS.length - 1) setActive((a) => a + 1);
+  };
+
+  const summarize = async (h: Headline) => {
+    if (openArticle === h.link) { setOpenArticle(null); return; }
+    setOpenArticle(h.link);
+    if (summaries[h.link]?.summary) return; // cached
+    setSummaries((s) => ({ ...s, [h.link]: { loading: true } }));
+    const j = await fetch("/api/article/summary", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: h.title, link: h.link }) }).then((r) => r.json()).catch(() => null);
+    setSummaries((s) => ({ ...s, [h.link]: { loading: false, summary: j?.data?.summary ?? "Couldn't summarize this one." } }));
   };
 
   const addTask = async (title: string) => {
@@ -204,30 +216,57 @@ export function MorningBlock() {
             emails === null ? (
               <div className="mb-empty">Gmail not connected. <a href="/api/integrations/google" className="live">Connect →</a></div>
             ) : emails && emails.length ? (
-              <div className="mb-list">
-                {emails.map((e, i) => (
-                  <a key={i} href="https://mail.google.com/mail/u/0/#inbox" target="_blank" rel="noreferrer" className="mb-item">
-                    <div className="mb-itop"><span className="mb-from">{e.from}</span></div>
-                    <div className="mb-title">{e.subject}</div>
-                    <div className="mb-snip">{e.snippet}</div>
-                  </a>
-                ))}
-              </div>
+              <>
+                {(["important", "normal"] as const).map((band) => {
+                  const list = emails.filter((e) => (band === "important" ? e.important : !e.important));
+                  if (!list.length) return null;
+                  return (
+                    <div key={band} className="mb-mailsec">
+                      <span className={cn("mb-mailhead", band === "important" && "imp")}>{band === "important" ? "★ IMPORTANT" : "EVERYTHING ELSE"} · {list.length}</span>
+                      <div className="mb-list">
+                        {list.map((e, i) => (
+                          <a key={i} href={e.id ? `https://mail.google.com/mail/u/0/#inbox/${e.id}` : "https://mail.google.com/mail/u/0/#inbox"} target="_blank" rel="noreferrer" className="mb-item">
+                            <div className="mb-itop"><span className="mb-from">{e.from}</span></div>
+                            <div className="mb-title">{e.subject}</div>
+                            <div className="mb-snip">{e.snippet}</div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
             ) : <div className="mb-empty">Inbox zero — nothing unread. 📭</div>
           )}
 
           {!loading && step.kind === "feed" && (
             feed && feed.length ? (
               <div className="mb-list">
-                {feed.map((h, i) => (
-                  <a key={i} href={h.link} target="_blank" rel="noreferrer" className={cn("mb-item", h.image && "mb-item-img")}>
-                    {h.image && <img src={h.image} alt="" className="mb-thumb" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
-                    <div className="mb-itemtext">
-                      <div className="mb-title">{h.title} <ExternalLink className="inline size-3 opacity-40" /></div>
-                      {h.published > 0 && <div className="mb-snip">{new Date(h.published).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</div>}
+                {feed.map((h, i) => {
+                  const open = openArticle === h.link;
+                  const sum = summaries[h.link];
+                  return (
+                    <div key={i} className={cn("mb-item", h.image && "mb-item-img", open && "mb-item-open")}>
+                      <button className="mb-artbtn" onClick={() => summarize(h)}>
+                        {h.image && <img src={h.image} alt="" className="mb-thumb" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
+                        <div className="mb-itemtext">
+                          <div className="mb-title">{h.title}</div>
+                          <div className="mb-snip">
+                            {h.published > 0 && new Date(h.published).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            <span className="mb-artcue"> · {open ? "hide" : "AI summary"}</span>
+                          </div>
+                        </div>
+                      </button>
+                      {open && (
+                        <div className="mb-artsum">
+                          {sum?.loading ? <span className="mb-artload"><Loader2 className="size-3.5 animate-spin" /> Reading the article…</span>
+                            : <p>{sum?.summary}</p>}
+                          <a href={h.link} target="_blank" rel="noreferrer" className="mb-artopen">Open full article <ExternalLink className="size-3" /></a>
+                        </div>
+                      )}
                     </div>
-                  </a>
-                ))}
+                  );
+                })}
               </div>
             ) : <div className="mb-empty">Couldn&apos;t reach {step.label} right now. <a href={`https://www.google.com/search?q=${encodeURIComponent(step.label)}`} target="_blank" rel="noreferrer" className="live">Open →</a></div>
           )}
@@ -251,6 +290,7 @@ export function MorningBlock() {
               ) : lc && !lc.hasUser ? (
                 <p className="mb-hint">Add <code>LEETCODE_USERNAME</code> to see your streak &amp; solved count.</p>
               ) : null}
+              {lc?.stats?.calendar && <LeetHeatmap calendar={lc.stats.calendar} />}
             </div>
           )}
 
@@ -347,6 +387,43 @@ export function MorningBlock() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** GitHub-style activity heatmap of the last ~18 weeks of LeetCode submissions. */
+function LeetHeatmap({ calendar }: { calendar: Record<string, number> }) {
+  const weeks = 18;
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(start.getDate() - (weeks * 7 - 1));
+  // align start to Sunday
+  start.setDate(start.getDate() - start.getDay());
+  const cols: { day: string; count: number }[][] = [];
+  const d = new Date(start);
+  for (let w = 0; w < weeks; w++) {
+    const col: { day: string; count: number }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const key = d.toISOString().slice(0, 10);
+      col.push({ day: key, count: calendar[key] ?? 0 });
+      d.setDate(d.getDate() + 1);
+    }
+    cols.push(col);
+  }
+  const level = (c: number) => (c === 0 ? 0 : c < 2 ? 1 : c < 4 ? 2 : c < 7 ? 3 : 4);
+  const shade = ["#1b1c20", "rgba(94,207,214,0.3)", "rgba(94,207,214,0.5)", "rgba(94,207,214,0.75)", "var(--live)"];
+  return (
+    <div className="mb-heat">
+      <span className="lbl !text-[9px]">ACTIVITY · LAST {weeks} WEEKS</span>
+      <div className="mb-heatgrid">
+        {cols.map((col, ci) => (
+          <div key={ci} className="mb-heatcol">
+            {col.map((cell, ri) => (
+              <span key={ri} title={`${cell.day}: ${cell.count} submission${cell.count === 1 ? "" : "s"}`} style={{ background: shade[level(cell.count)] }} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
+import { fishSpeak, fishKeys } from "@/infrastructure/tts/fish";
 import { VOICE_DIRECTION } from "@/lib/config";
 
 export const runtime = "nodejs";
@@ -38,7 +39,18 @@ export async function POST(req: Request) {
   if (!text?.trim()) return new Response("Empty", { status: 400 });
   const clean = text.slice(0, 1400);
 
-  // ── ElevenLabs (primary) — rotate across keys, skip exhausted ones ──
+  const mp3 = (b: BodyInit) =>
+    new Response(b, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
+
+  /** Fish Audio — msgpack API, free-tier model by default. */
+  const tryFish = async (): Promise<Response | null> => {
+    if (!fishKeys().length) return null;
+    const s = await fishSpeak(clean, { fast });
+    return s ? mp3(s) : null;
+  };
+
+  /** ElevenLabs — rotate across keys, skipping ones that are out of credit. */
+  const tryEleven = async (): Promise<Response | null> => {
   const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? ELEVEN_MODEL) : ELEVEN_MODEL;
   const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
   const path = stream
@@ -62,10 +74,8 @@ export async function POST(req: Request) {
         },
       );
       if (res.ok) {
-        if (stream && res.body) {
-          return new Response(res.body, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
-        }
-        return new Response(await res.arrayBuffer(), { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
+        if (stream && res.body) return mp3(res.body);
+        return mp3(await res.arrayBuffer());
       }
       // Out of credits / rate-limited → cool this key down; try the next one.
       if (res.status === 401 || res.status === 402 || res.status === 429) {
@@ -74,6 +84,18 @@ export async function POST(req: Request) {
     } catch {
       // network — try next key
     }
+  }
+    return null;
+  };
+
+  // Which neural provider leads. Default keeps ElevenLabs first for continuity;
+  // set SAGE_TTS_PRIMARY=fish to lead with Fish Audio.
+  const order = process.env.SAGE_TTS_PRIMARY === "fish"
+    ? [tryFish, tryEleven]
+    : [tryEleven, tryFish];
+  for (const attempt of order) {
+    const out = await attempt();
+    if (out) return out;
   }
 
   // ── Microsoft Edge neural TTS (free, streaming MP3) — fallback ──

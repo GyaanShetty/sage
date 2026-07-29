@@ -59,21 +59,32 @@ export async function POST(req: Request) {
   if (!text?.trim()) return new Response("Empty", { status: 400 });
   const clean = text.slice(0, 1400);
 
-  const mp3 = (b: BodyInit) =>
-    new Response(b, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
+  // Name the rung that answered on the response itself. Silence with a 200 is
+  // otherwise indistinguishable from silence with no request at all, and this
+  // shows up in both the browser's network tab and the runtime logs.
+  const mp3 = (b: BodyInit, provider: string) => {
+    console.log(`[tts] ${provider} answered (${clean.length} chars, fast=${fast})`);
+    return new Response(b, {
+      headers: {
+        "content-type": "audio/mpeg",
+        "cache-control": "no-store",
+        "x-sage-voice": provider,
+      },
+    });
+  };
 
   /** Fish Audio — msgpack API, free-tier model by default. */
   const tryFish = async (): Promise<Response | null> => {
     if (!fishKeys().length) return null;
     const s = await fishSpeak(clean, { fast });
-    return s ? mp3(s) : null;
+    return s ? mp3(s, "fish") : null;
   };
 
   /** Cartesia Sonic — lowest latency of the neural providers. */
   const tryCartesia = async (): Promise<Response | null> => {
     if (!cartesiaKeys().length) return null;
     const s = await cartesiaSpeak(clean, { fast });
-    return s ? mp3(s) : null;
+    return s ? mp3(s, "cartesia") : null;
   };
 
   /** ElevenLabs — rotate across keys, skipping ones that are out of credit. */
@@ -114,8 +125,8 @@ export async function POST(req: Request) {
       if (res.ok) {
         // Always hand back the stream — buffering the whole MP3 first was
         // adding seconds of dead air before the first syllable.
-        if (res.body) return mp3(res.body);
-        return mp3(await res.arrayBuffer());
+        if (res.body) return mp3(res.body, "elevenlabs");
+        return mp3(await res.arrayBuffer(), "elevenlabs");
       }
       // Out of credits / rate-limited → cool this key down; try the next one.
       if (res.status === 401 || res.status === 402 || res.status === 429) {
@@ -146,7 +157,7 @@ export async function POST(req: Request) {
   if (process.env.SAGE_DISABLE_EDGE !== "1") {
     const edge = await within(edgeSpeak(clean), 3_000);
     if (edge) {
-      return new Response(edge, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
+      return mp3(edge, "edge");
     }
   }
 

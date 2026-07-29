@@ -1,7 +1,6 @@
 import { generateText, stepCountIs, type UIMessage } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { nativeTools } from "@/core/tools/native";
-import { planningTools } from "@/core/tools/planning";
 import { recallMemories, renderMemoryBlock } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
@@ -69,8 +68,10 @@ export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promis
     renderMemoryBlock(memories) +
     (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : "");
 
+  // Fewer tools + steps = a snappier spoken/typed reply. Native tools only
+  // (tasks/reminders/notes/etc.); planning is for the chat page, not quick voice.
   const run = (m: NonNullable<ReturnType<typeof getModel>>) =>
-    generateText({ model: m, system, prompt: text, tools: { ...nativeTools, ...planningTools }, stopWhen: stepCountIs(4) });
+    generateText({ model: m, system, prompt: text, tools: nativeTools, stopWhen: stepCountIs(3) });
 
   let reply: string;
   try {

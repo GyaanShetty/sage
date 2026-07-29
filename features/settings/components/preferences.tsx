@@ -102,7 +102,7 @@ export function Preferences() {
             <p className="text-xs text-subtle">
               {voiceMode === "device"
                 ? "On-device — instant, unlimited, 100% free. Quality depends on your device's voices."
-                : "Cloud — a real free neural voice (Microsoft Edge), rich and human. Falls back to on-device."}
+                : "Cloud — SAGE's premium voice (ElevenLabs), with free neural fallbacks. The richest, most human option."}
             </p>
           </div>
         </div>

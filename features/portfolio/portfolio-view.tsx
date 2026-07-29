@@ -3,9 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { Plus, Trash2, Loader2, Newspaper, Wallet, PencilLine, RefreshCw, Receipt, Sparkles, Send, X, Search, Upload, Download, TrendingUp, TrendingDown, PieChart, CandlestickChart } from "lucide-react";
+import { Plus, Trash2, Loader2, Newspaper, Wallet, PencilLine, RefreshCw, Receipt, Sparkles, Send, X, Search, Upload, Download, TrendingUp, TrendingDown, PieChart, CandlestickChart, Info, Gavel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
+import "./panels.css";
+import { EquityPanel } from "./components/equity-panel";
+import { RiskPanel } from "./components/risk-panel";
+import { TradesPanel } from "./components/trades-panel";
+import { AlertsPanel } from "./components/alerts-panel";
 
 interface SymbolHit { symbol: string; name: string; exchange: string; kind: "crypto" | "stock" }
 
@@ -45,6 +50,10 @@ export function PortfolioView() {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [editThesis, setEditThesis] = useState<string | null>(null);
   const [thesisText, setThesisText] = useState("");
+  // bumped when a trade is logged, so the risk/rebalance panel refetches
+  const [analysisKey, setAnalysisKey] = useState(0);
+  // per-holding AI: thesis stress-test and plain-English ticker brief
+  const [insight, setInsight] = useState<Record<string, { loading: boolean; kind: "thesis" | "explain"; verdict?: string; text?: string }>>({});
   // expenses
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -82,6 +91,31 @@ export function PortfolioView() {
     setMentorBusy(true); setMentorA(null);
     const j = await fetch("/api/finance/mentor", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question: q ?? mentorQ }) }).then((r) => r.json()).catch(() => null);
     setMentorA(j?.data?.answer ?? "Couldn't reach the mentor just now."); setMentorBusy(false);
+  };
+
+  const checkThesis = async (p: Position) => {
+    setInsight((s) => ({ ...s, [p.id]: { loading: true, kind: "thesis" } }));
+    const j = await fetch("/api/portfolio/thesis", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: p.id }),
+    }).then((r) => r.json()).catch(() => null);
+    setInsight((s) => ({
+      ...s,
+      [p.id]: j?.ok
+        ? { loading: false, kind: "thesis", verdict: j.data.verdict, text: `${j.data.assessment}\n\n${j.data.question}` }
+        : { loading: false, kind: "thesis", text: j?.error ?? "Couldn't review that just now." },
+    }));
+  };
+
+  const explain = async (p: Position) => {
+    setInsight((s) => ({ ...s, [p.id]: { loading: true, kind: "explain" } }));
+    const j = await fetch("/api/market/explain", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ symbol: p.symbol, context: p.thesis ?? undefined }),
+    }).then((r) => r.json()).catch(() => null);
+    setInsight((s) => ({
+      ...s,
+      [p.id]: { loading: false, kind: "explain", text: j?.ok ? j.data.explanation : "Couldn't reach the model just now." },
+    }));
   };
 
   const add = async () => {
@@ -277,6 +311,8 @@ export function PortfolioView() {
                 <span className={cn(pu ? "pf-up" : "pf-dn")}>{money(p.pnl)}<small> {p.pnlPct == null ? "" : `${pu ? "+" : ""}${fmt(p.pnlPct, 1)}%`}</small></span>
                 <span className="pf-rowbtns">
                   <button onClick={() => trackInMarkets(p)} title={tracked.has(p.id) ? "Tracking in Markets" : "Track in Markets"} className={cn(tracked.has(p.id) && "pf-tracked")}><CandlestickChart className="size-3.5" /></button>
+                  <button onClick={() => explain(p)} title="Explain this ticker"><Info className="size-3.5" /></button>
+                  <button onClick={() => checkThesis(p)} disabled={!p.thesis} title={p.thesis ? "Stress-test my thesis" : "Write a thesis first"}><Gavel className="size-3.5" /></button>
                   <button onClick={() => { setEditThesis(p.id); setThesisText(p.thesis ?? ""); }} title="Thesis"><PencilLine className="size-3.5" /></button>
                   <button onClick={() => remove(p.id)} title="Remove" className="cc-del"><Trash2 className="size-3.5" /></button>
                 </span>
@@ -288,6 +324,19 @@ export function PortfolioView() {
                   <button onClick={() => setEditThesis(null)}><X className="size-4" /></button>
                 </div>
               ) : p.thesis ? <div className="pf-thesis">“{p.thesis}”</div> : null}
+              {insight[p.id] && (
+                <div className={cn("pf-insight", insight[p.id].verdict)}>
+                  {insight[p.id].loading ? (
+                    <><Loader2 className="size-3.5 animate-spin" /> {insight[p.id].kind === "thesis" ? "Stress-testing your thesis…" : "Reading up on it…"}</>
+                  ) : (
+                    <>
+                      {insight[p.id].verdict && <span className="pf-verdict">{insight[p.id].verdict}</span>}
+                      <span>{insight[p.id].text}</span>
+                      <button onClick={() => setInsight((s) => { const n = { ...s }; delete n[p.id]; return n; })} className="pf-insightx"><X className="size-3" /></button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -295,6 +344,12 @@ export function PortfolioView() {
           <div className="cc-zero"><Wallet className="size-6 opacity-40" /><p>No holdings yet. Add your crypto &amp; stocks to track live P&amp;L and link the news to your positions.</p></div>
         )}
       </div>
+
+      {/* ── analysis: curve, risk, trades, alerts ── */}
+      <EquityPanel />
+      <RiskPanel reloadKey={analysisKey} />
+      <TradesPanel onChange={() => setAnalysisKey((k) => k + 1)} />
+      <AlertsPanel />
 
       {/* news → positions */}
       {news.length > 0 && (

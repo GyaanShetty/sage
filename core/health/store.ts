@@ -62,9 +62,12 @@ export function today(): string {
  */
 function normalise(p: Record<string, unknown>): Partial<DayMetrics> {
   const sleepMin = num(p.sleepMinutes);
+  const sleepRaw = sleepMin != null ? sleepMin / 60 : num(p.sleepHours ?? p.sleep);
   return {
     steps: num(p.steps),
-    sleepHours: sleepMin != null ? sleepMin / 60 : num(p.sleepHours ?? p.sleep),
+    // A zero-hour night means the metric wasn't captured, not that he never
+    // slept — counting it as real would fabricate sleep debt.
+    sleepHours: sleepRaw && sleepRaw > 0 ? sleepRaw : null,
     activeKcal: num(p.activeKcal ?? p.calories ?? p.kcal),
     restingHr: num(p.restingHr ?? p.hr ?? p.heartRate),
     distanceKm: num(p.distanceKm ?? p.distance),

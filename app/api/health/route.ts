@@ -28,9 +28,11 @@ export async function GET(req: Request) {
   const weekKey = new Date(weekAgo).toISOString().slice(0, 10);
   const workoutsThisWeek = workouts.filter((w) => w.day >= weekKey).length;
 
-  // sleep debt against the goal across the last 7 nights
-  const last7 = series.slice(-7);
-  const sleepDebt = last7.reduce((a, d) => a + (d.sleepHours != null ? goals.sleepHours - d.sleepHours : 0), 0);
+  // Sleep debt over the last 7 *calendar* days (not the last 7 reports, which
+  // could span a month), counting only nights that actually reported.
+  const sleepDebt = series
+    .filter((d) => d.day >= weekKey && d.sleepHours != null)
+    .reduce((a, d) => a + (goals.sleepHours - (d.sleepHours as number)), 0);
 
   // does sleep track with how much he actually ships?
   const solvedByDay = leet?.calendar ?? {};
@@ -72,7 +74,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, data: goals });
   }
 
-  const { entry: _entry, ...metrics } = body;
+  const metrics = { ...body };
+  delete metrics.entry; // routing key, not a metric
   if (!Object.keys(metrics).length) {
     return NextResponse.json({ ok: false, error: "nothing to record" }, { status: 400 });
   }

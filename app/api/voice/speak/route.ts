@@ -5,16 +5,31 @@ import { cartesiaSpeak, cartesiaKeys } from "@/infrastructure/tts/cartesia";
 import { VOICE_DIRECTION } from "@/lib/config";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Deliberately short. A voice request that takes longer than this is useless
+// anyway, and a long ceiling let a stalled provider burn the whole invocation
+// and return a 504 instead of falling through to one that works.
+export const maxDuration = 20;
 
 /** Per-provider deadline. Short on purpose: the chain has four more rungs
  *  below any given provider, so waiting long on a dead one is the worst
  *  possible trade. */
 const PROVIDER_TIMEOUT_MS = 4_000;
 
-// ElevenLabs default British male voices: "Daniel" (deep news presenter),
-// "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
-const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "ZbAwehCkhEdz5R21COAP"; // Gyaan's chosen SAGE voice
+/** Belt and braces: no single rung may exceed its own budget, whatever it
+ *  does internally. Anything that misses simply yields to the next. */
+function within<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    p.catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
+// Custom/cloned voice ids are scoped to the account that owns them, so the
+// previous default 404'd the moment a second key from another account was
+// added. George is a premade British male available on every account, which
+// makes the default work with any key.
+const ELEVEN_FALLBACK_VOICE = "JBFqnCBsd6RMkjVDRZzb"; // George — warm British male
+const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? ELEVEN_FALLBACK_VOICE;
 // Default to the fast flash model everywhere for low latency; the flash voices
 // are still natural. Override with ELEVENLABS_MODEL.
 const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5";
@@ -67,24 +82,35 @@ export async function POST(req: Request) {
   const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
   // Always the streaming endpoint with max latency optimisation — the
   // non-streaming one only ever added dead air.
-  const path = `${ELEVEN_VOICE}/stream?output_format=${fmt}&optimize_streaming_latency=4`;
   const now = Date.now();
+
+  const call = (key: string, voice: string) =>
+    proxyFetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voice}/stream?output_format=${fmt}&optimize_streaming_latency=4`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": key, "content-type": "application/json" },
+        body: JSON.stringify({
+          text: clean,
+          model_id: model,
+          voice_settings: { stability: 0.3, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
+        }),
+        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      },
+    );
+
   for (const key of elevenKeys()) {
     if ((keyCooldown.get(key) ?? 0) > now) continue; // this key is out of credits — skip
     try {
-      const res = await proxyFetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${path}`,
-        {
-          method: "POST",
-          headers: { "xi-api-key": key, "content-type": "application/json" },
-          body: JSON.stringify({
-            text: clean,
-            model_id: model,
-            voice_settings: { stability: 0.3, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
-          }),
-          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        },
-      );
+      let res = await call(key, ELEVEN_VOICE);
+
+      // 404 means this key's account doesn't own that voice — a cloned voice
+      // from another account. Retry once on the premade voice rather than
+      // discarding a perfectly good key.
+      if (res.status === 404 && ELEVEN_VOICE !== ELEVEN_FALLBACK_VOICE) {
+        res = await call(key, ELEVEN_FALLBACK_VOICE);
+      }
+
       if (res.ok) {
         // Always hand back the stream — buffering the whole MP3 first was
         // adding seconds of dead air before the first syllable.
@@ -111,16 +137,40 @@ export async function POST(req: Request) {
   };
   const order = chains[process.env.SAGE_TTS_PRIMARY ?? "eleven"] ?? chains.eleven;
   for (const attempt of order) {
-    const out = await attempt();
+    const out = await within(attempt(), PROVIDER_TIMEOUT_MS + 1_000);
     if (out) return out;
   }
 
   // ── Microsoft Edge neural TTS (free, streaming MP3) — fallback ──
+  // Still a real neural voice (en-GB-RyanNeural), so it stays in the chain.
   if (process.env.SAGE_DISABLE_EDGE !== "1") {
-    const edge = await edgeSpeak(clean);
+    const edge = await within(edgeSpeak(clean), 3_000);
     if (edge) {
       return new Response(edge, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
     }
+  }
+
+  /**
+   * Below this line the voice stops sounding like SAGE. Gemini's TTS and the
+   * browser's own engine are the "robot" — reaching them means the real
+   * providers are misconfigured, and quietly speaking in that voice hides the
+   * problem instead of surfacing it. So by default we refuse and say why.
+   * Set SAGE_TTS_ALLOW_ROBOT=1 to restore the old degrade-to-anything path.
+   */
+  const configured = cartesiaKeys().length + fishKeys().length + elevenKeys().length;
+  if (process.env.SAGE_TTS_ALLOW_ROBOT !== "1") {
+    return Response.json(
+      {
+        ok: false,
+        error: configured === 0
+          ? "No neural voice is configured. Set CARTESIA_API_KEYS, FISH_AUDIO_API_KEYS or ELEVENLABS_API_KEYS."
+          : "Every configured neural voice failed — most likely out of credit or a bad key.",
+        providersConfigured: configured,
+        diagnose: "/api/voice/diagnose",
+        silent: true,
+      },
+      { status: 503 },
+    );
   }
 
   // ── Gemini free tier (deep British male) ──────────────────

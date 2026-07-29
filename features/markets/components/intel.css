@@ -1,0 +1,66 @@
+/* Markets intelligence panels — narrative, pulse, events, correlation. */
+
+.mk-card { border: 1px solid var(--border-glass); background: var(--panel); padding: 13px; margin-bottom: 1px; }
+.mk-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-bottom: 1px; }
+
+.mk-head { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; color: var(--muted); flex-wrap: wrap; }
+.mk-head h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; color: var(--muted); margin: 0; white-space: nowrap; }
+.mk-line { flex: 1; height: 1px; background: var(--border-glass); min-width: 8px; }
+.mk-tag { font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); }
+.mk-dim { font-size: 11.5px; color: var(--subtle); line-height: 1.6; }
+.mk-btn { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); background: none; border: 1px solid var(--border-glass); padding: 4px 8px; cursor: pointer; }
+.mk-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.mk-btn:disabled { opacity: .5; cursor: default; }
+
+.mk-prose { display: flex; flex-direction: column; gap: 10px; }
+.mk-prose p { font-size: 13px; line-height: 1.68; color: var(--muted); margin: 0; max-width: 95ch; }
+
+/* fear & greed */
+.mk-fng { display: flex; align-items: center; gap: 12px; }
+.mk-dial { width: 96px; flex: 0 0 96px; }
+.mk-dialval { font-size: 18px; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.mk-fngmeta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mk-fnglabel { font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; }
+.mk-fngdelta { font-family: var(--mono); font-size: 8.5px; letter-spacing: .5px; }
+.mk-spark { display: flex; align-items: flex-end; gap: 2px; height: 26px; margin-top: 2px; }
+.mk-spark span { width: 5px; background: rgba(255,255,255,.26); }
+.mk-spark span:last-child { background: #f59e0b; }
+
+/* sector heatmap */
+.mk-heat { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 3px; }
+.mk-heatcell { position: relative; padding: 8px 6px 6px; border: 1px solid rgba(255,255,255,.05); display: flex; flex-direction: column; gap: 2px; }
+.mk-heatlbl { font-family: var(--mono); font-size: 8px; letter-spacing: .8px; color: rgba(255,255,255,.88); }
+.mk-heatval { font-size: 10px; font-variant-numeric: tabular-nums; }
+.mk-heatreg { position: absolute; top: 3px; right: 4px; font-style: normal; font-family: var(--mono); font-size: 6.5px; letter-spacing: 1px; color: rgba(255,255,255,.4); }
+
+/* events */
+.mk-events { display: flex; flex-direction: column; gap: 9px; }
+.mk-event { display: grid; grid-template-columns: 38px 1fr; gap: 9px; border-left: 2px solid var(--border-glass); padding-left: 9px; }
+.mk-event.imp-high { border-left-color: #f87171; }
+.mk-event.imp-medium { border-left-color: #f59e0b; }
+.mk-evdate { font-family: var(--mono); font-size: 9px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+.mk-evbody { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mk-evtitle { font-size: 11px; color: rgba(255,255,255,.9); }
+.mk-evwhy { font-size: 9.5px; color: var(--subtle); line-height: 1.45; }
+
+/* correlation matrix */
+.mk-matrix { display: grid; gap: 2px; }
+.mk-mhead { font-family: var(--mono); font-size: 7.5px; letter-spacing: .6px; color: var(--subtle); text-align: center; align-self: center; overflow: hidden; text-overflow: ellipsis; }
+.mk-mhead.left { text-align: left; }
+.mk-mcell { font-family: var(--mono); font-size: 8.5px; font-variant-numeric: tabular-nums; text-align: center; padding: 6px 2px; color: rgba(255,255,255,.92); }
+
+@media (max-width: 860px) {
+  .mk-grid2 { grid-template-columns: 1fr; }
+  .mk-heat { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* add-to-portfolio button on watchlist rows */
+.mkt-add {
+  flex: 0 0 auto; width: 20px; height: 20px; margin-left: 8px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 12px; line-height: 1;
+  color: var(--subtle); background: var(--glass);
+  border: 1px solid var(--border-glass); border-radius: 5px; cursor: pointer;
+}
+.mkt-add:hover:not(:disabled) { color: var(--live); border-color: var(--live-dim); }
+.mkt-add:disabled { color: var(--live); border-color: var(--live-dim); cursor: default; }

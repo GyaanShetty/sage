@@ -446,8 +446,50 @@
 .atlas-ticker .at-txt { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: tickerFade 0.5s var(--ease); }
 @keyframes tickerFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* let the globe be fully draggable under the overlays */
-.hero-globe-cell .greeting, .hero-globe-cell .vitrow { pointer-events: none; }
+/* ── DataV-style hero: header rail · clean globe stage · readout strip ──
+   Nothing overlaps the globe itself; every number lives in its own band. */
+/* override .hero's centring so the three bands stack full-width */
+.hero-globe-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-height: 520px; }
+
+.gs-head {
+  display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+  padding: 11px 14px; border-bottom: 1px solid var(--border-glass); z-index: 5;
+}
+.gs-code {
+  flex: 0 0 auto; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 8px; color: var(--subtle); border: 1px solid rgba(244,244,245,.2);
+}
+.gs-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gs-t1 { font-size: 17px; font-weight: 300; letter-spacing: -0.2px; line-height: 1.15; }
+.gs-t2 { font-family: var(--mono); font-size: 7.5px; letter-spacing: 2px; color: var(--subtle); text-transform: uppercase; }
+.gs-rule { flex: 1; height: 1px; background: var(--border-glass); }
+.gs-status { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: var(--live); }
+.gs-status i { width: 5px; height: 5px; border-radius: 50%; background: var(--live); box-shadow: 0 0 6px var(--live); animation: gsPulse 2s ease-in-out infinite; }
+@keyframes gsPulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+
+/* the globe gets the whole middle band to itself */
+.gs-stage { position: relative; flex: 1 1 auto; min-height: 0; }
+.gs-corner { position: absolute; width: 16px; height: 16px; border: 1px solid rgba(244,244,245,.2); z-index: 6; pointer-events: none; }
+.gs-corner.tl { top: 9px; left: 9px; border-right: 0; border-bottom: 0; }
+.gs-corner.tr { top: 9px; right: 9px; border-left: 0; border-bottom: 0; }
+.gs-corner.bl { bottom: 9px; left: 9px; border-right: 0; border-top: 0; }
+.gs-corner.br { bottom: 9px; right: 9px; border-left: 0; border-top: 0; }
+
+.gs-foot {
+  display: flex; align-items: stretch; flex: 0 0 auto; z-index: 5;
+  border-top: 1px solid var(--border-glass); background: rgba(8,9,11,.55);
+}
+.gs-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 9px 13px; border-right: 1px solid var(--border-glass); }
+.gs-stat:last-child { border-right: 0; }
+.gs-sv { font-size: 19px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.gs-sk { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1.6px; color: var(--subtle); text-transform: uppercase; }
+
+@media (max-width: 767px) {
+  .gs-t1 { font-size: 15px; }
+  .gs-foot { flex-wrap: wrap; }
+  .gs-stat { flex: 1 0 45%; border-bottom: 1px solid var(--border-glass); }
+  .gs-sv { font-size: 16px; }
+}
 
 /* ── world view: globe ⇄ map crossfade ── */
 .worldview { position: absolute; inset: 0; }

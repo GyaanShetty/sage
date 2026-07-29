@@ -9,7 +9,14 @@
  */
 export async function speakLowLatency(
   text: string,
-  opts?: { fast?: boolean; onended?: () => void },
+  opts?: {
+    fast?: boolean;
+    onended?: () => void;
+    /** Reuse a caller's gesture-unlocked <audio>. Mobile autoplay policy binds
+     *  permission to the element that a user gesture touched, so a fresh
+     *  Audio() here would be silently blocked on iOS. */
+    audio?: HTMLAudioElement;
+  },
 ): Promise<HTMLAudioElement | null> {
   const clean = text.trim();
   if (!clean) return null;
@@ -43,9 +50,10 @@ export async function speakLowLatency(
   if (isMpeg && MS && MS.isTypeSupported?.("audio/mpeg")) {
     try {
       const ms = new MS();
-      const audio = new Audio();
+      const audio = opts?.audio ?? new Audio();
       audio.src = URL.createObjectURL(ms);
-      if (opts?.onended) audio.onended = opts.onended;
+      audio.onended = opts?.onended ?? null;
+      audio.onerror = null;
 
       await new Promise<void>((resolve) => ms.addEventListener("sourceopen", () => resolve(), { once: true }));
       const sb = ms.addSourceBuffer("audio/mpeg");
@@ -85,7 +93,8 @@ export async function speakLowLatency(
   // Fast blob fallback (flash model keeps this quick).
   try {
     const url = URL.createObjectURL(await res.blob());
-    const audio = new Audio(url);
+    const audio = opts?.audio ?? new Audio();
+    audio.src = url;
     audio.onended = () => { URL.revokeObjectURL(url); opts?.onended?.(); };
     await audio.play();
     return audio;

@@ -71,7 +71,7 @@ export async function cartesiaSpeak(text: string, opts: CartesiaOpts = {}): Prom
           "content-type": "application/json",
         },
         body,
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(4_000),
       });
       if (res.ok && res.body) return res.body as ReadableStream<Uint8Array>;
       if (res.status === 401 || res.status === 402 || res.status === 403 || res.status === 429) {

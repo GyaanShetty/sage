@@ -38,7 +38,7 @@ export function HoloLab() {
 
   const explain = async (p: Part) => {
     try {
-      const res = await fetch("/api/voice/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: `${p.name}. ${p.role}` }) });
+      const res = await fetch("/api/voice/speak?stream=1&fast=1", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: `${p.name}. ${p.role}` }) });
       if (res.ok) { const a = new Audio(URL.createObjectURL(await res.blob())); a.play().catch(() => {}); }
     } catch {}
   };

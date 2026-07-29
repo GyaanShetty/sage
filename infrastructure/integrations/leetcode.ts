@@ -60,6 +60,8 @@ export interface LeetStats {
   streak: number;
   totalActiveDays: number;
   todaySolved: number;
+  /** day (YYYY-MM-DD) → submissions, for the activity heatmap. */
+  calendar: Record<string, number>;
 }
 
 /** Public profile stats + streak for a username (no auth). */
@@ -80,13 +82,16 @@ export async function getLeetStats(username: string): Promise<LeetStats | null> 
   const nums = m.submitStats?.acSubmissionNum ?? [];
   const by = (d: string) => nums.find((n) => n.difficulty === d)?.count ?? 0;
 
-  // today's solved count from the submission calendar (epoch-second → count)
+  // today's solved count + a day→count map for the heatmap (epoch-second keys).
   let todaySolved = 0;
+  const calendar: Record<string, number> = {};
   try {
     const cal = JSON.parse(m.userCalendar?.submissionCalendar ?? "{}") as Record<string, number>;
     const startOfDay = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
     for (const [ts, count] of Object.entries(cal)) {
       if (Number(ts) >= startOfDay) todaySolved += count;
+      const day = new Date(Number(ts) * 1000).toISOString().slice(0, 10);
+      calendar[day] = (calendar[day] ?? 0) + count;
     }
   } catch {
     /* ignore */
@@ -99,5 +104,6 @@ export async function getLeetStats(username: string): Promise<LeetStats | null> 
     streak: m.userCalendar?.streak ?? 0,
     totalActiveDays: m.userCalendar?.totalActiveDays ?? 0,
     todaySolved,
+    calendar,
   };
 }

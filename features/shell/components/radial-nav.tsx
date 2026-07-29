@@ -194,7 +194,7 @@ export function RadialNav() {
             onClick={() => setOpen(false)}
           >
             <button className="absolute right-6 top-6 text-muted transition-colors hover:text-foreground" onClick={() => setOpen(false)} aria-label="Close"><X className="size-5" /></button>
-            <p className="lbl absolute top-10 !text-[9px] !tracking-[4px] text-subtle">SPIN · SCROLL · SELECT</p>
+            <p className="lbl absolute top-10 !text-[9px] !tracking-[4px] text-subtle">SPIN TO SELECT · TAP THE TOP TO OPEN</p>
 
             <motion.div
               ref={ringRef}
@@ -228,9 +228,16 @@ export function RadialNav() {
                 return (
                   <button
                     key={p.href}
-                    onClick={() => go(p.href)}
+                    // Only the page under the selector opens. Tapping any other
+                    // spins it up to the top instead — clicking an off-selector
+                    // item used to navigate straight there, which made the
+                    // highlight meaningless and fired the wrong page on a
+                    // mis-tap.
+                    onClick={() => (active ? go(p.href) : setRot(-i * step))}
+                    aria-current={active ? "true" : undefined}
+                    title={active ? `Open ${p.label}` : `Select ${p.label}`}
                     className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
-                    style={{ left: x, top: y }}
+                    style={{ left: x, top: y, cursor: active ? "pointer" : "grab" }}
                   >
                     <motion.span
                       animate={{ scale: active ? 1.35 : 1, opacity: active ? 1 : 0.5 }}

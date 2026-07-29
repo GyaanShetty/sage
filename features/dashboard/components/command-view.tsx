@@ -183,138 +183,122 @@ export function CommandView({
       {/* ================= 01 HOME ================= */}
       <section className="section" id="home">
         <div className="sectitle"><span className="sn">01</span><h2>Home</h2><span className="line" /><span className="tag">ASSISTANT · NOTES · GITA · AGENDA</span></div>
-        <div className="grid deck1">
-          {/* left */}
-          <div className="stack">
-            <ExpandableCell title="Intelligence" tag="MEMORY CORE">
-              <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
-              <div className="counters" style={{ margin: 0 }}>
-                <div className="ct"><div className="cv num"><NumberTicker value={stats.memories} /></div><div className="ck">Memories</div></div>
-                <div className="ct"><div className="cv num"><NumberTicker value={stats.sources} /></div><div className="ck">Sources</div></div>
-                <div className="ct"><div className="cv num"><NumberTicker value={stats.runs} /></div><div className="ck">Agent runs</div></div>
-                <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
-              </div>
-            </ExpandableCell>
-            <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: 1 }} hud="notes">
-              <div className="bh"><span className="t">Notes</span><span className="i">NTS</span><span className="r">{pad(notes.length)}</span></div>
-              <div className="notein">
-                <input value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="capture a thought…" />
-                <button onClick={addNote}>ADD</button>
-              </div>
-              {notes.map((n) => (
-                <div className="note" key={n.id}>
-                  <span className="nb" />
-                  <div style={{ flex: 1 }}>
-                    <div className="ntx">{n.title}</div>
-                    <div className="nt2">{fmt(n.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false })}</div>
-                  </div>
-                  <button className="del" onClick={() => delNote(n.id)}>×</button>
-                </div>
-              ))}
-            </ExpandableCell>
+        {/* The globe is the heart: full-bleed and uncontained. Panels float
+            at the edges, readouts sit beneath it. */}
+        <div className="heart">
+          <div className="heart-globe">
+            <WorldView lat={18} lon={78} />
           </div>
 
-          {/* center — interactive Google-Earth-style intelligence globe */}
-          <div className="stack">
-            <div className="cell hero hero-globe-cell">
-              {/* header rail — greeting lives here, never over the globe */}
-              <div className="gs-head">
-                <span className="gs-code">A</span>
-                <div className="gs-title">
-                  <span className="gs-t1">{greet}, {userName}</span>
-                  <span className="gs-t2">
-                    {weather ? `${weather.place} ${weather.temp}° · ${weather.label}` : "SAGE"} · ONLINE
-                  </span>
-                </div>
-                <span className="gs-rule" />
-                <span className="gs-status"><i />LIVE</span>
-              </div>
-
-              {/* clean globe stage */}
-              <div className="gs-stage">
-                <span className="gs-corner tl" /><span className="gs-corner tr" />
-                <span className="gs-corner bl" /><span className="gs-corner br" />
-                <WorldView lat={18} lon={78} />
-              </div>
-
-              {/* readouts below the globe, in their own strip */}
-              <div className="gs-foot">
-                {weather && (
-                  <div className="gs-stat">
-                    <span className="gs-sv num">{weather.temp}°</span>
-                    <span className="gs-sk">{weather.high}°/{weather.low}°{typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}</span>
-                  </div>
-                )}
-                <div className="gs-stat"><span className="gs-sv num">{open}</span><span className="gs-sk">Open</span></div>
-                <div className="gs-stat"><span className="gs-sv num">{todays.length}</span><span className="gs-sk">Events</span></div>
-                {typeof steps === "number" && steps > 0 && (
-                  <div className="gs-stat"><span className="gs-sv num"><NumberTicker value={steps} /></span><span className="gs-sk">Steps</span></div>
-                )}
-              </div>
-            </div>
-            <div className="cell ask">
-              <div className="askbox">
-                <span className="sig" />
-                <input
-                  value={ask}
-                  onChange={(e) => setAsk(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { doAsk(ask); setAsk(""); } }}
-                  placeholder="Ask Sage anything…"
-                />
-                <span className="kb">↵</span>
-              </div>
-              <div className="chips">
-                {["What's my plan today?", "Summarize my unread email", "What do you know about me?", "Any tasks due soon?"].map((q) => (
-                  <button key={q} className="chip" onClick={() => doAsk(q)}>{q}</button>
-                ))}
-              </div>
-              <div className="sageout">{asking ? "…" : askOut && <><b>Sage:</b> {askOut}</>}</div>
-            </div>
+          <div className="heart-head">
+            <span className="hh-name">{greet}, {userName}</span>
+            <span className="hh-sub">
+              <i className="hh-dot" />
+              {weather ? `${weather.place} ${weather.temp}° · ${weather.label}` : "SAGE"} · ONLINE
+            </span>
           </div>
 
-          {/* right */}
-          <div className="stack right">
-            <ExpandableCell title="Bhagavad Gita" tag="श्लोक" className="gita">
-              <div className="bh"><span className="t">Gita</span><span className="i">श्लोक</span></div>
-              <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
-              <div className="dev">{gita.dev}</div>
-              <div className="tr">{gita.tr}</div>
-              <div className="en">{gita.en}</div>
-              <div className="src"><span>अध्याय {gita.src}</span><i /><span>BHAGAVAD GITA</span></div>
-            </ExpandableCell>
-            <ExpandableCell title={`${now.toLocaleString("en", { month: "long" })} ${Y}`} tag="ADD EVENTS" expanded={<ScheduleManager events={events} />}>
-              <div className="bh"><span className="t">{now.toLocaleString("en", { month: "long" }).toUpperCase()} {Y}</span><span className="i">CAL</span></div>
-              <div className="cal">
-                {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}
-                {Array.from({ length: lead }).map((_, i) => <div className="d out" key={`p${i}`}>{prevDim - lead + 1 + i}</div>)}
-                {Array.from({ length: dim }).map((_, i) => (
-                  <div className={`d${i + 1 === now.getDate() ? " today" : ""}`} key={i}>
-                    {pad(i + 1)}
-                    {evDays.has(i + 1) && <span className="ev" />}
+          <aside className="heart-side left">
+              <ExpandableCell title="Intelligence" tag="MEMORY CORE">
+                <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
+                <div className="counters" style={{ margin: 0 }}>
+                  <div className="ct"><div className="cv num"><NumberTicker value={stats.memories} /></div><div className="ck">Memories</div></div>
+                  <div className="ct"><div className="cv num"><NumberTicker value={stats.sources} /></div><div className="ck">Sources</div></div>
+                  <div className="ct"><div className="cv num"><NumberTicker value={stats.runs} /></div><div className="ck">Agent runs</div></div>
+                  <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
+                </div>
+              </ExpandableCell>
+              <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: 1 }} hud="notes">
+                <div className="bh"><span className="t">Notes</span><span className="i">NTS</span><span className="r">{pad(notes.length)}</span></div>
+                <div className="notein">
+                  <input value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="capture a thought…" />
+                  <button onClick={addNote}>ADD</button>
+                </div>
+                {notes.map((n) => (
+                  <div className="note" key={n.id}>
+                    <span className="nb" />
+                    <div style={{ flex: 1 }}>
+                      <div className="ntx">{n.title}</div>
+                      <div className="nt2">{fmt(n.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false })}</div>
+                    </div>
+                    <button className="del" onClick={() => delNote(n.id)}>×</button>
                   </div>
                 ))}
-              </div>
-            </ExpandableCell>
-            <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: 1 }} hud="agenda" expanded={<ScheduleManager events={events} />}>
-              <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
-              {(events ?? []).slice(0, 4).map((e, i) => {
-                const d = new Date(e.start);
-                const isNext = i === 0;
-                return (
-                  <div className={`ag${isNext ? " now" : ""}`} key={i}>
-                    <span className="tm">
-                      {fmt(d, { weekday: "short" }).toUpperCase()}{" "}
-                      {e.allDay ? "ALL DAY" : fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}
-                    </span>
-                    <span className="mk2"><i /></span>
-                    <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
-                  </div>
-                );
-              })}
-              {events !== null && events.length === 0 && <p className="lbl">NO UPCOMING EVENTS</p>}
-              {events === null && <p className="lbl">CONNECT GOOGLE IN SETTINGS</p>}
-            </ExpandableCell>
+              </ExpandableCell>
+          </aside>
+
+          <aside className="heart-side right">
+              <ExpandableCell title="Bhagavad Gita" tag="श्लोक" className="gita">
+                <div className="bh"><span className="t">Gita</span><span className="i">श्लोक</span></div>
+                <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
+                <div className="dev">{gita.dev}</div>
+                <div className="tr">{gita.tr}</div>
+                <div className="en">{gita.en}</div>
+                <div className="src"><span>अध्याय {gita.src}</span><i /><span>BHAGAVAD GITA</span></div>
+              </ExpandableCell>
+              <ExpandableCell title={`${now.toLocaleString("en", { month: "long" })} ${Y}`} tag="ADD EVENTS" expanded={<ScheduleManager events={events} />}>
+                <div className="bh"><span className="t">{now.toLocaleString("en", { month: "long" }).toUpperCase()} {Y}</span><span className="i">CAL</span></div>
+                <div className="cal">
+                  {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}
+                  {Array.from({ length: lead }).map((_, i) => <div className="d out" key={`p${i}`}>{prevDim - lead + 1 + i}</div>)}
+                  {Array.from({ length: dim }).map((_, i) => (
+                    <div className={`d${i + 1 === now.getDate() ? " today" : ""}`} key={i}>
+                      {pad(i + 1)}
+                      {evDays.has(i + 1) && <span className="ev" />}
+                    </div>
+                  ))}
+                </div>
+              </ExpandableCell>
+              <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: 1 }} hud="agenda" expanded={<ScheduleManager events={events} />}>
+                <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
+                {(events ?? []).slice(0, 4).map((e, i) => {
+                  const d = new Date(e.start);
+                  const isNext = i === 0;
+                  return (
+                    <div className={`ag${isNext ? " now" : ""}`} key={i}>
+                      <span className="tm">
+                        {fmt(d, { weekday: "short" }).toUpperCase()}{" "}
+                        {e.allDay ? "ALL DAY" : fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}
+                      </span>
+                      <span className="mk2"><i /></span>
+                      <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
+                    </div>
+                  );
+                })}
+                {events !== null && events.length === 0 && <p className="lbl">NO UPCOMING EVENTS</p>}
+                {events === null && <p className="lbl">CONNECT GOOGLE IN SETTINGS</p>}
+              </ExpandableCell>
+          </aside>
+
+          <div className="heart-stats">
+            {weather && (
+              <div className="hs-stat"><span className="hs-v num">{weather.temp}°</span><span className="hs-k">{weather.high}°/{weather.low}°{typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}</span></div>
+            )}
+            <div className="hs-stat"><span className="hs-v num">{open}</span><span className="hs-k">Open</span></div>
+            <div className="hs-stat"><span className="hs-v num">{todays.length}</span><span className="hs-k">Events</span></div>
+            {typeof steps === "number" && steps > 0 && (
+              <div className="hs-stat"><span className="hs-v num"><NumberTicker value={steps} /></span><span className="hs-k">Steps</span></div>
+            )}
           </div>
+        </div>
+
+        <div className="cell ask">
+          <div className="askbox">
+            <span className="sig" />
+            <input
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { doAsk(ask); setAsk(""); } }}
+              placeholder="Ask Sage anything…"
+            />
+            <span className="kb">↵</span>
+          </div>
+          <div className="chips">
+            {["What's my plan today?", "Summarize my unread email", "What do you know about me?", "Any tasks due soon?"].map((q) => (
+              <button key={q} className="chip" onClick={() => doAsk(q)}>{q}</button>
+            ))}
+          </div>
+          <div className="sageout">{asking ? "…" : askOut && <><b>Sage:</b> {askOut}</>}</div>
         </div>
       </section>
 

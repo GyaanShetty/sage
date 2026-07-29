@@ -15,6 +15,7 @@ type GlobeInstance = {
   atmosphereColor: (c: string) => GlobeInstance;
   atmosphereAltitude: (n: number) => GlobeInstance;
   globeMaterial: () => { color: { set: (c: string) => void }; emissive?: { set: (c: string) => void }; emissiveIntensity?: number };
+  lights: (l: unknown[]) => GlobeInstance;
   hexPolygonsData: (d: unknown[]) => GlobeInstance;
   hexPolygonResolution: (n: number) => GlobeInstance;
   hexPolygonMargin: (n: number) => GlobeInstance;
@@ -62,7 +63,9 @@ const AMBER = "#f59e0b";
 /** Land dots — near-white, like a surveillance plot rather than a map. */
 const LAND_DOT = "rgba(255,255,255,0.78)";
 // Vendored locally (public/geo) — a CDN outage used to leave the globe blank.
-const COUNTRIES_URL = "/geo/countries-110m.json";
+// 50m rather than 110m: at hex resolution 4 the coarser set visibly rounds off
+// coastlines, so the extra detail actually lands.
+const COUNTRIES_URL = "/geo/countries-50m.json";
 
 export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn?: (c: { lat: number; lng: number }) => void; onCenter?: (c: { lat: number; lng: number }) => void }) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -96,9 +99,10 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
   useEffect(() => {
     let disposed = false;
     (async () => {
-      const [{ default: Globe }, topojson] = await Promise.all([
+      const [{ default: Globe }, topojson, THREE] = await Promise.all([
         import("globe.gl"),
         import("topojson-client").catch(() => null),
+        import("three").catch(() => null),
       ]);
       if (disposed || !elRef.current) return;
       const el = elRef.current;
@@ -133,6 +137,18 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
       const mat = world.globeMaterial();
       mat.color.set("#05070a");
       if (mat.emissive) { mat.emissive.set("#070d10"); mat.emissiveIntensity = 0.18; }
+
+      // Default lighting is directional, which sank half the landmass into
+      // shadow. Flat ambient light keeps every dot evenly lit, plus a weak
+      // directional to retain a hint of sphericity.
+      if (THREE) {
+        try {
+          world.lights([
+            new THREE.AmbientLight(0xffffff, 2.6),
+            new THREE.DirectionalLight(0xffffff, 0.25),
+          ]);
+        } catch { /* keep globe.gl's defaults */ }
+      }
 
       // dark hex-dot continents from world-atlas topojson
       try {

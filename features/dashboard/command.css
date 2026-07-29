@@ -446,49 +446,61 @@
 .atlas-ticker .at-txt { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: tickerFade 0.5s var(--ease); }
 @keyframes tickerFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
-/* ── DataV-style hero: header rail · clean globe stage · readout strip ──
-   Nothing overlaps the globe itself; every number lives in its own band. */
-/* override .hero's centring so the three bands stack full-width */
-.hero-globe-cell { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; min-height: 520px; }
+/* ── The heart: an uncontained globe with everything floating around it ──
+   No frame, no card. The globe fills the band and the panels sit over its
+   edges, so the sphere itself stays clear. */
+.heart { position: relative; height: min(84vh, 940px); min-height: 560px; margin: 0 0 14px; }
+.heart-globe { position: absolute; inset: 0; z-index: 0; }
 
-.gs-head {
-  display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
-  padding: 11px 14px; border-bottom: 1px solid var(--border-glass); z-index: 5;
+/* greeting floats top-left, clear of the sphere */
+.heart-head { position: absolute; top: 4px; left: 6px; z-index: 3; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
+.hh-name { font-size: clamp(22px, 2.6vw, 34px); font-weight: 300; letter-spacing: -0.4px; line-height: 1.1; }
+.hh-sub { font-family: var(--mono); font-size: 8px; letter-spacing: 2.4px; color: var(--subtle); text-transform: uppercase; }
+.hh-sub { display: inline-flex; align-items: center; gap: 7px; }
+.hh-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--live); box-shadow: 0 0 6px var(--live); animation: heartPulse 2s ease-in-out infinite; flex: 0 0 auto; }
+@keyframes heartPulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+
+/* side panels hover over the globe's edges */
+.heart-side {
+  position: absolute; top: 66px; bottom: 78px; width: 292px; z-index: 2;
+  display: flex; flex-direction: column; gap: 1px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
 }
-.gs-code {
-  flex: 0 0 auto; width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--mono); font-size: 8px; color: var(--subtle); border: 1px solid rgba(244,244,245,.2);
+.heart-side::-webkit-scrollbar { display: none; }
+.heart-side.left { left: 0; }
+.heart-side.right { right: 0; }
+/* frosted so the globe reads through without washing out the text */
+.heart-side .cell, .heart-side .expandable {
+  background: rgba(8, 9, 11, .62);
+  backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
+  border: 1px solid var(--border-glass);
 }
-.gs-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.gs-t1 { font-size: 17px; font-weight: 300; letter-spacing: -0.2px; line-height: 1.15; }
-.gs-t2 { font-family: var(--mono); font-size: 7.5px; letter-spacing: 2px; color: var(--subtle); text-transform: uppercase; }
-.gs-rule { flex: 1; height: 1px; background: var(--border-glass); }
-.gs-status { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: var(--live); }
-.gs-status i { width: 5px; height: 5px; border-radius: 50%; background: var(--live); box-shadow: 0 0 6px var(--live); animation: gsPulse 2s ease-in-out infinite; }
-@keyframes gsPulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
-/* the globe gets the whole middle band to itself */
-.gs-stage { position: relative; flex: 1 1 auto; min-height: 0; }
-.gs-corner { position: absolute; width: 16px; height: 16px; border: 1px solid rgba(244,244,245,.2); z-index: 6; pointer-events: none; }
-.gs-corner.tl { top: 9px; left: 9px; border-right: 0; border-bottom: 0; }
-.gs-corner.tr { top: 9px; right: 9px; border-left: 0; border-bottom: 0; }
-.gs-corner.bl { bottom: 9px; left: 9px; border-right: 0; border-top: 0; }
-.gs-corner.br { bottom: 9px; right: 9px; border-left: 0; border-top: 0; }
+/* readouts along the bottom, floating rather than boxed */
+.heart-stats { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; gap: 1px; background: var(--border-glass); border-top: 1px solid var(--border-glass); }
+.hs-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; background: rgba(8, 9, 11, .72); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
+.hs-v { font-size: 20px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.hs-k { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1.6px; color: var(--subtle); text-transform: uppercase; }
 
-.gs-foot {
-  display: flex; align-items: stretch; flex: 0 0 auto; z-index: 5;
-  border-top: 1px solid var(--border-glass); background: rgba(8,9,11,.55);
+/* keep the globe's own controls clear of the floating side panels */
+.heart .heroglobe-layers { left: 306px; max-width: calc(100% - 620px); bottom: 88px; }
+.heart .heroglobe-hint { right: 306px; bottom: 88px; }
+
+@media (max-width: 1180px) {
+  .heart-side { width: 250px; }
+  .heart .heroglobe-layers { left: 262px; max-width: calc(100% - 540px); }
+  .heart .heroglobe-hint { right: 262px; }
 }
-.gs-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 9px 13px; border-right: 1px solid var(--border-glass); }
-.gs-stat:last-child { border-right: 0; }
-.gs-sv { font-size: 19px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
-.gs-sk { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1.6px; color: var(--subtle); text-transform: uppercase; }
-
-@media (max-width: 767px) {
-  .gs-t1 { font-size: 15px; }
-  .gs-foot { flex-wrap: wrap; }
-  .gs-stat { flex: 1 0 45%; border-bottom: 1px solid var(--border-glass); }
-  .gs-sv { font-size: 16px; }
+/* below this the globe can no longer share the row — stack everything */
+@media (max-width: 900px) {
+  .heart { height: auto; min-height: 0; display: flex; flex-direction: column; gap: 1px; }
+  .heart-globe { position: relative; inset: auto; height: min(88vw, 460px); }
+  .heart-head { position: static; padding: 2px 4px 8px; }
+  .heart-side { position: static; width: auto; inset: auto; overflow: visible; }
+  .heart-stats { position: static; }
+  .heart .heroglobe-layers { left: 12px; max-width: calc(100% - 24px); bottom: 12px; }
+  .heart .heroglobe-hint { display: none; }
+  .hs-v { font-size: 17px; }
 }
 
 /* ── world view: globe ⇄ map crossfade ── */

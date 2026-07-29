@@ -72,7 +72,7 @@ export async function fishSpeak(text: string, opts: FishOpts = {}): Promise<Read
         },
         // copy into a plain ArrayBuffer — encode() returns a view over a pool
         body: body.slice().buffer as ArrayBuffer,
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(4_000),
       });
       if (res.ok && res.body) return res.body as ReadableStream<Uint8Array>;
       if (res.status === 401 || res.status === 402 || res.status === 429) {

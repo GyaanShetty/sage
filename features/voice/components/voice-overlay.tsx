@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
 import { sound } from "@/lib/sound";
+import { speakLowLatency } from "@/lib/speak";
 import { APP_NAME } from "@/lib/config";
 import { useShellStore } from "@/features/shell/store";
 
@@ -62,22 +63,25 @@ function MiniOrb({ active, speaking, thinking }: { active: boolean; speaking: bo
   );
 }
 
+/** Mark the document while the panel is docked so the shell can make room for
+ *  it instead of letting it sit on top of the controls. */
+function useDockedFlag(open: boolean) {
+  useEffect(() => {
+    const el = document.documentElement;
+    if (open) el.dataset.voiceOpen = "1";
+    else delete el.dataset.voiceOpen;
+    return () => { delete el.dataset.voiceOpen; };
+  }, [open]);
+}
+
 /** Speak a reply aloud with SAGE's voice (neural TTS, browser fallback). */
 async function speakReply(text: string) {
   if (!sound.isOn() || !text) return;
   try {
-    const res = await fetch("/api/voice/speak", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
-    if (res.ok) {
-      const url = URL.createObjectURL(await res.blob());
-      const audio = new Audio(url);
-      audio.onended = () => URL.revokeObjectURL(url);
-      await audio.play();
-      return;
-    }
+    // Streams: playback starts on the first chunk rather than after the
+    // whole file downloads.
+    const audio = await speakLowLatency(text, { fast: true });
+    if (audio) return;
   } catch {
     /* fall through to browser synth */
   }
@@ -138,6 +142,7 @@ export function VoiceOverlay() {
   const live = useLiveVoice();
 
   const open = live.state !== "off" || assistant.state !== "off";
+  useDockedFlag(open);
   const liveActive = live.state !== "off";
   const speaking = liveActive ? live.state === "speaking" : assistant.state === "speaking";
   const listening = liveActive ? live.state === "listening" : assistant.state === "listening";

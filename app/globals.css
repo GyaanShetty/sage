@@ -356,3 +356,18 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .mood-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--faint), var(--live-dim)); outline: none; }
 .mood-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--live); cursor: pointer; box-shadow: 0 0 14px var(--live-glow); border: 2px solid var(--background); }
 .mood-range::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--live); cursor: pointer; border: 2px solid var(--background); box-shadow: 0 0 14px var(--live-glow); }
+
+/* ── voice panel docking ────────────────────────────────────────
+   The panel is fixed to the right edge. Without this the dashboard's
+   right-hand rail and its controls sat underneath it, unclickable.
+   While docked, the scroll container simply gives up that width. */
+@media (min-width: 768px) {
+  :root[data-voice-open="1"] main.hud-grid { padding-right: 424px; }
+  :root[data-voice-open="1"] .heart-side.right { right: 424px; }
+  :root[data-voice-open="1"] .heart .heroglobe-hint,
+  :root[data-voice-open="1"] .heart .atlas-hud { right: 736px; }
+}
+/* On phones the panel is a bottom sheet, so give back vertical room instead. */
+@media (max-width: 767px) {
+  :root[data-voice-open="1"] main.hud-grid { padding-bottom: calc(52vh + 88px); }
+}

@@ -104,7 +104,7 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
 
     // Prefer neural TTS (Gemini); fall back to browser synthesis.
     try {
-      const res = await fetch("/api/voice/speak", {
+      const res = await fetch("/api/voice/speak?stream=1&fast=1", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text: clean }),

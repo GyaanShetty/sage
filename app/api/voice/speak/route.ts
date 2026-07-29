@@ -7,6 +7,11 @@ import { VOICE_DIRECTION } from "@/lib/config";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+/** Per-provider deadline. Short on purpose: the chain has four more rungs
+ *  below any given provider, so waiting long on a dead one is the worst
+ *  possible trade. */
+const PROVIDER_TIMEOUT_MS = 4_000;
+
 // ElevenLabs default British male voices: "Daniel" (deep news presenter),
 // "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "ZbAwehCkhEdz5R21COAP"; // Gyaan's chosen SAGE voice
@@ -35,7 +40,6 @@ const keyCooldown = new Map<string, number>();
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const fast = url.searchParams.get("fast") === "1";   // low-latency flash model
-  const stream = url.searchParams.get("stream") === "1"; // pass audio through as it generates
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return new Response("Empty", { status: 400 });
   const clean = text.slice(0, 1400);
@@ -61,9 +65,9 @@ export async function POST(req: Request) {
   const tryEleven = async (): Promise<Response | null> => {
   const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? ELEVEN_MODEL) : ELEVEN_MODEL;
   const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
-  const path = stream
-    ? `${ELEVEN_VOICE}/stream?output_format=${fmt}&optimize_streaming_latency=4`
-    : `${ELEVEN_VOICE}?output_format=${fmt}`;
+  // Always the streaming endpoint with max latency optimisation — the
+  // non-streaming one only ever added dead air.
+  const path = `${ELEVEN_VOICE}/stream?output_format=${fmt}&optimize_streaming_latency=4`;
   const now = Date.now();
   for (const key of elevenKeys()) {
     if ((keyCooldown.get(key) ?? 0) > now) continue; // this key is out of credits — skip
@@ -78,11 +82,13 @@ export async function POST(req: Request) {
             model_id: model,
             voice_settings: { stability: 0.3, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
           }),
-          signal: AbortSignal.timeout(45_000),
+          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
         },
       );
       if (res.ok) {
-        if (stream && res.body) return mp3(res.body);
+        // Always hand back the stream — buffering the whole MP3 first was
+        // adding seconds of dead air before the first syllable.
+        if (res.body) return mp3(res.body);
         return mp3(await res.arrayBuffer());
       }
       // Out of credits / rate-limited → cool this key down; try the next one.
@@ -133,7 +139,7 @@ export async function POST(req: Request) {
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } },
         },
       }),
-      signal: AbortSignal.timeout(45_000),
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
     },
   );
 

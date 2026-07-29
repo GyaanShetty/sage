@@ -16,7 +16,7 @@ const SEEN_KEY = "sage-proactive-seen";
 /** Speak an alert aloud with SAGE's voice (neural TTS, browser fallback). */
 async function speak(text: string): Promise<void> {
   try {
-    const res = await fetch("/api/voice/speak", {
+    const res = await fetch("/api/voice/speak?stream=1&fast=1", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),

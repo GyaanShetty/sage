@@ -8,16 +8,22 @@ export const maxDuration = 60;
 // ElevenLabs default British male voices: "Daniel" (deep news presenter),
 // "George" (warm, mature). Overridable via env. Free tier: ~10k chars/mo.
 const ELEVEN_VOICE = process.env.ELEVENLABS_VOICE_ID ?? "ZbAwehCkhEdz5R21COAP"; // Gyaan's chosen SAGE voice
-// eleven_multilingual_v2 is markedly more natural/expressive than turbo (turbo
-// trades quality for latency). Override with ELEVENLABS_MODEL if desired.
-const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_multilingual_v2";
+// Default to the fast flash model everywhere for low latency; the flash voices
+// are still natural. Override with ELEVENLABS_MODEL.
+const ELEVEN_MODEL = process.env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5";
 // Gemini deep male voices: Charon (informative), Gacrux (mature),
 // Algenib (gravelly), Iapetus (clear). Default to the mature, calm one.
 const GEMINI_VOICE = process.env.SAGE_TTS_VOICE ?? "Charon";
 
-// When ElevenLabs reports out-of-credits / rate-limit, skip it for a while so
-// we don't pay a failed round-trip on every request — go straight to Gemini.
-let elevenCooldownUntil = 0;
+/** All configured ElevenLabs keys — one per line/comma across ELEVENLABS_API_KEY
+ *  and ELEVENLABS_API_KEYS. Add several free-tier keys and SAGE rotates through
+ *  them so you effectively never run out. */
+function elevenKeys(): string[] {
+  const raw = `${process.env.ELEVENLABS_API_KEY ?? ""},${process.env.ELEVENLABS_API_KEYS ?? ""}`;
+  return [...new Set(raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean))];
+}
+// Per-key cooldown when a key reports out-of-credits / rate-limit.
+const keyCooldown = new Map<string, number>();
 
 /**
  * Neural TTS. Prefers ElevenLabs (richer, truly British) when
@@ -32,24 +38,21 @@ export async function POST(req: Request) {
   if (!text?.trim()) return new Response("Empty", { status: 400 });
   const clean = text.slice(0, 1400);
 
-  // ── ElevenLabs (premium) ──────────────────────────────────
-  // Off by default so SAGE runs purely free. Set ELEVENLABS_ENABLED=1 to use it.
-  const elevenKey = process.env.ELEVENLABS_ENABLED === "1" ? process.env.ELEVENLABS_API_KEY : undefined;
-  if (elevenKey && Date.now() > elevenCooldownUntil) {
+  // ── ElevenLabs (primary) — rotate across keys, skip exhausted ones ──
+  const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? ELEVEN_MODEL) : ELEVEN_MODEL;
+  const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
+  const path = stream
+    ? `${ELEVEN_VOICE}/stream?output_format=${fmt}&optimize_streaming_latency=4`
+    : `${ELEVEN_VOICE}?output_format=${fmt}`;
+  const now = Date.now();
+  for (const key of elevenKeys()) {
+    if ((keyCooldown.get(key) ?? 0) > now) continue; // this key is out of credits — skip
     try {
-      // flash_v2_5 ≈ 75ms model latency (vs multilingual_v2's ~hundreds of ms);
-      // the /stream endpoint + latency optimizer + lighter bitrate get audio to
-      // the client almost immediately for briefs.
-      const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? "eleven_flash_v2_5") : ELEVEN_MODEL;
-      const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
-      const path = stream
-        ? `${ELEVEN_VOICE}/stream?output_format=${fmt}&optimize_streaming_latency=3`
-        : `${ELEVEN_VOICE}?output_format=${fmt}`;
       const res = await proxyFetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${path}`,
         {
           method: "POST",
-          headers: { "xi-api-key": elevenKey, "content-type": "application/json" },
+          headers: { "xi-api-key": key, "content-type": "application/json" },
           body: JSON.stringify({
             text: clean,
             model_id: model,
@@ -59,25 +62,21 @@ export async function POST(req: Request) {
         },
       );
       if (res.ok) {
-        // Stream the bytes straight through so playback can begin on chunk 1.
         if (stream && res.body) {
           return new Response(res.body, { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
         }
-        return new Response(await res.arrayBuffer(), {
-          headers: { "content-type": "audio/mpeg", "cache-control": "no-store" },
-        });
+        return new Response(await res.arrayBuffer(), { headers: { "content-type": "audio/mpeg", "cache-control": "no-store" } });
       }
-      // Out of credits / rate-limited → back off for 30 min and use Gemini.
+      // Out of credits / rate-limited → cool this key down; try the next one.
       if (res.status === 401 || res.status === 402 || res.status === 429) {
-        elevenCooldownUntil = Date.now() + 30 * 60_000;
+        keyCooldown.set(key, Date.now() + 6 * 3600_000); // 6h; credits reset monthly but this avoids hammering
       }
-      // fall through on failure
     } catch {
-      // fall through
+      // network — try next key
     }
   }
 
-  // ── Microsoft Edge neural TTS (free, smart, streaming MP3) — default voice ──
+  // ── Microsoft Edge neural TTS (free, streaming MP3) — fallback ──
   if (process.env.SAGE_DISABLE_EDGE !== "1") {
     const edge = await edgeSpeak(clean);
     if (edge) {

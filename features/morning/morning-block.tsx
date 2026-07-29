@@ -28,7 +28,7 @@ const STEPS: Step[] = [
   { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "#5ecfd6" },
 ];
 
-interface Synthesis { summary: string; connections: string[]; watch: string[]; actions: string[] }
+interface Synthesis { summary: string; connections: string[]; watch: string[]; actions: string[]; spoken?: string }
 interface Video { id: string; title: string; channel: string; thumb: string }
 
 interface Headline { source: string; title: string; link: string; published: number; image?: string }
@@ -104,12 +104,8 @@ export function MorningBlock() {
       } else if (step.kind === "synthesis") {
         const j = await fetch("/api/morning/synthesis").then((r) => r.json()).catch(() => null);
         const data: Synthesis | null = j?.data ?? null;
-        if (!cancel) {
-          setSyn(data);
-          // Speak the brief aloud automatically (arriving here is a user gesture,
-          // so autoplay is allowed) — unless muted.
-          if (data?.summary && sound.isOn()) speakText(synText(data));
-        }
+        // Do NOT auto-play — SAGE only speaks when you press Listen.
+        if (!cancel) setSyn(data);
       }
       if (!cancel) setLoading(false);
     })();
@@ -147,7 +143,9 @@ export function MorningBlock() {
 
   const speakSynthesis = () => {
     if (speaking) { stopSpeak(); return; }
-    if (syn) speakText(synText(syn));
+    // Speak the distinct short spoken script — the insight + a suggestion —
+    // not the on-screen text. Falls back to the summary if unavailable.
+    if (syn) speakText(syn.spoken?.trim() || synText(syn));
   };
 
   const saveBrief = async () => {

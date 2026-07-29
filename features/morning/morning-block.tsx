@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Mail, Newspaper, Coins, Cpu, TrendingUp, Code2, Check, ChevronRight,
-  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart, Volume2, Square, Video, Play,
+  ExternalLink, Loader2, CheckCircle2, RotateCcw, Sparkles, Link2, Plus, FileText, CandlestickChart, Volume2, Square, Video, Play, Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -74,6 +74,8 @@ export function MorningBlock() {
   const [summaries, setSummaries] = useState<Record<string, { loading: boolean; summary?: string }>>({});
   const [openArticle, setOpenArticle] = useState<string | null>(null);
   const [savedTasks, setSavedTasks] = useState<Set<string>>(new Set());
+  // suggestion → automation state: "designing" while the AI builds it, name once deployed
+  const [autos, setAutos] = useState<Record<string, { state: "designing" | "done" | "error"; name?: string }>>({});
   const [savedNote, setSavedNote] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -134,6 +136,25 @@ export function MorningBlock() {
   const addTask = async (title: string) => {
     setSavedTasks((s) => new Set(s).add(title));
     await fetch("/api/task", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }).catch(() => {});
+  };
+
+  // Turn a suggested action into a deployed, recurring automation (SAGE designs it).
+  const automate = async (suggestion: string) => {
+    if (autos[suggestion]?.state === "designing" || autos[suggestion]?.state === "done") return;
+    setAutos((a) => ({ ...a, [suggestion]: { state: "designing" } }));
+    try {
+      const j = await fetch("/api/automation/suggest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ suggestion }),
+      }).then((r) => r.json());
+      setAutos((a) => ({
+        ...a,
+        [suggestion]: j?.ok ? { state: "done", name: j.data?.name } : { state: "error" },
+      }));
+    } catch {
+      setAutos((a) => ({ ...a, [suggestion]: { state: "error" } }));
+    }
   };
 
   const stopSpeak = useCallback(() => {
@@ -358,14 +379,40 @@ export function MorningBlock() {
 
                 {syn.actions.length > 0 && (
                   <div className="mb-synsec">
-                    <span className="lbl !text-[9px]">SUGGESTED ACTIONS · TAP TO ADD</span>
+                    <span className="lbl !text-[9px]">WHAT TO DO NEXT · ADD AS TASK OR AUTOMATE IT</span>
                     <div className="mb-synacts">
-                      {syn.actions.map((a, i) => (
-                        <button key={i} onClick={() => addTask(a)} disabled={savedTasks.has(a)} className="mb-synact">
-                          {savedTasks.has(a) ? <Check className="size-3.5" /> : <Plus className="size-3.5" />} {a}
-                        </button>
-                      ))}
+                      {syn.actions.map((a, i) => {
+                        const auto = autos[a];
+                        return (
+                          <div key={i} className="mb-synactrow">
+                            <button onClick={() => addTask(a)} disabled={savedTasks.has(a)} className="mb-synact">
+                              {savedTasks.has(a) ? <Check className="size-3.5" /> : <Plus className="size-3.5" />} {a}
+                            </button>
+                            <button
+                              onClick={() => automate(a)}
+                              disabled={auto?.state === "designing" || auto?.state === "done"}
+                              title="Let SAGE design a recurring automation for this"
+                              className={cn("mb-synauto", auto?.state === "done" && "done", auto?.state === "error" && "err")}
+                            >
+                              {auto?.state === "designing" ? (
+                                <><Loader2 className="size-3.5 animate-spin" /> Designing…</>
+                              ) : auto?.state === "done" ? (
+                                <><Check className="size-3.5" /> Automated</>
+                              ) : auto?.state === "error" ? (
+                                <><Zap className="size-3.5" /> Retry</>
+                              ) : (
+                                <><Zap className="size-3.5" /> Automate</>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
+                    {Object.values(autos).some((v) => v.state === "done") && (
+                      <Link href="/automations" className="mb-synautolink">
+                        <Zap className="size-3" /> View in Automations →
+                      </Link>
+                    )}
                   </div>
                 )}
 

@@ -671,10 +671,17 @@
 .mb-synwatchhead { display: flex; align-items: center; justify-content: space-between; }
 .mb-synmkt { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); text-decoration: none; border: 1px solid var(--live-dim); padding: 4px 8px; border-radius: 6px; }
 .mb-synmkt:hover { background: color-mix(in srgb, var(--live) 12%, transparent); }
-.mb-synacts { display: flex; flex-wrap: wrap; gap: 8px; }
-.mb-synact { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px 11px; border-radius: 8px; cursor: pointer; text-align: left; transition: .15s; }
+.mb-synacts { display: flex; flex-direction: column; gap: 8px; }
+.mb-synactrow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+.mb-synact { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px 11px; border-radius: 8px; cursor: pointer; text-align: left; transition: .15s; }
 .mb-synact:hover { border-color: var(--live-dim); color: var(--foreground); }
 .mb-synact:disabled { color: var(--live); border-color: var(--live-dim); opacity: .8; cursor: default; }
+.mb-synauto { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-family: var(--mono); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: #c79bff; background: color-mix(in srgb, #a855f7 12%, transparent); border: 1px solid color-mix(in srgb, #a855f7 40%, transparent); padding: 7px 11px; border-radius: 8px; cursor: pointer; transition: .15s; }
+.mb-synauto:hover:not(:disabled) { background: color-mix(in srgb, #a855f7 22%, transparent); color: #e2ccff; }
+.mb-synauto.done { color: var(--live); border-color: var(--live-dim); background: none; cursor: default; }
+.mb-synauto.err { color: #f6a; border-color: color-mix(in srgb, #f6a 40%, transparent); background: none; }
+.mb-synautolink { align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; margin-top: 2px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #c79bff; text-decoration: none; }
+.mb-synautolink:hover { color: #e2ccff; }
 .mb-synsave { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 8px 12px; border-radius: 8px; cursor: pointer; }
 .mb-synsave:hover { color: var(--foreground); border-color: var(--border-glass-strong); }
 .mb-synsave:disabled { color: var(--live); border-color: var(--live-dim); }

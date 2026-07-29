@@ -50,6 +50,40 @@ export async function deleteHolding(id: string): Promise<void> {
   await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
 }
 
+/**
+ * Bulk-import holdings (e.g. from a CSV). Rows matching an existing symbol+kind
+ * are merged (weighted-average cost); new symbols are inserted. Returns counts.
+ */
+export async function bulkImport(rows: Partial<Holding>[]): Promise<{ added: number; merged: number }> {
+  const existing = await listHoldings();
+  const bySym = new Map(existing.map((h) => [`${h.kind}:${h.symbol.toUpperCase()}`, h]));
+  let added = 0;
+  let merged = 0;
+  for (const r of rows) {
+    const symbol = (r.symbol ?? "").toUpperCase().trim();
+    if (!symbol) continue;
+    const kind: Holding["kind"] = r.kind === "stock" ? "stock" : "crypto";
+    const qty = Number(r.qty) || 0;
+    const avgCost = Number(r.avgCost) || 0;
+    if (qty <= 0) continue;
+    const prior = bySym.get(`${kind}:${symbol}`);
+    if (prior) {
+      // weighted-average the cost basis across the combined quantity
+      const totalQty = prior.qty + qty;
+      const newAvg = totalQty > 0 ? (prior.qty * prior.avgCost + qty * avgCost) / totalQty : avgCost;
+      await upsertHolding({ id: prior.id, qty: totalQty, avgCost: newAvg });
+      prior.qty = totalQty;
+      prior.avgCost = newAvg;
+      merged++;
+    } else {
+      const id = await upsertHolding({ symbol, kind, qty, avgCost, thesis: r.thesis ?? null });
+      bySym.set(`${kind}:${symbol}`, { id, symbol, kind, qty, avgCost, thesis: r.thesis ?? null });
+      added++;
+    }
+  }
+  return { added, merged };
+}
+
 /** Price a stock symbol via the internal quotes endpoint. */
 async function stockPrices(symbols: string[], origin: string, cookie: string): Promise<Record<string, { price: number; changePct: number }>> {
   if (!symbols.length) return {};

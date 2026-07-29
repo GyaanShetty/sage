@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 interface Alert { level: "info" | "warn" | "high"; icon: string; text: string }
 
 /** Proactive situation report strip — SAGE surfaces what needs attention. */
-export function SitrepBand() {
+export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [at, setAt] = useState("");
 
@@ -17,6 +17,23 @@ export function SitrepBand() {
   }, []);
 
   if (!alerts || alerts.length === 0) return null;
+
+  // Compact form lives inside the dashboard rail, where vertical space is tight.
+  if (compact) {
+    return (
+      <div className="cell sitrep-cell">
+        <div className="bh"><span className="t">Sitrep</span><span className="i">SIT</span><span className="r">{at}</span></div>
+        <div className="sitrep-row compact">
+          {alerts.map((a, i) => (
+            <div className={`sitrep-chip ${a.level}`} key={i}>
+              <span className="sc-ic">{a.icon}</span>
+              <span className="sc-tx">{a.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="section" id="sitrep" style={{ paddingBottom: 0 }}>

@@ -12,7 +12,6 @@ import { LearnBand } from "@/features/dashboard/components/learn-band";
 import { StreamsBand } from "@/features/dashboard/components/streams-band";
 import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
 import { EisenhowerBand } from "@/features/dashboard/components/eisenhower-band";
-import { SitrepBand } from "@/features/dashboard/components/sitrep-band";
 import { DashboardLayout } from "@/features/dashboard/components/dashboard-layout";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
@@ -153,7 +152,6 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <SitrepBand />
       <DashboardLayout bands={bands} />
     </div>
   );

@@ -10,6 +10,8 @@ import { TaskManager } from "./task-manager";
 import { ExpandableCell } from "./expandable-cell";
 import { ScheduleManager } from "./schedule-manager";
 import { WorldView } from "@/features/atlas/world-view";
+import { SitrepBand } from "./sitrep-band";
+import { NextAction } from "./next-action";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
@@ -199,6 +201,7 @@ export function CommandView({
           </div>
 
           <aside className="heart-side left">
+            <SitrepBand compact />
               <ExpandableCell title="Intelligence" tag="MEMORY CORE">
                 <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
                 <div className="counters" style={{ margin: 0 }}>
@@ -228,6 +231,7 @@ export function CommandView({
           </aside>
 
           <aside className="heart-side right">
+            <NextAction />
               <ExpandableCell title="Bhagavad Gita" tag="श्लोक" className="gita">
                 <div className="bh"><span className="t">Gita</span><span className="i">श्लोक</span></div>
                 <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>

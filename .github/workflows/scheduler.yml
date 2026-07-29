@@ -1,0 +1,35 @@
+name: SAGE scheduler
+
+# Free, reliable scheduler for the /api/cron tick. Vercel Hobby crons only
+# fire once/day, so GitHub Actions drives the day's notification windows:
+#   • 5am IST  (23:30 UTC prev day) — morning brief
+#   • 9am IST  (03:30 UTC)          — market brief
+#   • 6pm IST  (12:30 UTC)          — pending-tasks brief + LeetCode nudge
+# Each window is 3h wide server-side, so Actions' scheduling drift is fine.
+#
+# Repo setup (Settings → Secrets and variables → Actions):
+#   • Variable  SAGE_URL     = https://your-app.vercel.app
+#   • Secret    CRON_SECRET  = same value as the Vercel env var
+
+on:
+  schedule:
+    - cron: "30 23 * * *" # 5:00 IST — morning
+    - cron: "30 3 * * *"  # 9:00 IST — markets
+    - cron: "30 12 * * *" # 18:00 IST — pending tasks
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/cron
+        run: |
+          if [ -z "${SAGE_URL}" ]; then
+            echo "SAGE_URL variable not set — skipping."; exit 0
+          fi
+          curl -sS -m 120 -X GET "${SAGE_URL%/}/api/cron" \
+            -H "authorization: Bearer ${CRON_SECRET}" \
+            -w "\nHTTP %{http_code}\n" || true
+        env:
+          SAGE_URL: ${{ vars.SAGE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

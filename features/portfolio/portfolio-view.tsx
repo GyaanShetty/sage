@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Plus, Trash2, Loader2, Newspaper, Wallet, PencilLine, RefreshCw, Receipt, Sparkles, Send, X } from "lucide-react";
+import Link from "next/link";
+import { Plus, Trash2, Loader2, Newspaper, Wallet, PencilLine, RefreshCw, Receipt, Sparkles, Send, X, Search, Upload, Download, TrendingUp, TrendingDown, PieChart, CandlestickChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
+
+interface SymbolHit { symbol: string; name: string; exchange: string; kind: "crypto" | "stock" }
 
 interface Position {
   id: string; symbol: string; kind: "crypto" | "stock"; qty: number; avgCost: number; thesis?: string | null;
@@ -15,6 +18,12 @@ interface NewsLink { symbol: string; title: string; link: string; source: string
 interface Expense { id: string; amount: number; merchant: string; category: string; date: string; recurring: boolean }
 interface Summary { total: number; byCategory: Record<string, number>; recurring: { merchant: string; amount: number }[] }
 const CATS = ["food", "transport", "shopping", "subscriptions", "bills", "entertainment", "health", "other"];
+// symbol → CoinGecko id, for pushing crypto holdings into the Markets watchlist
+const CRYPTO_IDS: Record<string, string> = {
+  BTC: "bitcoin", ETH: "ethereum", SOL: "solana", LINK: "chainlink", ADA: "cardano",
+  DOT: "polkadot", MATIC: "matic-network", DOGE: "dogecoin", AVAX: "avalanche-2",
+  XRP: "ripple", BNB: "binancecoin", LTC: "litecoin", ARB: "arbitrum", OP: "optimism",
+};
 const inr = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 
 const fmt = (n: number | null, d = 2) => (n == null ? "—" : n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -26,6 +35,14 @@ export function PortfolioView() {
   const [news, setNews] = useState<NewsLink[]>([]);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ symbol: "", kind: "crypto", qty: "", avgCost: "", thesis: "" });
+  // symbol search (typeahead) for the add form
+  const [hits, setHits] = useState<SymbolHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // csv import
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [editThesis, setEditThesis] = useState<string | null>(null);
   const [thesisText, setThesisText] = useState("");
   // expenses
@@ -72,8 +89,66 @@ export function PortfolioView() {
     setAdding(false);
     await fetch("/api/portfolio", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ symbol: form.symbol, kind: form.kind, qty: Number(form.qty), avgCost: Number(form.avgCost), thesis: form.thesis.trim() || null }) });
     setForm({ symbol: "", kind: "crypto", qty: "", avgCost: "", thesis: "" });
+    setHits([]);
     load();
   };
+
+  // typeahead symbol search (debounced)
+  const onSymbol = (v: string) => {
+    setForm((f) => ({ ...f, symbol: v }));
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (v.trim().length < 1) { setHits([]); return; }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      const j = await fetch(`/api/market/search?q=${encodeURIComponent(v.trim())}`).then((r) => r.json()).catch(() => null);
+      setHits(j?.data ?? []);
+      setSearching(false);
+    }, 250);
+  };
+  const pickHit = (h: SymbolHit) => {
+    setForm((f) => ({ ...f, symbol: h.symbol, kind: h.kind }));
+    setHits([]);
+  };
+
+  // CSV export of current holdings
+  const exportCsv = () => {
+    const rows = [["symbol", "kind", "qty", "avgCost", "thesis"]];
+    for (const p of positions ?? []) rows.push([p.symbol, p.kind, String(p.qty), String(p.avgCost), (p.thesis ?? "").replace(/,/g, ";")]);
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `sage-portfolio-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+  // CSV import from a chosen file
+  const importCsv = async (file: File) => {
+    setImporting(true); setImportMsg(null);
+    try {
+      const csv = await file.text();
+      const j = await fetch("/api/portfolio/import", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ csv }) }).then((r) => r.json());
+      if (j?.ok) { setImportMsg(`Imported ${j.data.added} new · merged ${j.data.merged}`); load(); }
+      else setImportMsg(j?.error ?? "Import failed — check the columns (symbol, kind, qty, avgCost).");
+    } catch { setImportMsg("Couldn't read that file."); }
+    finally { setImporting(false); if (fileRef.current) fileRef.current.value = ""; }
+  };
+
+  // add a holding to the Markets watchlist (bidirectional markets↔portfolio link)
+  const [tracked, setTracked] = useState<Set<string>>(new Set());
+  const trackInMarkets = (p: Position) => {
+    try {
+      const raw = localStorage.getItem("sage-market-config");
+      const cfg = raw ? JSON.parse(raw) : { indices: ["^NSEI", "^BSESN"], stocks: [], crypto: [] };
+      if (p.kind === "crypto") {
+        const id = CRYPTO_IDS[p.symbol.toUpperCase()] ?? p.symbol.toLowerCase();
+        if (!cfg.crypto.includes(id)) cfg.crypto = [...cfg.crypto, id];
+      } else {
+        if (!cfg.stocks.includes(p.symbol)) cfg.stocks = [...cfg.stocks, p.symbol];
+      }
+      localStorage.setItem("sage-market-config", JSON.stringify(cfg));
+      setTracked((s) => new Set(s).add(p.id));
+    } catch { /* ignore */ }
+  };
+
   const remove = async (id: string) => { setPositions((p) => p?.filter((x) => x.id !== id) ?? p); await fetch(`/api/portfolio?id=${id}`, { method: "DELETE" }); };
   const saveThesis = async (id: string) => {
     setEditThesis(null);
@@ -83,12 +158,36 @@ export function PortfolioView() {
 
   const up = (totals?.pnl ?? 0) >= 0;
 
+  // ── living-tracker metrics, derived from live positions ──────────────
+  const priced = (positions ?? []).filter((p) => p.value != null && p.value > 0);
+  const totalValue = totals?.value ?? 0;
+  // today's move: Σ value × 24h% (uses each position's live change)
+  const dayChange = priced.reduce((a, p) => a + (p.value ?? 0) * ((p.change24h ?? 0) / 100), 0);
+  const dayPrevValue = priced.reduce((a, p) => a + (p.value ?? 0) / (1 + (p.change24h ?? 0) / 100), 0);
+  const dayPct = dayPrevValue > 0 ? (dayChange / dayPrevValue) * 100 : 0;
+  const dayUp = dayChange >= 0;
+  // allocation by position (share of total value), largest first
+  const allocation = [...priced]
+    .map((p) => ({ symbol: p.symbol, kind: p.kind, value: p.value ?? 0, pct: totalValue > 0 ? ((p.value ?? 0) / totalValue) * 100 : 0, change24h: p.change24h }))
+    .sort((a, b) => b.value - a.value);
+  // biggest movers today (by 24h %), needs at least a couple of priced names
+  const movers = priced.filter((p) => p.change24h != null).sort((a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0));
+  const topGainer = [...movers].sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0))[0];
+  const topLoser = [...movers].sort((a, b) => (a.change24h ?? 0) - (b.change24h ?? 0))[0];
+  const allocTint = ["#5ecfd6", "#a855f7", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#f87171", "#c4b5fd"];
+
   return (
     <div className="pf-wrap">
       <div className="cc-head">
         <div className="sectitle" style={{ marginBottom: 0 }}><span className="sn">PF</span><h2>Portfolio</h2><span className="line" /><span className="tag">LIVE P&amp;L · NEWS-LINKED</span></div>
-        <button onClick={() => setAdding((s) => !s)} className="cc-btn cc-scan"><Plus className="size-3.5" /> Add holding</button>
+        <div className="pf-headbtns">
+          <input ref={fileRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); }} />
+          <button onClick={() => fileRef.current?.click()} disabled={importing} className="cc-btn" title="Import holdings from CSV">{importing ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />} Import</button>
+          <button onClick={exportCsv} disabled={!positions?.length} className="cc-btn" title="Export holdings to CSV"><Download className="size-3.5" /> Export</button>
+          <button onClick={() => setAdding((s) => !s)} className="cc-btn cc-scan"><Plus className="size-3.5" /> Add holding</button>
+        </div>
       </div>
+      {importMsg && <div className="pf-importmsg">{importMsg}</div>}
 
       {/* totals */}
       {totals && (
@@ -96,6 +195,37 @@ export function PortfolioView() {
           <div className="pf-tcard"><span className="pf-tk">TOTAL VALUE</span><span className="pf-tv">{money(totals.value)}</span></div>
           <div className="pf-tcard"><span className="pf-tk">COST BASIS</span><span className="pf-tv">{money(totals.cost)}</span></div>
           <div className="pf-tcard"><span className="pf-tk">UNREALIZED P&amp;L</span><span className={cn("pf-tv", up ? "pf-up" : "pf-dn")}>{money(totals.pnl)} <small>({up ? "+" : ""}{fmt(totals.pnlPct, 1)}%)</small></span></div>
+          <div className="pf-tcard"><span className="pf-tk">TODAY</span><span className={cn("pf-tv", dayUp ? "pf-up" : "pf-dn")}>{money(dayChange)} <small>({dayUp ? "+" : ""}{fmt(dayPct, 1)}%)</small></span></div>
+        </div>
+      )}
+
+      {/* living tracker: allocation + movers */}
+      {priced.length > 0 && (
+        <div className="pf-live">
+          <div className="pf-alloc">
+            <div className="sectitle" style={{ margin: "0 0 10px" }}><span className="sn"><PieChart className="size-3.5" /></span><h2 style={{ fontSize: 14 }}>Allocation</h2><span className="line" /></div>
+            <div className="pf-allocbar">
+              {allocation.map((a, i) => <span key={a.symbol} style={{ width: `${a.pct}%`, background: allocTint[i % allocTint.length] }} title={`${a.symbol} · ${fmt(a.pct, 1)}%`} />)}
+            </div>
+            <div className="pf-alloclegend">
+              {allocation.slice(0, 6).map((a, i) => (
+                <span key={a.symbol} className="pf-alloclg"><i style={{ background: allocTint[i % allocTint.length] }} />{a.symbol} <b>{fmt(a.pct, 1)}%</b></span>
+              ))}
+            </div>
+          </div>
+          {(topGainer || topLoser) && (
+            <div className="pf-movers">
+              <div className="sectitle" style={{ margin: "0 0 10px" }}><span className="sn"><CandlestickChart className="size-3.5" /></span><h2 style={{ fontSize: 14 }}>Today’s movers</h2><span className="line" /><Link href="/markets" className="pf-mktlink"><CandlestickChart className="size-3" /> Markets</Link></div>
+              <div className="pf-moverrow">
+                {topGainer && (
+                  <div className="pf-mover"><TrendingUp className="size-4 pf-up" /><span className="pf-moversym">{topGainer.symbol}</span><span className="pf-up">{(topGainer.change24h ?? 0) >= 0 ? "+" : ""}{fmt(topGainer.change24h, 1)}%</span></div>
+                )}
+                {topLoser && topLoser.symbol !== topGainer?.symbol && (
+                  <div className="pf-mover"><TrendingDown className="size-4 pf-dn" /><span className="pf-moversym">{topLoser.symbol}</span><span className="pf-dn">{fmt(topLoser.change24h, 1)}%</span></div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -103,7 +233,22 @@ export function PortfolioView() {
         {adding && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
             <div className="pf-addform">
-              <input value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })} placeholder="Symbol (BTC, AAPL…)" style={{ textTransform: "uppercase" }} />
+              <div className="pf-symsearch">
+                <Search className="size-3.5 pf-symsearchico" />
+                <input value={form.symbol} onChange={(e) => onSymbol(e.target.value)} placeholder="Search symbol — BTC, Apple, RELIANCE…" autoComplete="off" />
+                {searching && <Loader2 className="size-3.5 animate-spin pf-symsearchspin" />}
+                {hits.length > 0 && (
+                  <div className="pf-symresults">
+                    {hits.map((h) => (
+                      <button key={h.symbol} type="button" onClick={() => pickHit(h)} className="pf-symhit">
+                        <span className="pf-symhitsym">{h.symbol}</span>
+                        <span className="pf-symhitname">{h.name}</span>
+                        <span className="pf-symhitex">{h.kind === "crypto" ? "crypto" : h.exchange || "stock"}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}><option value="crypto">Crypto</option><option value="stock">Stock</option></select>
               <input value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} placeholder="Quantity" type="number" />
               <input value={form.avgCost} onChange={(e) => setForm({ ...form, avgCost: e.target.value })} placeholder="Avg cost / unit" type="number" />
@@ -131,6 +276,7 @@ export function PortfolioView() {
                 <span>{money(p.value)}</span>
                 <span className={cn(pu ? "pf-up" : "pf-dn")}>{money(p.pnl)}<small> {p.pnlPct == null ? "" : `${pu ? "+" : ""}${fmt(p.pnlPct, 1)}%`}</small></span>
                 <span className="pf-rowbtns">
+                  <button onClick={() => trackInMarkets(p)} title={tracked.has(p.id) ? "Tracking in Markets" : "Track in Markets"} className={cn(tracked.has(p.id) && "pf-tracked")}><CandlestickChart className="size-3.5" /></button>
                   <button onClick={() => { setEditThesis(p.id); setThesisText(p.thesis ?? ""); }} title="Thesis"><PencilLine className="size-3.5" /></button>
                   <button onClick={() => remove(p.id)} title="Remove" className="cc-del"><Trash2 className="size-3.5" /></button>
                 </span>

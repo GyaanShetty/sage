@@ -962,3 +962,102 @@
 .mb-heatgrid { display: flex; gap: 3px; margin-top: 8px; overflow-x: auto; padding-bottom: 4px; }
 .mb-heatcol { display: flex; flex-direction: column; gap: 3px; }
 .mb-heatcol span { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 11px; }
+
+/* ── maximalist density pass ────────────────────────────────────
+   The rails were sparse: large type, generous padding, few blocks.
+   Everything below tightens the grid so more fits per screen. */
+
+/* Map view's HUD sat at top-left, exactly under the greeting. Inside the
+   heart it moves to the bottom, clear of the greeting and the side rails. */
+.heart .atlas-hud { top: auto; bottom: 84px; left: 306px; max-width: calc(100% - 620px); }
+.heart .atlas-note { display: none; }
+.heart .atlas { height: 100%; border: 0; }
+.heart .atlas-ticker { bottom: 62px; }
+
+/* wider rails, tighter inside */
+.heart-side { width: 312px; top: 58px; bottom: 74px; gap: 1px; }
+.heart-side .cell,
+.heart-side .expandable { padding: 9px 11px; }
+
+/* block headers shrink */
+.heart-side .bh { margin-bottom: 7px; }
+.heart-side .bh .t { font-size: 10px; letter-spacing: .4px; }
+.heart-side .bh .i,
+.heart-side .bh .r { font-size: 7px; letter-spacing: 1.2px; }
+
+/* counters: 4-up instead of 2x2, smaller numerals */
+.heart-side .counters { grid-template-columns: repeat(4, 1fr) !important; gap: 1px; }
+.heart-side .counters .ct { padding: 7px 4px; }
+.heart-side .counters .cv { font-size: 17px; }
+.heart-side .counters .ck { font-size: 6.5px; letter-spacing: .8px; }
+
+/* notes + agenda rows condense */
+.heart-side .notein input { height: 28px; font-size: 11px; }
+.heart-side .notein button { height: 28px; font-size: 8px; padding: 0 9px; }
+.heart-side .note { padding: 5px 0; }
+.heart-side .ntx { font-size: 11px; }
+.heart-side .nt2 { font-size: 7.5px; }
+.heart-side .ag { padding: 5px 0; }
+.heart-side .ag .tm { font-size: 7.5px; }
+.heart-side .ag .en2 { font-size: 11px; }
+.heart-side .ag .el2 { font-size: 6.5px; }
+
+/* gita is the biggest block — cap it so the rail holds more */
+.heart-side .gita .dev { font-size: 12px; line-height: 1.55; }
+.heart-side .gita .tr { font-size: 9px; }
+.heart-side .gita .en { font-size: 11px; line-height: 1.5; }
+.heart-side .gita .src { font-size: 7px; }
+.heart-side .nxt { font-size: 7.5px; padding: 3px 6px; }
+
+/* calendar grid tightens */
+.heart-side .cal { gap: 1px; }
+.heart-side .cal .dh { font-size: 6.5px; }
+.heart-side .cal .d { font-size: 9px; padding: 3px 0; }
+
+/* sitrep, relocated into the rail */
+.sitrep-cell .sitrep-row.compact { flex-direction: column; gap: 4px; }
+.sitrep-cell .sitrep-row.compact .sitrep-chip { padding: 6px 9px; gap: 7px; width: 100%; }
+.sitrep-cell .sitrep-row.compact .sc-tx { font-size: 10.5px; line-height: 1.4; }
+.sitrep-cell .sitrep-row.compact .sc-ic { font-size: 10px; }
+
+/* greeting steps back so the globe reads as the hero */
+.hh-name { font-size: clamp(17px, 1.9vw, 25px); }
+.hh-sub { font-size: 7px; letter-spacing: 2px; }
+
+/* readout strip: more cells, smaller */
+.hs-stat { padding: 7px 11px; }
+.hs-v { font-size: 16px; }
+.hs-k { font-size: 6.5px; letter-spacing: 1.4px; }
+
+@media (max-width: 1180px) {
+  .heart-side { width: 264px; }
+  .heart .atlas-hud { left: 278px; max-width: calc(100% - 566px); }
+}
+@media (max-width: 900px) {
+  .heart .atlas-hud { left: 12px; bottom: 12px; max-width: calc(100% - 24px); }
+  .heart-side { width: auto; }
+}
+
+/* what-now block */
+.na-cell { display: flex; flex-direction: column; gap: 7px; }
+.na-add { display: flex; gap: 5px; }
+.na-add input { flex: 1; min-width: 0; height: 26px; background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 10.5px; padding: 0 8px; outline: none; }
+.na-add input:focus { border-color: var(--live-dim); }
+.na-add button { flex: 0 0 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; background: var(--glass); border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer; }
+.na-add button:hover:not(:disabled) { color: var(--live); border-color: var(--live-dim); }
+.na-done { font-size: 9.5px; color: var(--live); line-height: 1.45; }
+.na-go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px; cursor: pointer; }
+.na-go:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.na-dim { font-size: 10px; color: var(--subtle); }
+.na-pick { display: flex; flex-direction: column; gap: 4px; border-left: 2px solid var(--live-dim); padding-left: 8px; }
+.na-title { font-size: 12px; color: var(--foreground); line-height: 1.35; }
+.na-reason { font-size: 10px; color: var(--subtle); line-height: 1.45; }
+.na-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.na-mins { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--live); }
+.na-mini { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 4px 7px; cursor: pointer; }
+.na-mini:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.na-mini.done { color: var(--live); border-color: var(--live-dim); }
+.na-subs { display: flex; flex-direction: column; gap: 4px; }
+.na-sub { display: grid; grid-template-columns: 14px 1fr auto; gap: 6px; align-items: baseline; font-size: 10.5px; color: var(--muted); }
+.na-sub i { font-style: normal; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
+.na-sub b { font-family: var(--mono); font-size: 8px; font-weight: 400; color: var(--subtle); }

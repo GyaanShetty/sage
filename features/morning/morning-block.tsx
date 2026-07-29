@@ -20,12 +20,12 @@ const STEPS: Step[] = [
   { id: "gmail", label: "Gmail", kind: "gmail", icon: Mail, tint: "#e86a6a" },
   { id: "ft", label: "Financial Times", kind: "feed", source: "ft", icon: Newspaper, tint: "#e8a13a" },
   { id: "mint", label: "Mint", kind: "feed", source: "mint", icon: TrendingUp, tint: "#54c98a" },
-  { id: "finexpress", label: "Financial Express", kind: "feed", source: "finexpress", icon: Newspaper, tint: "#5ecfd6" },
+  { id: "finexpress", label: "Financial Express", kind: "feed", source: "finexpress", icon: Newspaper, tint: "#f4f5f7" },
   { id: "coindesk", label: "CoinDesk", kind: "feed", source: "coindesk", icon: Coins, tint: "#e8c14a" },
   { id: "mittr", label: "MIT Tech Review", kind: "feed", source: "mittr", icon: Cpu, tint: "#9a7bff" },
   { id: "watch", label: "Watch", kind: "watch", icon: Video, tint: "#ff4d4d" },
   { id: "leetcode", label: "LeetCode", kind: "leetcode", icon: Code2, tint: "#ffa116" },
-  { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "#5ecfd6" },
+  { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "#f4f5f7" },
 ];
 
 interface Synthesis { summary: string; connections: string[]; watch: string[]; actions: string[]; spoken?: string }
@@ -458,7 +458,7 @@ function LeetHeatmap({ calendar }: { calendar: Record<string, number> }) {
     cols.push(col);
   }
   const level = (c: number) => (c === 0 ? 0 : c < 2 ? 1 : c < 4 ? 2 : c < 7 ? 3 : 4);
-  const shade = ["#1b1c20", "rgba(94,207,214,0.3)", "rgba(94,207,214,0.5)", "rgba(94,207,214,0.75)", "var(--live)"];
+  const shade = ["#1b1c20", "rgba(255, 255, 255,0.3)", "rgba(255, 255, 255,0.5)", "rgba(255, 255, 255,0.75)", "var(--live)"];
   return (
     <div className="mb-heat">
       <span className="lbl !text-[9px]">ACTIVITY · LAST {weeks} WEEKS</span>

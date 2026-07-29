@@ -208,7 +208,7 @@ export function PortfolioView() {
   const movers = priced.filter((p) => p.change24h != null).sort((a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0));
   const topGainer = [...movers].sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0))[0];
   const topLoser = [...movers].sort((a, b) => (a.change24h ?? 0) - (b.change24h ?? 0))[0];
-  const allocTint = ["#5ecfd6", "#a855f7", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#f87171", "#c4b5fd"];
+  const allocTint = ["#f4f5f7", "#a855f7", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#f87171", "#c4b5fd"];
 
   return (
     <div className="pf-wrap">

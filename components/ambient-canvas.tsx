@@ -74,8 +74,8 @@ export function AmbientCanvas() {
         streak.y += streak.vy;
         streak.life -= 0.012;
         const grad = ctx.createLinearGradient(streak.x - streak.vx * 9, streak.y - streak.vy * 9, streak.x, streak.y);
-        grad.addColorStop(0, "rgba(94,207,214,0)");
-        grad.addColorStop(1, `rgba(94,207,214,${0.5 * streak.life})`);
+        grad.addColorStop(0, "rgba(255, 255, 255,0)");
+        grad.addColorStop(1, `rgba(255, 255, 255,${0.5 * streak.life})`);
         ctx.strokeStyle = grad;
         ctx.globalAlpha = 1;
         ctx.lineWidth = 1;

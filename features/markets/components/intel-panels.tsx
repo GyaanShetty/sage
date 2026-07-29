@@ -148,7 +148,7 @@ export function EventsCorrelationPanel({ symbols }: { symbols: string[] }) {
 
   const cell = (v: number) => {
     const m = Math.min(1, Math.abs(v));
-    return v >= 0 ? `rgba(94,207,214,${0.08 + m * 0.6})` : `rgba(248,113,113,${0.08 + m * 0.6})`;
+    return v >= 0 ? `rgba(255, 255, 255,${0.08 + m * 0.6})` : `rgba(248,113,113,${0.08 + m * 0.6})`;
   };
 
   return (

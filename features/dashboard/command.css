@@ -274,7 +274,7 @@
 .geo-map { height: 320px; width: 100%; background: var(--background); z-index: 1; }
 .geo-map .leaflet-container { background: #08090b; }
 .geo-readout { position: absolute; z-index: 500; right: 14px; top: 14px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--live); background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 5px 9px; backdrop-blur: 4px; }
-.geo-home { background: var(--live); border-radius: 50%; box-shadow: 0 0 12px var(--live-glow), 0 0 0 3px rgba(94,207,214,.18); }
+.geo-home { background: var(--live); border-radius: 50%; box-shadow: 0 0 12px var(--live-glow), 0 0 0 3px rgba(255, 255, 255,.18); }
 .geo-dest { background: var(--foreground); border-radius: 50%; box-shadow: 0 0 8px rgba(244,244,245,.5); }
 .leaflet-control-zoom a { background: var(--panel-hi) !important; color: var(--muted) !important; border-color: var(--border-glass) !important; }
 
@@ -374,9 +374,9 @@
 /* ── github contributions ── */
 .ghgrid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 1fr); gap: 2px; overflow-x: auto; padding-bottom: 2px; }
 .ghcell { width: 9px; height: 9px; border-radius: 1px; background: rgba(244,244,245,.05); }
-.ghcell.l1 { background: rgba(94,207,214,.25); }
-.ghcell.l2 { background: rgba(94,207,214,.45); }
-.ghcell.l3 { background: rgba(94,207,214,.7); }
+.ghcell.l1 { background: rgba(255, 255, 255,.25); }
+.ghcell.l2 { background: rgba(255, 255, 255,.45); }
+.ghcell.l3 { background: rgba(255, 255, 255,.7); }
 .ghcell.l4 { background: var(--live); box-shadow: 0 0 4px var(--live-glow); }
 
 /* ── ATLAS intelligence map ── */
@@ -396,7 +396,7 @@
 .atlas-layers { display: flex; flex-wrap: wrap; gap: 6px; }
 .atlas-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 5px 9px; cursor: pointer; backdrop-filter: blur(6px); transition: 0.18s var(--ease); }
 .atlas-chip:hover { color: var(--foreground); border-color: var(--subtle); }
-.atlas-chip.on { color: var(--foreground); border-color: var(--live-dim); background: rgba(94,207,214,.08); }
+.atlas-chip.on { color: var(--foreground); border-color: var(--live-dim); background: rgba(255, 255, 255,.08); }
 .atlas-chip .ac-ic { font-size: 10px; }
 .atlas-chip .ac-live { width: 4px; height: 4px; border-radius: 50%; background: var(--subtle); }
 .atlas-chip.on .ac-live { background: var(--live); box-shadow: 0 0 5px var(--live-glow); animation: dotRipple 2s ease-out infinite; }
@@ -509,7 +509,7 @@
 .wv-layer.on { opacity: 1; visibility: visible; }
 .wv-layer .atlas { height: 100%; border: 0; }
 .wv-toggle { position: absolute; top: 14px; right: 14px; z-index: 6; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: var(--live); background: rgba(8,9,11,.82); border: 1px solid var(--live-dim); padding: 6px 11px; cursor: pointer; backdrop-filter: blur(6px); transition: 0.18s var(--ease); }
-.wv-toggle:hover { background: rgba(94,207,214,.12); }
+.wv-toggle:hover { background: rgba(255, 255, 255,.12); }
 
 /* ── schedule manager (calendar edit) ── */
 .sm-add { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -578,8 +578,8 @@
 .holo-parts .hp-head { font-family: var(--mono); font-size: 8.5px; letter-spacing: 2px; color: var(--subtle); padding: 14px 16px 10px; }
 .holo-parts .hp-scroll { overflow-y: auto; max-height: 42%; padding: 0 8px; }
 .hp-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 8px; background: none; border: 0; border-left: 2px solid transparent; color: var(--muted); cursor: pointer; text-align: left; font-size: 12.5px; }
-.hp-item:hover { color: var(--foreground); background: rgba(94,207,214,.05); }
-.hp-item.on { color: var(--live); border-left-color: var(--live); background: rgba(94,207,214,.08); }
+.hp-item:hover { color: var(--foreground); background: rgba(255, 255, 255,.05); }
+.hp-item.on { color: var(--live); border-left-color: var(--live); background: rgba(255, 255, 255,.08); }
 .hp-item .hp-dot { width: 7px; height: 7px; flex: 0 0 7px; background: var(--live); border-radius: 50%; }
 .hp-detail { border-top: 1px solid var(--border-glass); padding: 14px 16px; overflow-y: auto; flex: 1; }
 .hp-detail .hp-dname { font-weight: 400; font-size: 15px; color: var(--live); }
@@ -611,13 +611,13 @@
 
 /* ── dashboard layout editor (drag to rearrange) ── */
 .layout-toggle { position: fixed; bottom: 76px; left: 16px; z-index: 60; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: var(--live); background: rgba(8,9,11,.85); border: 1px solid var(--live-dim); padding: 8px 12px; cursor: pointer; backdrop-filter: blur(8px); }
-.layout-toggle:hover { background: rgba(94,207,214,.1); }
+.layout-toggle:hover { background: rgba(255, 255, 255,.1); }
 @media (min-width: 768px) { .layout-toggle { bottom: 20px; left: 20px; } }
 .layout-reset { position: fixed; bottom: 76px; left: 148px; z-index: 60; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: var(--subtle); background: rgba(8,9,11,.85); border: 1px solid var(--border-glass); padding: 8px 12px; cursor: pointer; }
 @media (min-width: 768px) { .layout-reset { bottom: 20px; left: 152px; } }
 .band-edit { position: relative; margin: 10px 14px; border: 1px dashed var(--live-dim); cursor: grab; }
 .band-edit:active { cursor: grabbing; }
-.band-handle { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(94,207,214,.08); font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--live); }
+.band-handle { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255, 255, 255,.08); font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--live); }
 .band-preview { pointer-events: none; max-height: 260px; overflow: hidden; position: relative; opacity: 0.75; }
 .band-preview::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, var(--background)); }
 

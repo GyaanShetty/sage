@@ -58,7 +58,7 @@ const INITIAL: LayerDef[] = [
   { key: "seismic", label: "SEISMIC", icon: "◈", on: false, live: true },
 ];
 
-const CYAN = "#5ecfd6";
+const CYAN = "#f4f5f7";
 const AMBER = "#f59e0b";
 /** Land dots — near-white, like a surveillance plot rather than a map. */
 const LAND_DOT = "rgba(255,255,255,0.78)";

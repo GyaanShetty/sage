@@ -24,10 +24,12 @@
   --accent: #f4f5f7;
   --accent-glow: rgba(244, 245, 247, 0.16);
 
-  /* THE accent — soft cyan, used ONLY for online/focus/thinking/success */
-  --live: #5ecfd6;
-  --live-dim: rgba(94, 207, 214, 0.55);
-  --live-glow: rgba(94, 207, 214, 0.35);
+  /* THE accent — pure white, used ONLY for online/focus/thinking/success.
+     Carries meaning through luminance rather than hue, so the whole UI stays
+     monochrome; --live-glow is what makes it read as lit rather than flat. */
+  --live: #ffffff;
+  --live-dim: rgba(255, 255, 255, 0.5);
+  --live-glow: rgba(255, 255, 255, 0.55);
 
   --warn: #d4b106;
   --danger: #e5484d;
@@ -62,7 +64,7 @@ html, body { height: 100%; }
 body {
   /* ambient depth: faint cool light from top, warmth pooling at center */
   background:
-    radial-gradient(120% 60% at 50% -10%, rgba(94, 207, 214, 0.035), transparent 60%),
+    radial-gradient(120% 60% at 50% -10%, rgba(255, 255, 255, 0.035), transparent 60%),
     radial-gradient(80% 50% at 50% 110%, rgba(244, 245, 247, 0.02), transparent 70%),
     var(--background);
   background-attachment: fixed;
@@ -189,14 +191,14 @@ button:active, .chip:active { transform: translateY(1px); }
 
 /* ── radar sweep over the hero globe ── */
 .radar-sweep { position: absolute; inset: 0; margin: auto; width: min(56vh, 450px); aspect-ratio: 1; border-radius: 50%; pointer-events: none; z-index: 1;
-  background: conic-gradient(from 0deg, rgba(94,207,214,0.10) 0deg, rgba(94,207,214,0.028) 26deg, transparent 60deg, transparent 360deg);
+  background: conic-gradient(from 0deg, rgba(255, 255, 255,0.10) 0deg, rgba(255, 255, 255,0.028) 26deg, transparent 60deg, transparent 360deg);
   animation: radarSpin 7s linear infinite; }
 @keyframes radarSpin { to { transform: rotate(360deg); } }
 @media (max-width: 767px) { .radar-sweep { width: min(86vw, 340px); } }
 
 /* ── sectitle line shimmer ── */
 .sectitle .line { position: relative; overflow: hidden; }
-.sectitle .line::after { content: ""; position: absolute; top: 0; bottom: 0; left: -30%; width: 30%; background: linear-gradient(90deg, transparent, rgba(94,207,214,0.5), transparent); animation: lineSweep 5.5s var(--ease) infinite; }
+.sectitle .line::after { content: ""; position: absolute; top: 0; bottom: 0; left: -30%; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255,0.5), transparent); animation: lineSweep 5.5s var(--ease) infinite; }
 @keyframes lineSweep { 0% { left: -30%; } 55%, 100% { left: 105%; } }
 
 /* ── cell hover lift ── */
@@ -222,7 +224,7 @@ button:active, .chip:active { transform: translateY(1px); }
 /* cursor spotlight over the whole app */
 @media (hover: hover) {
   body::after { content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background: radial-gradient(560px circle at var(--spot-x) var(--spot-y), rgba(94,207,214,0.045), transparent 65%); }
+    background: radial-gradient(560px circle at var(--spot-x) var(--spot-y), rgba(255, 255, 255,0.045), transparent 65%); }
 }
 
 /* boot sequence */
@@ -241,9 +243,9 @@ button:active, .chip:active { transform: translateY(1px); }
 /* aurora depth field — two huge blurred drifting glows behind everything */
 body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(38% 30% at 22% 18%, rgba(94,207,214,0.055), transparent 70%),
-    radial-gradient(34% 28% at 78% 78%, rgba(96,120,220,0.045), transparent 70%),
-    radial-gradient(26% 22% at 68% 12%, rgba(94,207,214,0.03), transparent 70%);
+    radial-gradient(38% 30% at 22% 18%, rgba(255, 255, 255,0.055), transparent 70%),
+    radial-gradient(34% 28% at 78% 78%, rgba(255, 255, 255, 0.038), transparent 70%),
+    radial-gradient(26% 22% at 68% 12%, rgba(255, 255, 255,0.03), transparent 70%);
   animation: aurora 26s ease-in-out infinite alternate; filter: blur(30px); }
 @keyframes aurora {
   0% { transform: translate3d(0, 0, 0) scale(1); }
@@ -256,7 +258,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   .grid > .cell, .grid .stack > .cell { position: relative; }
   .grid > .cell::after, .grid .stack > .cell::after {
     content: ""; position: absolute; inset: 0; padding: 1px; pointer-events: none; z-index: 2;
-    background: radial-gradient(340px circle at var(--spot-x) var(--spot-y), rgba(94,207,214,0.5), rgba(94,207,214,0.06) 55%, transparent 70%);
+    background: radial-gradient(340px circle at var(--spot-x) var(--spot-y), rgba(255, 255, 255,0.5), rgba(255, 255, 255,0.06) 55%, transparent 70%);
     background-attachment: fixed;
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
@@ -289,7 +291,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   background: linear-gradient(180deg, #ffffff 15%, #d8d9dd 55%, #8c8e96 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
-.greeting .g2 { text-shadow: 0 0 34px rgba(94,207,214,0.14); }
+.greeting .g2 { text-shadow: 0 0 34px rgba(255, 255, 255,0.14); }
 
 /* scroll progress hairline pinned under the header */
 .scroll-progress { position: fixed; top: 0; left: 0; height: 2px; z-index: 120; width: var(--scroll-p, 0%);

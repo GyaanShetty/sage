@@ -18,7 +18,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/webhook") ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/sw.js" ||
-    pathname.startsWith("/icon-")
+    pathname.startsWith("/icon-") ||
+    pathname.startsWith("/geo/")
   ) {
     return NextResponse.next();
   }

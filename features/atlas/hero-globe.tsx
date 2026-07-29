@@ -58,7 +58,11 @@ const INITIAL: LayerDef[] = [
 ];
 
 const CYAN = "#5ecfd6";
-const COUNTRIES_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const AMBER = "#f59e0b";
+/** Land dots — near-white, like a surveillance plot rather than a map. */
+const LAND_DOT = "rgba(255,255,255,0.78)";
+// Vendored locally (public/geo) — a CDN outage used to leave the globe blank.
+const COUNTRIES_URL = "/geo/countries-110m.json";
 
 export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn?: (c: { lat: number; lng: number }) => void; onCenter?: (c: { lat: number; lng: number }) => void }) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -76,8 +80,8 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
     const g = globeRef.current;
     if (!g) return;
     const arcs: Arc[] = [];
-    if (isOn("air")) for (const c of AIR_CORRIDORS) arcs.push({ sLat: c.from[0], sLng: c.from[1], eLat: c.to[0], eLng: c.to[1], color: CYAN, label: `✦ ${c.name}` });
-    if (isOn("trade")) for (const t of TRADE_ROUTES) for (let i = 0; i < t.path.length - 1; i++) arcs.push({ sLat: t.path[i][0], sLng: t.path[i][1], eLat: t.path[i + 1][0], eLng: t.path[i + 1][1], color: "#f4f4f5", label: `⚓ ${t.name}` });
+    if (isOn("air")) for (const c of AIR_CORRIDORS) arcs.push({ sLat: c.from[0], sLng: c.from[1], eLat: c.to[0], eLng: c.to[1], color: AMBER, label: `✦ ${c.name}` });
+    if (isOn("trade")) for (const t of TRADE_ROUTES) for (let i = 0; i < t.path.length - 1; i++) arcs.push({ sLat: t.path[i][0], sLng: t.path[i][1], eLat: t.path[i + 1][0], eLng: t.path[i + 1][1], color: CYAN, label: `⚓ ${t.name}` });
     g.arcsData(arcs);
 
     const pts: Pt[] = [];
@@ -104,11 +108,12 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
         .showGraticules(true)
         .showAtmosphere(true)
         .atmosphereColor(CYAN)
-        .atmosphereAltitude(0.16)
-        .arcStroke(0.5)
-        .arcDashLength(0.4)
-        .arcDashGap(0.6)
-        .arcDashAnimateTime(2600)
+        .atmosphereAltitude(0.1)
+        // thin, well-spaced dashes read as data flow rather than scratches
+        .arcStroke(0.3)
+        .arcDashLength(0.35)
+        .arcDashGap(1.4)
+        .arcDashAnimateTime(3200)
         .arcColor((d) => d.color)
         .arcStartLat((d) => d.sLat).arcStartLng((d) => d.sLng).arcEndLat((d) => d.eLat).arcEndLng((d) => d.eLng)
         .arcLabel((d) => d.label)
@@ -124,9 +129,10 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
           .renderer().setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
       } catch {}
 
+      // near-black sphere so the land dots carry all the contrast
       const mat = world.globeMaterial();
-      mat.color.set("#0d1013");
-      if (mat.emissive) { mat.emissive.set("#0a1214"); mat.emissiveIntensity = 0.28; }
+      mat.color.set("#05070a");
+      if (mat.emissive) { mat.emissive.set("#070d10"); mat.emissiveIntensity = 0.18; }
 
       // dark hex-dot continents from world-atlas topojson
       try {
@@ -135,7 +141,8 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
         const feats = topojson && topo?.objects?.countries
           ? ((topojson.feature(topo, topo.objects.countries) as unknown) as { features: unknown[] }).features
           : [];
-        world.hexPolygonsData(feats).hexPolygonResolution(3).hexPolygonMargin(0.28).hexPolygonUseDots(true).hexPolygonColor(() => "rgba(94,207,214,0.6)");
+        // resolution 4 + tight margin gives the dense dot-matrix landmass look
+        world.hexPolygonsData(feats).hexPolygonResolution(4).hexPolygonMargin(0.2).hexPolygonUseDots(true).hexPolygonColor(() => LAND_DOT);
       } catch {}
 
       const size = () => { world.width(el.clientWidth).height(el.clientHeight); };
@@ -221,6 +228,10 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
   return (
     <div className="heroglobe">
       <div className="heroglobe-canvas" ref={elRef} />
+      {/* surveillance-HUD framing over the render */}
+      <span className="hg-corner tl" /><span className="hg-corner tr" />
+      <span className="hg-corner bl" /><span className="hg-corner br" />
+      <span className="hg-scan" />
       <div className="heroglobe-layers">
         {layers.map((l) => (
           <button key={l.key} className={`atlas-chip${l.on ? " on" : ""}`} onClick={() => toggle(l.key)}>

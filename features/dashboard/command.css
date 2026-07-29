@@ -426,6 +426,15 @@
 .heroglobe { position: absolute; inset: 0; }
 .heroglobe-canvas { position: absolute; inset: 0; z-index: 1; }
 .heroglobe-canvas canvas { display: block; }
+/* HUD framing over the globe render */
+.hg-corner { position: absolute; width: 18px; height: 18px; border: 1px solid rgba(255,255,255,.22); z-index: 3; pointer-events: none; }
+.hg-corner.tl { top: 10px; left: 10px; border-right: 0; border-bottom: 0; }
+.hg-corner.tr { top: 10px; right: 10px; border-left: 0; border-bottom: 0; }
+.hg-corner.bl { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
+.hg-corner.br { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
+/* slow scanline sweep — reads as a live feed */
+.hg-scan { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .5;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px); }
 .heroglobe .scene-tooltip { font-family: var(--mono) !important; font-size: 9px !important; letter-spacing: .5px; color: var(--foreground) !important; background: rgba(8,9,11,.95); border: 1px solid var(--live-dim); padding: 4px 8px; }
 .heroglobe-layers { position: absolute; left: 14px; bottom: 14px; z-index: 4; display: flex; flex-wrap: wrap; gap: 6px; max-width: 62%; }
 .heroglobe-hint { position: absolute; right: 14px; bottom: 14px; z-index: 4; font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); opacity: .7; text-align: right; }

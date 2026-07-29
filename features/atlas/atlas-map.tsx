@@ -23,7 +23,7 @@ const INITIAL: LayerDef[] = [
   ...(HAS_TRAFFIC ? [{ key: "traffic", label: "TRAFFIC", icon: "🚦", on: false, live: true }] : []),
 ];
 
-const CYAN = "#5ecfd6";
+const CYAN = "#f4f5f7";
 
 export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: number; lon?: number; onZoomOut?: () => void; center?: [number, number] }) {
   const elRef = useRef<HTMLDivElement>(null);

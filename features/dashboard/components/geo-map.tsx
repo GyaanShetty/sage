@@ -36,7 +36,7 @@ export function GeoMap({ lat: LAT = 12.9716, lon: LON = 77.5946 }: { lat?: numbe
 
       const homeIcon = L.divIcon({ className: "geo-home", iconSize: [12, 12] });
       const homeMarker = L.marker([LAT, LON], { icon: homeIcon }).addTo(map);
-      const homeRing = L.circle([LAT, LON], { radius: 400, color: "#5ecfd6", weight: 1, opacity: 0.4, fillOpacity: 0.06 }).addTo(map);
+      const homeRing = L.circle([LAT, LON], { radius: 400, color: "#f4f5f7", weight: 1, opacity: 0.4, fillOpacity: 0.06 }).addTo(map);
 
       // Use the device's real position when the user allows it — the env
       // coords are only a fallback so the map never opens on a blank spot.
@@ -75,7 +75,7 @@ export function GeoMap({ lat: LAT = 12.9716, lon: LON = 77.5946 }: { lat?: numbe
             const coords = (r.geometry.coordinates as [number, number][]).map(
               ([lng, lat]) => [lat, lng] as [number, number],
             );
-            routeLine = L.polyline(coords, { color: "#5ecfd6", weight: 2, opacity: 0.85 }).addTo(map);
+            routeLine = L.polyline(coords, { color: "#f4f5f7", weight: 2, opacity: 0.85 }).addTo(map);
             setRoute({ km: r.distance / 1000, mins: r.duration / 60 });
           }
         } catch {

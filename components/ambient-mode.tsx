@@ -139,7 +139,7 @@ export function AmbientMode() {
             className="pointer-events-none absolute -inset-1/2 opacity-40"
             style={{
               background:
-                "radial-gradient(closest-side, rgba(94,207,214,0.10), transparent 70%), radial-gradient(closest-side, rgba(120,140,255,0.08), transparent 70%)",
+                "radial-gradient(closest-side, rgba(255, 255, 255,0.10), transparent 70%), radial-gradient(closest-side, rgba(120,140,255,0.08), transparent 70%)",
             }}
             animate={{ rotate: 360 }}
             transition={{ duration: 120, repeat: Infinity, ease: "linear" }}

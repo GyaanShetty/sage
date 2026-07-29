@@ -14,7 +14,7 @@ type Stage = (typeof STAGES)[number];
 const STAGE_META: Record<Stage, { label: string; color: string }> = {
   applied: { label: "Applied", color: "#7b8cff" },
   assessment: { label: "Assessment / OA", color: "#e8a13a" },
-  interview: { label: "Interview", color: "#5ecfd6" },
+  interview: { label: "Interview", color: "#f4f5f7" },
   offer: { label: "Offer", color: "#54c98a" },
   rejected: { label: "Closed", color: "#8a8a90" },
 };

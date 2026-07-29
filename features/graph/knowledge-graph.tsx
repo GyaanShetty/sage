@@ -7,7 +7,7 @@ interface GNode { id: string; label: string; kind: string; group: string; weight
 interface GEdge { a: string; b: string }
 interface Sim extends GNode { x: number; y: number; vx: number; vy: number }
 
-const COLOR: Record<string, string> = { memory: "#5ecfd6", note: "#e8e9ec", source: "#e8a13a" };
+const COLOR: Record<string, string> = { memory: "#f4f5f7", note: "#e8e9ec", source: "#e8a13a" };
 
 export function KnowledgeGraph() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -136,7 +136,7 @@ export function KnowledgeGraph() {
       ctx.fillRect(0, 0, W, H);
       ctx.lineWidth = 1;
       for (const e of edges) {
-        ctx.strokeStyle = "rgba(94,207,214,0.12)";
+        ctx.strokeStyle = "rgba(255, 255, 255,0.12)";
         ctx.beginPath(); ctx.moveTo(e.a.x, e.a.y); ctx.lineTo(e.b.x, e.b.y); ctx.stroke();
       }
       let hov: GNode | null = null;

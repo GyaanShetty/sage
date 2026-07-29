@@ -5,7 +5,16 @@ import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { proxyFetch } from "@/infrastructure/http/fetch";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 25;
+
+/** Every probe is bounded — the point of this route is to answer, not to hang
+ *  the way the thing it is diagnosing does. */
+function within<T>(p: Promise<T>, ms: number, label: string): Promise<T | string> {
+  return Promise.race([
+    p,
+    new Promise<string>((resolve) => setTimeout(() => resolve(`timed out after ${ms}ms (${label})`), ms)),
+  ]);
+}
 
 /**
  * Why is the robot voice speaking?
@@ -72,24 +81,26 @@ export async function GET() {
 
   live.elevenlabs = eleven.length
     ? await proxyFetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID ?? "ZbAwehCkhEdz5R21COAP"}?output_format=mp3_44100_64`,
+        `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID ?? "JBFqnCBsd6RMkjVDRZzb"}?output_format=mp3_44100_64`,
         {
           method: "POST",
           headers: { "xi-api-key": eleven[0], "content-type": "application/json" },
           body: JSON.stringify({ text: probe, model_id: "eleven_flash_v2_5" }),
-          signal: AbortSignal.timeout(20_000),
+          signal: AbortSignal.timeout(5_000),
         },
       )
-        .then((r) => (r.ok ? "ok" : `HTTP ${r.status}${r.status === 401 ? " (bad key / out of quota)" : ""}`))
+        .then((r) => (r.ok ? "ok" : `HTTP ${r.status}${r.status === 401 ? " (out of quota)" : r.status === 404 ? " (voice not on this account)" : ""}`))
         .catch((e) => `error: ${String(e).slice(0, 80)}`)
     : "not configured";
 
   live.edge = process.env.SAGE_DISABLE_EDGE === "1"
     ? "disabled"
-    : await edgeSpeak(probe)
-        .then(firstBytes)
-        .then((n) => (n > 0 ? `ok — ${n} bytes` : "no audio (websocket blocked?)"))
-        .catch((e) => `error: ${String(e).slice(0, 80)}`);
+    : String(await within(
+        edgeSpeak(probe)
+          .then(firstBytes)
+          .then((n) => (n > 0 ? `ok — ${n} bytes` : "no audio (websocket blocked?)"))
+          .catch((e) => `error: ${String(e).slice(0, 80)}`),
+        4_000, "edge"));
 
   live.gemini = process.env.GOOGLE_GENERATIVE_AI_API_KEY ? "key present" : "not configured";
 

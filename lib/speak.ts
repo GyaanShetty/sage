@@ -37,7 +37,24 @@ export async function speakLowLatency(
   } catch {
     return browserSpeak(clean, opts?.onended);
   }
-  if (!res.ok || !res.body) return browserSpeak(clean, opts?.onended);
+  if (!res.ok || !res.body) {
+    // A 503 with silent:true means the server deliberately refused rather than
+    // failed — every neural provider is unconfigured or out of credit. Speaking
+    // it in the browser's robot voice would bury that, so surface it instead.
+    if (res.status === 503) {
+      try {
+        const j = await res.clone().json();
+        if (j?.silent) {
+          window.dispatchEvent(new CustomEvent("sage:toast", {
+            detail: { title: "VOICE UNAVAILABLE", body: j.error ?? "No neural voice configured." },
+          }));
+          opts?.onended?.();
+          return null;
+        }
+      } catch { /* not our JSON — fall through */ }
+    }
+    return browserSpeak(clean, opts?.onended);
+  }
 
   const ctype = res.headers.get("content-type") || "";
   const isMpeg = ctype.includes("mpeg") || ctype.includes("mp3");

@@ -13,6 +13,7 @@ import { StreamsBand } from "@/features/dashboard/components/streams-band";
 import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
 import { EisenhowerBand } from "@/features/dashboard/components/eisenhower-band";
 import { SitrepBand } from "@/features/dashboard/components/sitrep-band";
+import { GlobeHero } from "@/features/dashboard/components/globe-hero";
 import { DashboardLayout } from "@/features/dashboard/components/dashboard-layout";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
@@ -154,6 +155,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <SitrepBand />
+      <GlobeHero userName="Gyaan" />
       <DashboardLayout bands={bands} />
     </div>
   );

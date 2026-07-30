@@ -11,7 +11,23 @@ import { speakLowLatency } from "@/lib/speak";
 import { APP_NAME } from "@/lib/config";
 import { useShellStore } from "@/features/shell/store";
 
-type Msg = { role: "you" | "sage"; text: string };
+type Msg = { role: "you" | "sage"; text: string; actions?: string[] };
+
+/** Tool names are snake_case identifiers; this is what the user reads. */
+const ACTION_LABEL: Record<string, string> = {
+  create_task: "added a task", list_tasks: "checked your tasks", complete_task: "completed a task",
+  calendar_events: "read your calendar", unread_emails: "checked your inbox", draft_email: "drafted an email",
+  create_reminder: "set a reminder", list_reminders: "checked reminders",
+  web_search: "searched the web", news_search: "searched the news", knowledge_search: "searched your knowledge",
+  remember: "saved a memory", recall_memory: "searched your memory",
+  career_pipeline: "read your pipeline", career_update: "updated an application",
+  portfolio_status: "read your portfolio", spending_summary: "totalled your spending",
+  health_status: "read your health data", list_automations: "checked your automations",
+  set_plan: "made a plan", complete_step: "ticked off a step", create_note: "wrote a note",
+  github_status: "checked GitHub", spotify_now: "checked Spotify", spotify_control: "controlled Spotify",
+  linkedin_activity: "checked LinkedIn",
+};
+const labelFor = (n: string) => ACTION_LABEL[n] ?? n.replace(/_/g, " ");
 
 /** Reactive listening/speaking waveform — a compact row of bars that breathe
  *  with the session state. Pure CSS animation, near-zero cost. */
@@ -119,7 +135,8 @@ export function VoiceOverlay() {
     });
     const json = await res.json();
     const reply: string = json?.data?.text ?? "Something went wrong.";
-    setTranscript((t) => [...t.slice(-30), { role: "sage", text: reply }]);
+    const actions: string[] = json?.data?.actions ?? [];
+    setTranscript((t) => [...t.slice(-30), { role: "sage", text: reply, actions }]);
     return reply;
   }, []);
 
@@ -305,6 +322,21 @@ export function VoiceOverlay() {
                     >
                       {m.text}
                       {m.pending && <span className="ml-0.5 inline-block animate-pulse">▍</span>}
+                      {/* What it actually did, not just what it claims. A reply
+                          saying "I've added that" is indistinguishable from one
+                          that only sounds like it did. */}
+                      {!!m.actions?.length && (
+                        <span className="mt-1.5 flex flex-wrap gap-1">
+                          {[...new Set(m.actions)].map((a) => (
+                            <span
+                              key={a}
+                              className="rounded-full border border-border-glass px-2 py-0.5 text-[10px] tracking-wide text-subtle"
+                            >
+                              {labelFor(a)}
+                            </span>
+                          ))}
+                        </span>
+                      )}
                     </div>
                   </motion.div>
                 ))}

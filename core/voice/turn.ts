@@ -1,6 +1,8 @@
 import { generateText, stepCountIs, type UIMessage } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { nativeTools } from "@/core/tools/native";
+import { planningTools } from "@/core/tools/planning";
+import { domainTools } from "@/core/tools/domain";
 import { recallMemories, renderMemoryBlock } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
@@ -37,8 +39,19 @@ async function voiceThreadId(): Promise<string> {
  * bridge (token-gated) so both speak with the same mind.
  */
 export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promise<string> {
+  return (await runVoiceTurnDetailed(text, mood)).text;
+}
+
+/**
+ * The same turn, also reporting which tools ran, so the panel can show what
+ * SAGE actually did rather than only what it said it did.
+ */
+export async function runVoiceTurnDetailed(
+  text: string,
+  mood: Mood = "playful",
+): Promise<{ text: string; actions: string[] }> {
   const model = getModel("fast");
-  if (!model) return "No model configured yet.";
+  if (!model) return { text: "No model configured yet.", actions: [] };
 
   const threadId = await voiceThreadId();
   const [memories, { data: history }] = await Promise.all([
@@ -68,30 +81,57 @@ export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promis
     renderMemoryBlock(memories) +
     (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : "");
 
-  // Fewer tools + steps = a snappier spoken/typed reply. Native tools only
-  // (tasks/reminders/notes/etc.); planning is for the chat page, not quick voice.
+  // Voice used to get the native pack only, capped at three steps — so asking
+  // it about the pipeline, the portfolio, spending or its own automations got
+  // a guess rather than a lookup. It now has the same reach as the chat page:
+  // every tool, and enough steps to look something up and then act on it.
+  const tools = { ...nativeTools, ...planningTools, ...domainTools };
   const run = (m: NonNullable<ReturnType<typeof getModel>>) =>
-    generateText({ model: m, system, prompt: text, tools: nativeTools, stopWhen: stepCountIs(3) });
+    generateText({ model: m, system, prompt: text, tools, stopWhen: stepCountIs(8) });
 
   let reply: string;
+  let steps: Awaited<ReturnType<typeof run>>["steps"] = [];
   try {
-    ({ text: reply } = await run(model));
+    ({ text: reply, steps } = await run(model));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "";
     const quotaHit = /quota|429|RESOURCE_EXHAUSTED/i.test(msg);
     const backup = getModel("smart");
     if (quotaHit && backup) {
       try {
-        ({ text: reply } = await run(backup));
+        ({ text: reply, steps } = await run(backup));
       } catch {
-        return QUOTA_MSG;
+        return { text: QUOTA_MSG, actions: [] };
       }
     } else if (quotaHit) {
-      return QUOTA_MSG;
+      return { text: QUOTA_MSG, actions: [] };
     } else {
       throw err;
     }
   }
+
+  // A turn can end on a tool call with no words after it — the model looked
+  // something up and then said nothing. Down the voice path that is silence,
+  // which is indistinguishable from a crash. Ask once more, without tools, so
+  // it has to answer in words using what it already found.
+  if (!reply?.trim()) {
+    const findings = steps
+      .flatMap((st) => (st.content ?? []) as { type?: string; output?: unknown; toolName?: string }[])
+      .filter((c) => c.type === "tool-result")
+      .map((c) => `${c.toolName}: ${JSON.stringify(c.output).slice(0, 1500)}`)
+      .join("\n");
+    try {
+      const { text: retry } = await generateText({
+        model,
+        system,
+        prompt: findings
+          ? `${text}\n\nYou already looked this up:\n${findings}\n\nAnswer him out loud now, in one to three spoken sentences.`
+          : text,
+      });
+      reply = retry;
+    } catch { /* fall through to the guard below */ }
+  }
+  if (!reply?.trim()) reply = "I looked, sir, but I'm having trouble putting it into words just now.";
 
   const userMessage: UIMessage = { id: crypto.randomUUID(), role: "user", parts: [{ type: "text", text }] };
   const assistantMessage: UIMessage = { id: crypto.randomUUID(), role: "assistant", parts: [{ type: "text", text: reply }] };
@@ -102,5 +142,9 @@ export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promis
   await db.from("Thread").update({ updatedAt: new Date().toISOString() }).eq("id", threadId);
   extractMemories(text, reply).catch(() => undefined);
 
-  return reply;
+  // Names only. Arguments can carry personal detail and this is rendered on
+  // screen, so the strip says *that* SAGE looked something up, not what.
+  const actions = steps.flatMap((s) => (s.toolCalls ?? []).map((c) => c.toolName));
+
+  return { text: reply, actions };
 }

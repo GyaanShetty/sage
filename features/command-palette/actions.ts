@@ -44,6 +44,7 @@ export interface PaletteAction {
 export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "ask", label: "Ask SAGE…", hint: "free-form", icon: Sparkles, group: "Actions", href: "/chat" },
   { id: "voice", label: "Talk to SAGE", hint: "live voice", icon: Mic, group: "Actions", command: "voice" },
+  { id: "brief", label: "Play morning brief", hint: "re-read it aloud", icon: Sunrise, group: "Actions", command: "morning-brief" },
   { id: "research", label: "/research", hint: "deep-dive a topic", icon: Search, group: "Actions", command: "research" },
   { id: "summarize", label: "/summarize", hint: "summarize a source", icon: FileText, group: "Actions", command: "summarize" },
   { id: "email", label: "/email", hint: "draft an email", icon: Mail, group: "Actions", command: "email" },

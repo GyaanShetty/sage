@@ -236,8 +236,12 @@ export function VoiceOverlay() {
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
               className={cn(
                 "fixed z-50 flex flex-col overflow-hidden border border-border-glass-strong bg-[var(--panel-hi)]/95 shadow-2xl backdrop-blur-2xl",
-                // desktop: docked to the right, tall panel — main area stays live
-                "md:right-4 md:top-16 md:bottom-6 md:w-[400px] md:rounded-2xl",
+                // desktop: docked to the right, tall panel — main area stays live.
+                // inset-x-auto and max-h-none are not decoration: the mobile
+                // rules below set `left` and `max-height`, and `md:right-4`
+                // alone leaves both in force, which pinned the panel to the
+                // LEFT at half height, straight over the dashboard.
+                "md:inset-x-auto md:right-4 md:top-16 md:bottom-6 md:w-[400px] md:max-h-none md:rounded-2xl",
                 // mobile: compact bottom sheet above the tab bar, leaving the top
                 // of the dashboard visible and tappable
                 "inset-x-2 bottom-[76px] top-auto max-h-[52vh] rounded-2xl",

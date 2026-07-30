@@ -9,6 +9,11 @@ export type Stage = (typeof STAGES)[number];
 
 export interface Attachment { name: string; path: string; size: number; addedAt: string }
 
+/** One stage transition. Appended on every move so the pipeline has a trail:
+ *  without it there was no way to tell an application that reached interview
+ *  yesterday from one that has been sitting there for six weeks. */
+export interface StageChange { stage: Stage; at: string }
+
 export interface Application {
   id: string;
   company: string;
@@ -17,6 +22,7 @@ export interface Application {
   deadline?: string | null;
   notes?: string | null;
   attachments?: Attachment[];
+  history?: StageChange[];
   source: "gmail" | "manual";
   updatedAt: string;
 }
@@ -37,16 +43,35 @@ export async function listApplications(): Promise<Application[]> {
 export async function upsertApplication(app: Partial<Application> & { id?: string }): Promise<string> {
   if (app.id) {
     const { data } = await db.from("Event").select("payload").eq("id", app.id).maybeSingle();
-    const merged = { ...(data?.payload as object), ...app, updatedAt: new Date().toISOString() };
+    const prev = (data?.payload ?? {}) as Partial<Application>;
+    const now = new Date().toISOString();
+    const merged = { ...prev, ...app, updatedAt: now } as Partial<Application>;
+
+    // Record the transition, not just the destination. Only an actual change
+    // counts — saving a note must not look like pipeline movement.
+    if (app.stage && app.stage !== prev.stage) {
+      const history = [...(prev.history ?? [])];
+      if (history.length === 0 && prev.stage) {
+        // Backfill the stage it was already in, so the first move produces a
+        // segment rather than a lone point.
+        history.push({ stage: prev.stage, at: (prev.updatedAt as string) ?? now });
+      }
+      history.push({ stage: app.stage, at: now });
+      merged.history = history.slice(-20);
+    }
+
     delete (merged as { id?: string }).id;
     await db.from("Event").update({ payload: merged }).eq("id", app.id);
     return app.id;
   }
   const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const stage = app.stage ?? "applied";
   const payload = {
-    company: app.company ?? "Unknown", role: app.role ?? "—", stage: app.stage ?? "applied",
+    company: app.company ?? "Unknown", role: app.role ?? "—", stage,
     deadline: app.deadline ?? null, notes: app.notes ?? null, source: app.source ?? "manual",
-    updatedAt: new Date().toISOString(),
+    history: [{ stage, at: now }],
+    updatedAt: now,
   };
   await db.from("Event").insert({ id, userId: DEFAULT_USER_ID, type: TYPE, payload });
   return id;

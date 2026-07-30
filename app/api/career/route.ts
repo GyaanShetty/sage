@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { listApplications, upsertApplication, deleteApplication, scanInbox, type Application } from "@/core/career/scan";
+import { analyse } from "@/core/career/pipeline";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const apps = await listApplications();
-  return NextResponse.json({ ok: true, data: apps });
+  // Analytics ride along with the list — the page needs both on first paint,
+  // and deriving them here keeps the client and the cron nudge in agreement.
+  const { funnel, insights } = analyse(apps);
+  return NextResponse.json({ ok: true, data: apps, funnel, insights });
 }
 
 export async function POST(req: Request) {

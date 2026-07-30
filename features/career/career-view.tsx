@@ -22,9 +22,13 @@ const STAGE_META: Record<Stage, { label: string; color: string }> = {
 interface Attachment { name: string; path: string; size: number; addedAt: string }
 interface App { id: string; company: string; role: string; stage: Stage; deadline?: string | null; notes?: string | null; attachments?: Attachment[]; source: string }
 interface Prep { overview: string; recentNews: string[]; likelyQuestions: string[]; yourFit: string; tips: string[] }
+interface Insight { id: string; daysInStage: number; stale: boolean; daysToDeadline: number | null }
+interface Funnel { total: number; interviewRate: number; offerRate: number; medianDaysToInterview: number | null }
 
 export function CareerView() {
   const [apps, setApps] = useState<App[] | null>(null);
+  const [insights, setInsights] = useState<Record<string, Insight>>({});
+  const [funnel, setFunnel] = useState<Funnel | null>(null);
   const [scanning, setScanning] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -40,6 +44,8 @@ export function CareerView() {
   const load = useCallback(async () => {
     const j = await fetch("/api/career").then((r) => r.json()).catch(() => null);
     setApps(j?.data ?? []);
+    setFunnel(j?.funnel ?? null);
+    setInsights(Object.fromEntries(((j?.insights ?? []) as Insight[]).map((i) => [i.id, i])));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -115,6 +121,7 @@ export function CareerView() {
 
   const counts = STAGES.map((s) => apps?.filter((a) => a.stage === s).length ?? 0);
   const active = (apps ?? []).filter((a) => a.stage !== "rejected").length;
+  const staleCount = Object.values(insights).filter((i) => i.stale).length;
 
   return (
     <div className="cc-wrap">
@@ -122,6 +129,13 @@ export function CareerView() {
         <div className="sectitle" style={{ marginBottom: 0 }}>
           <span className="sn">CC</span><h2>Career</h2><span className="line" />
           <span className="tag">{active} ACTIVE · {apps?.filter((a) => a.stage === "offer").length ?? 0} OFFERS</span>
+          {funnel && funnel.total > 0 && (
+            <span className="tag cc-funnel">
+              {Math.round(funnel.interviewRate * 100)}% TO INTERVIEW · {Math.round(funnel.offerRate * 100)}% TO OFFER
+              {funnel.medianDaysToInterview !== null && ` · ~${funnel.medianDaysToInterview}D MEDIAN`}
+              {staleCount > 0 && <b className="cc-stalecount"> · {staleCount} QUIET</b>}
+            </span>
+          )}
         </div>
         <div className="cc-actions">
           <button onClick={() => setAdding((s) => !s)} className="cc-btn"><Plus className="size-3.5" /> Add</button>
@@ -158,7 +172,27 @@ export function CareerView() {
                   <div className="cc-cardtop" onClick={() => open(a)}>
                     <div className="cc-company">{a.company} {(a.attachments?.length ?? 0) > 0 && <span className="cc-clip"><Paperclip className="size-3" />{a.attachments!.length}</span>}</div>
                     <div className="cc-role">{a.role}</div>
-                    {a.deadline && <div className="cc-deadline"><Calendar className="size-3" /> {new Date(a.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</div>}
+                    {a.deadline && (() => {
+                      const d = insights[a.id]?.daysToDeadline;
+                      const urgent = d !== null && d !== undefined && d >= 0 && d <= 3;
+                      const passed = d !== null && d !== undefined && d < 0;
+                      return (
+                        <div className={cn("cc-deadline", urgent && "urgent", passed && "passed")}>
+                          <Calendar className="size-3" />
+                          {new Date(a.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          {urgent && <b>{d === 0 ? " · TODAY" : d === 1 ? " · TOMORROW" : ` · ${d}D`}</b>}
+                          {passed && <b> · PASSED</b>}
+                        </div>
+                      );
+                    })()}
+                    {/* How long it has sat here. A pipeline without ages hides
+                        the applications that have quietly gone nowhere. */}
+                    {insights[a.id] && (
+                      <div className={cn("cc-age", insights[a.id].stale && "stale")}>
+                        {insights[a.id].daysInStage === 0 ? "today" : `${insights[a.id].daysInStage}d in ${a.stage}`}
+                        {insights[a.id].stale && " · quiet"}
+                      </div>
+                    )}
                     <span className="cc-openhint"><Maximize2 className="size-3" /></span>
                   </div>
                   {/* cc-cardtop end */}

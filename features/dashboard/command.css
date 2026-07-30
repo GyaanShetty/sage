@@ -1082,3 +1082,13 @@
 .brief-play { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: none; border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer; }
 .brief-play:hover { color: var(--live); border-color: var(--live-dim); }
 .brief-full { grid-column: 1 / -1; font-size: 10px; color: var(--muted); line-height: 1.5; padding: 4px 0 6px; border-bottom: 1px solid var(--border-glass); }
+
+/* ── Career pipeline: age, staleness, deadline urgency ── */
+.cc-funnel { opacity: .75; }
+.cc-stalecount { font-weight: 400; color: var(--live); }
+.cc-age { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); margin-top: 4px; }
+.cc-age.stale { color: var(--live); opacity: .9; }
+.cc-deadline.urgent { color: var(--live); }
+.cc-deadline.urgent b { font-weight: 400; }
+.cc-deadline.passed { color: var(--subtle); text-decoration: line-through; }
+.cc-deadline.passed b { text-decoration: none; }

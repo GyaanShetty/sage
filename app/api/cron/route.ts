@@ -7,6 +7,7 @@ import { runAnticipation } from "@/core/anticipate/engine";
 import { runNotifications } from "@/core/notify/engine";
 import { generateDailyCards } from "@/core/retention/cards";
 import { maybeScanInbox } from "@/core/career/scan";
+import { maybeConsolidateMemories } from "@/core/memory/consolidate";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -56,6 +57,8 @@ export async function GET(req: Request) {
   const notifications = await runNotifications().catch(() => ({}));
   const cardsGenerated = await generateDailyCards().catch(() => 0);
   const careerScan = await maybeScanInbox().catch(() => ({ added: 0, updated: 0 }));
+  // Once a day at most; the guard lives in the function, not the schedule.
+  const memory = await maybeConsolidateMemories().catch(() => null);
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory });
 }

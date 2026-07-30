@@ -17,28 +17,88 @@ const DRAG_GAIN = 1.5;        // page travel relative to hand travel (1 = 1:1)
 const FIST_DEVIATE = 0.16;    // how far a fist must slide sideways to flip a page
 const NAV_COOLDOWN = 1100;
 
-/** Radians of palm twist per detent. A comfortable wrist rotation spans
- *  roughly a right angle, which at this size is about five pages. */
-const ROLL_PER_STEP = 0.30;
 /** A pose must persist this long to count. Fingers pass through shaka and OK
  *  shapes incidentally on the way to other poses; without this, simply opening
  *  your hand fires the wheel. */
 const POSE_HOLD_MS = 260;
 /** Ignore a re-trigger of the same pose for this long. */
 const POSE_COOLDOWN = 800;
-/** The wheel closes itself if nothing happens for this long — an interface you
- *  raised by accident should not stay up until you dismiss it. Twisting resets
- *  the clock, so deliberately browsing keeps it open indefinitely. */
-const WHEEL_IDLE_MS = 6_000;
-/** Hand dropped below this height (1 = bottom of frame) reads as "put it down". */
-const HAND_DOWN_Y = 0.82;
+
+/* ── Pinch-and-circle rotation ──────────────────────────────────────────────
+ * Wrist roll turned out to be an uncomfortable way to drive a wheel: the
+ * usable range is barely a right angle and holding a rotated wrist is tiring.
+ * Winding a pinched hand in circles is the natural motion for a dial, and it
+ * has no range limit — keep circling and the wheel keeps turning.
+ *
+ * The centre is the running mean of recent pinched positions rather than a
+ * fixed anchor: a hand circling anywhere in frame produces points whose
+ * centroid IS the centre of that circle, so the user never has to find a
+ * particular spot to orbit.
+ */
+/** Radians swept per detent. A full circle is ~2π, so about twelve pages. */
+const ANGLE_PER_STEP = 0.52;
+/** Trail is bounded by distance travelled, not by sample count: the centre is
+ *  fitted from a fixed length of arc however fast or slow the hand moves. A
+ *  fixed count fails outright when circling slowly — the points bunch into a
+ *  stub of arc that no centre can be recovered from. */
+const ARC_LEN = 0.30;
+const MIN_PTS = 6;
+const MAX_PTS = 90;
+/** Fitted radii outside this band are a bad fit, not a real circle. */
+const MIN_R = 0.02;
+const MAX_R = 0.60;
 
 /**
- * Hands-free gesture navigation (opt-in). Pinch (thumb + index) to grab the page
- * and move your hand up/down to drag it — like scrolling a touchscreen in the
- * air; unpinch to let go. Make a fist and slide it left/right to flip between
- * pages. Uses the same MediaPipe tracker as the Forge, lazy-loaded only when
- * enabled. A small camera preview + status chip show while it's live; everything
+ * Least-squares circle through the trail (Kåsa fit): solves
+ * x² + y² = 2ax + 2by + c, giving centre (a, b) and r = √(c + a² + b²).
+ *
+ * The obvious approach — average the recent points and call that the centre —
+ * is wrong for an arc: the centroid of a partial arc sits between the arc and
+ * the true centre, which both under-reads the angle and collapses entirely
+ * when the arc is short. Fitting recovers the centre from any decent arc.
+ */
+function fitCircle(pts: { x: number; y: number }[]): { cx: number; cy: number; r: number } | null {
+  const n = pts.length;
+  if (n < MIN_PTS) return null;
+  let sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, sxz = 0, syz = 0, sz = 0;
+  for (const p of pts) {
+    const z = p.x * p.x + p.y * p.y;
+    sx += p.x; sy += p.y; sxx += p.x * p.x; syy += p.y * p.y;
+    sxy += p.x * p.y; sxz += p.x * z; syz += p.y * z; sz += z;
+  }
+  const A = [[2 * sxx, 2 * sxy, sx], [2 * sxy, 2 * syy, sy], [2 * sx, 2 * sy, n]];
+  const b = [sxz, syz, sz];
+  const det3 = (m: number[][]) =>
+    m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+    m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+    m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const det = det3(A);
+  if (Math.abs(det) < 1e-12) return null;      // collinear points — no circle
+  const solve = (col: number) => {
+    const M = A.map((r) => r.slice());
+    for (let i = 0; i < 3; i++) M[i][col] = b[i];
+    return det3(M) / det;
+  };
+  const cx = solve(0), cy = solve(1), c = solve(2);
+  const r2 = c + cx * cx + cy * cy;
+  if (!(r2 > 0)) return null;
+  const r = Math.sqrt(r2);
+  if (r < MIN_R || r > MAX_R) return null;
+  return { cx, cy, r };
+}
+
+/**
+ * Hands-free gesture control (opt-in).
+ *
+ * The wheel:  🤙 raises it, 🤙 again puts it away — nothing else closes it, not
+ * a dropped hand, not a pause, not tracking blinking out. Pinch and wind in
+ * circles to turn the dial, 👌 to open what is in the selector.
+ *
+ * Elsewhere:  pinch and move up/down to drag the page like a touchscreen;
+ * fist and slide sideways to flip between pages.
+ *
+ * Uses the same MediaPipe tracker as the Forge, lazy-loaded only when enabled.
+ * A small camera preview + status chip show while it is live; everything
  * degrades to a friendly message on camera failure.
  */
 export function GestureNav() {
@@ -60,10 +120,12 @@ export function GestureNav() {
 
   // Wheel state, kept in refs: this runs per video frame and must not re-render.
   const wheelOpen = useRef(false);
-  const rollAnchor = useRef<number | null>(null);
+  /** Recent pinched positions; their centroid is the circle's centre. */
+  const trail = useRef<{ x: number; y: number }[]>([]);
+  const lastAngle = useRef<number | null>(null);
+  const sweep = useRef(0);          // radians accumulated since the last detent
   const poseSince = useRef<{ pose: string; at: number } | null>(null);
   const lastPose = useRef(0);
-  const wheelTouched = useRef(0);   // last time the wheel saw deliberate input
 
   /** True once a pose has been held long enough and is off cooldown. */
   const held = (pose: string, active: boolean, now: number): boolean => {
@@ -79,10 +141,12 @@ export function GestureNav() {
     return true;
   };
 
+  const resetCircle = () => { trail.current = []; lastAngle.current = null; sweep.current = 0; };
+
   const closeWheel = useCallback(() => {
     if (!wheelOpen.current) return;
     wheelOpen.current = false;
-    rollAnchor.current = null;
+    resetCircle();
     window.dispatchEvent(new CustomEvent("sage:nav-close"));
   }, []);
 
@@ -98,8 +162,10 @@ export function GestureNav() {
     if (!f) {
       setDir(null); dragY.current = null; fistAnchor.current = null;
       poseSince.current = null;
-      // Hand out of frame closes the wheel rather than leaving it stranded.
-      closeWheel();
+      // Tracking drops out constantly — a blink of lost hand must not dismiss
+      // the wheel. Only 🤙 closes it. The circle restarts, though, so a
+      // reappearing hand does not jump the dial by the gap it missed.
+      resetCircle();
       return;
     }
     const now = performance.now();
@@ -109,8 +175,7 @@ export function GestureNav() {
       if (wheelOpen.current) { closeWheel(); }
       else {
         wheelOpen.current = true;
-        rollAnchor.current = f.roll;
-        wheelTouched.current = now;
+        resetCircle();
         window.dispatchEvent(new CustomEvent("sage:nav-open"));
       }
       return;
@@ -118,26 +183,48 @@ export function GestureNav() {
 
     // ---- while the wheel is up: twist to rotate, 👌 to open ----
     if (wheelOpen.current) {
-      // Lowering your hand dismisses it, the way you would drop a menu.
-      if (f.palmY > HAND_DOWN_Y) { closeWheel(); return; }
-      // Idle timeout, measured from the last twist rather than from opening.
-      if (now - wheelTouched.current > WHEEL_IDLE_MS) { closeWheel(); return; }
+      // 👌 accepts whatever is in the selector.
       if (held("ok", f.ok, now)) {
         wheelOpen.current = false;
-        rollAnchor.current = null;
+        resetCircle();
         window.dispatchEvent(new CustomEvent("sage:nav-select"));
         return;
       }
-      if (rollAnchor.current === null) rollAnchor.current = f.roll;
-      // Unwrap across the ±π seam, or a twist past vertical would snap the
-      // wheel the long way round.
-      let d = f.roll - rollAnchor.current;
+
+      // Pinch and wind in circles to turn the dial. Releasing the pinch simply
+      // pauses — the wheel stays where it is until you circle again or 🤙.
+      if (!f.pinch) { resetCircle(); return; }
+
+      const pt = { x: f.palmX, y: f.palmY };
+      const tr = trail.current;
+      tr.push(pt);
+      if (tr.length > MAX_PTS) tr.shift();
+      // Trim from the front so the trail always spans about ARC_LEN of travel.
+      let len = 0;
+      for (let i = 1; i < tr.length; i++) len += Math.hypot(tr[i].x - tr[i - 1].x, tr[i].y - tr[i - 1].y);
+      while (tr.length > MIN_PTS && len > ARC_LEN) {
+        len -= Math.hypot(tr[1].x - tr[0].x, tr[1].y - tr[0].y);
+        tr.shift();
+      }
+
+      const fit = fitCircle(tr);
+      // Holding still, or moving in a straight line — not a dial gesture.
+      if (!fit) { lastAngle.current = null; return; }
+
+      const angle = Math.atan2(pt.y - fit.cy, pt.x - fit.cx);
+      if (lastAngle.current === null) { lastAngle.current = angle; return; }
+
+      let d = angle - lastAngle.current;
+      // Unwrap across the ±π seam, or crossing it would read as a near-full
+      // turn in the wrong direction.
       while (d > Math.PI) d -= 2 * Math.PI;
       while (d < -Math.PI) d += 2 * Math.PI;
-      const steps = Math.trunc(d / ROLL_PER_STEP);
+      lastAngle.current = angle;
+
+      sweep.current += d;
+      const steps = Math.trunc(sweep.current / ANGLE_PER_STEP);
       if (steps !== 0) {
-        rollAnchor.current += steps * ROLL_PER_STEP; // keep the remainder
-        wheelTouched.current = now;                  // twisting keeps it alive
+        sweep.current -= steps * ANGLE_PER_STEP;   // carry the remainder
         window.dispatchEvent(new CustomEvent("sage:nav-rotate", { detail: { steps } }));
       }
       return; // the wheel owns the hand while it is up
@@ -183,7 +270,7 @@ export function GestureNav() {
         await c.start(videoRef.current!);
         if (cancelled) { c.stop(); return; }
         ctrl.current = c;
-        setStatus("🤙 wheel · twist to rotate · 👌 open · hand down to dismiss");
+        setStatus("🤙 wheel · pinch & circle to turn · 👌 open · 🤙 again to close");
       } catch (err) {
         setStatus(
           /denied|NotAllowed/i.test(String(err))

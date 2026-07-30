@@ -121,17 +121,22 @@ export function BootBriefing() {
     };
   }, []);
 
-  /** Fetch (without claiming) and speak the brief on demand. */
-  const replay = useCallback(async () => {
+  /** Speak a brief on demand. With no argument it fetches today's (without
+   *  claiming it); given text it reads that instead, which is how an older
+   *  briefing from the history list gets replayed. */
+  const replay = useCallback(async (given?: string) => {
     audioRef.current?.pause();
     window.speechSynthesis?.cancel();
     setNeedsTap(false);
-    setCaption("Pulling your briefing…");
+    setCaption(given ?? "Pulling your briefing…");
     try {
-      const cfg = localStorage.getItem("sage-market-config");
-      const indices = cfg ? (JSON.parse(cfg).indices as string[])?.join(",") : "^NSEI,^BSESN";
-      const res = await fetch(`/api/brief/debrief?symbols=${encodeURIComponent(indices || "^NSEI,^BSESN")}`);
-      const text: string | null = (await res.json())?.data?.text ?? null;
+      let text: string | null = given ?? null;
+      if (!text) {
+        const cfg = localStorage.getItem("sage-market-config");
+        const indices = cfg ? (JSON.parse(cfg).indices as string[])?.join(",") : "^NSEI,^BSESN";
+        const res = await fetch(`/api/brief/debrief?symbols=${encodeURIComponent(indices || "^NSEI,^BSESN")}`);
+        text = (await res.json())?.data?.text ?? null;
+      }
       if (!text) { setCaption("No briefing available right now."); setTimeout(() => setCaption(null), 4000); return; }
       setCaption(text);
       if (!sound.isOn()) { setTimeout(() => setCaption(null), 12_000); return; }
@@ -145,7 +150,10 @@ export function BootBriefing() {
   }, []);
 
   useEffect(() => {
-    const on = () => { void replay(); };
+    const on = (e: Event) => {
+      const text = (e as CustomEvent<{ text?: string }>).detail?.text;
+      void replay(text);
+    };
     window.addEventListener("sage:replay-brief", on);
     return () => window.removeEventListener("sage:replay-brief", on);
   }, [replay]);

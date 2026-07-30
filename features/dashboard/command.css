@@ -1061,3 +1061,24 @@
 .na-sub { display: grid; grid-template-columns: 14px 1fr auto; gap: 6px; align-items: baseline; font-size: 10.5px; color: var(--muted); }
 .na-sub i { font-style: normal; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
 .na-sub b { font-family: var(--mono); font-size: 8px; font-weight: 400; color: var(--subtle); }
+
+/* ── Debrief block: today's briefing plus the last fortnight, replayable ── */
+.brief-cell { display: flex; flex-direction: column; gap: 7px; min-height: 0; }
+.brief-go { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px; cursor: pointer; }
+.brief-go:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.brief-dim { font-size: 10px; color: var(--subtle); line-height: 1.45; }
+/* Today's script, clamped — the full text is spoken, not read off the rail. */
+.brief-latest { font-size: 10.5px; color: var(--muted); line-height: 1.5; border-left: 2px solid var(--live-dim); padding-left: 8px;
+  display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* Capped on purpose: the rail holds several blocks, and a fortnight of
+   briefings would otherwise push Notes off the bottom of the screen. */
+.brief-list { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; min-height: 0; max-height: 108px; padding-right: 2px; }
+.brief-row { display: grid; grid-template-columns: 1fr auto; gap: 6px; align-items: center; }
+.brief-row.open { grid-template-columns: 1fr auto; }
+.brief-when { display: inline-flex; align-items: baseline; gap: 6px; background: none; border: none; padding: 2px 0; cursor: pointer; text-align: left;
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.2px; color: var(--subtle); }
+.brief-when:hover { color: var(--foreground); }
+.brief-when i { font-style: normal; font-size: 7px; color: var(--live); opacity: .8; }
+.brief-play { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: none; border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer; }
+.brief-play:hover { color: var(--live); border-color: var(--live-dim); }
+.brief-full { grid-column: 1 / -1; font-size: 10px; color: var(--muted); line-height: 1.5; padding: 4px 0 6px; border-bottom: 1px solid var(--border-glass); }

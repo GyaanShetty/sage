@@ -80,6 +80,8 @@ export function CommandPalette() {
       setWakeWord(!useShellStore.getState().wakeWord);
     } else if (action.command === "toggle-gesture") {
       setGestureNav(!useShellStore.getState().gestureNav);
+    } else if (action.command === "morning-brief") {
+      window.dispatchEvent(new CustomEvent("sage:replay-brief"));
     } else if (action.command === "ambient-now") {
       window.dispatchEvent(new CustomEvent("sage:ambient-now"));
     } else if (action.href) {

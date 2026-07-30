@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { sound } from "@/lib/sound";
 import { speakLowLatency } from "@/lib/speak";
@@ -11,6 +11,13 @@ import { speakLowLatency } from "@/lib/speak";
  * voice fallback), and shows a live caption. Because browsers block audio
  * without a gesture, if playback is refused we arm it to fire on the first
  * tap and show a subtle prompt.
+ *
+ * It also answers `sage:replay-brief` (⌘K → "Play morning brief"). The
+ * automatic run claims the day's briefing so only the first device to open
+ * SAGE speaks it; a replay deliberately does NOT claim, so you can hear it
+ * again as many times as you like — including on a day where the claim was
+ * already spent by a tab you had closed, which is exactly how a briefing goes
+ * missing without anyone noticing.
  */
 export function BootBriefing() {
   const [caption, setCaption] = useState<string | null>(null);
@@ -22,7 +29,6 @@ export function BootBriefing() {
     // Guard against double-invoke within a single page load only. The real
     // once-per-day, cross-device dedup is decided by the server ?claim=1.
     if (startedRef.current) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let cancelled = false;
 
@@ -114,6 +120,35 @@ export function BootBriefing() {
       window.speechSynthesis?.cancel();
     };
   }, []);
+
+  /** Fetch (without claiming) and speak the brief on demand. */
+  const replay = useCallback(async () => {
+    audioRef.current?.pause();
+    window.speechSynthesis?.cancel();
+    setNeedsTap(false);
+    setCaption("Pulling your briefing…");
+    try {
+      const cfg = localStorage.getItem("sage-market-config");
+      const indices = cfg ? (JSON.parse(cfg).indices as string[])?.join(",") : "^NSEI,^BSESN";
+      const res = await fetch(`/api/brief/debrief?symbols=${encodeURIComponent(indices || "^NSEI,^BSESN")}`);
+      const text: string | null = (await res.json())?.data?.text ?? null;
+      if (!text) { setCaption("No briefing available right now."); setTimeout(() => setCaption(null), 4000); return; }
+      setCaption(text);
+      if (!sound.isOn()) { setTimeout(() => setCaption(null), 12_000); return; }
+      // Replay is always triggered by a keystroke or click, so the audio
+      // element is unlocked and this will not be refused.
+      audioRef.current = await speakLowLatency(text, { fast: true, onended: () => setCaption(null) });
+      if (!audioRef.current) setTimeout(() => setCaption(null), 12_000);
+    } catch {
+      setCaption(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const on = () => { void replay(); };
+    window.addEventListener("sage:replay-brief", on);
+    return () => window.removeEventListener("sage:replay-brief", on);
+  }, [replay]);
 
   return (
     <AnimatePresence>

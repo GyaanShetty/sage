@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Trash2, Brain, Plus, Pencil, Check, X, Pin, PinOff, Loader2 } from "lucide-react";
+import { Trash2, Brain, Plus, Pencil, Check, X, Pin, PinOff, Loader2, Sparkles, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
@@ -15,13 +15,25 @@ export interface MemoryItem {
   confidence: number;
   importance: number;
   createdAt: string;
+  accessCount?: number;
+  lastAccessedAt?: string | null;
+  sourceType?: string;
+}
+
+interface Sweep {
+  at?: string;
+  scanned?: number;
+  expired?: number;
+  duplicates?: number;
+  stale?: number;
+  conflicts?: number;
 }
 
 const TYPES = ["all", "fact", "preference", "goal", "routine", "skill", "relationship", "episode"];
 const EDIT_TYPES = TYPES.filter((t) => t !== "all");
 const PIN_AT = 0.9;
 
-export function MemoryView({ memories }: { memories: MemoryItem[] }) {
+export function MemoryView({ memories, retired = 0 }: { memories: MemoryItem[]; retired?: number }) {
   const [filter, setFilter] = useState("all");
   const router = useRouter();
 
@@ -37,6 +49,26 @@ export function MemoryView({ memories }: { memories: MemoryItem[] }) {
   const [editType, setEditType] = useState("fact");
 
   const nudge = () => window.dispatchEvent(new CustomEvent("sage:memory-updated"));
+
+  // Consolidation: what the last sweep did, and the ability to run one.
+  const [sweep, setSweep] = useState<Sweep | null>(null);
+  const [sweeping, setSweeping] = useState(false);
+
+  const loadSweep = useCallback(async () => {
+    const j = await fetch("/api/memory/consolidate").then((r) => r.json()).catch(() => null);
+    setSweep(j?.ok ? (j.data as Sweep | null) : null);
+  }, []);
+  useEffect(() => { void loadSweep(); }, [loadSweep]);
+
+  const consolidate = async () => {
+    if (sweeping) return;
+    setSweeping(true);
+    const j = await fetch("/api/memory/consolidate", { method: "POST" }).then((r) => r.json()).catch(() => null);
+    setSweeping(false);
+    if (j?.ok) setSweep({ at: new Date().toISOString(), ...j.data });
+    router.refresh();
+    nudge();
+  };
 
   const pinnedFirst = [...memories].sort(
     (a, b) => (b.importance >= PIN_AT ? 1 : 0) - (a.importance >= PIN_AT ? 1 : 0),
@@ -102,9 +134,43 @@ export function MemoryView({ memories }: { memories: MemoryItem[] }) {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Memory</h1>
             <p className="mt-1 text-sm text-muted">
-              Everything SAGE knows about you. Add, edit, pin, or forget — it's your mind, extended.
+              Everything SAGE knows about you. Add, edit, pin, or forget &mdash; it&apos;s your mind, extended.
+            </p>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle">
+              <span>{memories.length} active</span>
+              {retired > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1"><Archive className="size-3" /> {retired} retired</span>
+                </>
+              )}
+              {sweep?.at && (
+                <>
+                  <span>·</span>
+                  <span>
+                    last sweep {new Date(sweep.at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    {(sweep.duplicates || sweep.conflicts || sweep.stale || sweep.expired)
+                      ? ` — ${[
+                          sweep.duplicates ? `${sweep.duplicates} duplicate` : "",
+                          sweep.conflicts ? `${sweep.conflicts} conflicting` : "",
+                          sweep.stale ? `${sweep.stale} stale` : "",
+                          sweep.expired ? `${sweep.expired} expired` : "",
+                        ].filter(Boolean).join(", ")} retired`
+                      : " — nothing to retire"}
+                  </span>
+                </>
+              )}
             </p>
           </div>
+          <button
+            onClick={consolidate}
+            disabled={sweeping}
+            title="Retire duplicates, contradictions and memories that have gone stale"
+            className="flex shrink-0 items-center gap-2 rounded-lg border border-border-glass px-3 py-2 text-xs text-muted transition-colors hover:border-border-glass-strong hover:text-foreground disabled:opacity-40"
+          >
+            {sweeping ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {sweeping ? "Sweeping…" : "Consolidate"}
+          </button>
           <button
             onClick={() => setAdding((a) => !a)}
             className="flex shrink-0 items-center gap-2 rounded-lg border border-border-glass px-3 py-2 text-xs text-muted transition-colors hover:border-border-glass-strong hover:text-foreground"
@@ -223,7 +289,23 @@ export function MemoryView({ memories }: { memories: MemoryItem[] }) {
                         <span className="mt-0.5 shrink-0 rounded-full border border-border-glass px-2 py-0.5 text-[11px] capitalize text-muted">
                           {memory.type}
                         </span>
-                        <p className="flex-1 text-sm leading-relaxed">{memory.content}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm leading-relaxed">{memory.content}</p>
+                          {/* Recall stats were being written on every use and
+                              shown nowhere, so there was no way to tell a
+                              memory SAGE leans on from one it has never once
+                              reached for. */}
+                          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-subtle">
+                            <span>{new Date(memory.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
+                            {memory.sourceType === "user" && <><span>·</span><span>you told SAGE</span></>}
+                            <span>·</span>
+                            <span>
+                              {memory.accessCount
+                                ? `recalled ${memory.accessCount}×${memory.lastAccessedAt ? `, last ${new Date(memory.lastAccessedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : ""}`
+                                : "never recalled"}
+                            </span>
+                          </p>
+                        </div>
                         <div className="flex shrink-0 items-center gap-0.5">
                           <button
                             onClick={() => togglePin(memory)}

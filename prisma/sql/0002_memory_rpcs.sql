@@ -14,6 +14,9 @@ language sql stable as $$
   from "Memory" m
   where m.embedding is not null
     and m."supersededBy" is null
+    -- A lapsed memory must not be recalled just because consolidation has not
+    -- swept yet; expiry is checked at read time as well as at sweep time.
+    and (m."expiresAt" is null or m."expiresAt" > now())
     and (p_user_id is null or m."userId" = p_user_id)
   order by m.embedding <=> query_embedding
   limit match_count;

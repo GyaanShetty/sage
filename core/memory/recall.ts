@@ -11,6 +11,20 @@ export interface RecalledMemory {
 }
 
 /**
+ * Rank by more than raw similarity.
+ *
+ * Cosine distance alone treats a low-confidence guess from March exactly like
+ * a fact you stated yourself and SAGE has leaned on weekly. Importance and
+ * confidence are already stored per memory and were going unused at recall
+ * time; folding them in costs nothing and puts the better-evidenced memory
+ * first when two are equally on-topic.
+ */
+function score(m: RecalledMemory): number {
+  const sim = m.similarity ?? 0.5;
+  return sim * 0.7 + m.importance * 0.2 + m.confidence * 0.1;
+}
+
+/**
  * Semantic recall via the match_memories RPC (pgvector ANN). Falls back to
  * importance/recency ranking when embeddings or the RPC are unavailable.
  */
@@ -20,10 +34,14 @@ export async function recallMemories(query: string, limit = 8): Promise<Recalled
   if (embedding) {
     const { data, error } = await db.rpc("match_memories", {
       query_embedding: toVectorLiteral(embedding),
-      match_count: limit,
+      match_count: Math.max(limit * 2, 12),
       p_user_id: DEFAULT_USER_ID,
     });
-    if (!error && Array.isArray(data) && data.length > 0) return data as RecalledMemory[];
+    if (!error && Array.isArray(data) && data.length > 0) {
+      // Over-fetch, then re-rank, so the weighting can actually change the
+      // order rather than just shuffling whatever the ANN already returned.
+      return (data as RecalledMemory[]).sort((a, b) => score(b) - score(a)).slice(0, limit);
+    }
   }
 
   const { data } = await db
@@ -31,6 +49,9 @@ export async function recallMemories(query: string, limit = 8): Promise<Recalled
     .select("id, type, content, importance, confidence")
     .eq("userId", DEFAULT_USER_ID)
     .is("supersededBy", null)
+    // Consolidation retires expired memories once a day; this keeps one that
+    // lapsed since then out of the prompt in the meantime.
+    .or(`expiresAt.is.null,expiresAt.gt.${new Date().toISOString()}`)
     .order("importance", { ascending: false })
     .order("createdAt", { ascending: false })
     .limit(limit);

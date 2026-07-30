@@ -218,7 +218,7 @@ export function VoiceOverlay() {
           whileTap={{ scale: 0.94 }}
           onClick={engage}
           title="Talk to SAGE"
-          className="fixed bottom-20 right-4 z-40 flex size-12 items-center justify-center rounded-full border border-[var(--live-dim)] bg-[var(--panel-hi)] text-[var(--live)] backdrop-blur-xl [animation:micHalo_3s_ease-in-out_infinite] md:bottom-6 md:right-6"
+          className="fixed bottom-[calc(5rem+var(--sab))] right-[calc(1rem+var(--sar))] z-40 flex size-12 items-center justify-center rounded-full border border-[var(--live-dim)] bg-[var(--panel-hi)] text-[var(--live)] backdrop-blur-xl [animation:micHalo_3s_ease-in-out_infinite] md:bottom-[calc(1.5rem+var(--sab))] md:right-6"
         >
           <Mic className="size-5" strokeWidth={1.75} />
         </motion.button>
@@ -241,10 +241,10 @@ export function VoiceOverlay() {
                 // rules below set `left` and `max-height`, and `md:right-4`
                 // alone leaves both in force, which pinned the panel to the
                 // LEFT at half height, straight over the dashboard.
-                "md:inset-x-auto md:right-4 md:top-16 md:bottom-6 md:w-[400px] md:max-h-none md:rounded-2xl",
+                "md:inset-x-auto md:right-4 md:top-[calc(4rem+var(--sat))] md:bottom-6 md:w-[400px] md:max-h-none md:rounded-2xl",
                 // mobile: compact bottom sheet above the tab bar, leaving the top
                 // of the dashboard visible and tappable
-                "inset-x-2 bottom-[76px] top-auto max-h-[52vh] rounded-2xl",
+                "inset-x-2 bottom-[calc(76px+var(--sab))] top-auto max-h-[52vh] rounded-2xl",
               )}
             >
               {/* Header */}

@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Search, Volume2, VolumeX } from "lucide-react";
 import { APP_NAME, fmt } from "@/lib/config";
 import { SageMark } from "@/components/ui/sage-mark";
 import { sound } from "@/lib/sound";
+import { useShellStore } from "@/features/shell/store";
 
 /** Top strip: identity mark, wordmark, live online status, prominent clock. */
 export function StatusBar() {
   const [now, setNow] = useState<Date | null>(null);
   const [soundOn, setSoundOn] = useState(true);
+  const setPaletteOpen = useShellStore((s) => s.setPaletteOpen);
 
   useEffect(() => {
     setNow(new Date());
@@ -26,6 +28,17 @@ export function StatusBar() {
       </div>
       <span className="lbl hidden sm:inline">MISSION CONTROL · v0.2</span>
       <span className="mx-auto" />
+      {/* The palette was keyboard-only, which meant it did not exist at all on
+          a phone. This is the same command surface, one tap away. */}
+      <button
+        onClick={() => setPaletteOpen(true)}
+        title="Search and commands"
+        aria-label="Search and commands"
+        className="flex items-center gap-1.5 rounded-lg border border-border-glass px-2 py-1 text-subtle transition-colors hover:border-border-glass-strong hover:text-foreground"
+      >
+        <Search className="size-[14px]" strokeWidth={1.75} />
+        <span className="lbl hidden !opacity-70 sm:inline">⌘K</span>
+      </button>
       <button
         onClick={() => setSoundOn(sound.toggle())}
         title={soundOn ? "Mute interface sounds" : "Unmute interface sounds"}

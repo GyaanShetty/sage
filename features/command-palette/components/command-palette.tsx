@@ -161,7 +161,7 @@ export function CommandPalette() {
                     {PALETTE_ACTIONS.filter((a) => a.group === group).map((action) => (
                       <Command.Item
                         key={action.id}
-                        value={action.label}
+                        value={`${action.label} ${action.keywords ?? ""}`}
                         onSelect={() => run(action)}
                         className="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm text-muted data-[selected=true]:bg-glass-strong data-[selected=true]:text-foreground"
                       >

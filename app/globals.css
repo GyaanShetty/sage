@@ -6,6 +6,15 @@
    Depth via elevation + ambient light. Spring micro-interactions.
    ============================================================ */
 :root {
+  /* Safe areas. viewport-fit=cover puts the app UNDER the notch and home
+     indicator, which is the look we want for the backdrop — but every fixed
+     control has to be told about them or iOS's own status bar sits on top of
+     the header, which is exactly what happened. */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+
   --background: #08090b;
   --panel: #0c0d0f;
   --panel-hi: #101113;      /* raised elevation */
@@ -175,8 +184,8 @@ button:active, .chip:active { transform: translateY(1px); }
 .tape-sep { color: var(--faint); margin: 0 14px; font-size: 7px; vertical-align: 1px; }
 
 /* ── toasts ── */
-.toaster { position: fixed; right: 16px; bottom: 76px; z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-@media (min-width: 768px) { .toaster { bottom: 24px; right: 84px; } }
+.toaster { position: fixed; right: calc(16px + var(--sar)); bottom: calc(76px + var(--sab)); z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+@media (min-width: 768px) { .toaster { bottom: calc(24px + var(--sab)); right: calc(84px + var(--sar)); } }
 .toast { pointer-events: auto; cursor: pointer; display: flex; width: 300px; max-width: calc(100vw - 32px); background: rgba(12,13,15,.92); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14)); backdrop-filter: blur(14px); box-shadow: 0 12px 40px rgba(0,0,0,.5); }
 .toast-rail { width: 2px; flex: 0 0 2px; background: var(--muted); }
 .toast.alert .toast-rail { background: var(--live); box-shadow: 0 0 10px var(--live-glow); }
@@ -323,11 +332,11 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 /* ── boot briefing caption ── */
 /* centered via left/right + margin (NOT transform — framer-motion animates
    transform and would clobber a translateX centering) */
-.debrief { position: fixed; left: 12px; right: 12px; margin: 0 auto; max-width: 560px; bottom: 84px; z-index: 95;
+.debrief { position: fixed; left: calc(12px + var(--sal)); right: calc(12px + var(--sar)); margin: 0 auto; max-width: 560px; bottom: calc(84px + var(--sab)); z-index: 95;
   display: flex; align-items: flex-start; gap: 14px;
   padding: 16px 40px 16px 18px; background: rgba(10,11,13,.94); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14));
   backdrop-filter: blur(16px); box-shadow: 0 18px 60px rgba(0,0,0,.6), 0 0 0 1px var(--live-glow); }
-@media (min-width: 768px) { .debrief { bottom: 28px; left: auto; right: 28px; margin: 0; } }
+@media (min-width: 768px) { .debrief { bottom: calc(28px + var(--sab)); left: auto; right: calc(28px + var(--sar)); margin: 0; } }
 .debrief-eq { display: flex; align-items: flex-end; gap: 2px; height: 20px; flex: 0 0 auto; margin-top: 2px; }
 .debrief-eq span { width: 2px; background: var(--live); box-shadow: 0 0 6px var(--live-glow); animation: eq 0.9s ease-in-out infinite; }
 .debrief-eq span:nth-child(1) { height: 40%; animation-delay: 0s; }
@@ -343,14 +352,14 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 @media (prefers-reduced-motion: reduce) { .debrief-eq span { animation: none; } }
 
 /* ---- Gesture navigation (computer vision) ---- */
-.gn-wrap { position: fixed; right: 16px; bottom: 92px; z-index: 45; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.gn-wrap { position: fixed; right: calc(16px + var(--sar)); bottom: calc(92px + var(--sab)); z-index: 45; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
 .gn-cam { width: 140px; height: 105px; object-fit: cover; transform: scaleX(-1); border: 1px solid var(--live-dim); border-radius: 8px; box-shadow: 0 0 28px -12px var(--live-glow); background: #000; }
 .gn-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; background: rgba(8,9,11,.85); border: 1px solid var(--border-glass); color: var(--live); font-family: var(--mono); font-size: 8.5px; letter-spacing: .5px; text-transform: uppercase; padding: 5px 8px; border-radius: 6px; backdrop-filter: blur(8px); line-height: 1.3; text-align: right; }
 .gn-arrow { position: fixed; right: 24px; top: 50%; transform: translateY(-50%); font-size: 26px; color: var(--live); text-shadow: 0 0 20px var(--live-glow); animation: gnPulse .8s ease-in-out infinite; z-index: 45; pointer-events: none; }
 .gn-arrow.up { top: 88px; transform: none; }
 .gn-arrow.down { bottom: 96px; top: auto; transform: none; }
 @keyframes gnPulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
-@media (max-width: 768px) { .gn-cam { width: 104px; height: 78px; } .gn-wrap { bottom: 88px; } }
+@media (max-width: 768px) { .gn-cam { width: 104px; height: 78px; } .gn-wrap { bottom: calc(88px + var(--sab)); } }
 
 /* mood range slider */
 .mood-range { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 4px; background: linear-gradient(90deg, var(--faint), var(--live-dim)); outline: none; }

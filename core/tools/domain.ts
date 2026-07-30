@@ -1,0 +1,213 @@
+import { tool } from "ai";
+import { z } from "zod";
+import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { recallMemories } from "@/core/memory/recall";
+import { listApplications, upsertApplication, STAGES } from "@/core/career/scan";
+import { analyse } from "@/core/career/pipeline";
+
+/**
+ * Domain tools — the rest of SAGE.
+ *
+ * The native pack covers tasks, calendar, email and search, so voice could talk
+ * about the assistant's own scratchpad but knew nothing about the pipeline,
+ * the portfolio, the spending or the automations that were running on the
+ * user's behalf. Everything below already had a page and a store; none of it
+ * was reachable by asking.
+ *
+ * These read and write the same generic Event rows the pages use, so the
+ * spoken path and the visual one can never drift apart.
+ */
+
+const EVENT = {
+  holding: "portfolio.holding",
+  expense: "finance.expense",
+  health: "health.report",
+  workout: "health.workout",
+} as const;
+
+/** Newest-first Event payloads of one type. */
+async function events<T>(type: string, limit = 50): Promise<T[]> {
+  const { data } = await db
+    .from("Event")
+    .select("payload")
+    .eq("userId", DEFAULT_USER_ID)
+    .eq("type", type)
+    .order("createdAt", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r) => r.payload as T);
+}
+
+export const domainTools = {
+  // ── Career ──────────────────────────────────────────────────────────────
+  career_pipeline: tool({
+    description:
+      "Look at the user's job/internship pipeline: applications, what stage each is in, conversion rates, which have gone quiet, and upcoming deadlines. Use for any question about applications, interviews, offers or job hunting.",
+    inputSchema: z.object({
+      stage: z.enum(["applied", "assessment", "interview", "offer", "rejected"]).optional()
+        .describe("Filter to one stage; omit for the whole pipeline"),
+    }),
+    execute: async ({ stage }) => {
+      const apps = await listApplications();
+      const { funnel, insights } = analyse(apps);
+      const byId = new Map(insights.map((i) => [i.id, i]));
+      const rows = (stage ? apps.filter((a) => a.stage === stage) : apps).slice(0, 25).map((a) => ({
+        company: a.company,
+        role: a.role,
+        stage: a.stage,
+        daysInStage: byId.get(a.id)?.daysInStage ?? null,
+        quiet: byId.get(a.id)?.stale ?? false,
+        daysToDeadline: byId.get(a.id)?.daysToDeadline ?? null,
+      }));
+      return {
+        ok: true,
+        total: funnel.total,
+        counts: funnel.counts,
+        interviewRatePct: Math.round(funnel.interviewRate * 100),
+        offerRatePct: Math.round(funnel.offerRate * 100),
+        medianDaysToInterview: funnel.medianDaysToInterview,
+        applications: rows,
+      };
+    },
+  }),
+
+  career_update: tool({
+    description:
+      "Add an application to the pipeline, or move an existing one to a new stage. Use when the user says they applied somewhere, got an OA/interview, or received an offer or rejection.",
+    inputSchema: z.object({
+      company: z.string().max(80),
+      role: z.string().max(120).optional(),
+      stage: z.enum(STAGES).describe("Where it stands now"),
+      deadline: z.string().datetime().optional(),
+    }),
+    execute: async ({ company, role, stage, deadline }) => {
+      // Match an existing application before creating one, or saying "I got the
+      // Google interview" would silently open a second Google card.
+      const apps = await listApplications();
+      const hit = apps.find(
+        (a) =>
+          a.company.toLowerCase() === company.toLowerCase() &&
+          (!role || a.role.toLowerCase() === role.toLowerCase()),
+      ) ?? apps.find((a) => a.company.toLowerCase() === company.toLowerCase());
+
+      const id = await upsertApplication({
+        ...(hit ? { id: hit.id } : {}),
+        company,
+        ...(role ? { role } : {}),
+        stage,
+        ...(deadline ? { deadline } : {}),
+        source: "manual",
+      });
+      return { ok: true, id, action: hit ? "moved" : "created", company, stage };
+    },
+  }),
+
+  // ── Money ───────────────────────────────────────────────────────────────
+  portfolio_status: tool({
+    description:
+      "The user's investment holdings and what they are worth. Use for questions about their portfolio, stocks, crypto or net worth.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const holdings = await events<{ symbol?: string; qty?: number; avgPrice?: number; kind?: string }>(EVENT.holding, 100);
+      if (holdings.length === 0) return { ok: true, holdings: [], note: "No holdings recorded yet." };
+      // Only the recorded book value — quotes live in the markets layer, and
+      // inventing a current price here would be worse than saying nothing.
+      const rows = holdings.slice(0, 40).map((h) => ({
+        symbol: h.symbol ?? "?", qty: h.qty ?? 0, avgPrice: h.avgPrice ?? null, kind: h.kind ?? "equity",
+      }));
+      const bookValue = rows.reduce((s, r) => s + (r.qty ?? 0) * (r.avgPrice ?? 0), 0);
+      return { ok: true, count: rows.length, bookValue: Math.round(bookValue), holdings: rows };
+    },
+  }),
+
+  spending_summary: tool({
+    description:
+      "Recent expenses and subscriptions, totalled. Use for questions about spending, budget, or where the money went.",
+    inputSchema: z.object({
+      days: z.number().int().min(1).max(365).default(30),
+    }),
+    execute: async ({ days }) => {
+      const since = Date.now() - days * 86_400_000;
+      const all = await events<{ amount?: number; category?: string; label?: string; at?: string }>(EVENT.expense, 300);
+      const recent = all.filter((e) => !e.at || new Date(e.at).getTime() >= since);
+      const total = recent.reduce((s, e) => s + (e.amount ?? 0), 0);
+      const byCategory: Record<string, number> = {};
+      for (const e of recent) byCategory[e.category ?? "other"] = (byCategory[e.category ?? "other"] ?? 0) + (e.amount ?? 0);
+      return {
+        ok: true,
+        days,
+        count: recent.length,
+        total: Math.round(total),
+        byCategory,
+        largest: recent.slice().sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0)).slice(0, 5)
+          .map((e) => ({ label: e.label ?? e.category ?? "expense", amount: e.amount ?? 0 })),
+      };
+    },
+  }),
+
+  // ── Body ────────────────────────────────────────────────────────────────
+  health_status: tool({
+    description:
+      "The user's latest health figures — steps, sleep, activity — and recent workouts. Use for questions about fitness, sleep, training or how they are doing physically.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const [reports, workouts] = await Promise.all([
+        events<{ steps?: number; sleepHours?: number; activeMinutes?: number; at?: string }>(EVENT.health, 7),
+        events<{ kind?: string; minutes?: number; at?: string }>(EVENT.workout, 7),
+      ]);
+      const latest = reports[0] ?? null;
+      return {
+        ok: true,
+        latest: latest ? { steps: latest.steps ?? null, sleepHours: latest.sleepHours ?? null, activeMinutes: latest.activeMinutes ?? null } : null,
+        recentDays: reports.length,
+        avgSteps: reports.length
+          ? Math.round(reports.reduce((s, r) => s + (r.steps ?? 0), 0) / reports.length)
+          : null,
+        workouts: workouts.slice(0, 5).map((w) => ({ kind: w.kind ?? "session", minutes: w.minutes ?? null })),
+      };
+    },
+  }),
+
+  // ── Automations ─────────────────────────────────────────────────────────
+  list_automations: tool({
+    description:
+      "The user's standing automations: what they do, when they fire, whether they are armed, and how the last run went. Use when asked what SAGE is doing on their behalf, or whether something is running.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { data } = await db
+        .from("Automation")
+        .select("id, name, trigger, workflow, enabled, lastRunAt")
+        .eq("userId", DEFAULT_USER_ID)
+        .limit(30);
+      const rows = (data ?? []) as { id: string; name: string; trigger: { type?: string; time?: string; when?: string }; workflow: { directive?: string }; enabled: boolean; lastRunAt: string | null }[];
+      return {
+        ok: true,
+        count: rows.length,
+        armed: rows.filter((r) => r.enabled).length,
+        automations: rows.map((r) => ({
+          name: r.name,
+          when: r.trigger?.type === "condition" ? r.trigger.when : `daily ${r.trigger?.time ?? "?"} UTC`,
+          armed: r.enabled,
+          directive: (r.workflow?.directive ?? "").slice(0, 160),
+          lastRunAt: r.lastRunAt,
+        })),
+      };
+    },
+  }),
+
+  // ── Memory ──────────────────────────────────────────────────────────────
+  recall_memory: tool({
+    description:
+      "Search everything SAGE knows about the user, semantically. Use before answering any personal question — preferences, history, goals, people, routines — rather than guessing.",
+    inputSchema: z.object({
+      query: z.string().max(300),
+    }),
+    execute: async ({ query }) => {
+      const found = await recallMemories(query, 8).catch(() => []);
+      return {
+        ok: true,
+        count: found.length,
+        memories: found.map((m) => ({ type: m.type, content: m.content })),
+      };
+    },
+  }),
+};

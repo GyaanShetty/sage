@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runVoiceTurn } from "@/core/voice/turn";
+import { runVoiceTurnDetailed } from "@/core/voice/turn";
 
 export const maxDuration = 60;
 
@@ -7,6 +7,6 @@ export const maxDuration = 60;
 export async function POST(req: Request) {
   const { text, mood } = (await req.json()) as { text?: string; mood?: "formal" | "balanced" | "playful" };
   if (!text?.trim()) return NextResponse.json({ ok: false, error: "Empty" }, { status: 400 });
-  const reply = await runVoiceTurn(text.trim(), mood ?? "playful");
-  return NextResponse.json({ ok: true, data: { text: reply } });
+  const { text: reply, actions } = await runVoiceTurnDetailed(text.trim(), mood ?? "playful");
+  return NextResponse.json({ ok: true, data: { text: reply, actions } });
 }

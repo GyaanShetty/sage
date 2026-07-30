@@ -26,6 +26,12 @@ const ROLL_PER_STEP = 0.30;
 const POSE_HOLD_MS = 260;
 /** Ignore a re-trigger of the same pose for this long. */
 const POSE_COOLDOWN = 800;
+/** The wheel closes itself if nothing happens for this long — an interface you
+ *  raised by accident should not stay up until you dismiss it. Twisting resets
+ *  the clock, so deliberately browsing keeps it open indefinitely. */
+const WHEEL_IDLE_MS = 6_000;
+/** Hand dropped below this height (1 = bottom of frame) reads as "put it down". */
+const HAND_DOWN_Y = 0.82;
 
 /**
  * Hands-free gesture navigation (opt-in). Pinch (thumb + index) to grab the page
@@ -57,6 +63,7 @@ export function GestureNav() {
   const rollAnchor = useRef<number | null>(null);
   const poseSince = useRef<{ pose: string; at: number } | null>(null);
   const lastPose = useRef(0);
+  const wheelTouched = useRef(0);   // last time the wheel saw deliberate input
 
   /** True once a pose has been held long enough and is off cooldown. */
   const held = (pose: string, active: boolean, now: number): boolean => {
@@ -103,6 +110,7 @@ export function GestureNav() {
       else {
         wheelOpen.current = true;
         rollAnchor.current = f.roll;
+        wheelTouched.current = now;
         window.dispatchEvent(new CustomEvent("sage:nav-open"));
       }
       return;
@@ -110,6 +118,10 @@ export function GestureNav() {
 
     // ---- while the wheel is up: twist to rotate, 👌 to open ----
     if (wheelOpen.current) {
+      // Lowering your hand dismisses it, the way you would drop a menu.
+      if (f.palmY > HAND_DOWN_Y) { closeWheel(); return; }
+      // Idle timeout, measured from the last twist rather than from opening.
+      if (now - wheelTouched.current > WHEEL_IDLE_MS) { closeWheel(); return; }
       if (held("ok", f.ok, now)) {
         wheelOpen.current = false;
         rollAnchor.current = null;
@@ -125,6 +137,7 @@ export function GestureNav() {
       const steps = Math.trunc(d / ROLL_PER_STEP);
       if (steps !== 0) {
         rollAnchor.current += steps * ROLL_PER_STEP; // keep the remainder
+        wheelTouched.current = now;                  // twisting keeps it alive
         window.dispatchEvent(new CustomEvent("sage:nav-rotate", { detail: { steps } }));
       }
       return; // the wheel owns the hand while it is up
@@ -170,7 +183,7 @@ export function GestureNav() {
         await c.start(videoRef.current!);
         if (cancelled) { c.stop(); return; }
         ctrl.current = c;
-        setStatus("🤙 wheel · twist to rotate · 👌 open — or pinch to scroll");
+        setStatus("🤙 wheel · twist to rotate · 👌 open · hand down to dismiss");
       } catch (err) {
         setStatus(
           /denied|NotAllowed/i.test(String(err))

@@ -45,6 +45,12 @@ export function RadialNav() {
   const ringRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const lastAngle = useRef(0);
+  // Mirrors of open/rot for the gesture handlers, which are bound once and
+  // would otherwise read values captured at their first render.
+  const openRef = useRef(open);
+  openRef.current = open;
+  const rotRef = useRef(rot);
+  rotRef.current = rot;
 
   const N = PAGES.length;
   const step = TAU / N;
@@ -81,6 +87,47 @@ export function RadialNav() {
     const i = PAGES.findIndex((p) => pathname.startsWith(p.href));
     if (i >= 0) setRot(-i * step);
   }, [open, pathname, step]);
+
+  /**
+   * Gesture control surface.
+   *
+   * The wheel is driven by events rather than exposing its state, so the
+   * gesture layer never has to know how rotation is stored — and the hand,
+   * the mouse and the keyboard all move the same wheel.
+   *
+   *   sage:nav-open   — 🤙 raises the wheel
+   *   sage:nav-rotate — palm twist; detail.steps is signed detents
+   *   sage:nav-select — 👌 opens whatever is in the selector
+   *   sage:nav-close  — hand lost, or cancelled
+   */
+  useEffect(() => {
+    const onOpen = () => { sound.swoosh?.(); setOpen(true); };
+    const onClose = () => setOpen(false);
+    const onRotate = (e: Event) => {
+      const steps = (e as CustomEvent<{ steps?: number }>).detail?.steps ?? 0;
+      if (!steps) return;
+      setRot((r) => r - steps * step);
+    };
+    const onSelect = () => {
+      // Read live values from refs. Navigating inside a setState updater looked
+      // tempting for the same reason, but updaters must stay pure — React is
+      // free to run them twice or discard them, and the navigation simply
+      // never happened.
+      if (!openRef.current) return;
+      const i = ((Math.round(-rotRef.current / step) % N) + N) % N;
+      go(PAGES[i].href);
+    };
+    window.addEventListener("sage:nav-open", onOpen);
+    window.addEventListener("sage:nav-close", onClose);
+    window.addEventListener("sage:nav-rotate", onRotate);
+    window.addEventListener("sage:nav-select", onSelect);
+    return () => {
+      window.removeEventListener("sage:nav-open", onOpen);
+      window.removeEventListener("sage:nav-close", onClose);
+      window.removeEventListener("sage:nav-rotate", onRotate);
+      window.removeEventListener("sage:nav-select", onSelect);
+    };
+  }, [step, N, go]);
 
   // Fuzzy-match a spoken/typed target to a page.
   const matchPage = useCallback((q: string): number => {

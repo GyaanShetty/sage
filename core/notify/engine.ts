@@ -3,6 +3,7 @@ import { searchGmail } from "@/infrastructure/integrations/google";
 import { getMarkets } from "@/infrastructure/markets";
 import { getDailyChallenge, getLeetStats } from "@/infrastructure/integrations/leetcode";
 import { sendPush } from "@/infrastructure/push";
+import { pipelineReport, needsAttention, type AppInsight } from "@/core/career/pipeline";
 import { TZ, tzHour } from "@/lib/config";
 
 const LEET_USER = process.env.LEETCODE_USERNAME ?? "gyaanshetty";
@@ -182,18 +183,61 @@ async function leetcodeNudge(): Promise<number> {
 }
 
 /**
+ * Career pipeline nudge — a deadline inside three days, or an application that
+ * has gone quiet. Both were already tracked and neither was ever surfaced, so
+ * a deadline could pass with the card sitting right there on the page.
+ * Morning only, deduped per application per day.
+ */
+async function careerNudge(): Promise<number> {
+  if (tzHour() < 8 || tzHour() >= 12) return 0;
+  const { insights } = await pipelineReport().catch(() => ({ insights: [] as AppInsight[] }));
+  const { dueSoon, stale } = needsAttention(insights);
+  let sent = 0;
+
+  for (const i of dueSoon) {
+    if (sent >= 2) break;
+    const key = `career-due:${i.id}:${i.daysToDeadline}`;
+    if (await seenToday(key)) continue;
+    const when = i.daysToDeadline === 0 ? "today" : i.daysToDeadline === 1 ? "tomorrow" : `in ${i.daysToDeadline} days`;
+    await sendPush({
+      title: "💼 Application deadline",
+      body: `${i.company} — ${i.role} closes ${when}, sir.`,
+      tag: key,
+      url: "/career",
+    });
+    await markSent(key);
+    sent++;
+  }
+
+  // One summary for everything that has gone quiet, rather than a push each.
+  if (stale.length && !(await seenToday("career-stale"))) {
+    const lead = stale[0];
+    await sendPush({
+      title: "💼 Pipeline has gone quiet",
+      body: `${stale.length} application${stale.length === 1 ? "" : "s"} untouched for weeks — ${lead.company} is ${lead.daysInStage} days in ${lead.stage}.`,
+      tag: "career-stale",
+      url: "/career",
+    });
+    await markSent("career-stale");
+    sent++;
+  }
+  return sent;
+}
+
+/**
  * Full notification sweep — called each cron tick. Three scheduled briefs
  * (5am morning · 9am markets · 6pm pending tasks) plus two important-only
  * event channels (time-sensitive emails, evening LeetCode streak). Every
  * channel dedupes itself so a frequent cron never spams.
  */
 export async function runNotifications(): Promise<Record<string, number>> {
-  const [morning, market, pending, email, leetcode] = await Promise.all([
+  const [morning, market, pending, email, leetcode, career] = await Promise.all([
     morningBrief().catch(() => 0),
     marketBrief().catch(() => 0),
     eveningTaskBrief().catch(() => 0),
     importantEmails().catch(() => 0),
     leetcodeNudge().catch(() => 0),
+    careerNudge().catch(() => 0),
   ]);
-  return { morning, market, pending, email, leetcode };
+  return { morning, market, pending, email, leetcode, career };
 }

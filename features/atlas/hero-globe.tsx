@@ -81,7 +81,10 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
   layersRef.current = layers;
   const dataRef = useRef<{ planes: Pt[]; sats: Pt[]; quakes: Pt[] }>({ planes: [], sats: [], quakes: [] });
   const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const hoveredRef = useRef<string | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const isOn = (k: string) => layersRef.current.find((l) => l.key === k)?.on ?? false;
 
@@ -106,6 +109,16 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
   useEffect(() => {
     let disposed = false;
     (async () => {
+      // The whole init used to sit in an unguarded async IIFE. Anything that
+      // threw — a failed chunk, no WebGL, a lost context — killed it silently
+      // and left a black rectangle where the globe should be, with nothing in
+      // the console and no way to tell the difference from "still loading".
+      try {
+        // Probe WebGL before pulling ~1MB of globe.gl and three.
+        const probe = document.createElement("canvas");
+        const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
+        if (!gl) throw new Error("WebGL is unavailable in this browser");
+
       const [{ default: Globe }, topojson, THREE] = await Promise.all([
         import("globe.gl"),
         import("topojson-client").catch(() => null),
@@ -219,13 +232,45 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
       const onVis = () => (document.visibilityState === "hidden" ? anim.pauseAnimation?.() : anim.resumeAnimation?.());
       document.addEventListener("visibilitychange", onVis);
 
+      // A lost WebGL context (iOS reclaims them aggressively under memory
+      // pressure) blanks the canvas permanently unless something re-inits.
+      // This is the likeliest way a working globe becomes "just not there".
+      const canvas = el.querySelector("canvas");
+      const onLost = (ev: Event) => {
+        ev.preventDefault();               // required, or the context never restores
+        setReady(false);
+        setFailed("Graphics context was lost — restoring…");
+      };
+      const onRestored = () => { setFailed(null); setAttempt((a) => a + 1); };
+      canvas?.addEventListener("webglcontextlost", onLost as EventListener);
+      canvas?.addEventListener("webglcontextrestored", onRestored);
+
+      setFailed(null);
       setReady(true);
       rebuild();
-      return () => { ro.disconnect(); document.removeEventListener("visibilitychange", onVis); world._destructor?.(); };
+      // Returning from inside the IIFE never reached React, so none of this
+      // teardown was running — the observer and listener outlived every remount.
+      cleanupRef.current = () => {
+        ro.disconnect();
+        document.removeEventListener("visibilitychange", onVis);
+        canvas?.removeEventListener("webglcontextlost", onLost as EventListener);
+        canvas?.removeEventListener("webglcontextrestored", onRestored);
+        world._destructor?.();
+      };
+      } catch (err) {
+        if (disposed) return;
+        console.error("[globe] init failed", err);
+        setReady(false);
+        setFailed(err instanceof Error ? err.message : "The globe could not start on this device.");
+      }
     })();
-    return () => { disposed = true; };
+    return () => {
+      disposed = true;
+      cleanupRef.current?.();
+      cleanupRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [attempt]);
 
   // ── live data feeds ──────────────────────────────────────
   useEffect(() => {
@@ -275,6 +320,15 @@ export function HeroGlobe({ onZoomIn, onCenter }: { nodeCount?: number; onZoomIn
   return (
     <div className="heroglobe">
       <div className="heroglobe-canvas" ref={elRef} />
+      {failed && (
+        <div className="hg-failed">
+          <p className="hg-failed-t">GLOBE OFFLINE</p>
+          <p className="hg-failed-b">{failed}</p>
+          <button className="atlas-chip" onClick={() => { setFailed(null); setAttempt((a) => a + 1); }}>
+            RETRY
+          </button>
+        </div>
+      )}
       {/* surveillance-HUD framing over the render */}
       <span className="hg-corner tl" /><span className="hg-corner tr" />
       <span className="hg-corner bl" /><span className="hg-corner br" />

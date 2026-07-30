@@ -24,6 +24,14 @@ export interface HandFrame {
   /** Hand roll in radians — angle of the knuckle line (index→pinky MCP). Twisting
    *  the hand like a knob/ball changes this; used for rotation-based scrolling. */
   roll: number;
+  /** Per-finger extension, thumb→pinky. Openness alone cannot tell a shaka
+   *  from a fist from an OK sign — they differ only in *which* fingers are
+   *  out, not how many. */
+  fingers: [thumb: boolean, index: boolean, middle: boolean, ring: boolean, pinky: boolean];
+  /** 🤙 thumb and pinky out, the middle three folded. */
+  shaka: boolean;
+  /** 👌 thumb and index touching, the other three extended. */
+  ok: boolean;
 }
 
 const WASM = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
@@ -83,6 +91,22 @@ export class HandController {
           const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
           const handSpan = Math.hypot(midMcp.x - wrist.x, midMcp.y - wrist.y) || 0.001;
           const openness = Math.hypot(midTip.x - wrist.x, midTip.y - wrist.y) / handSpan;
+
+          // A finger is extended when its tip sits further from the wrist than
+          // its middle joint — scale-free, so it holds whether the hand is
+          // near the camera or far from it.
+          const far = (tip: number, pip: number) => {
+            const t = hand[tip], p = hand[pip];
+            return Math.hypot(t.x - wrist.x, t.y - wrist.y) > Math.hypot(p.x - wrist.x, p.y - wrist.y) * 1.08;
+          };
+          const fingers: [boolean, boolean, boolean, boolean, boolean] = [
+            far(4, 2), far(8, 6), far(12, 10), far(16, 14), far(20, 18),
+          ];
+          const [fThumb, fIndex, fMiddle, fRing, fPinky] = fingers;
+          const shaka = fThumb && fPinky && !fIndex && !fMiddle && !fRing;
+          // The OK ring is a pinch, but a fist is also "not extended" — requiring
+          // the other three out is what separates them.
+          const ok = dist < 0.07 && fMiddle && fRing && fPinky;
           // knuckle line in mirrored space → roll angle
           const roll = Math.atan2(pinkyMcp.y - indexMcp.y, (1 - pinkyMcp.x) - (1 - indexMcp.x));
           this.onFrame({
@@ -94,6 +118,9 @@ export class HandController {
             pinchDist: dist,
             openness,
             roll,
+            fingers,
+            shaka,
+            ok,
           });
         } else {
           this.onFrame(null);

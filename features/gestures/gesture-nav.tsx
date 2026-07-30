@@ -17,6 +17,16 @@ const DRAG_GAIN = 1.5;        // page travel relative to hand travel (1 = 1:1)
 const FIST_DEVIATE = 0.16;    // how far a fist must slide sideways to flip a page
 const NAV_COOLDOWN = 1100;
 
+/** Radians of palm twist per detent. A comfortable wrist rotation spans
+ *  roughly a right angle, which at this size is about five pages. */
+const ROLL_PER_STEP = 0.30;
+/** A pose must persist this long to count. Fingers pass through shaka and OK
+ *  shapes incidentally on the way to other poses; without this, simply opening
+ *  your hand fires the wheel. */
+const POSE_HOLD_MS = 260;
+/** Ignore a re-trigger of the same pose for this long. */
+const POSE_COOLDOWN = 800;
+
 /**
  * Hands-free gesture navigation (opt-in). Pinch (thumb + index) to grab the page
  * and move your hand up/down to drag it — like scrolling a touchscreen in the
@@ -42,6 +52,33 @@ export function GestureNav() {
   const fistAnchor = useRef<number | null>(null);
   const lastNav = useRef(0);
 
+  // Wheel state, kept in refs: this runs per video frame and must not re-render.
+  const wheelOpen = useRef(false);
+  const rollAnchor = useRef<number | null>(null);
+  const poseSince = useRef<{ pose: string; at: number } | null>(null);
+  const lastPose = useRef(0);
+
+  /** True once a pose has been held long enough and is off cooldown. */
+  const held = (pose: string, active: boolean, now: number): boolean => {
+    if (!active) {
+      if (poseSince.current?.pose === pose) poseSince.current = null;
+      return false;
+    }
+    if (poseSince.current?.pose !== pose) { poseSince.current = { pose, at: now }; return false; }
+    if (now - poseSince.current.at < POSE_HOLD_MS) return false;
+    if (now - lastPose.current < POSE_COOLDOWN) return false;
+    lastPose.current = now;
+    poseSince.current = null;
+    return true;
+  };
+
+  const closeWheel = useCallback(() => {
+    if (!wheelOpen.current) return;
+    wheelOpen.current = false;
+    rollAnchor.current = null;
+    window.dispatchEvent(new CustomEvent("sage:nav-close"));
+  }, []);
+
   const navigate = useCallback((delta: number) => {
     const i = ROUTES.findIndex((r) => pathRef.current.startsWith(r));
     const next = ROUTES[Math.min(ROUTES.length - 1, Math.max(0, (i < 0 ? 0 : i) + delta))];
@@ -51,8 +88,47 @@ export function GestureNav() {
   const scroller = () => (document.querySelector("main") as HTMLElement | null);
 
   const onFrame = useCallback((f: HandFrame | null) => {
-    if (!f) { setDir(null); dragY.current = null; fistAnchor.current = null; return; }
+    if (!f) {
+      setDir(null); dragY.current = null; fistAnchor.current = null;
+      poseSince.current = null;
+      // Hand out of frame closes the wheel rather than leaving it stranded.
+      closeWheel();
+      return;
+    }
     const now = performance.now();
+
+    // ---- 🤙 SHAKA → raise the wheel ----
+    if (held("shaka", f.shaka, now)) {
+      if (wheelOpen.current) { closeWheel(); }
+      else {
+        wheelOpen.current = true;
+        rollAnchor.current = f.roll;
+        window.dispatchEvent(new CustomEvent("sage:nav-open"));
+      }
+      return;
+    }
+
+    // ---- while the wheel is up: twist to rotate, 👌 to open ----
+    if (wheelOpen.current) {
+      if (held("ok", f.ok, now)) {
+        wheelOpen.current = false;
+        rollAnchor.current = null;
+        window.dispatchEvent(new CustomEvent("sage:nav-select"));
+        return;
+      }
+      if (rollAnchor.current === null) rollAnchor.current = f.roll;
+      // Unwrap across the ±π seam, or a twist past vertical would snap the
+      // wheel the long way round.
+      let d = f.roll - rollAnchor.current;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      const steps = Math.trunc(d / ROLL_PER_STEP);
+      if (steps !== 0) {
+        rollAnchor.current += steps * ROLL_PER_STEP; // keep the remainder
+        window.dispatchEvent(new CustomEvent("sage:nav-rotate", { detail: { steps } }));
+      }
+      return; // the wheel owns the hand while it is up
+    }
 
     // ---- PINCH → grab & drag the page (touchscreen-style) ----
     if (f.pinch) {
@@ -82,7 +158,7 @@ export function GestureNav() {
     } else {
       fistAnchor.current = null;
     }
-  }, [navigate]);
+  }, [navigate, closeWheel]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -94,7 +170,7 @@ export function GestureNav() {
         await c.start(videoRef.current!);
         if (cancelled) { c.stop(); return; }
         ctrl.current = c;
-        setStatus("Pinch & drag to scroll · fist + slide to change page");
+        setStatus("🤙 wheel · twist to rotate · 👌 open — or pinch to scroll");
       } catch (err) {
         setStatus(
           /denied|NotAllowed/i.test(String(err))

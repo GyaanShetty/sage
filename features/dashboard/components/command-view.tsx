@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import "../command.css";
 import { NumberTicker } from "@/components/number-ticker";
@@ -12,6 +12,7 @@ import { ScheduleManager } from "./schedule-manager";
 import { WorldView } from "@/features/atlas/world-view";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
+import { BriefBlock } from "./brief-block";
 import { tzHour, fmt } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
@@ -202,6 +203,7 @@ export function CommandView({
 
           <aside className="heart-side left">
             <SitrepBand compact />
+            <BriefBlock />
               <ExpandableCell title="Intelligence" tag="MEMORY CORE">
                 <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
                 <div className="counters" style={{ margin: 0 }}>

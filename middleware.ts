@@ -16,6 +16,9 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/webhook") ||
+    // Which build is serving — public so "did my fix ship?" is answerable
+    // without being logged in. Reports the commit only, never config.
+    pathname === "/api/version" ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/sw.js" ||
     pathname.startsWith("/icon-") ||

@@ -3,19 +3,59 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Play, Plus, Trash2, Zap } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { staggerContainer, fadeRise } from "@/lib/motion";
+
+export type WhenKind = "task_overdue" | "aqi_above" | "crypto_move" | "low_steps" | "unread_email";
+
+export interface Trigger { type: string; time?: string; when?: WhenKind; threshold?: number }
 
 export interface AutomationItem {
   id: string;
   name: string;
-  trigger: { type: string; time?: string };
+  trigger: Trigger;
   workflow: { directive: string };
   enabled: boolean;
   lastRunAt: string | null;
   lastReport?: string | null;
+  lastStatus?: "running" | "done" | "failed" | null;
 }
+
+export interface FleetHealth { total: number; enabled: number; runs24h: number; failed24h: number }
+
+interface Run {
+  id: string;
+  status: "running" | "done" | "failed";
+  startedAt: string;
+  endedAt: string | null;
+  report: string | null;
+  error: string | null;
+}
+
+const WHEN_LABEL: Record<WhenKind, string> = {
+  task_overdue: "A TASK GOES OVERDUE",
+  aqi_above: "AQI RISES ABOVE",
+  crypto_move: "CRYPTO MOVES OVER",
+  low_steps: "STEPS FALL BELOW",
+  unread_email: "NEW EMAIL ARRIVES",
+};
+const THRESHOLD_KINDS: WhenKind[] = ["aqi_above", "crypto_move", "low_steps"];
+
+/** Condition automations have no time, so the old unconditional "DAILY — UTC"
+ *  described every one of them wrongly. */
+function triggerLabel(t: Trigger): string {
+  if (t.type === "condition" && t.when) {
+    const base = WHEN_LABEL[t.when] ?? t.when.toUpperCase();
+    return THRESHOLD_KINDS.includes(t.when) && t.threshold != null
+      ? `WHEN ${base} ${t.threshold}${t.when === "crypto_move" ? "%" : ""}`
+      : `WHEN ${base}`;
+  }
+  return `DAILY ${t.time ?? "—"} UTC`;
+}
+
+const stamp = (iso: string) =>
+  new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase();
 
 const PRESETS = [
   {
@@ -38,7 +78,7 @@ const PRESETS = [
   },
 ];
 
-export function AutomationsView({ automations }: { automations: AutomationItem[] }) {
+export function AutomationsView({ automations, health }: { automations: AutomationItem[]; health: FleetHealth }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -49,6 +89,47 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
   const [busy, setBusy] = useState(false);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [reports, setReports] = useState<Record<string, string>>({});
+
+  // Run history, fetched only when a trail is opened — twenty runs per
+  // automation is a lot to load for a page you may only be glancing at.
+  const [openRuns, setOpenRuns] = useState<string | null>(null);
+  const [runs, setRuns] = useState<Record<string, Run[] | "loading">>({});
+
+  // Inline edit of an existing directive.
+  const [editId, setEditId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ name: string; directive: string; time: string }>({ name: "", directive: "", time: "03:00" });
+  const [saving, setSaving] = useState(false);
+
+  const showRuns = async (id: string) => {
+    if (openRuns === id) { setOpenRuns(null); return; }
+    setOpenRuns(id);
+    if (runs[id] && runs[id] !== "loading") return; // already have the trail
+    setRuns((r) => ({ ...r, [id]: "loading" }));
+    const j = await fetch(`/api/automation/${id}/runs`).then((r) => r.json()).catch(() => null);
+    setRuns((r) => ({ ...r, [id]: j?.ok ? (j.data as Run[]) : [] }));
+  };
+
+  const startEdit = (a: AutomationItem) => {
+    setEditId(a.id);
+    setDraft({ name: a.name, directive: a.workflow.directive, time: a.trigger.time ?? "03:00" });
+  };
+
+  const saveEdit = async (a: AutomationItem) => {
+    if (!draft.name.trim() || !draft.directive.trim() || saving) return;
+    setSaving(true);
+    // Only the time is editable for a daily trigger; changing the *kind* of
+    // trigger is a different automation, so that stays a create.
+    const body: Record<string, unknown> = { name: draft.name.trim(), directive: draft.directive.trim() };
+    if (a.trigger.type !== "condition") body.trigger = { type: "daily", time: draft.time };
+    await fetch(`/api/automation/${a.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    setEditId(null);
+    router.refresh();
+  };
 
   const create = async () => {
     if (!name.trim() || !directive.trim() || busy) return;
@@ -101,6 +182,19 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
           <div>
             <p className="hud-label">AUTONOMOUS DIRECTIVES</p>
             <h1 className="mt-1 font-mono text-2xl font-semibold tracking-tight">Automations</h1>
+            <p className="hud-label mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span>{health.enabled}/{health.total} ARMED</span>
+              <span>·</span>
+              <span>{health.runs24h} RUN{health.runs24h === 1 ? "" : "S"} / 24H</span>
+              {health.failed24h > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1 !text-red-400">
+                    <AlertTriangle className="size-3" /> {health.failed24h} FAILED
+                  </span>
+                </>
+              )}
+            </p>
           </div>
           <button
             onClick={() => setShowForm((s) => !s)}
@@ -213,12 +307,17 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
                   />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="font-mono text-sm font-medium">{automation.name}</p>
+                  <p className="flex items-center gap-2 font-mono text-sm font-medium">
+                    {automation.name}
+                    {automation.lastStatus === "failed" && (
+                      <span className="hud-label flex items-center gap-1 border border-red-500/40 px-1.5 py-0.5 !text-red-400">
+                        <AlertTriangle className="size-2.5" /> FAILING
+                      </span>
+                    )}
+                  </p>
                   <p className="hud-label mt-0.5">
-                    DAILY {automation.trigger.time ?? "—"} UTC ·{" "}
-                    {automation.lastRunAt
-                      ? `LAST RUN ${new Date(automation.lastRunAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase()}`
-                      : "NEVER RUN"}
+                    {triggerLabel(automation.trigger)} ·{" "}
+                    {automation.lastRunAt ? `LAST RUN ${stamp(automation.lastRunAt)}` : "NEVER RUN"}
                   </p>
                 </div>
                 <button
@@ -235,6 +334,24 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
                   RUN
                 </button>
                 <button
+                  onClick={() => showRuns(automation.id)}
+                  title="Run history"
+                  className={cn(
+                    "hud-label flex items-center gap-1.5 border border-border-glass px-3 py-1.5 transition-colors hover:border-border-glass-strong hover:!text-foreground",
+                    openRuns === automation.id && "border-border-glass-strong !text-foreground",
+                  )}
+                >
+                  <History className="size-3" />
+                  <ChevronDown className={cn("size-3 transition-transform", openRuns === automation.id && "rotate-180")} />
+                </button>
+                <button
+                  onClick={() => (editId === automation.id ? setEditId(null) : startEdit(automation))}
+                  title="Edit directive"
+                  className="p-1.5 text-subtle transition-colors hover:text-foreground"
+                >
+                  {editId === automation.id ? <X className="size-4" /> : <Pencil className="size-4" />}
+                </button>
+                <button
                   onClick={() => remove(automation.id)}
                   title="Delete"
                   className="p-1.5 text-subtle opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
@@ -242,10 +359,85 @@ export function AutomationsView({ automations }: { automations: AutomationItem[]
                   <Trash2 className="size-4" />
                 </button>
               </div>
-              <p className="mt-3 border-l border-border-glass pl-4 text-sm text-muted">
-                {automation.workflow.directive}
-              </p>
-              {(reports[automation.id] ?? automation.lastReport) && (
+              {editId === automation.id ? (
+                <div className="mt-3 space-y-2 border-l border-border-glass pl-4">
+                  <input
+                    value={draft.name}
+                    onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                    className="h-9 w-full border border-border-glass bg-transparent px-3 font-mono text-sm outline-none focus:border-border-glass-strong"
+                  />
+                  <textarea
+                    value={draft.directive}
+                    onChange={(e) => setDraft((d) => ({ ...d, directive: e.target.value }))}
+                    rows={3}
+                    className="w-full resize-none border border-border-glass bg-transparent p-3 font-mono text-sm outline-none focus:border-border-glass-strong"
+                  />
+                  <div className="flex items-center gap-2">
+                    {automation.trigger.type !== "condition" && (
+                      <div className="flex h-9 items-center gap-2 border border-border-glass px-3">
+                        <span className="hud-label">UTC</span>
+                        <input
+                          type="time"
+                          value={draft.time}
+                          onChange={(e) => setDraft((d) => ({ ...d, time: e.target.value }))}
+                          className="bg-transparent font-mono text-sm outline-none"
+                        />
+                      </div>
+                    )}
+                    <button
+                      onClick={() => saveEdit(automation)}
+                      disabled={saving || !draft.name.trim() || !draft.directive.trim()}
+                      className="hud-label flex items-center gap-2 bg-foreground px-4 py-2 !text-background transition-opacity disabled:opacity-30"
+                    >
+                      {saving ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3" />} SAVE
+                    </button>
+                    <button onClick={() => setEditId(null)} className="hud-label px-3 py-2 hover:!text-foreground">
+                      CANCEL
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 border-l border-border-glass pl-4 text-sm text-muted">
+                  {automation.workflow.directive}
+                </p>
+              )}
+
+              {openRuns === automation.id && (
+                <div className="mt-3 border border-border-glass">
+                  {runs[automation.id] === "loading" && (
+                    <p className="flex items-center gap-2 p-3 text-sm text-subtle">
+                      <Loader2 className="size-3 animate-spin" /> Loading history…
+                    </p>
+                  )}
+                  {Array.isArray(runs[automation.id]) && (runs[automation.id] as Run[]).length === 0 && (
+                    <p className="p-3 text-sm text-subtle">No runs recorded yet.</p>
+                  )}
+                  {Array.isArray(runs[automation.id]) &&
+                    (runs[automation.id] as Run[]).map((r) => (
+                      <div key={r.id} className="border-b border-border-glass p-3 last:border-b-0">
+                        <p className="hud-label flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              r.status === "failed" ? "bg-red-400" : r.status === "running" ? "bg-subtle" : "bg-[var(--live)]",
+                            )}
+                          />
+                          <span className={cn(r.status === "failed" && "!text-red-400")}>{r.status.toUpperCase()}</span>
+                          <span>·</span>
+                          <span>{stamp(r.startedAt)}</span>
+                        </p>
+                        {(r.report ?? r.error) && (
+                          <p className={cn("mt-1.5 text-sm", r.error ? "text-red-300" : "text-muted")}>
+                            {r.error ?? r.report}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+              {/* The trail already leads with this run, so showing it twice is
+                  just noise while the history is open. */}
+              {openRuns !== automation.id && (reports[automation.id] ?? automation.lastReport) && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}

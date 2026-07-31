@@ -7,6 +7,7 @@ import { Trash2, Brain, Plus, Pencil, Check, X, Pin, PinOff, Loader2, Sparkles, 
 import { cn } from "@/lib/utils";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
+import { AsciiTitle } from "@/components/ui/ascii-title";
 
 export interface MemoryItem {
   id: string;
@@ -132,7 +133,7 @@ export function MemoryView({ memories, retired = 0 }: { memories: MemoryItem[]; 
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
         <motion.div variants={fadeRise} className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Memory</h1>
+            <h1><AsciiTitle text="Memory" scale={1.45} /></h1>
             <p className="mt-1 text-sm text-muted">
               Everything SAGE knows about you. Add, edit, pin, or forget &mdash; it&apos;s your mind, extended.
             </p>

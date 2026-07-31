@@ -68,21 +68,8 @@
 .lg-corner.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
 .lg-corner.br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
 
-.lg-wordmark {
-  margin: 0 auto;
-  font-family: var(--mono);
-  /* Scales with the panel so the block letters never wrap — wrapped ASCII art
-     is worse than no ASCII art. */
-  font-size: clamp(7px, 2.3vw, 13px);
-  line-height: 1.15;
-  text-align: center;
-  color: var(--foreground);
-  /* Restrained glow: at 18px the strokes bled into each other and the letters
-     stopped being letters. */
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.18);
-  white-space: pre;
-  overflow: hidden;
-}
+/* The shared block alphabet does the drawing; this only centres it. */
+.lg-wordmark .ascii-art { text-align: center; margin: 0 auto; width: max-content; }
 
 .lg-rule { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .lg-rule span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--border-glass-strong), transparent); }

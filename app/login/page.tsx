@@ -2,19 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import "./login.css";
 
-/** Block-capital SAGE. Rendered as text, not an image, so it stays crisp at
- *  any zoom and costs nothing to load. */
+/**
+ * Classic figlet "Standard" wordmark. The obvious choice was block glyphs
+ * (█ ╔ ╝), but those depend on exact font metrics and rendered as a smear in
+ * the app's monospace — slashes and underscores are legible in every one.
+ * Text, not an image: crisp at any zoom and free to load.
+ */
 const WORDMARK = String.raw`
- ███████╗ █████╗  ██████╗ ███████╗
- ██╔════╝██╔══██╗██╔════╝ ██╔════╝
- ███████╗███████║██║  ███╗█████╗
- ╚════██║██╔══██║██║   ██║██╔══╝
- ███████║██║  ██║╚██████╔╝███████╗
- ╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝
+ ____    _    ____ _____
+/ ___|  / \  / ___| ____|
+\___ \ / _ \| |  _|  _|
+ ___) / ___ \ |_| | |___
+|____/_/   \_\____|_____|
 `;
 
 /** Filler for the side columns — meaningless on purpose, it is texture. */
@@ -104,12 +106,11 @@ export default function LoginPage() {
       <pre className="lg-noise lg-noise-l" aria-hidden>{left.join("\n")}</pre>
       <pre className="lg-noise lg-noise-r" aria-hidden>{right.join("\n")}</pre>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="lg-panel"
-      >
+      {/* Entrance is CSS, not JS. A motion component that fails to animate
+          leaves the panel at opacity 0 — which is exactly what happened, and
+          it made the only way into the app invisible. Decoration must never
+          be able to hide the door. */}
+      <div className="lg-panel">
         <div className="lg-corner tl" /><div className="lg-corner tr" />
         <div className="lg-corner bl" /><div className="lg-corner br" />
 
@@ -121,24 +122,18 @@ export default function LoginPage() {
 
         <div className="lg-boot">
           {BOOT_LINES.map((line, i) => (
-            <motion.div
+            <div
               key={line}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: i < shown ? 1 : 0 }}
-              transition={{ duration: 0.25 }}
               className="lg-bootline"
+              style={{ opacity: i < shown ? 1 : 0 }}
             >
               <span>{line.split(" ")[0]} {line.split(" ").slice(1, -1).join(" ")}</span>
               <b>{line.split(" ").pop()}</b>
-            </motion.div>
+            </div>
           ))}
         </div>
 
-        <motion.div
-          animate={error ? { x: [0, -9, 9, -6, 6, 0] } : {}}
-          transition={{ duration: 0.36 }}
-          className={`lg-field${error ? " err" : ""}`}
-        >
+        <div className={`lg-field${error ? " err" : ""}`} key={error ?? "ok"}>
           <span className="lg-prompt">▶</span>
           <input
             ref={inputRef}
@@ -155,7 +150,7 @@ export default function LoginPage() {
           <button onClick={submit} disabled={busy || !password} className="lg-go">
             {busy ? "…" : "ENTER"}
           </button>
-        </motion.div>
+        </div>
 
         {error && <p className="lg-err">{error}</p>}
 
@@ -166,7 +161,7 @@ export default function LoginPage() {
           <span className="lg-dot" />
           <span>PERIMETER SEALED</span>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

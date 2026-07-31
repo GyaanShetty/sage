@@ -3,6 +3,7 @@ import { fishKeys, fishSpeak } from "@/infrastructure/tts/fish";
 import { cartesiaKeys, cartesiaSpeak } from "@/infrastructure/tts/cartesia";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { modelKeyStatus } from "@/infrastructure/llm";
 
 export const runtime = "nodejs";
 export const maxDuration = 25;
@@ -53,7 +54,7 @@ export async function GET() {
       cartesia: { keys: cartesiaKeys().length, sample: cartesiaKeys().map(mask) },
       fish: { keys: fishKeys().length, sample: fishKeys().map(mask) },
       elevenlabs: { keys: eleven.length, sample: eleven.map(mask) },
-      gemini: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+      gemini: { keys: modelKeyStatus().length, status: modelKeyStatus() },
       edgeDisabled: process.env.SAGE_DISABLE_EDGE === "1",
     },
     voices: {
@@ -102,7 +103,13 @@ export async function GET() {
           .catch((e) => `error: ${String(e).slice(0, 80)}`),
         4_000, "edge"));
 
-  live.gemini = process.env.GOOGLE_GENERATIVE_AI_API_KEY ? "key present" : "not configured";
+  {
+    const ks = modelKeyStatus();
+    const up = ks.filter((k) => k.healthy).length;
+    live.gemini = ks.length === 0
+      ? "not configured"
+      : `${up}/${ks.length} keys available${up < ks.length ? ` (${ks.filter((k) => !k.healthy).map((k) => `${k.tail} cooling ${k.cooldownSeconds}s`).join(", ")})` : ""}`;
+  }
 
   const working = Object.entries(live).filter(([, v]) => v.startsWith("ok"));
   results.live = live;

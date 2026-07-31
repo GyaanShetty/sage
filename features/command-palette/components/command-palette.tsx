@@ -80,6 +80,12 @@ export function CommandPalette() {
       setWakeWord(!useShellStore.getState().wakeWord);
     } else if (action.command === "toggle-gesture") {
       setGestureNav(!useShellStore.getState().gestureNav);
+    } else if (action.command === "logout") {
+      // Full reload rather than a client navigation: the session cookie is
+      // gone, and every cached RSC payload behind it must go with it.
+      void fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+        window.location.href = "/login";
+      });
     } else if (action.command === "morning-brief") {
       window.dispatchEvent(new CustomEvent("sage:replay-brief"));
     } else if (action.command === "ambient-now") {

@@ -1,0 +1,145 @@
+/* The access gate. Terminal maximalism: everything is type, nothing is an
+   image, and the whole page weighs almost nothing. */
+
+.lg-root {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.05), transparent 60%),
+    #06070a;
+}
+
+/* Faint horizontal sweep — CRT, not disco. */
+.lg-scan {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.028) 0px,
+    rgba(255, 255, 255, 0.028) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+.lg-vignette {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(70% 60% at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+/* Texture columns. Hidden on narrow screens, where they would crowd the form. */
+.lg-noise {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  z-index: 0; pointer-events: none; user-select: none;
+  font-family: var(--mono); font-size: 11px; line-height: 1.45;
+  color: rgba(255, 255, 255, 0.10);
+  white-space: pre;
+  animation: lgDrift 14s ease-in-out infinite alternate;
+}
+.lg-noise-l { left: 4vw; }
+.lg-noise-r { right: 4vw; animation-delay: -7s; }
+@media (max-width: 900px) { .lg-noise { display: none; } }
+
+@keyframes lgDrift {
+  from { opacity: 0.5; transform: translateY(-52%); }
+  to   { opacity: 1;   transform: translateY(-48%); }
+}
+
+.lg-panel {
+  position: relative; z-index: 2;
+  width: min(560px, 100%);
+  padding: 30px 26px 22px;
+  background: rgba(9, 10, 13, 0.86);
+  border: 1px solid var(--border-glass);
+  backdrop-filter: blur(18px);
+}
+
+/* Bracket corners, the same motif the HUD uses elsewhere. */
+.lg-corner { position: absolute; width: 14px; height: 14px; border: 1px solid rgba(255, 255, 255, 0.5); }
+.lg-corner.tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+.lg-corner.tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+.lg-corner.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+.lg-corner.br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+.lg-wordmark {
+  margin: 0 auto;
+  font-family: var(--mono);
+  /* Scales with the panel so the block letters never wrap — wrapped ASCII art
+     is worse than no ASCII art. */
+  font-size: clamp(6px, 2.05vw, 11px);
+  line-height: 1.05;
+  text-align: center;
+  color: var(--foreground);
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.28);
+  white-space: pre;
+  overflow: hidden;
+}
+
+.lg-rule { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.lg-rule span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--border-glass-strong), transparent); }
+.lg-rule em {
+  font-style: normal; font-family: var(--mono);
+  font-size: 8.5px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--subtle); white-space: nowrap;
+}
+
+.lg-boot { margin-top: 18px; display: flex; flex-direction: column; gap: 3px; }
+.lg-bootline {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.4px;
+  color: var(--subtle);
+}
+.lg-bootline b { font-weight: 400; color: var(--live); opacity: 0.92; }
+
+.lg-field {
+  margin-top: 22px;
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--border-glass);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0 12px;
+  transition: border-color 0.18s ease;
+}
+.lg-field:focus-within { border-color: rgba(255, 255, 255, 0.45); box-shadow: 0 0 24px rgba(255, 255, 255, 0.06); }
+.lg-field.err { border-color: rgba(248, 113, 113, 0.5); }
+
+.lg-prompt { font-family: var(--mono); font-size: 10px; color: var(--live); animation: lgBlink 1.3s steps(1) infinite; }
+@keyframes lgBlink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }
+
+.lg-input {
+  flex: 1; min-width: 0; height: 46px;
+  background: transparent; border: 0; outline: none;
+  font-family: var(--mono); font-size: 13px; letter-spacing: 3px;
+  color: var(--foreground);
+}
+.lg-input::placeholder { color: var(--subtle); letter-spacing: 2px; }
+
+.lg-go {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 2px;
+  color: var(--background); background: var(--foreground);
+  border: 0; padding: 8px 14px; cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.lg-go:disabled { opacity: 0.25; cursor: default; }
+
+.lg-err {
+  margin-top: 10px;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.2px;
+  color: #f87171;
+}
+
+.lg-foot {
+  margin-top: 20px; padding-top: 12px;
+  border-top: 1px solid var(--border-glass);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1.6px;
+  color: var(--subtle);
+}
+.lg-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--subtle); opacity: 0.6; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-noise, .lg-prompt { animation: none; }
+}

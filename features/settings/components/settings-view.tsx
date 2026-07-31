@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CalendarDays, Check, CheckCircle2, Mail, Music } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, Mail, Music, LogOut } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
@@ -124,6 +124,29 @@ export function SettingsView({
 
         <motion.div variants={fadeRise}>
           <Preferences />
+        </motion.div>
+
+        <motion.div variants={fadeRise}>
+          <GlassPanel className="mt-4 flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-sm font-medium">Session</p>
+              <p className="mt-0.5 text-xs text-subtle">
+                Signs out this device. Sessions expire on their own after 30 days.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                // Hard navigation: the cookie is gone, and every cached RSC
+                // payload rendered behind it has to go with it.
+                void fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+                  window.location.href = "/login";
+                });
+              }}
+              className="flex items-center gap-2 border border-border-glass px-3.5 py-1.5 text-xs text-muted transition-colors hover:border-red-500/40 hover:text-red-300"
+            >
+              <LogOut className="size-3.5" /> Log out
+            </button>
+          </GlassPanel>
         </motion.div>
       </motion.div>
     </div>

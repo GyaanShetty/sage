@@ -23,6 +23,7 @@ import {
   Briefcase,
   Wallet,
   GraduationCap,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -66,6 +67,7 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "nav-graph", label: "Mind Graph", icon: Network, group: "Navigate", href: "/graph" },
   { id: "nav-agents", label: "Research Agent", icon: Bot, group: "Navigate", href: "/agents" },
   { id: "nav-automations", label: "Automations", icon: Zap, group: "Navigate", href: "/automations" },
+  { id: "nav-report", label: "The Report", hint: "cross-domain review", icon: ScrollText, group: "Navigate", href: "/report", keywords: "weekly life summary patterns insights review" },
   { id: "nav-review", label: "Review", icon: GraduationCap, group: "Navigate", href: "/review" },
   { id: "nav-memory", label: "Memory", icon: Brain, group: "Navigate", href: "/memory" },
   { id: "nav-settings", label: "Settings", icon: Settings, group: "Navigate", href: "/settings" },

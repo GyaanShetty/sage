@@ -88,6 +88,11 @@ export async function ingestUrl(rawUrl: string) {
 }
 
 export async function ingestPdf(buffer: Buffer, filename: string) {
+  // Must run BEFORE pdf-parse is imported: pdfjs reaches for DOMMatrix while
+  // its module is still evaluating, so installing the stubs afterwards is too
+  // late and the import throws.
+  const { installPdfGlobals } = await import("@/infrastructure/pdf/node-globals");
+  installPdfGlobals();
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: new Uint8Array(buffer) });
   const parsed = await parser.getText();

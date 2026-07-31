@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, sessionToken, timingSafeEqual } from "@/lib/auth";
+import { SESSION_COOKIE, verifyToken } from "@/lib/auth";
 
 /**
  * Access gate: when SAGE_PASSWORD is set, every page and API route requires
@@ -28,8 +28,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
-  const expected = await sessionToken(password);
-  if (cookie && timingSafeEqual(cookie, expected)) return NextResponse.next();
+  if (await verifyToken(cookie, password)) return NextResponse.next();
 
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });

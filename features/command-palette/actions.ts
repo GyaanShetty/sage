@@ -24,6 +24,7 @@ import {
   Wallet,
   GraduationCap,
   ScrollText,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 
@@ -75,4 +76,5 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "sys-wake", label: "Toggle wake word", hint: '"Hey Sage"', icon: Mic, group: "System", command: "toggle-wake" },
   { id: "sys-ambient", label: "Enter ambient mode", hint: "standby screen", icon: Moon, group: "System", command: "ambient-now" },
   { id: "sys-gesture", label: "Toggle gesture control", hint: "hands-free nav", icon: Hand, group: "System", command: "toggle-gesture" },
+  { id: "sys-logout", label: "Log out", hint: "end this session", icon: LogOut, group: "System", command: "logout", keywords: "sign out signout lock exit leave" },
 ];

@@ -8,6 +8,7 @@ import { runNotifications } from "@/core/notify/engine";
 import { generateDailyCards } from "@/core/retention/cards";
 import { maybeScanInbox } from "@/core/career/scan";
 import { maybeConsolidateMemories } from "@/core/memory/consolidate";
+import { maybeGenerateLifeReport } from "@/core/report/life";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -59,6 +60,9 @@ export async function GET(req: Request) {
   const careerScan = await maybeScanInbox().catch(() => ({ added: 0, updated: 0 }));
   // Once a day at most; the guard lives in the function, not the schedule.
   const memory = await maybeConsolidateMemories().catch(() => null);
+  // Weekly, guarded on the last stored report rather than the clock, so a
+  // missed week produces one at the next tick instead of waiting another seven.
+  const lifeReport = (await maybeGenerateLifeReport().catch(() => null)) ? 1 : 0;
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport });
 }

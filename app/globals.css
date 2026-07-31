@@ -47,6 +47,7 @@
   --radius: 0;
   --disp: var(--font-disp), sans-serif;
   --mono: var(--font-mono-f), monospace;
+  --brand: var(--font-brand), var(--font-disp), sans-serif;
 }
 
 @theme inline {
@@ -381,22 +382,36 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   :root[data-voice-open="1"] main.hud-grid { padding-bottom: calc(52vh + 88px); }
 }
 
-/* ── Block-alphabet headings (lib/ascii-font) ──────────────────────────────
-   Used for the wordmark and page titles. Kept here rather than per-page so
-   every title is the same object, and so the sr-only pair travels with it. */
-.ascii-title { display: block; }
-.ascii-art {
-  font-family: var(--mono);
-  /* 1.0 exactly: block cells must stack with no seam between rows, and any
-     fractional leading shows as a hairline gap through every letter. */
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: pre;
-  margin: 0;
+/* ── Wordmark and page titles ──────────────────────────────────────────────
+   One display face, used for the SAGE wordmark and every page heading. This
+   replaced a block-glyph alphabet built out of █: that was a drawing, not
+   type — it could not kern, it broke at small sizes, and on a phone it scaled
+   into a wall of white. A typeface does all of that correctly for free. */
+.brand-title {
+  font-family: var(--brand);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  /* Orbitron has no lowercase worth the name; the caps ARE the look. */
+  text-transform: uppercase;
+  line-height: 1.05;
   color: var(--foreground);
-  overflow: hidden;
 }
-.ascii-art.glow { text-shadow: 0 0 14px rgba(255, 255, 255, 0.22); }
+.brand-title.glow { text-shadow: 0 0 22px rgba(255, 255, 255, 0.18); }
+
+/* The login wordmark: heavier, wider, and sized to the viewport. */
+.brand-wordmark {
+  font-family: var(--brand);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  /* The trailing letter-space pushes the word off-centre; pull it back. */
+  text-indent: 0.22em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+  font-size: clamp(38px, 9vw, 76px);
+  color: var(--foreground);
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.22);
+}
 
 .sr-only {
   position: absolute; width: 1px; height: 1px;

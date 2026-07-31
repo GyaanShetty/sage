@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { FileText, Globe, Link2, Loader2, Trash2, Upload, AlertCircle } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
-import { AsciiTitle } from "@/components/ui/ascii-title";
 
 export interface SourceItem {
   id: string;
@@ -64,7 +63,7 @@ export function KnowledgeView({ sources }: { sources: SourceItem[] }) {
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
-        <motion.h1 variants={fadeRise}><AsciiTitle text="Knowledge" scale={1.3} /></motion.h1>
+        <motion.h1 variants={fadeRise} className="brand-title text-[26px] md:text-[32px]">Knowledge</motion.h1>
         <motion.p variants={fadeRise} className="mt-1 text-sm text-muted">
           Feed SAGE articles and PDFs — then just ask about them in chat.
         </motion.p>

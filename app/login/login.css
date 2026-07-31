@@ -68,8 +68,7 @@
 .lg-corner.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
 .lg-corner.br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
 
-/* The shared block alphabet does the drawing; this only centres it. */
-.lg-wordmark .ascii-art { text-align: center; margin: 0 auto; width: max-content; }
+
 
 .lg-rule { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .lg-rule span { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--border-glass-strong), transparent); }

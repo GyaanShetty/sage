@@ -24,7 +24,7 @@ export function StatusBar() {
     <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-border-glass bg-background/85 px-4 pt-[var(--sat)] backdrop-blur-xl md:min-h-[54px] md:gap-4 md:px-6">
       <div className="flex items-center gap-3">
         <SageMark size={22} online />
-        <span className="text-[13px] font-medium tracking-[0.42em] md:text-[15px]">{APP_NAME}</span>
+        <span className="brand-title text-[13px] md:text-[15px]">{APP_NAME}</span>
       </div>
       <span className="lbl hidden sm:inline">MISSION CONTROL · v0.2</span>
       <span className="mx-auto" />

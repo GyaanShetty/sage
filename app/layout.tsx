@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Space_Grotesk, JetBrains_Mono, Orbitron } from "next/font/google";
 import type { Viewport } from "next";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { Providers } from "@/components/providers";
@@ -8,6 +8,10 @@ import "./globals.css";
 
 const disp = Space_Grotesk({ variable: "--font-disp", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 const mono = JetBrains_Mono({ variable: "--font-mono-f", subsets: ["latin"], weight: ["300", "400", "500"] });
+// The wordmark face. Squared-off and geometric — the look the block art was
+// reaching for, except it is an actual typeface: it kerns, it scales, it stays
+// readable at 11px, and it is self-hosted at build time like the other two.
+const brand = Orbitron({ variable: "--font-brand", subsets: ["latin"], weight: ["500", "700", "900"] });
 
 export const metadata: Metadata = {
   title: { default: `${APP_NAME} · Mission Control`, template: `%s · ${APP_NAME}` },
@@ -28,7 +32,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${disp.variable} ${mono.variable} antialiased`}>
+      <body className={`${disp.variable} ${mono.variable} ${brand.variable} antialiased`}>
         <Providers>{children}</Providers>
         <PwaRegister />
       </body>

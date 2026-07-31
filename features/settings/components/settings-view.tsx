@@ -7,7 +7,6 @@ import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
 import { Preferences } from "./preferences";
-import { AsciiTitle } from "@/components/ui/ascii-title";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
   const disconnect = async () => {
@@ -53,7 +52,7 @@ export function SettingsView({
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
-        <motion.h1 variants={fadeRise}><AsciiTitle text="Settings" scale={1.35} /></motion.h1>
+        <motion.h1 variants={fadeRise} className="brand-title text-[26px] md:text-[32px]">Settings</motion.h1>
         <motion.p variants={fadeRise} className="mt-1 text-sm text-muted">
           Integrations and preferences.
         </motion.p>

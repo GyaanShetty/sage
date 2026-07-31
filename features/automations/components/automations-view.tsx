@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, Check, ChevronDown, History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { staggerContainer, fadeRise } from "@/lib/motion";
-import { AsciiTitle } from "@/components/ui/ascii-title";
 
 export type WhenKind = "task_overdue" | "aqi_above" | "crypto_move" | "low_steps" | "unread_email";
 
@@ -182,7 +181,7 @@ export function AutomationsView({ automations, health }: { automations: Automati
         <motion.div variants={fadeRise} className="flex items-baseline justify-between">
           <div>
             <p className="hud-label">AUTONOMOUS DIRECTIVES</p>
-            <h1 className="mt-1"><AsciiTitle text="Automations" scale={1.2} /></h1>
+            <h1 className="brand-title mt-1 text-[26px] md:text-[32px]">Automations</h1>
             <p className="hud-label mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
               <span>{health.enabled}/{health.total} ARMED</span>
               <span>·</span>

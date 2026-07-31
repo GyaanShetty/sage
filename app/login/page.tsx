@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
-import { AsciiTitle } from "@/components/ui/ascii-title";
 import "./login.css";
 
 /** Filler for the side columns — meaningless on purpose, it is texture. */
@@ -101,7 +100,7 @@ export default function LoginPage() {
         <div className="lg-corner tl" /><div className="lg-corner tr" />
         <div className="lg-corner bl" /><div className="lg-corner br" />
 
-        <AsciiTitle text={APP_NAME} scale={3.4} className="lg-wordmark" />
+        <h1 className="brand-wordmark">{APP_NAME}</h1>
 
         <div className="lg-rule">
           <span /><em>{APP_TAGLINE}</em><span />

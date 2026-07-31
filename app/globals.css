@@ -380,3 +380,26 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 @media (max-width: 767px) {
   :root[data-voice-open="1"] main.hud-grid { padding-bottom: calc(52vh + 88px); }
 }
+
+/* ── Block-alphabet headings (lib/ascii-font) ──────────────────────────────
+   Used for the wordmark and page titles. Kept here rather than per-page so
+   every title is the same object, and so the sr-only pair travels with it. */
+.ascii-title { display: block; }
+.ascii-art {
+  font-family: var(--mono);
+  /* 1.0 exactly: block cells must stack with no seam between rows, and any
+     fractional leading shows as a hairline gap through every letter. */
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: pre;
+  margin: 0;
+  color: var(--foreground);
+  overflow: hidden;
+}
+.ascii-art.glow { text-shadow: 0 0 14px rgba(255, 255, 255, 0.22); }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}

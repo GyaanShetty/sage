@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { fadeRise, staggerContainer } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { NoteEditor } from "./note-editor";
+import { AsciiTitle } from "@/components/ui/ascii-title";
 
 export interface TaskRow {
   id: string;
@@ -72,9 +73,7 @@ export function WorkspaceView({ tasks, notes }: { tasks: TaskRow[]; notes: NoteR
   return (
     <div className="mx-auto max-w-3xl px-8 py-10">
       <motion.div variants={staggerContainer} initial="hidden" animate="visible">
-        <motion.h1 variants={fadeRise} className="text-2xl font-semibold tracking-tight">
-          Workspace
-        </motion.h1>
+        <motion.h1 variants={fadeRise}><AsciiTitle text="Workspace" scale={1.3} /></motion.h1>
 
         <motion.div variants={fadeRise} className="mt-5 flex gap-2">
           {(

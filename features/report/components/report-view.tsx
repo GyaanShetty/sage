@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Link2, Loader2, Sparkles, Target } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import "@/features/dashboard/command.css";
+import { AsciiTitle } from "@/components/ui/ascii-title";
 
 interface Signals {
   days: number;
@@ -73,7 +74,7 @@ export function ReportView() {
         <motion.div variants={fadeRise} className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="hud-label">CROSS-DOMAIN REVIEW</p>
-            <h1 className="mt-1 font-mono text-2xl font-semibold tracking-tight">The Report</h1>
+            <h1 className="mt-1"><AsciiTitle text="The Report" scale={1.35} /></h1>
             <p className="mt-1 max-w-lg text-sm text-muted">
               Every part of the system read at once. The interesting findings live between
               the pages, not on them.

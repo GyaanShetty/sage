@@ -3,21 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
+import { AsciiTitle } from "@/components/ui/ascii-title";
 import "./login.css";
-
-/**
- * Classic figlet "Standard" wordmark. The obvious choice was block glyphs
- * (█ ╔ ╝), but those depend on exact font metrics and rendered as a smear in
- * the app's monospace — slashes and underscores are legible in every one.
- * Text, not an image: crisp at any zoom and free to load.
- */
-const WORDMARK = String.raw`
- ____    _    ____ _____
-/ ___|  / \  / ___| ____|
-\___ \ / _ \| |  _|  _|
- ___) / ___ \ |_| | |___
-|____/_/   \_\____|_____|
-`;
 
 /** Filler for the side columns — meaningless on purpose, it is texture. */
 const GLYPHS = "01▏▎▍▌▋▊▉█░▒▓╱╲╳┄┈─═╬╫╪⌁⌂⌘⏣◈◇◆▪▫";
@@ -114,7 +101,7 @@ export default function LoginPage() {
         <div className="lg-corner tl" /><div className="lg-corner tr" />
         <div className="lg-corner bl" /><div className="lg-corner br" />
 
-        <pre className="lg-wordmark" aria-label={APP_NAME}>{WORDMARK}</pre>
+        <AsciiTitle text={APP_NAME} scale={3.4} className="lg-wordmark" />
 
         <div className="lg-rule">
           <span /><em>{APP_TAGLINE}</em><span />

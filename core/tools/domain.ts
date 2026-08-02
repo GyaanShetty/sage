@@ -7,6 +7,7 @@ import { analyse } from "@/core/career/pipeline";
 import { enqueuePhoneAction, PHONE_ACTIONS } from "@/core/phone/queue";
 import { addLink, LINK_KINDS, type LinkKind } from "@/core/links/graph";
 import { setTaskMeta } from "@/core/tasks/meta";
+import { research } from "@/core/research/deep";
 
 /**
  * Domain tools — the rest of SAGE.
@@ -231,6 +232,25 @@ export const domainTools = {
     execute: async ({ taskId, ...patch }) => {
       const meta = await setTaskMeta(taskId, patch);
       return { ok: true, taskId, estimateMin: meta.estimateMin ?? null, tags: meta.tags ?? [] };
+    },
+  }),
+
+  research_topic: tool({
+    description:
+      "Go and find out about something using live web sources, then tie it back to the user's holdings and work. Use when the answer depends on current facts — a company, a market move, a technology this month — rather than something you already know. Slow (10-20s), so only when the question warrants it.",
+    inputSchema: z.object({ topic: z.string().max(300).describe("The question, not just a keyword") }),
+    execute: async ({ topic }) => {
+      const brief = await research(topic);
+      if ("error" in brief) return { ok: false, error: brief.error };
+      return {
+        ok: true,
+        headline: brief.headline,
+        summary: brief.summary,
+        keyPoints: brief.keyPoints.slice(0, 5),
+        soWhat: brief.soWhat.slice(0, 3),
+        uncertainty: brief.uncertainty,
+        sources: brief.sources.slice(0, 3).map((s) => s.title),
+      };
     },
   }),
 

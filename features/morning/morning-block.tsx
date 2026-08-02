@@ -10,6 +10,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
 import { speakLowLatency } from "@/lib/speak";
+import { ResearchPanel } from "./research-panel";
 import "@/features/dashboard/command.css";
 
 type StepKind = "gmail" | "feed" | "leetcode" | "synthesis" | "watch";
@@ -415,6 +416,8 @@ export function MorningBlock() {
                     )}
                   </div>
                 )}
+
+                <ResearchPanel seed={[...syn.watch, ...syn.connections].slice(0, 4)} />
 
                 <button onClick={saveBrief} disabled={savedNote} className="mb-synsave">
                   <FileText className="size-3.5" /> {savedNote ? "Saved to workspace" : "Save brief as note"}

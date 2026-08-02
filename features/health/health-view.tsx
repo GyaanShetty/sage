@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "./health.css";
+import { TrainingPanel } from "./components/training-panel";
 
 interface Day {
   day: string;
@@ -104,6 +105,8 @@ export function HealthView() {
           <Target className="size-3.5" /> Goals
         </button>
       </div>
+
+      <TrainingPanel />
 
       {!d && !loadError && <p className="lbl" style={{ padding: 16 }}>LOADING…</p>}
       {!d && loadError && (

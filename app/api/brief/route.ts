@@ -2,11 +2,9 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getNews } from "@/infrastructure/news";
-import { getMarkets } from "@/infrastructure/markets";
-import { recentBriefs, noRepeatClause, dayContext } from "@/core/brief/variety";
-import { TZ } from "@/lib/config";
+import { recentBriefs, noRepeatClause } from "@/core/brief/variety";
+import { buildDayPicture, describeDay } from "@/core/brief/agenda";
 
 export const maxDuration = 60;
 
@@ -31,55 +29,25 @@ export async function GET(req: Request) {
   const model = getModel("fast");
   if (!model) return NextResponse.json({ ok: true, data: { text: null } });
 
-  const [{ data: tasks }, { data: reminders }, { data: goals }, events, emails] = await Promise.all([
-    db
-      .from("Task")
-      .select("title, dueAt, priority")
-      .eq("userId", DEFAULT_USER_ID)
-      .in("status", ["todo", "doing"])
-      .order("priority")
-      .limit(10),
-    db
-      .from("Reminder")
-      .select("text, remindAt")
-      .eq("userId", DEFAULT_USER_ID)
-      .eq("status", "pending")
-      .order("remindAt")
-      .limit(5),
-    db
-      .from("Memory")
-      .select("content")
-      .eq("userId", DEFAULT_USER_ID)
-      .eq("type", "goal")
-      .is("supersededBy", null)
-      .order("importance", { ascending: false })
-      .limit(3),
-    listUpcomingEvents(5).catch(() => null),
-    listUnreadEmails(5).catch(() => null),
-  ]);
 
-  // Things that actually differ from one day to the next. Without these the
-  // model sees the same task list two mornings running and writes the same
-  // brief, which is exactly what it was doing.
-  const [headlines, markets, previous] = await Promise.all([
+  // The day picture carries tasks, calendar, mail, reminders and goals, plus
+  // the things that actually differ day to day — headlines and market moves —
+  // which is what the old narrower gather was missing.
+  const [picture, headlines, previous] = await Promise.all([
+    buildDayPicture(),
     getNews(8).catch(() => []),
-    getMarkets().catch(() => null),
     recentBriefs("brief.generated", 4),
   ]);
 
   const { text } = await generateText({
     model,
-    prompt: `You are SAGE, the user's chief of staff. Write a 2-3 sentence brief. Warm, direct, no fluff, no headers, no lists, and do NOT start with a greeting like "Good morning" — jump straight into what matters most right now. If there's little to report, say so gracefully.
+    prompt: `You are SAGE, the user's chief of staff. Write a 2-3 sentence brief on where his day stands. Warm, direct, no fluff, no headers, no lists, and do NOT open with a greeting — jump straight into what matters most.
 
-Now: ${new Date().toString()}
-Open tasks: ${JSON.stringify(tasks ?? [])}
-Pending reminders: ${JSON.stringify(reminders ?? [])}
-Their goals: ${JSON.stringify(goals?.map((g) => g.content) ?? [])}
-Calendar (next events): ${events ? JSON.stringify(events) : "not connected"}
-Unread email: ${emails ? JSON.stringify(emails.map((e) => ({ from: e.from, subject: e.subject }))) : "not connected"}
-${dayContext(TZ)}
-Headlines right now: ${headlines.map((h) => h.title).join(" | ") || "feeds quiet"}
-Market moves: ${(markets ?? []).slice(0, 6).map((c) => `${c.symbol} ${c.change24h}%`).join(", ") || "unavailable"}${noRepeatClause(previous)}`,
+Lead with whatever is most pressing: an overdue task, the next commitment, a sharp market move. Be specific — real names, real times, real numbers, all of which are below. If there is genuinely little to report, say so gracefully and briefly.
+
+${describeDay(picture)}
+
+Headlines right now: ${headlines.map((h) => h.title).slice(0, 6).join(" | ") || "feeds quiet"}${noRepeatClause(previous)}`,
   });
 
   await db.from("Event").insert({

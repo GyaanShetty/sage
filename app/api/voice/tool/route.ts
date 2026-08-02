@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { buildDayPicture, describeDay } from "@/core/brief/agenda";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
-import { listUpcomingEvents, listUnreadEmails } from "@/infrastructure/integrations/google";
 import { fmt } from "@/lib/config";
 
 /** Executes function calls made by the realtime voice session. */
@@ -52,26 +52,11 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true, result: `Reminder set for ${fmt(remindAt, { weekday: "short", hour: "2-digit", minute: "2-digit" })}` });
       }
       case "get_briefing": {
-        const [{ data: tasks }, events, emails] = await Promise.all([
-          db
-            .from("Task")
-            .select("title, status, dueAt")
-            .eq("userId", DEFAULT_USER_ID)
-            .neq("status", "done")
-            .neq("status", "cancelled")
-            .order("priority", { ascending: true })
-            .limit(8),
-          listUpcomingEvents(5).catch(() => null),
-          listUnreadEmails(3).catch(() => null),
-        ]);
-        return NextResponse.json({
-          ok: true,
-          result: {
-            openTasks: (tasks ?? []).map((t) => t.title),
-            calendar: (events ?? []).map((e) => `${e.summary} at ${e.start}`),
-            unreadEmail: (emails ?? []).map((e) => `${e.from}: ${e.subject}`),
-          },
-        });
+        // The same day picture the spoken brief reads from, so asking SAGE
+        // "how's my day" out loud and letting it brief you on boot cannot
+        // disagree with each other.
+        const picture = await buildDayPicture();
+        return NextResponse.json({ ok: true, result: describeDay(picture) });
       }
       default:
         return NextResponse.json({ ok: false, error: `unknown tool ${name}` });

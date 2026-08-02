@@ -124,3 +124,47 @@ export async function updateTickTaskPriority(projectId: string, taskId: string, 
   });
   return res.ok;
 }
+
+/**
+ * Push a task INTO TickTick.
+ *
+ * The integration was read-only: SAGE could list your TickTick tasks and tick
+ * them off, but anything created here stayed here, so the two lists drifted
+ * apart the moment you used either one. This closes that loop.
+ *
+ * Returns the TickTick id on success and null when TickTick is not connected —
+ * never throws, because failing to mirror a task must not fail creating it.
+ */
+export async function createTickTask(input: {
+  title: string;
+  dueAt?: string | null;
+  /** SAGE priority: 0 urgent … 3 low. TickTick uses 5 high … 0 none. */
+  priority?: number;
+  notes?: string;
+}): Promise<string | null> {
+  const t = await token();
+  if (!t) return null;
+
+  // The two scales run in opposite directions, and getting this backwards
+  // silently files everything urgent as trivial.
+  const tickPriority = { 0: 5, 1: 3, 2: 1, 3: 0 }[input.priority ?? 2] ?? 1;
+
+  try {
+    const res = await proxyFetch(`${API}/task`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${t}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        title: input.title.slice(0, 300),
+        priority: tickPriority,
+        ...(input.notes ? { content: input.notes.slice(0, 2000) } : {}),
+        ...(input.dueAt ? { dueDate: new Date(input.dueAt).toISOString().replace(/\.\d{3}Z$/, "+0000") } : {}),
+      }),
+      signal: AbortSignal.timeout(9000),
+    });
+    if (!res.ok) return null;
+    const created = (await res.json()) as { id?: string };
+    return created.id ?? null;
+  } catch {
+    return null;
+  }
+}

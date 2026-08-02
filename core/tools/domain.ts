@@ -4,6 +4,9 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { recallMemories } from "@/core/memory/recall";
 import { listApplications, upsertApplication, STAGES } from "@/core/career/scan";
 import { analyse } from "@/core/career/pipeline";
+import { enqueuePhoneAction, PHONE_ACTIONS } from "@/core/phone/queue";
+import { addLink, LINK_KINDS, type LinkKind } from "@/core/links/graph";
+import { setTaskMeta } from "@/core/tasks/meta";
 
 /**
  * Domain tools — the rest of SAGE.
@@ -191,6 +194,106 @@ export const domainTools = {
           lastRunAt: r.lastRunAt,
         })),
       };
+    },
+  }),
+
+  // ── The phone ───────────────────────────────────────────────────────────
+  phone_action: tool({
+    description:
+      "Ask the user's phone to do something natively: set a reminder, set an alarm, add a calendar event, send a notification, set a Focus mode, or play something. Use whenever they ask to be reminded, woken, or alerted AT A TIME — a task in SAGE does not ring. The phone collects these when it next checks in.",
+    inputSchema: z.object({
+      kind: z.enum(PHONE_ACTIONS),
+      text: z.string().max(200).describe("What to say — the reminder or alarm title"),
+      at: z.string().datetime().optional().describe("ISO time it refers to; required for alarm and reminder"),
+      detail: z.string().max(120).optional().describe("Optional extra: list name, focus mode, playlist"),
+    }),
+    execute: async ({ kind, text, at, detail }) => {
+      // An alarm with no time is not an alarm. Better to say so than to queue
+      // something the phone will silently drop.
+      if ((kind === "alarm" || kind === "reminder") && !at) {
+        return { ok: false, error: "That needs a specific time." };
+      }
+      const queued = await enqueuePhoneAction({ kind, text, at, detail });
+      return { ok: true, queued: queued.kind, at: queued.at ?? null, note: "Queued — the phone will pick it up on its next check." };
+    },
+  }),
+
+  // ── Tasks, in detail ────────────────────────────────────────────────────
+  task_details: tool({
+    description:
+      "Attach detail to an existing task: how long it should take, tags, or longer notes. Use after creating a task when the user gave more than a title.",
+    inputSchema: z.object({
+      taskId: z.string(),
+      estimateMin: z.number().int().min(0).max(10_000).optional(),
+      tags: z.array(z.string().max(40)).max(12).optional(),
+      notes: z.string().max(4000).optional(),
+    }),
+    execute: async ({ taskId, ...patch }) => {
+      const meta = await setTaskMeta(taskId, patch);
+      return { ok: true, taskId, estimateMin: meta.estimateMin ?? null, tags: meta.tags ?? [] };
+    },
+  }),
+
+  link_items: tool({
+    description:
+      "Connect two things in SAGE so each shows up on the other: a task to an application, a note to a memory, a URL or file to anything. Use when the user says one thing is 'for' or 'about' another.",
+    inputSchema: z.object({
+      fromKind: z.enum(LINK_KINDS), fromId: z.string(), fromLabel: z.string().max(160),
+      toKind: z.enum(LINK_KINDS), toId: z.string(), toLabel: z.string().max(160),
+    }),
+    execute: async (a) => {
+      const link = await addLink(
+        { kind: a.fromKind as LinkKind, id: a.fromId, label: a.fromLabel },
+        { kind: a.toKind as LinkKind, id: a.toId, label: a.toLabel },
+      );
+      return link ? { ok: true, linked: `${a.fromLabel} ↔ ${a.toLabel}` } : { ok: false, error: "Could not link those." };
+    },
+  }),
+
+  // ── Files ───────────────────────────────────────────────────────────────
+  list_files: tool({
+    description:
+      "Files the user has uploaded, newest first, with whether their text could be read. Use before read_file, and whenever they refer to 'the document' or 'that PDF' without naming it.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const files = await events<{ id?: string; name?: string; uploadedAt?: string; text?: string; chars?: number }>("file.uploaded", 30);
+      return {
+        ok: true,
+        count: files.length,
+        files: files.map((f) => ({
+          id: f.id ?? "", name: f.name ?? "file",
+          uploadedAt: f.uploadedAt ?? null,
+          readable: !!f.text, chars: f.chars ?? 0,
+        })),
+      };
+    },
+  }),
+
+  read_file: tool({
+    description:
+      "Read the text of an uploaded file so you can answer questions about it, summarise it, or pull details out of it. Identify the file by id, or by a fragment of its name.",
+    inputSchema: z.object({
+      idOrName: z.string().max(200),
+      /** Long documents are paged rather than truncated silently. */
+      page: z.number().int().min(1).max(50).default(1),
+    }),
+    execute: async ({ idOrName, page }) => {
+      const files = await events<{ id?: string; name?: string; text?: string; chars?: number }>("file.uploaded", 40);
+      const needle = idOrName.toLowerCase();
+      const hit =
+        files.find((f) => f.id === idOrName) ??
+        files.find((f) => (f.name ?? "").toLowerCase().includes(needle));
+      if (!hit) return { ok: false, error: `No uploaded file matching "${idOrName}".` };
+      if (!hit.text) return { ok: false, error: `"${hit.name}" has no readable text — it may be a scan or an unsupported format.` };
+
+      // ~6k characters a page keeps a single call well inside the context
+      // budget while letting the model ask for more if it needs it.
+      const SIZE = 6000;
+      const start = (page - 1) * SIZE;
+      const slice = hit.text.slice(start, start + SIZE);
+      const pages = Math.max(1, Math.ceil(hit.text.length / SIZE));
+      if (!slice) return { ok: false, error: `Page ${page} is past the end (${pages} pages).` };
+      return { ok: true, name: hit.name, page, pages, text: slice };
     },
   }),
 

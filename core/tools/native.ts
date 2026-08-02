@@ -23,8 +23,9 @@ export const nativeTools = {
       priority: z.number().int().min(0).max(3).default(2).describe("0 urgent, 1 high, 2 normal, 3 low"),
     }),
     execute: async ({ title, dueAt, priority }) => {
+      const id = crypto.randomUUID();
       const { error } = await db.from("Task").insert({
-        id: crypto.randomUUID(),
+        id,
         userId: DEFAULT_USER_ID,
         title,
         priority,
@@ -32,7 +33,15 @@ export const nativeTools = {
         source: "agent",
       });
       if (error) return { ok: false, error: error.message };
-      return { ok: true, title };
+
+      // Mirror into TickTick when it is connected. Deliberately after the
+      // insert and never awaited into the failure path: a task that exists in
+      // SAGE but not TickTick is a mild annoyance, whereas losing the task
+      // because TickTick was slow is not.
+      const { createTickTask } = await import("@/infrastructure/integrations/ticktick");
+      const tickId = await createTickTask({ title, dueAt, priority }).catch(() => null);
+
+      return { ok: true, id, title, mirroredToTickTick: !!tickId };
     },
   }),
 

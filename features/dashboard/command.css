@@ -1124,3 +1124,34 @@
   border: 1px solid var(--border-glass); padding: 4px 8px;
 }
 .ed-gap b { font-family: var(--mono); font-size: 8.5px; font-weight: 400; color: var(--live); }
+
+/* ── Eisenhower matrix ── */
+.eis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border-glass); border: 1px solid var(--border-glass); }
+@media (max-width: 700px) { .eis-grid { grid-template-columns: 1fr; } }
+.eis-cell { background: var(--background); padding: 12px; min-height: 130px; transition: background .15s ease; }
+/* Only highlight targets while something is actually in flight. */
+.eis-cell.drop-target { background: rgba(255,255,255,.02); }
+.eis-cell.drop-target:hover { background: rgba(255,255,255,.05); }
+.eis-head { display: flex; align-items: baseline; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-glass); }
+.eis-label { font-family: var(--mono); font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--foreground); }
+.eis-hint { font-size: 9.5px; color: var(--subtle); }
+.eis-count { margin-left: auto; font-family: var(--mono); font-size: 9px; color: var(--subtle); }
+/* The urgent-and-important cell is the one that should catch the eye. */
+.eis-do .eis-label { color: var(--live); }
+.eis-drop .eis-label { opacity: .6; }
+.eis-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.eis-empty { font-size: 10px; color: var(--subtle); opacity: .5; }
+.eis-task { border-left: 2px solid var(--border-glass); padding: 5px 8px; cursor: grab; }
+.eis-task:hover { border-left-color: var(--live-dim); background: rgba(255,255,255,.02); }
+.eis-task.busy { opacity: .5; cursor: wait; }
+.eis-title { display: block; font-size: 12px; line-height: 1.4; color: var(--foreground); }
+.eis-meta { display: flex; align-items: center; gap: 7px; margin-top: 3px; font-family: var(--mono); font-size: 8px; letter-spacing: .8px; color: var(--subtle); }
+.eis-meta b { font-weight: 400; color: var(--muted); }
+.eis-meta b.late { color: #f87171; }
+.eis-meta i { display: inline-flex; align-items: center; gap: 3px; font-style: normal; }
+.eis-move { display: none; gap: 4px; margin-top: 5px; }
+.eis-task:hover .eis-move { display: flex; }
+.eis-move button { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--subtle); background: none; border: 1px solid var(--border-glass); padding: 2px 5px; cursor: pointer; }
+.eis-move button:hover { color: var(--foreground); border-color: var(--live-dim); }
+/* Dragging is unavailable on touch, so the buttons must always be reachable. */
+@media (hover: none) { .eis-move { display: flex; } }

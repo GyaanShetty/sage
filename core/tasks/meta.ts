@@ -28,6 +28,8 @@ export interface TaskMeta {
   startedAt?: string;
   /** Minutes actually spent, accumulated across sittings. */
   spentMin?: number;
+  /** Manual Eisenhower placement, when the derived one is wrong. */
+  quadrant?: "do" | "schedule" | "delegate" | "drop";
   updatedAt: string;
 }
 

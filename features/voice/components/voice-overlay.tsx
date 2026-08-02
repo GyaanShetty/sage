@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Mic, Paperclip, Send, Volume2, VolumeX, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Paperclip, Send, Volume2, VolumeX, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
@@ -246,7 +246,9 @@ export function VoiceOverlay() {
 
   const error = liveActive || mode === "live" ? live.error ?? assistant.error : assistant.error;
 
-  const statusText = thinking
+  const statusText = liveActive && live.micMuted
+    ? "Microphone muted — tap the mic to talk again"
+    : thinking
     ? "Opening secure link…"
     : speaking
       ? `${APP_NAME} is speaking`
@@ -307,6 +309,19 @@ export function VoiceOverlay() {
                   </div>
                   <p className="truncate text-[11px] text-subtle">{statusText}</p>
                 </div>
+                {liveActive && (
+                  <button
+                    onClick={live.toggleMic}
+                    title={live.micMuted ? "Unmute your microphone" : "Mute your microphone"}
+                    aria-label={live.micMuted ? "Unmute microphone" : "Mute microphone"}
+                    className={cn(
+                      "rounded-lg p-2 transition-colors",
+                      live.micMuted ? "text-red-400 hover:text-red-300" : "text-muted hover:text-foreground",
+                    )}
+                  >
+                    {live.micMuted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+                  </button>
+                )}
                 <button
                   onClick={toggleMute}
                   title={muted ? "Unmute SAGE" : "Mute SAGE"}

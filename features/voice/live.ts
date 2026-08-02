@@ -122,6 +122,7 @@ export function useLiveVoice() {
   const micCtxRef = useRef<AudioContext | null>(null);
   const outCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [micMuted, setMicMuted] = useState(false);
   const nodesRef = useRef<AudioNode[]>([]);
   const playingRef = useRef<AudioBufferSourceNode[]>([]);
   const nextStartRef = useRef(0);
@@ -349,5 +350,27 @@ export function useLiveVoice() {
     }
   }, [stop]);
 
-  return { state, error, captions, turns, start, stop };
+  /**
+   * Mute the microphone without dropping the session.
+   *
+   * Disabling the track rather than stopping it matters: stopping releases the
+   * device, which drops the browser's recording indicator but also means
+   * unmuting has to re-request permission and rebuild the audio graph. A
+   * disabled track keeps the pipeline intact and simply emits silence, so
+   * unmuting is instant and the conversation survives.
+   */
+  const setMicEnabled = useCallback((on: boolean) => {
+    streamRef.current?.getAudioTracks().forEach((t) => { t.enabled = on; });
+    setMicMuted(!on);
+  }, []);
+
+  const toggleMic = useCallback(() => {
+    const track = streamRef.current?.getAudioTracks()[0];
+    // Read the live track rather than React state — a track can be disabled by
+    // the OS or another tab, and state would then be lying.
+    const next = track ? !track.enabled : micMuted;
+    setMicEnabled(next);
+  }, [micMuted, setMicEnabled]);
+
+  return { state, error, captions, turns, start, stop, micMuted, toggleMic, setMicEnabled };
 }

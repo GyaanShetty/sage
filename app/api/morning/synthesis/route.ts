@@ -7,6 +7,7 @@ import { NEWS_SOURCES, getSourceHeadlines } from "@/infrastructure/news";
 import { getMarkets } from "@/infrastructure/markets";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { TZ, tzHour } from "@/lib/config";
+import { recentBriefs, noRepeatClause, dayContext } from "@/core/brief/variety";
 
 export const maxDuration = 60;
 
@@ -20,7 +21,8 @@ const schema = z.object({
 
 /** Morning synthesis: reads across all the feeds + live markets + tasks + day
  *  and connects them into one insight brief. Cached per half-day to save quota. */
-export async function GET() {
+export async function GET(req: Request) {
+  const refresh = new URL(req.url).searchParams.get("refresh") === "1";
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
   const bucket = `${day}-${tzHour() < 13 ? "AM" : "PM"}`;
 
@@ -33,7 +35,7 @@ export async function GET() {
     .limit(1)
     .maybeSingle();
   const cp = cached?.payload as { bucket?: string; data?: unknown } | null;
-  if (cp?.bucket === bucket && cp.data) return NextResponse.json({ ok: true, data: cp.data });
+  if (cp?.bucket === bucket && cp.data && !refresh) return NextResponse.json({ ok: true, data: cp.data });
 
   const [headlineSets, markets, events, { data: tasks }] = await Promise.all([
     Promise.all(Object.keys(NEWS_SOURCES).map(async (k) => ({ source: NEWS_SOURCES[k].source, items: await getSourceHeadlines(k, 4) }))),
@@ -41,6 +43,7 @@ export async function GET() {
     listUpcomingEvents(4).catch(() => null),
     db.from("Task").select("title").eq("userId", DEFAULT_USER_ID).in("status", ["todo", "doing"]).limit(10),
   ]);
+  const previous = await recentBriefs("morning.synthesis", 3);
 
   const headlines = headlineSets
     .filter((s) => s.items.length)
@@ -53,7 +56,7 @@ export async function GET() {
   }
 
   const system = `You are SAGE, Gyaan's British chief of staff. He has just read his morning news. Synthesize it and INTERLINK it with his own world — his crypto/markets, his open tasks, his day. Be specific, sharp, and useful; connect dots he might miss. No fluff.`;
-  const prompt = `Today's headlines by source:\n${headlines}\n\nGyaan's crypto/markets: ${JSON.stringify((markets ?? []).slice(0, 6).map((c) => ({ s: c.symbol, chg24h: c.change24h })))}\nHis open tasks: ${JSON.stringify((tasks ?? []).map((t) => t.title))}\nToday's events: ${JSON.stringify((events ?? []).map((e) => e.summary))}`;
+  const prompt = `Today's headlines by source:\n${headlines}\n\nGyaan's crypto/markets: ${JSON.stringify((markets ?? []).slice(0, 6).map((c) => ({ s: c.symbol, chg24h: c.change24h })))}\nHis open tasks: ${JSON.stringify((tasks ?? []).map((t) => t.title))}\nToday's events: ${JSON.stringify((events ?? []).map((e) => e.summary))}\n${dayContext(TZ)}${noRepeatClause(previous)}`;
 
   // Try the smart model, then fall back to the fast one if it's busy/quota'd —
   // so the brief actually generates instead of showing "model busy".

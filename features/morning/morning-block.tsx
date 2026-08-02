@@ -69,6 +69,9 @@ export function MorningBlock() {
   const [emails, setEmails] = useState<Email[] | null | undefined>(undefined);
   const [lc, setLc] = useState<{ daily: Daily | null; stats: Stats | null; hasUser: boolean } | null>(null);
   const [syn, setSyn] = useState<Synthesis | null>(null);
+  // Bumped by "Rewrite": asks the API to bypass its half-day cache and take
+  // a different angle, rather than replaying the brief you just read.
+  const [synNonce, setSynNonce] = useState(0);
   const [videos, setVideos] = useState<Video[] | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   // article summaries: link → {loading, summary}
@@ -108,7 +111,7 @@ export function MorningBlock() {
         const j = await fetch("/api/youtube").then((r) => r.json()).catch(() => null);
         if (!cancel) setVideos(j?.data?.videos ?? []);
       } else if (step.kind === "synthesis") {
-        const j = await fetch("/api/morning/synthesis").then((r) => r.json()).catch(() => null);
+        const j = await fetch(`/api/morning/synthesis${synNonce ? "?refresh=1" : ""}`).then((r) => r.json()).catch(() => null);
         const data: Synthesis | null = j?.data ?? null;
         // Do NOT auto-play — SAGE only speaks when you press Listen.
         if (!cancel) setSyn(data);
@@ -117,7 +120,7 @@ export function MorningBlock() {
     })();
     return () => { cancel = true; stopSpeak(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, synNonce]);
 
   const next = () => {
     sound.blip();
@@ -350,6 +353,13 @@ export function MorningBlock() {
             syn ? (
               <div className="mb-syn">
                 <div className="mb-synhead">
+                  <button
+                    onClick={() => { setSyn(null); setSynNonce((n) => n + 1); }}
+                    title="Write it again — a different angle on the same morning"
+                    className="mb-synspeak"
+                  >
+                    <RotateCcw className="size-3.5" /> Rewrite
+                  </button>
                   <button onClick={speakSynthesis} className={cn("mb-synspeak", speaking && "on")}>
                     {speaking ? <Square className="size-3.5" /> : <Volume2 className="size-3.5" />}
                     {speaking ? "Stop" : "Listen"}

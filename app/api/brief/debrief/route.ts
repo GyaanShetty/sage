@@ -5,6 +5,8 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUnreadEmails, listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getMarkets } from "@/infrastructure/markets";
 import { TZ, tzHour } from "@/lib/config";
+import { getNews } from "@/infrastructure/news";
+import { recentBriefs, noRepeatClause, dayContext } from "@/core/brief/variety";
 
 export const maxDuration = 60;
 
@@ -67,6 +69,11 @@ export async function GET(req: Request) {
     getMarkets().catch(() => null),
   ]);
 
+  const [headlines, previous] = await Promise.all([
+    getNews(8).catch(() => []),
+    recentBriefs("debrief.generated", 4),
+  ]);
+
   const symbols = new URL(req.url).searchParams.get("symbols") ?? "^NSEI,^BSESN";
   const origin = new URL(req.url).origin;
   const quotes = await fetch(`${origin}/api/market/quotes?symbols=${encodeURIComponent(symbols)}`, {
@@ -102,7 +109,9 @@ Open tasks: ${JSON.stringify(tasks ?? [])}
 Upcoming events: ${JSON.stringify(events ?? [])}
 Unread emails: ${JSON.stringify((emails ?? []).map((e) => ({ from: e.from, subject: e.subject })))}
 Indices: ${JSON.stringify((quotes as { name: string; changePct: number }[]).map((q) => ({ name: q.name, pct: q.changePct })))}
-Crypto: ${JSON.stringify((markets ?? []).slice(0, 2).map((c) => ({ s: c.symbol, chg: c.change24h })))}`,
+Crypto: ${JSON.stringify((markets ?? []).slice(0, 2).map((c) => ({ s: c.symbol, chg: c.change24h })))}
+${dayContext(TZ)}
+Headlines right now: ${headlines.map((h) => h.title).join(" | ") || "feeds quiet"}${noRepeatClause(previous, { fixedOpening: true })}`,
     });
 
     await db.from("Event").insert({

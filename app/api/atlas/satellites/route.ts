@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import * as satellite from "satellite.js";
 import { proxyFetch } from "@/infrastructure/http/fetch";
 
-export const revalidate = 5;
+// Was 5 seconds. These render as dots on a small globe and the route is hit
+// two to four times per dashboard load; a five-second window meant every one
+// of those went upstream. Five minutes is imperceptible at that scale.
+export const revalidate = 300;
 
 interface Sat { name: string; lat: number; lon: number; alt: number }
 
@@ -40,5 +43,9 @@ export async function GET(req: Request) {
       out.push({ name: s.name, lat: satellite.degreesLat(geo.latitude), lon: satellite.degreesLong(geo.longitude), alt: Math.round(geo.height) });
     } catch {}
   }
-  return NextResponse.json({ ok: true, data: out });
+  return NextResponse.json({ ok: true, data: out }, {
+    // Let the CDN and the browser hold it too, not just Next's data cache —
+    // the dashboard mounts this route twice on every visit.
+    headers: { "cache-control": "public, s-maxage=300, stale-while-revalidate=600" },
+  });
 }

@@ -84,15 +84,21 @@ export async function removeLink(id: string): Promise<boolean> {
  * out which side they were on.
  */
 export async function linksFor(kind: LinkKind, id: string): Promise<(Link & { other: LinkEnd })[]> {
-  const { data } = await db
-    .from("Event")
-    .select("id, createdAt, payload")
-    .eq("userId", DEFAULT_USER_ID)
-    .eq("type", TYPE)
-    .limit(500);
+  // Filter in Postgres on the JSON path rather than pulling every edge back
+  // and sifting in JS. The scan version was fine at ten links and quietly
+  // linear in the size of the whole graph.
+  const [fromSide, toSide] = await Promise.all([
+    db.from("Event").select("id, createdAt, payload")
+      .eq("userId", DEFAULT_USER_ID).eq("type", TYPE)
+      .eq("payload->from->>kind", kind).eq("payload->from->>id", id).limit(200),
+    db.from("Event").select("id, createdAt, payload")
+      .eq("userId", DEFAULT_USER_ID).eq("type", TYPE)
+      .eq("payload->to->>kind", kind).eq("payload->to->>id", id).limit(200),
+  ]);
+  const data = [...(fromSide.data ?? []), ...(toSide.data ?? [])];
 
   const out: (Link & { other: LinkEnd })[] = [];
-  for (const row of data ?? []) {
+  for (const row of data) {
     const p = row.payload as { from?: LinkEnd; to?: LinkEnd; note?: string };
     if (!p.from || !p.to) continue;
     const isFrom = p.from.kind === kind && p.from.id === id;

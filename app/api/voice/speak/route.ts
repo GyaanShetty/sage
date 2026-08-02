@@ -3,12 +3,16 @@ import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { fishSpeak, fishKeys } from "@/infrastructure/tts/fish";
 import { cartesiaSpeak, cartesiaKeys } from "@/infrastructure/tts/cartesia";
 import { VOICE_DIRECTION } from "@/lib/config";
+import { splitForSpeech } from "@/lib/speech-split";
 
 export const runtime = "nodejs";
 // Deliberately short. A voice request that takes longer than this is useless
 // anyway, and a long ceiling let a stalled provider burn the whole invocation
 // and return a 504 instead of falling through to one that works.
-export const maxDuration = 20;
+// Long answers are spoken as several provider calls streamed back to back, so
+// the invocation must outlive one call. Each individual provider is still
+// bounded by PROVIDER_TIMEOUT_MS, which is what actually prevents a hang.
+export const maxDuration = 60;
 
 /** Per-provider deadline. Short on purpose: the chain has four more rungs
  *  below any given provider, so waiting long on a dead one is the worst
@@ -57,7 +61,11 @@ export async function POST(req: Request) {
   const fast = url.searchParams.get("fast") === "1";   // low-latency flash model
   const { text } = (await req.json()) as { text?: string };
   if (!text?.trim()) return new Response("Empty", { status: 400 });
-  const clean = text.slice(0, 1400);
+  // Providers cap how much text they will take per request. Truncating to fit
+  // is what made SAGE stop mid-sentence on any long answer; instead the text is
+  // split on sentence boundaries and the pieces are spoken in order.
+  const clean = text.slice(0, 12_000);
+  const chunks = splitForSpeech(clean, 1200);
 
   // Name the rung that answered on the response itself. Silence with a 200 is
   // otherwise indistinguishable from silence with no request at all, and this
@@ -74,21 +82,15 @@ export async function POST(req: Request) {
   };
 
   /** Fish Audio — msgpack API, free-tier model by default. */
-  const tryFish = async (): Promise<Response | null> => {
-    if (!fishKeys().length) return null;
-    const s = await fishSpeak(clean, { fast });
-    return s ? mp3(s, "fish") : null;
-  };
+  const tryFish = async (piece: string): Promise<ReadableStream<Uint8Array> | null> =>
+    fishKeys().length ? fishSpeak(piece, { fast }) : null;
 
   /** Cartesia Sonic — lowest latency of the neural providers. */
-  const tryCartesia = async (): Promise<Response | null> => {
-    if (!cartesiaKeys().length) return null;
-    const s = await cartesiaSpeak(clean, { fast });
-    return s ? mp3(s, "cartesia") : null;
-  };
+  const tryCartesia = async (piece: string): Promise<ReadableStream<Uint8Array> | null> =>
+    cartesiaKeys().length ? cartesiaSpeak(piece, { fast }) : null;
 
   /** ElevenLabs — rotate across keys, skipping ones that are out of credit. */
-  const tryEleven = async (): Promise<Response | null> => {
+  const tryEleven = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
   const model = fast ? (process.env.ELEVENLABS_FAST_MODEL ?? ELEVEN_MODEL) : ELEVEN_MODEL;
   const fmt = fast ? "mp3_44100_64" : "mp3_44100_128";
   // Always the streaming endpoint with max latency optimisation — the
@@ -102,7 +104,7 @@ export async function POST(req: Request) {
         method: "POST",
         headers: { "xi-api-key": key, "content-type": "application/json" },
         body: JSON.stringify({
-          text: clean,
+          text: piece,
           model_id: model,
           voice_settings: { stability: 0.3, similarity_boost: 0.85, style: 0.55, use_speaker_boost: true },
         }),
@@ -122,12 +124,7 @@ export async function POST(req: Request) {
         res = await call(key, ELEVEN_FALLBACK_VOICE);
       }
 
-      if (res.ok) {
-        // Always hand back the stream — buffering the whole MP3 first was
-        // adding seconds of dead air before the first syllable.
-        if (res.body) return mp3(res.body, "elevenlabs");
-        return mp3(await res.arrayBuffer(), "elevenlabs");
-      }
+      if (res.ok && res.body) return res.body as ReadableStream<Uint8Array>;
       // Out of credits / rate-limited → cool this key down; try the next one.
       if (res.status === 401 || res.status === 402 || res.status === 429) {
         keyCooldown.set(key, Date.now() + 6 * 3600_000); // 6h; credits reset monthly but this avoids hammering
@@ -141,24 +138,65 @@ export async function POST(req: Request) {
 
   // Which neural provider leads. SAGE_TTS_PRIMARY picks the head of the chain;
   // the others still follow it, so one provider running dry is never fatal.
-  const chains: Record<string, (() => Promise<Response | null>)[]> = {
+  const chains: Record<string, ((piece: string) => Promise<ReadableStream<Uint8Array> | null>)[]> = {
     cartesia: [tryCartesia, tryFish, tryEleven],
     fish: [tryFish, tryCartesia, tryEleven],
     eleven: [tryEleven, tryFish, tryCartesia],
   };
   const order = chains[process.env.SAGE_TTS_PRIMARY ?? "eleven"] ?? chains.eleven;
-  for (const attempt of order) {
-    const out = await within(attempt(), PROVIDER_TIMEOUT_MS + 1_000);
-    if (out) return out;
-  }
 
-  // ── Microsoft Edge neural TTS (free, streaming MP3) — fallback ──
-  // Still a real neural voice (en-GB-RyanNeural), so it stays in the chain.
-  if (process.env.SAGE_DISABLE_EDGE !== "1") {
-    const edge = await within(edgeSpeak(clean), 3_000);
-    if (edge) {
-      return mp3(edge, "edge");
+  /** First provider that produces audio for one piece of text. */
+  const speakPiece = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
+    for (const attempt of order) {
+      const out = await within(attempt(piece), PROVIDER_TIMEOUT_MS + 1_000);
+      if (out) return out;
     }
+    if (process.env.SAGE_DISABLE_EDGE !== "1") {
+      const edge = await within(edgeSpeak(piece), 3_000);
+      if (edge) return edge;
+    }
+    return null;
+  };
+
+  // The first piece decides whether we can speak at all; failing fast here
+  // means the refusal below still reaches the user instead of a half-second of
+  // audio followed by silence.
+  const firstStream = await speakPiece(chunks[0]);
+  if (firstStream) {
+    if (chunks.length === 1) return mp3(firstStream, "neural");
+
+    /**
+     * Long answers: stream each piece in turn into one continuous response.
+     * MP3 frames concatenate cleanly, so the client hears a single unbroken
+     * take rather than several requests it would have to sequence itself.
+     * A piece that fails mid-way ends the stream rather than skipping ahead —
+     * silently omitting a paragraph is worse than stopping.
+     */
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const pump = async (rs: ReadableStream<Uint8Array>) => {
+          const reader = rs.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) controller.enqueue(value);
+          }
+        };
+        try {
+          await pump(firstStream);
+          for (const piece of chunks.slice(1)) {
+            const next = await speakPiece(piece);
+            if (!next) break;
+            await pump(next);
+          }
+        } catch {
+          // Client went away, or a provider dropped — close cleanly either way.
+        } finally {
+          controller.close();
+        }
+      },
+    });
+    return mp3(stream, `neural×${chunks.length}`);
   }
 
   /**

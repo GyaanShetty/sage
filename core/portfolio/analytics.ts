@@ -113,3 +113,111 @@ export function rebalance(positions: Position[], targets: Record<string, number>
     })
     .sort((a, b) => Math.abs(b.driftPct) - Math.abs(a.driftPct));
 }
+
+// ── Attribution ───────────────────────────────────────────────────────────
+
+export interface Contribution {
+  symbol: string;
+  kind: string;
+  /** Unrealised P&L in the price currency. */
+  pnl: number;
+  /** Return on this position's own cost, in %. */
+  pnlPct: number;
+  /** Share of the book by market value, in %. */
+  weight: number;
+  /**
+   * Share of the book's TOTAL gross P&L movement, in %.
+   *
+   * Signed against gross absolute movement rather than net profit: with
+   * +100 on one name and -100 on another the net is zero, and dividing by
+   * zero would report either as infinitely important. Gross keeps a loser
+   * that ate half the year visible instead of hiding it behind a winner.
+   */
+  share: number;
+}
+
+export interface Attribution {
+  contributions: Contribution[];
+  best: Contribution | null;
+  worst: Contribution | null;
+  totalPnl: number;
+  winners: number;
+  losers: number;
+  /** True when one name accounts for more than half of all P&L movement. */
+  drivenByOne: boolean;
+  notes: string[];
+}
+
+/**
+ * Where the money actually came from.
+ *
+ * A portfolio can be up while most of it is down — one position carries the
+ * rest. Total return alone never shows that, and it is exactly the thing worth
+ * knowing before adding to a winner.
+ */
+export function attribution(positions: Position[]): Attribution {
+  const priced = positions.filter((p) => p.pnl != null && p.value != null);
+  const totalValue = priced.reduce((a, p) => a + (p.value ?? 0), 0);
+  const gross = priced.reduce((a, p) => a + Math.abs(p.pnl ?? 0), 0);
+
+  const contributions: Contribution[] = priced
+    .map((p) => ({
+      symbol: p.symbol,
+      kind: p.kind,
+      pnl: p.pnl ?? 0,
+      pnlPct: p.pnlPct ?? 0,
+      weight: totalValue > 0 ? ((p.value ?? 0) / totalValue) * 100 : 0,
+      share: gross > 0 ? ((p.pnl ?? 0) / gross) * 100 : 0,
+    }))
+    .sort((a, b) => b.pnl - a.pnl);
+
+  const totalPnl = contributions.reduce((a, c) => a + c.pnl, 0);
+  const winners = contributions.filter((c) => c.pnl > 0).length;
+  const losers = contributions.filter((c) => c.pnl < 0).length;
+  const best = contributions[0] ?? null;
+  const worst = contributions.length > 1 ? contributions[contributions.length - 1] : null;
+  const drivenByOne = !!best && Math.abs(best.share) > 50;
+
+  const notes: string[] = [];
+  if (drivenByOne && best) {
+    notes.push(`${best.symbol} accounts for ${Math.abs(best.share).toFixed(0)}% of all P&L movement — the book's result is really its result.`);
+  }
+  if (totalPnl > 0 && losers > winners) {
+    notes.push(`Up overall, but ${losers} of ${contributions.length} positions are underwater. The gain is narrow.`);
+  }
+  if (worst && worst.pnl < 0 && totalPnl > 0 && Math.abs(worst.pnl) > totalPnl) {
+    notes.push(`${worst.symbol} alone has lost more than the whole book has made.`);
+  }
+  return { contributions, best, worst, totalPnl, winners, losers, drivenByOne, notes };
+}
+
+/**
+ * Risk-adjusted return over the snapshot window.
+ *
+ * Sharpe divides by all volatility; Sortino divides only by the downside,
+ * which is the half anyone actually minds. Both are annualised from daily
+ * snapshots and both are noise below a few weeks of history — hence the null.
+ */
+export function riskAdjusted(snaps: Snapshot[]): { sharpe: number | null; sortino: number | null; days: number } {
+  const rets = dailyReturns(snaps);
+  if (rets.length < 20) return { sharpe: null, sortino: null, days: rets.length };
+
+  const mean = rets.reduce((a, r) => a + r, 0) / rets.length;
+  const sd = Math.sqrt(rets.reduce((a, r) => a + (r - mean) ** 2, 0) / (rets.length - 1));
+  const downside = rets.filter((r) => r < 0);
+  const dd = downside.length
+    ? Math.sqrt(downside.reduce((a, r) => a + r * r, 0) / downside.length)
+    : 0;
+
+  const ann = Math.sqrt(365);
+  // A curve with no measurable variance is a straight line — a stub, a
+  // stale price feed, or too few real moves. Dividing by its rounding error
+  // produces a Sharpe in the quadrillions, which is worse than saying nothing.
+  const EPS = 1e-6;
+  return {
+    sharpe: sd > EPS ? (mean / sd) * ann : null,
+    // No downside days at all is a short, lucky window, not infinite skill.
+    sortino: dd > EPS ? (mean / dd) * ann : null,
+    days: rets.length,
+  };
+}

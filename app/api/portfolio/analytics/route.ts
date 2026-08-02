@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPositions } from "@/core/portfolio/store";
 import { listSnapshots } from "@/core/portfolio/snapshots";
-import { riskMetrics, rebalance } from "@/core/portfolio/analytics";
+import { riskMetrics, rebalance, attribution, riskAdjusted } from "@/core/portfolio/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +27,8 @@ export async function GET(req: Request) {
     data: {
       risk: riskMetrics(positions, snaps),
       rebalance: rebalance(positions, targets),
+      attribution: attribution(positions),
+      riskAdjusted: riskAdjusted(snaps),
       historyPoints: snaps.length,
     },
   });

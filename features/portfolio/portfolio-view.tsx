@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 import "./panels.css";
 import { EquityPanel } from "./components/equity-panel";
+import { AttributionPanel } from "./components/attribution-panel";
 import { RiskPanel } from "./components/risk-panel";
 import { TradesPanel } from "./components/trades-panel";
 import { AlertsPanel } from "./components/alerts-panel";
@@ -348,6 +349,7 @@ export function PortfolioView() {
       {/* ── analysis: curve, risk, trades, alerts ── */}
       <EquityPanel />
       <RiskPanel reloadKey={analysisKey} />
+      <AttributionPanel reloadKey={analysisKey} />
       <TradesPanel onChange={() => setAnalysisKey((k) => k + 1)} />
       <AlertsPanel />
 

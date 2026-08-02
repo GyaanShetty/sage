@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Mic, Send, Volume2, VolumeX, X } from "lucide-react";
+import { Loader2, Mic, Paperclip, Send, Volume2, VolumeX, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
@@ -25,6 +25,11 @@ const ACTION_LABEL: Record<string, string> = {
   health_status: "read your health data", list_automations: "checked your automations",
   set_plan: "made a plan", complete_step: "ticked off a step", create_note: "wrote a note",
   github_status: "checked GitHub", spotify_now: "checked Spotify", spotify_control: "controlled Spotify",
+  phone_action: "asked your phone",
+  task_details: "detailed a task",
+  link_items: "linked two things",
+  list_files: "listed your files",
+  read_file: "read a file",
   linkedin_activity: "checked LinkedIn",
 };
 const labelFor = (n: string) => ACTION_LABEL[n] ?? n.replace(/_/g, " ");
@@ -121,6 +126,30 @@ export function VoiceOverlay() {
   const [typed, setTyped] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  /** Drop a file into the conversation. It is uploaded and read server-side;
+   *  SAGE then reaches for it with read_file rather than being handed the whole
+   *  document, which would swamp a spoken turn. */
+  const attach = useCallback(async (file: File) => {
+    setUploading(true);
+    setTranscript((t) => [...t.slice(-30), { role: "you", text: `📎 ${file.name}` }]);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const j = await fetch("/api/files", { method: "POST", body }).then((r) => r.json()).catch(() => null);
+      const line = j?.ok
+        ? j.data.readable
+          ? `Uploaded "${j.data.name}" — ${j.data.chars.toLocaleString()} characters read. Ask me anything about it.`
+          : `Uploaded "${j.data.name}", but I can't read its text — it may be a scan or an unsupported format.`
+        : `That upload failed${j?.error ? `: ${j.error}` : "."}`;
+      setTranscript((t) => [...t.slice(-30), { role: "sage", text: line }]);
+      if (j?.ok && j.data.readable) await speakReply(line);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
 
   const onUtterance = useCallback(async (text: string) => {
     // "open/go to/show me X" → spin the wheel there (works in classic + typed).
@@ -365,6 +394,27 @@ export function VoiceOverlay() {
                     aria-label="Type to SAGE"
                     className="flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-subtle"
                   />
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      // Clear first, or picking the same file twice does nothing.
+                      e.target.value = "";
+                      if (f) void attach(f);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    aria-label="Attach a file"
+                    title="Attach a file"
+                    className="text-muted transition-colors hover:text-[var(--live)] disabled:opacity-30"
+                  >
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
+                  </button>
                   <button
                     type="submit"
                     disabled={sending || !typed.trim()}

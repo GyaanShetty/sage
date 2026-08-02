@@ -7,6 +7,7 @@ import { staggerContainer, fadeRise } from "@/lib/motion";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
 import { Preferences } from "./preferences";
+import { Diagnostics } from "./diagnostics";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
   const disconnect = async () => {
@@ -122,6 +123,10 @@ export function SettingsView({
 
         <motion.div variants={fadeRise}>
           <Preferences />
+        </motion.div>
+
+        <motion.div variants={fadeRise}>
+          <Diagnostics />
         </motion.div>
 
         <motion.div variants={fadeRise}>

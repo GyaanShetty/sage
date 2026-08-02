@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
-  Settings, Orbit, X, Activity, ScrollText, type LucideIcon,
+  Settings, Orbit, X, Activity, ScrollText, BookMarked, type LucideIcon,
 } from "lucide-react";
 import { sound } from "@/lib/sound";
 
@@ -24,7 +24,8 @@ const PAGES: Item[] = [
   { href: "/lab", label: "Holo-Lab", icon: Boxes },
   { href: "/forge", label: "Forge", icon: Shapes },
   { href: "/report", label: "Report", icon: ScrollText },
-  { href: "/review", label: "Review", icon: GraduationCap },
+  { href: "/education", label: "Education", icon: GraduationCap },
+  { href: "/review", label: "Review", icon: BookMarked },
   { href: "/automations", label: "Automations", icon: Zap },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/graph", label: "Mind Graph", icon: Network },

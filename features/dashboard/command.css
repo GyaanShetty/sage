@@ -1105,3 +1105,22 @@
 .rp-stat-v { font-size: 21px; font-weight: 300; line-height: 1.1; color: var(--foreground); }
 .rp-stat-k { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); margin-top: 5px; text-transform: uppercase; }
 .rp-stat-s { font-size: 10px; color: var(--subtle); margin-top: 3px; opacity: .8; }
+
+/* ── Education: the skill ladder ── */
+.ed-ladder { display: inline-flex; gap: 3px; align-items: center; }
+.ed-rung {
+  width: 16px; height: 10px; padding: 0; cursor: pointer;
+  background: transparent; border: 1px solid var(--border-glass);
+  transition: background .15s ease, border-color .15s ease;
+}
+.ed-rung:hover:not(:disabled) { border-color: var(--live-dim); }
+.ed-rung:disabled { cursor: default; }
+.ed-rung.on { background: var(--foreground); border-color: var(--foreground); }
+/* The distance still to cover reads as an outline, not a fill. */
+.ed-rung.want { border-color: var(--live-dim); background: rgba(255,255,255,.08); }
+.ed-gap {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font-size: 11px; color: var(--muted);
+  border: 1px solid var(--border-glass); padding: 4px 8px;
+}
+.ed-gap b { font-family: var(--mono); font-size: 8.5px; font-weight: 400; color: var(--live); }

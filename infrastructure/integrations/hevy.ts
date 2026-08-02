@@ -152,7 +152,22 @@ export function parseHevyCsv(csv: string): WorkoutSummary[] {
     return out;
   };
 
-  const header = split(lines[0]).map((h) => h.trim().toLowerCase());
+  /**
+   * Hevy writes dates as "Jul 29, 2026 at 6:00 PM" — not ISO, and the " at "
+   * makes Date() reject the whole string. Some exports (and the API) do use
+   * ISO, so both are accepted and anything unparseable is skipped rather than
+   * silently becoming 1970.
+   */
+  const parseWhen = (raw: string): Date | null => {
+    const t = raw.trim().replace(/^"|"$/g, "");
+    if (!t) return null;
+    const direct = new Date(t.includes("T") ? t : t.replace(" at ", " "));
+    if (!Number.isNaN(direct.getTime())) return direct;
+    const iso = new Date(t.replace(" ", "T"));
+    return Number.isNaN(iso.getTime()) ? null : iso;
+  };
+
+  const header = split(lines[0]).map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
   const col = (...names: string[]) => header.findIndex((h) => names.some((n) => h.includes(n)));
   const iStart = col("start_time", "start time", "date");
   const iEnd = col("end_time", "end time");
@@ -166,34 +181,35 @@ export function parseHevyCsv(csv: string): WorkoutSummary[] {
 
   for (const line of lines.slice(1)) {
     const f = split(line);
-    const startRaw = f[iStart]?.trim();
+    const cell = (i: number) => (i >= 0 ? (f[i] ?? "").trim().replace(/^"|"$/g, "") : "");
+    const startRaw = cell(iStart);
     if (!startRaw) continue;
-    const started = new Date(startRaw.replace(" ", "T"));
-    if (Number.isNaN(started.getTime())) continue;
+    const started = parseWhen(startRaw);
+    if (!started) continue;
     const key = started.toISOString();
 
     let w = byWorkout.get(key);
     if (!w) {
-      const endRaw = iEnd >= 0 ? f[iEnd]?.trim() : "";
-      const ended = endRaw ? new Date(endRaw.replace(" ", "T")) : started;
+      const endRaw = cell(iEnd);
+      const ended = (endRaw ? parseWhen(endRaw) : null) ?? started;
       w = {
         externalId: `csv-${key}`,
-        title: (iTitle >= 0 ? f[iTitle]?.trim() : "") || "Workout",
+        title: cell(iTitle) || "Workout",
         at: key,
-        minutes: Number.isNaN(ended.getTime()) ? 0 : Math.max(0, Math.round((ended.getTime() - started.getTime()) / 60_000)),
+        minutes: Math.max(0, Math.round((ended.getTime() - started.getTime()) / 60_000)),
         volumeKg: 0, sets: 0, reps: 0, exercises: [], source: "hevy",
         _ex: new Map(),
       };
       byWorkout.set(key, w);
     }
 
-    const kg = iWeight >= 0 ? Number(f[iWeight]) || 0 : 0;
-    const reps = iReps >= 0 ? Number(f[iReps]) || 0 : 0;
+    const kg = Number(cell(iWeight)) || 0;
+    const reps = Number(cell(iReps)) || 0;
     w.sets += 1;
     w.reps += reps;
     w.volumeKg += kg * reps;
 
-    const name = (iExercise >= 0 ? f[iExercise]?.trim() : "") || "Exercise";
+    const name = cell(iExercise) || "Exercise";
     const ex = w._ex.get(name) ?? { sets: 0, top: null as number | null };
     ex.sets += 1;
     if (kg > 0 && (ex.top === null || kg > ex.top)) ex.top = kg;

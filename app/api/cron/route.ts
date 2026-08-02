@@ -9,6 +9,7 @@ import { generateDailyCards } from "@/core/retention/cards";
 import { maybeScanInbox } from "@/core/career/scan";
 import { maybeConsolidateMemories } from "@/core/memory/consolidate";
 import { maybeGenerateLifeReport } from "@/core/report/life";
+import { syncHevy } from "@/core/health/hevy";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -63,6 +64,9 @@ export async function GET(req: Request) {
   // Weekly, guarded on the last stored report rather than the clock, so a
   // missed week produces one at the next tick instead of waiting another seven.
   const lifeReport = (await maybeGenerateLifeReport().catch(() => null)) ? 1 : 0;
+  // Cheap and idempotent — re-syncing updates rather than duplicating, so this
+  // can run every tick without a guard.
+  const hevy = await syncHevy().catch(() => ({ ok: false, added: 0, updated: 0 }));
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy });
 }

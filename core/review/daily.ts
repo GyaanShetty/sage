@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { TZ, tzHour } from "@/lib/config";
+import { TZ, tzHour, startOfTodayUtc } from "@/lib/config";
 
 function tzDay(d = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
@@ -24,7 +24,7 @@ export async function maybeSaveDailyDigest(): Promise<boolean> {
     .select("id")
     .eq("userId", DEFAULT_USER_ID)
     .eq("type", "daily.digest")
-    .gte("createdAt", `${day}T00:00:00`)
+    .gte("createdAt", startOfTodayUtc())
     .limit(1)
     .maybeSingle();
   if (already) return false;

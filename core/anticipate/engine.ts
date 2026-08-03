@@ -2,7 +2,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getWeather } from "@/infrastructure/weather";
 import { sendPush } from "@/infrastructure/push";
-import { TZ, fmt } from "@/lib/config";
+import { TZ, fmt, startOfTodayUtc } from "@/lib/config";
 
 const WARN_WITHIN_MIN = 45; // heads-up when an event is this soon
 const LEAVE_HINT_MIN = 35; // if it has a location and is this close, suggest leaving
@@ -28,7 +28,7 @@ export async function runAnticipation(): Promise<number> {
     .select("payload")
     .eq("userId", DEFAULT_USER_ID)
     .eq("type", "anticipate.warned")
-    .gte("createdAt", `${day}T00:00:00`)
+    .gte("createdAt", startOfTodayUtc())
     .limit(200);
   const warned = new Set((warnedRows ?? []).map((r) => (r.payload as { key?: string })?.key).filter(Boolean));
 

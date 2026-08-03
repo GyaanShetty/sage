@@ -4,7 +4,7 @@ import { getMarkets } from "@/infrastructure/markets";
 import { getDailyChallenge, getLeetStats } from "@/infrastructure/integrations/leetcode";
 import { sendPush } from "@/infrastructure/push";
 import { pipelineReport, needsAttention, type AppInsight } from "@/core/career/pipeline";
-import { TZ, tzHour } from "@/lib/config";
+import { TZ, tzHour, startOfTodayUtc } from "@/lib/config";
 
 const LEET_USER = process.env.LEETCODE_USERNAME ?? "gyaanshetty";
 
@@ -19,7 +19,7 @@ async function seenToday(key: string): Promise<boolean> {
     .select("id")
     .eq("userId", DEFAULT_USER_ID)
     .eq("type", "notify.sent")
-    .gte("createdAt", `${today()}T00:00:00`)
+    .gte("createdAt", startOfTodayUtc())
     .contains("payload", { key })
     .limit(1)
     .maybeSingle();
@@ -31,12 +31,18 @@ async function markSent(key: string): Promise<void> {
 }
 
 /**
- * Morning brief — fires once in the 5am IST window. The day's headline: open
- * tasks, the next problem, and where the streak stands. Nudges the user into
- * the morning block.
+ * Morning brief — the day's headline: open tasks, the next problem, and where
+ * the streak stands. Nudges the user into the morning block.
+ *
+ * The window has to contain a tick to ever fire, and that is the bug this
+ * fixes. Vercel's free plan allows two daily cron invocations, which land at
+ * 08:30 and 21:00 IST. The old window was 5am to 8am, so the 08:30 tick was
+ * one minute too late and this notification had never once been sent. The
+ * windows below are now written around the ticks that actually exist rather
+ * than the hours we would have picked given an hourly scheduler.
  */
 async function morningBrief(): Promise<number> {
-  if (tzHour() < 5 || tzHour() >= 8) return 0;
+  if (tzHour() < 5 || tzHour() >= 12) return 0;
   if (await seenToday("morning")) return 0;
 
   const [{ data: tasks }, stats] = await Promise.all([
@@ -60,11 +66,12 @@ async function morningBrief(): Promise<number> {
 }
 
 /**
- * Market brief — fires once in the 9am IST window: the day's notable moves
- * across the tracked markets (only surfaces if something actually moved).
+ * Market brief — notable moves across the tracked markets, only surfacing if
+ * something actually moved. Runs on the morning tick (08:30 IST), which is
+ * before the Indian open, so this reads as an overnight/pre-open summary.
  */
 async function marketBrief(): Promise<number> {
-  if (tzHour() < 9 || tzHour() >= 12) return 0;
+  if (tzHour() < 5 || tzHour() >= 14) return 0;
   if (await seenToday("market")) return 0;
 
   const markets = await getMarkets().catch(() => null);
@@ -80,7 +87,7 @@ async function marketBrief(): Promise<number> {
     .join("  ·  ");
 
   await sendPush({
-    title: "📈 Markets this morning",
+    title: "📈 Overnight moves",
     body,
     tag: "market",
     url: "/markets",
@@ -95,7 +102,7 @@ async function marketBrief(): Promise<number> {
  * deadlines without pinging all day.
  */
 async function eveningTaskBrief(): Promise<number> {
-  if (tzHour() < 18 || tzHour() >= 21) return 0;
+  if (tzHour() < 16 || tzHour() >= 23) return 0;
   if (await seenToday("pending")) return 0;
 
   const { data: tasks } = await db

@@ -46,6 +46,23 @@ export function tzHour(d = new Date()): number {
   return Number(new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", hour12: false }).format(d)) % 24;
 }
 
+/**
+ * The UTC instant at which the app-timezone day began.
+ *
+ * `${localDate}T00:00:00` looks like midnight but is parsed as UTC, so in
+ * IST (+05:30) it actually points at 05:30 that morning — anything logged
+ * between local midnight and dawn falls outside a "since today" filter. This
+ * derives the real offset rather than hardcoding it, so changing TZ does not
+ * silently reintroduce the bug.
+ */
+export function startOfTodayUtc(d = new Date()): string {
+  const ymd = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+  const asTz = new Date(d.toLocaleString("en-US", { timeZone: TZ }));
+  const asUtc = new Date(d.toLocaleString("en-US", { timeZone: "UTC" }));
+  const offsetMs = asTz.getTime() - asUtc.getTime();
+  return new Date(new Date(`${ymd}T00:00:00Z`).getTime() - offsetMs).toISOString();
+}
+
 /** Format a date in the app timezone. */
 export function fmt(d: Date | string, opts: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts }).format(new Date(d));

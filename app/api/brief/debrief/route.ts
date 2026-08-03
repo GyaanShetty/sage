@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { TZ, tzHour } from "@/lib/config";
+import { TZ, tzHour, startOfTodayUtc } from "@/lib/config";
 import { getNews } from "@/infrastructure/news";
 import { recentBriefs, noRepeatClause } from "@/core/brief/variety";
 import { buildDayPicture, describeDay } from "@/core/brief/agenda";
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
       .select("id")
       .eq("userId", DEFAULT_USER_ID)
       .eq("type", "debrief.played")
-      .gte("createdAt", `${day}T00:00:00`)
+      .gte("createdAt", startOfTodayUtc())
       .limit(1)
       .maybeSingle();
     if (played) return NextResponse.json({ ok: true, data: { text: null, played: true } });

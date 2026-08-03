@@ -1,3 +1,4 @@
+import { startOfTodayUtc } from "@/lib/config";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
@@ -68,7 +69,7 @@ export async function generateDailyCards(): Promise<number> {
   const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
   const { data: already } = await db.from("Event").select("id")
     .eq("userId", DEFAULT_USER_ID).eq("type", "review.generated")
-    .gte("createdAt", `${day}T00:00:00`).limit(1).maybeSingle();
+    .gte("createdAt", startOfTodayUtc()).limit(1).maybeSingle();
   if (already) return 0;
 
   const model = getModel("fast");

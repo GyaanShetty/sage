@@ -3,7 +3,7 @@ import { fishKeys, fishSpeak } from "@/infrastructure/tts/fish";
 import { cartesiaKeys, cartesiaSpeak } from "@/infrastructure/tts/cartesia";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { proxyFetch } from "@/infrastructure/http/fetch";
-import { modelKeyStatus } from "@/infrastructure/llm";
+import { modelKeyStatus, modelIdStatus } from "@/infrastructure/llm";
 
 export const runtime = "nodejs";
 export const maxDuration = 25;
@@ -54,7 +54,7 @@ export async function GET() {
       cartesia: { keys: cartesiaKeys().length, sample: cartesiaKeys().map(mask) },
       fish: { keys: fishKeys().length, sample: fishKeys().map(mask) },
       elevenlabs: { keys: eleven.length, sample: eleven.map(mask) },
-      gemini: { keys: modelKeyStatus().length, status: modelKeyStatus() },
+      gemini: { keys: modelKeyStatus().length, status: modelKeyStatus(), models: modelIdStatus() },
       edgeDisabled: process.env.SAGE_DISABLE_EDGE === "1",
     },
     voices: {

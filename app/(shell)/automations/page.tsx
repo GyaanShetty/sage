@@ -31,9 +31,10 @@ export default async function AutomationsPage() {
         .order("startedAt", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const entry = (run?.log as { report?: string; error?: string }[] | null)?.[0];
+      const entry = (run?.log as { report?: string; error?: string; artifacts?: AutomationItem["lastArtifacts"] }[] | null)?.[0];
       a.lastStatus = (run?.status as AutomationItem["lastStatus"]) ?? null;
       a.lastReport = entry?.report ?? (entry?.error ? `FAILED: ${entry.error}` : null);
+      a.lastArtifacts = entry?.artifacts ?? [];
     }),
   );
 

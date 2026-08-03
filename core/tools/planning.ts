@@ -63,8 +63,9 @@ export const planningTools = {
         .split(/\n{2,}/)
         .filter(Boolean)
         .map((p) => ({ type: "paragraph", content: [{ type: "text", text: p }] }));
+      const id = crypto.randomUUID();
       const { error } = await db.from("Note").insert({
-        id: crypto.randomUUID(),
+        id,
         userId: DEFAULT_USER_ID,
         kind: "doc",
         title,
@@ -73,7 +74,9 @@ export const planningTools = {
         updatedAt: new Date().toISOString(),
       });
       if (error) return { ok: false, error: error.message };
-      return { ok: true, title };
+      // The id matters: without it a scheduled run can report that it wrote a
+      // note but nothing can link to the note it wrote.
+      return { ok: true, id, title, href: `/workspace?note=${id}` };
     },
   }),
 };

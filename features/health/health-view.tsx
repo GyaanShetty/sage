@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import "./health.css";
 import { TrainingPanel } from "./components/training-panel";
+import { StepsAuto } from "./components/steps-auto";
 
 interface Day {
   day: string;
@@ -146,6 +147,10 @@ export function HealthView() {
               <HeartPulse className="size-3.5" /> RHR {n0(t?.restingHr)}
               {d.sleepDebt > 0.5 && <em> · sleep debt {n1(d.sleepDebt)}h this week</em>}
             </span>
+          </div>
+
+          <div className="hl-grid">
+            <StepsAuto loggedToday={t?.steps != null} />
           </div>
 
           {/* trends */}

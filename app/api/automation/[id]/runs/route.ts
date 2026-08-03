@@ -4,7 +4,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-interface LogEntry { at?: string; report?: string; error?: string }
+interface LogEntry { at?: string; report?: string; error?: string; artifacts?: { kind: string; id?: string; label: string; href: string }[] }
 
 /**
  * Run history for one automation.
@@ -44,6 +44,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       startedAt: r.startedAt as string,
       endedAt: (r.endedAt as string | null) ?? null,
       report: entry?.report ?? null,
+      artifacts: entry?.artifacts ?? [],
       error: entry?.error ?? null,
     };
   });

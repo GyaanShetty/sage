@@ -101,7 +101,7 @@ export function KnowledgeGraph() {
         for (let j = i + 1; j < nodes.length; j++) {
           const a = nodes[i], b = nodes[j];
           let dx = a.x - b.x, dy = a.y - b.y;
-          let d2 = dx * dx + dy * dy || 0.01;
+          const d2 = dx * dx + dy * dy || 0.01;
           const f = 1400 / d2;
           const d = Math.sqrt(d2);
           dx /= d; dy /= d;

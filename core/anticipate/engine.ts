@@ -2,7 +2,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getWeather } from "@/infrastructure/weather";
 import { sendPush } from "@/infrastructure/push";
-import { TZ, fmt, startOfTodayUtc } from "@/lib/config";
+import { fmt, startOfTodayUtc } from "@/lib/config";
 
 const WARN_WITHIN_MIN = 45; // heads-up when an event is this soon
 const LEAVE_HINT_MIN = 35; // if it has a location and is this close, suggest leaving
@@ -22,7 +22,6 @@ export async function runAnticipation(): Promise<number> {
 
   const now = Date.now();
   // What have we already warned about today?
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
   const { data: warnedRows } = await db
     .from("Event")
     .select("payload")

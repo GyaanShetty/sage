@@ -18,6 +18,39 @@ const DIRECTIVE_PROMPT = `You are ${APP_NAME} running a scheduled automation for
 Execute the directive using your tools (tasks, reminders, notes, memory, knowledge, web search, calendar, email).
 Finish with a 1-3 sentence report of what you did or found. Never ask questions.`;
 
+/** Something a run actually produced, so the report is not the only trace. */
+export interface RunArtifact {
+  kind: "note" | "task" | "reminder";
+  id?: string;
+  label: string;
+  href: string;
+}
+
+/**
+ * Pull the durable things a run created out of its tool results.
+ *
+ * The prose report says "I created a note for Gyaan"; this is the note. A
+ * summary of work with no link to the work is the automation equivalent of a
+ * receipt with no purchase attached.
+ */
+function collectArtifacts(steps: { toolCalls?: { toolName: string }[]; toolResults?: { toolName: string; output?: unknown }[] }[]): RunArtifact[] {
+  const out: RunArtifact[] = [];
+  for (const step of steps ?? []) {
+    for (const r of step.toolResults ?? []) {
+      const v = r.output as Record<string, unknown> | undefined;
+      if (!v || v.ok !== true) continue;
+      if (r.toolName === "create_note" && typeof v.title === "string") {
+        out.push({ kind: "note", id: v.id as string | undefined, label: v.title, href: typeof v.href === "string" ? v.href : "/workspace" });
+      } else if (r.toolName === "create_task" && typeof v.title === "string") {
+        out.push({ kind: "task", id: v.id as string | undefined, label: v.title, href: "/workspace" });
+      } else if (r.toolName === "create_reminder" && typeof v.text === "string") {
+        out.push({ kind: "reminder", label: v.text, href: "/workspace" });
+      }
+    }
+  }
+  return out.slice(0, 10);
+}
+
 /** Execute one automation directive with full tool access; logs the run. */
 export async function runAutomation(automation: AutomationRow): Promise<string> {
   const runId = crypto.randomUUID();
@@ -27,7 +60,7 @@ export async function runAutomation(automation: AutomationRow): Promise<string> 
   try {
     const model = getModel("smart");
     if (!model) throw new Error("No model configured");
-    const { text } = await generateText({
+    const { text, steps } = await generateText({
       model,
       system: DIRECTIVE_PROMPT + `\n\nCurrent datetime: ${new Date().toISOString()}`,
       prompt: automation.workflow.directive,
@@ -35,16 +68,18 @@ export async function runAutomation(automation: AutomationRow): Promise<string> 
       stopWhen: stepCountIs(10),
     });
 
+    const artifacts = collectArtifacts(steps as never);
+
     await db
       .from("AutomationRun")
-      .update({ status: "done", log: [{ at: startedAt, report: text }], endedAt: new Date().toISOString() })
+      .update({ status: "done", log: [{ at: startedAt, report: text, artifacts }], endedAt: new Date().toISOString() })
       .eq("id", runId);
     await db.from("Automation").update({ lastRunAt: new Date().toISOString() }).eq("id", automation.id);
     await db.from("Event").insert({
       id: crypto.randomUUID(),
       userId: DEFAULT_USER_ID,
       type: "automation.completed",
-      payload: { name: automation.name, report: text.slice(0, 500) },
+      payload: { name: automation.name, report: text.slice(0, 500), artifacts },
     });
     return text;
   } catch (err) {

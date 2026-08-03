@@ -89,8 +89,21 @@ Rules:
     markets?.length ? `\nMarket moves: ${markets.slice(0, 6).map((c) => `${c.symbol} ${c.change24h}%`).join(", ")}` : "",
   ].join("\n");
 
+  // The smart model is the one most likely to be quota'd, and falling back is
+  // better than telling him to ask a narrower question when the question was
+  // never the problem.
+  const run = (m: NonNullable<ReturnType<typeof getModel>>) =>
+    generateObject({ model: m, schema: briefSchema, system, prompt });
+
   try {
-    const { object } = await generateObject({ model, schema: briefSchema, system, prompt });
+    let object: z.infer<typeof briefSchema>;
+    try {
+      ({ object } = await run(model));
+    } catch (first) {
+      const fast = getModel("fast");
+      if (!fast || fast === model) throw first;
+      ({ object } = await run(fast));
+    }
     const brief: ResearchBrief = {
       ...object,
       id: crypto.randomUUID(),
@@ -102,8 +115,22 @@ Rules:
       id: brief.id, userId: DEFAULT_USER_ID, type: TYPE, payload: brief,
     });
     return brief;
-  } catch {
-    return { error: "The model couldn't finish that one — try a narrower question." };
+  } catch (err) {
+    // Say what actually went wrong. "Try a narrower question" was advice for a
+    // problem that was usually not the question at all — most often an
+    // exhausted key or a missing search key — and it sent him in circles.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/quota|rate.?limit|429|exhaust/i.test(msg)) {
+      return { error: "Every Gemini key is rate-limited right now. Give it a few minutes." };
+    }
+    if (/schema|parse|validation/i.test(msg)) {
+      return { error: "The model returned something malformed. Worth trying once more." };
+    }
+    return {
+      error: grounded
+        ? `Research failed: ${msg.slice(0, 160)}`
+        : "Research failed, and there are no web sources either — set TAVILY_API_KEY (free tier) so SAGE can actually read something.",
+    };
   }
 }
 

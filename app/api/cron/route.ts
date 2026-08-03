@@ -10,6 +10,7 @@ import { maybeScanInbox } from "@/core/career/scan";
 import { maybeConsolidateMemories } from "@/core/memory/consolidate";
 import { maybeGenerateLifeReport } from "@/core/report/life";
 import { syncHevy } from "@/core/health/hevy";
+import { closeHealthDay } from "@/core/health/daily";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -67,6 +68,10 @@ export async function GET(req: Request) {
   // Cheap and idempotent — re-syncing updates rather than duplicating, so this
   // can run every tick without a guard.
   const hevy = await syncHevy().catch(() => ({ ok: false, added: 0, updated: 0 }));
+  // Safety net: if the 9pm tick was missed (a deploy, an outage), this still
+  // closes the day out — the function checks the hour and the day itself, so
+  // running it here cannot double-nudge.
+  const dayClosed = await closeHealthDay().catch(() => null);
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed });
 }

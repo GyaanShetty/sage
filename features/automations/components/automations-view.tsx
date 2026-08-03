@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, Check, ChevronDown, History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, FileText, History, Loader2, Pencil, Play, Plus, Trash2, X, Zap } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 
@@ -19,6 +20,9 @@ export interface AutomationItem {
   enabled: boolean;
   lastRunAt: string | null;
   lastReport?: string | null;
+  /** What the last run actually produced — the note, the task — so the
+   *  report is not the only trace of the work. */
+  lastArtifacts?: { kind: "note" | "task" | "reminder"; id?: string; label: string; href: string }[];
   lastStatus?: "running" | "done" | "failed" | null;
 }
 
@@ -31,6 +35,7 @@ interface Run {
   endedAt: string | null;
   report: string | null;
   error: string | null;
+  artifacts?: { kind: "note" | "task" | "reminder"; id?: string; label: string; href: string }[];
 }
 
 const WHEN_LABEL: Record<WhenKind, string> = {
@@ -431,6 +436,7 @@ export function AutomationsView({ automations, health }: { automations: Automati
                             {r.error ?? r.report}
                           </p>
                         )}
+                        <Artifacts items={r.artifacts} />
                       </div>
                     ))}
                 </div>
@@ -447,6 +453,7 @@ export function AutomationsView({ automations, health }: { automations: Automati
                   <span className="mt-1 block text-muted">
                     {reports[automation.id] ?? automation.lastReport}
                   </span>
+                  <Artifacts items={automation.lastArtifacts} />
                 </motion.p>
               )}
             </div>
@@ -454,5 +461,34 @@ export function AutomationsView({ automations, health }: { automations: Automati
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+/**
+ * What the run left behind.
+ *
+ * A run that says "I created a note summarizing this for Gyaan" and then
+ * offers no way to reach that note has told you about work rather than
+ * delivered it. These are the links to the actual output.
+ */
+function Artifacts({ items }: { items?: { kind: string; label: string; href: string }[] }) {
+  if (!items?.length) return null;
+  return (
+    <span className="mt-2 block">
+      <span className="hud-label block">PRODUCED</span>
+      <span className="mt-1 flex flex-col gap-1">
+        {items.map((a, i) => (
+          <Link
+            key={`${a.href}-${i}`}
+            href={a.href}
+            className="flex items-center gap-1.5 text-[12px] text-subtle transition-colors hover:text-foreground"
+          >
+            <FileText className="size-3 shrink-0" />
+            <span className="truncate">{a.label}</span>
+            <span className="shrink-0 font-mono text-[9px] uppercase opacity-60">{a.kind}</span>
+          </Link>
+        ))}
+      </span>
+    </span>
   );
 }

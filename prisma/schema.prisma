@@ -244,6 +244,10 @@ model AutomationRun {
   startedAt    DateTime   @default(now())
   endedAt      DateTime?
   automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  // Without this the automations page scans the whole table on every load,
+  // and the table only ever grows.
+  @@index([automationId, startedAt])
 }
 
 model Reminder {

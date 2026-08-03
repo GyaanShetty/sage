@@ -11,6 +11,7 @@ import { maybeConsolidateMemories } from "@/core/memory/consolidate";
 import { maybeGenerateLifeReport } from "@/core/report/life";
 import { syncHevy } from "@/core/health/hevy";
 import { closeHealthDay } from "@/core/health/daily";
+import { pruneEvents } from "@/core/ops/retention";
 import { sendPush } from "@/infrastructure/push";
 
 export const maxDuration = 300;
@@ -72,6 +73,11 @@ export async function GET(req: Request) {
   // closes the day out — the function checks the hour and the day itself, so
   // running it here cannot double-nudge.
   const dayClosed = await closeHealthDay().catch(() => null);
+  // Housekeeping: the Event table is a universal store and nothing ever
+  // deleted from it. Retention is per-type and conservative — see
+  // core/ops/retention.ts — so this only removes bookkeeping and regenerable
+  // content, never the user's own records.
+  const pruned = (await pruneEvents().catch(() => null))?.total ?? 0;
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed });
+  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed, pruned });
 }

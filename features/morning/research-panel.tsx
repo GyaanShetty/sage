@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ExternalLink, Loader2, Plus, Search, TrendingUp } from "lucide-react";
+import { Check, ExternalLink, Loader2, Plus, Save, Search, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,10 +34,44 @@ export function ResearchPanel({ seed }: { seed?: string[] }) {
   const [brief, setBrief] = useState<Brief | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<Set<string>>(new Set());
+  const [noteState, setNoteState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  /**
+   * Keep the brief.
+   *
+   * A research brief is the one thing here worth re-reading later, and it was
+   * living in component state — one navigation and it was gone. The note keeps
+   * the sources too, since a finding without its citation is just an assertion.
+   */
+  const saveNote = async () => {
+    if (!brief || noteState === "saving" || noteState === "saved") return;
+    setNoteState("saving");
+    const body = [
+      brief.headline,
+      "",
+      brief.summary,
+      "",
+      ...brief.keyPoints.map((k) => `• ${k}`),
+      brief.soWhat.length ? "\nWhat it means for me:" : "",
+      ...brief.soWhat.map((s) => `• ${s}`),
+      brief.uncertainty ? `\nCaveat: ${brief.uncertainty}` : "",
+      brief.sources.length ? "\nSources:" : "",
+      ...brief.sources.map((s) => `- ${s.title} — ${s.url}`),
+    ].filter((line) => line !== "").join("\n");
+
+    const res = await fetch("/api/note", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: `Research — ${brief.topic.slice(0, 80)}`, content: body }),
+    }).then((r) => r.json()).catch(() => null);
+
+    setNoteState(!res || res.ok === false ? "error" : "saved");
+    window.dispatchEvent(new CustomEvent("sage:memory-updated"));
+  };
 
   const run = async (topic: string) => {
     if (!topic.trim() || busy) return;
-    setBusy(true); setErr(null); setBrief(null); setQ(topic);
+    setBusy(true); setErr(null); setBrief(null); setQ(topic); setNoteState("idle");
     const j = await fetch("/api/research", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -100,7 +134,18 @@ export function ResearchPanel({ seed }: { seed?: string[] }) {
 
       {brief && (
         <div className="mt-3 border-l border-border-glass pl-3">
-          <p className="text-[13px] font-medium">{brief.headline}</p>
+          <div className="flex items-start gap-3">
+            <p className="min-w-0 flex-1 text-[13px] font-medium">{brief.headline}</p>
+            <button
+              onClick={() => void saveNote()}
+              disabled={noteState === "saving" || noteState === "saved"}
+              className="flex shrink-0 items-center gap-1.5 border border-border-glass px-2 py-1 text-[10px] uppercase tracking-wider text-muted transition-colors hover:border-border-glass-strong hover:text-foreground disabled:opacity-50"
+            >
+              {noteState === "saved" ? <><Check className="size-3" /> Saved</>
+                : noteState === "saving" ? <><Loader2 className="size-3 animate-spin" /> Saving</>
+                : <><Save className="size-3" /> {noteState === "error" ? "Retry" : "Save"}</>}
+            </button>
+          </div>
           <p className="mt-1 text-[12px] leading-relaxed text-muted">{brief.summary}</p>
 
           {brief.keyPoints.length > 0 && (

@@ -127,10 +127,18 @@ export function CommandView({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text: q }),
       });
-      const json = await res.json();
-      setAskOut(json?.data?.text ?? "No response.");
-    } catch {
-      setAskOut("Link error — try again.");
+      // Read as text first: an error page is not JSON, and parsing it blindly
+      // turned every server-side failure into a misleading "link error".
+      const raw = await res.text();
+      let json: { ok?: boolean; error?: string; data?: { text?: string } } | null = null;
+      try { json = JSON.parse(raw); } catch { /* not JSON — handled below */ }
+
+      if (json?.data?.text) setAskOut(json.data.text);
+      else if (json?.error) setAskOut(json.error);
+      else if (!res.ok) setAskOut(`SAGE returned ${res.status}. ${raw.slice(0, 120)}`);
+      else setAskOut("No response.");
+    } catch (err) {
+      setAskOut(err instanceof Error ? `Couldn't reach SAGE: ${err.message}` : "Link error — try again.");
     } finally {
       setAsking(false);
     }

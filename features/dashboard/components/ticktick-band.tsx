@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckSquare, ListChecks } from "lucide-react";
+import { CheckSquare, ListChecks, Loader2, Plus } from "lucide-react";
 import { ExpandableCell } from "./expandable-cell";
 import { fmt } from "@/lib/config";
 import { sound } from "@/lib/sound";
@@ -33,6 +33,10 @@ function List({ tasks, onDone }: { tasks: TickTask[]; onDone: (t: TickTask) => v
 /** 10 · DEADLINES — TickTick tasks & deadlines, with one-tap complete. */
 export function TickTickBand() {
   const [tasks, setTasks] = useState<TickTask[] | null | undefined>(undefined);
+  const [draft, setDraft] = useState("");
+  const [due, setDue] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addErr, setAddErr] = useState<string | null>(null);
 
   const load = () => fetch("/api/ticktick").then((r) => r.json()).then((j) => setTasks(j.data)).catch(() => setTasks(null));
   useEffect(() => { load(); const t = setInterval(load, 120000); return () => clearInterval(t); }, []);
@@ -45,11 +49,49 @@ export function TickTickBand() {
 
   const open = (tasks ?? []).filter((t) => t.status !== 2);
 
+  const add = async (title: string, dueAt: string | null) => {
+    setAdding(true); setAddErr(null);
+    const res = await fetch("/api/ticktick", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title, ...(dueAt ? { dueAt: new Date(dueAt).toISOString() } : {}) }),
+    }).then((r) => r.json()).catch(() => null);
+    setAdding(false);
+    if (!res?.ok) { setAddErr(res?.error ?? "Couldn't add that."); return; }
+    setDraft(""); setDue("");
+    sound.blip();
+    load();   // pull it back from TickTick rather than guessing the shape
+  };
+
+  const AddBox = (
+    <form
+      onSubmit={(e) => { e.preventDefault(); if (draft.trim()) void add(draft.trim(), due || null); }}
+      className="tt-add"
+    >
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Add a task to TickTick…"
+        className="tt-addinput"
+      />
+      <input
+        type="datetime-local"
+        value={due}
+        onChange={(e) => setDue(e.target.value)}
+        title="Due date (optional)"
+        className="tt-adddue"
+      />
+      <button type="submit" disabled={adding || !draft.trim()} className="tt-addbtn" aria-label="Add">
+        {adding ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+      </button>
+    </form>
+  );
+
   return (
     <section className="section" id="deadlines" style={{ paddingTop: 0 }}>
       <div className="sectitle"><span className="sn">10</span><h2>Deadlines</h2><span className="line" /><span className="tag">TICKTICK · TASKS &amp; DUE DATES</span></div>
       <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-        <ExpandableCell title="Deadlines" tag="TICKTICK" expanded={<div className="tt-list"><List tasks={open} onDone={complete} /></div>}>
+        <ExpandableCell title="Deadlines" tag="TICKTICK" expanded={<div className="tt-list">{tasks !== null && AddBox}{addErr && <p className="tt-adderr">{addErr}</p>}<List tasks={open} onDone={complete} /></div>}>
           <div className="bh"><span className="t">TickTick</span><span className="i">TCK</span><span className="r">{tasks === undefined ? "SYNCING" : tasks === null ? "OFFLINE" : `${open.length} OPEN`}</span></div>
           {tasks === undefined && <p className="lbl">SYNCING…</p>}
           {tasks === null && (
@@ -59,8 +101,15 @@ export function TickTickBand() {
               <div className="es-d"><a href="/api/integrations/ticktick" className="live">Connect TickTick →</a></div>
             </div>
           )}
-          {tasks && open.length === 0 && <div className="empty-state"><div className="es-t">All clear</div><div className="es-d">No open TickTick tasks</div></div>}
-          {tasks && open.length > 0 && <div className="tt-list"><List tasks={open.slice(0, 6)} onDone={complete} /></div>}
+          {tasks && (
+            <div className="tt-list">
+              {AddBox}
+              {addErr && <p className="tt-adderr">{addErr}</p>}
+              {open.length === 0
+                ? <div className="es-d" style={{ padding: "8px 0" }}>All clear — nothing open.</div>
+                : <List tasks={open.slice(0, 6)} onDone={complete} />}
+            </div>
+          )}
         </ExpandableCell>
       </div>
     </section>

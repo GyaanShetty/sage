@@ -36,8 +36,8 @@ export function AgentView() {
       if (!j.ok) { setError(j.error ?? "Agent failed."); setRunning(false); return; }
       setTrace(j.data.trace ?? []);
       setReport(j.data.report ?? null);
-    } catch {
-      setError("Link error — try again.");
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't reach SAGE: ${err.message}` : "Link error — try again.");
       setRunning(false);
     }
   };

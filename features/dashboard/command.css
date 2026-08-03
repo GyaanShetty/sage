@@ -521,6 +521,18 @@
 
 /* ── ticktick deadlines ── */
 .tt-list { display: flex; flex-direction: column; }
+
+/* Adding straight into TickTick. The band used to be read-only, so the two
+   task lists could only ever drift apart. */
+.tt-add { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--border-glass); }
+.tt-addinput { flex: 1 1 auto; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--foreground); font-size: 13px; }
+.tt-addinput::placeholder { color: var(--subtle); }
+.tt-adddue { flex: 0 0 auto; background: transparent; border: 1px solid var(--border-glass); color: var(--subtle); font-size: 10px; padding: 2px 4px; font-family: var(--font-mono), monospace; }
+.tt-adddue:hover { color: var(--muted); }
+.tt-addbtn { flex: 0 0 auto; background: none; border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer; padding: 3px 6px; display: flex; }
+.tt-addbtn:hover:not(:disabled) { color: var(--foreground); border-color: var(--border-glass-strong); }
+.tt-addbtn:disabled { opacity: .4; cursor: default; }
+.tt-adderr { color: #fca5a5; font-size: 11px; padding: 6px 0; }
 .tt-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border-glass); }
 .tt-row:last-child { border-bottom: 0; }
 .tt-check { background: none; border: none; color: var(--subtle); cursor: pointer; padding: 1px; display: flex; margin-top: 1px; }

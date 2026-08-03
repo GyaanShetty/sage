@@ -20,6 +20,46 @@ import type { LanguageModel } from "ai";
  */
 export type ModelTier = "fast" | "smart";
 
+/**
+ * Model ids, newest first.
+ *
+ * Google retires model names, and a retired name fails with "no longer
+ * available to new users" — which is not a quota problem, so the key failover
+ * cannot help and every AI feature in the app dies at once. That is exactly
+ * what happened to gemini-2.5-flash.
+ *
+ * So each tier is a list rather than a name, tried in order, and the `-latest`
+ * aliases lead because Google repoints them as models turn over. An id can be
+ * pinned with GOOGLE_MODEL_SMART / GOOGLE_MODEL_FAST when a specific version
+ * is wanted, without a deploy.
+ */
+const MODEL_IDS: Record<ModelTier, string[]> = {
+  smart: [
+    ...(process.env.GOOGLE_MODEL_SMART ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    "gemini-flash-latest",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+  ],
+  fast: [
+    ...(process.env.GOOGLE_MODEL_FAST ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    "gemini-flash-lite-latest",
+    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash-lite",
+  ],
+};
+
+/**
+ * Which id worked last, per tier. Once one answers, stop paying the cost of
+ * discovering it again on every call.
+ */
+const chosen = new Map<ModelTier, string>();
+
+/** A retired or misspelt model id — the fix is another id, not another key. */
+function isModelError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /no longer available|not found|not supported|unsupported model|404|does not exist|invalid model/i.test(msg);
+}
+
 /** Every configured key, across the singular and plural env vars. */
 export function googleKeys(): string[] {
   const raw = `${process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? ""},${process.env.GOOGLE_GENERATIVE_AI_API_KEYS ?? ""}`;
@@ -82,9 +122,15 @@ function penalise(key: string) {
   cooldown.set(key, now + mins * 60_000);
 }
 
-function build(key: string, tier: ModelTier): LanguageModel {
-  const google = createGoogleGenerativeAI({ apiKey: key });
-  return tier === "fast" ? google("gemini-2.5-flash-lite") : google("gemini-2.5-flash");
+function build(key: string, tier: ModelTier, modelId: string): LanguageModel {
+  return createGoogleGenerativeAI({ apiKey: key })(modelId);
+}
+
+/** The ids to try for a tier, best-known-good first. */
+function idsFor(tier: ModelTier): string[] {
+  const all = MODEL_IDS[tier];
+  const known = chosen.get(tier);
+  return known ? [known, ...all.filter((id) => id !== known)] : all;
 }
 
 /**
@@ -101,7 +147,7 @@ function build(key: string, tier: ModelTier): LanguageModel {
  * covers every path.
  */
 function observed(first: string, tier: ModelTier): LanguageModel {
-  const target = build(first, tier) as unknown as Record<string, unknown>;
+  const target = build(first, tier, idsFor(tier)[0]) as unknown as Record<string, unknown>;
 
   return new Proxy(target, {
     get(obj, prop, receiver) {
@@ -111,28 +157,44 @@ function observed(first: string, tier: ModelTier): LanguageModel {
       }
 
       return async (...args: unknown[]) => {
-        // Each key gets at most one turn, so a total outage still terminates.
-        const tried = new Set<string>();
+        // Each key gets at most one turn, and each model id at most one pass,
+        // so a total outage still terminates instead of spinning.
+        const triedKeys = new Set<string>();
+        const ids = idsFor(tier);
+        let idIndex = 0;
         let key = first;
         let impl = obj;
         let lastErr: unknown;
 
-        for (let attempt = 0; attempt < Math.max(1, googleKeys().length); attempt++) {
-          tried.add(key);
+        const budget = Math.max(1, googleKeys().length) + ids.length;
+
+        for (let attempt = 0; attempt < budget; attempt++) {
+          triedKeys.add(key);
           try {
             const fn = Reflect.get(impl, prop) as (...a: unknown[]) => Promise<unknown>;
             const out = await fn.apply(impl, args);
-            strikes.delete(key); // a clean call clears the record
+            strikes.delete(key);            // a clean call clears the record
+            chosen.set(tier, ids[idIndex]); // remember what actually works
             return out;
           } catch (err) {
             lastErr = err;
+
+            // A retired model id fails on every key, so rotating keys would
+            // just burn the ring. Move to the next id instead.
+            if (isModelError(err)) {
+              idIndex += 1;
+              if (idIndex >= ids.length) throw err;
+              impl = build(key, tier, ids[idIndex]) as unknown as Record<string, unknown>;
+              continue;
+            }
+
             if (!isQuotaError(err)) throw err;   // a real error is not a key problem
             penalise(key);
 
-            const next = healthyKeys().find((k) => !tried.has(k));
+            const next = healthyKeys().find((k) => !triedKeys.has(k));
             if (!next) throw err;
             key = next;
-            impl = build(next, tier) as unknown as Record<string, unknown>;
+            impl = build(next, tier, ids[idIndex]) as unknown as Record<string, unknown>;
           }
         }
         throw lastErr;
@@ -159,5 +221,14 @@ export function modelKeyStatus() {
     tail: `…${k.slice(-4)}`,
     healthy: (cooldown.get(k) ?? 0) <= now,
     cooldownSeconds: Math.max(0, Math.round(((cooldown.get(k) ?? 0) - now) / 1000)),
+  }));
+}
+
+/** Which model id each tier settled on, for diagnostics. */
+export function modelIdStatus() {
+  return (["smart", "fast"] as ModelTier[]).map((tier) => ({
+    tier,
+    using: chosen.get(tier) ?? `${idsFor(tier)[0]} (untried)`,
+    candidates: MODEL_IDS[tier],
   }));
 }

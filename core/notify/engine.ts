@@ -2,15 +2,12 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { searchGmail } from "@/infrastructure/integrations/google";
 import { getMarkets } from "@/infrastructure/markets";
 import { getDailyChallenge, getLeetStats } from "@/infrastructure/integrations/leetcode";
-import { sendPush } from "@/infrastructure/push";
 import { pipelineReport, needsAttention, type AppInsight } from "@/core/career/pipeline";
 import { TZ, tzHour, startOfTodayUtc } from "@/lib/config";
+import { buildDayPicture, type DayPicture } from "@/core/brief/agenda";
+import { dispatch, type Candidate } from "./rank";
 
 const LEET_USER = process.env.LEETCODE_USERNAME ?? "gyaanshetty";
-
-function today(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
-}
 
 /** Has a notification with this key already gone out today? */
 async function seenToday(key: string): Promise<boolean> {
@@ -41,28 +38,43 @@ async function markSent(key: string): Promise<void> {
  * windows below are now written around the ticks that actually exist rather
  * than the hours we would have picked given an hourly scheduler.
  */
-async function morningBrief(): Promise<number> {
-  if (tzHour() < 5 || tzHour() >= 12) return 0;
-  if (await seenToday("morning")) return 0;
+async function morningBrief(day: DayPicture): Promise<Candidate | null> {
+  if (tzHour() < 5 || tzHour() >= 12) return null;
+  if (await seenToday("morning")) return null;
 
-  const [{ data: tasks }, stats] = await Promise.all([
-    db.from("Task").select("title").eq("userId", DEFAULT_USER_ID).in("status", ["todo", "doing"]).limit(50),
-    getLeetStats(LEET_USER).catch(() => null),
-  ]);
+  const stats = await getLeetStats(LEET_USER).catch(() => null);
 
-  const open = (tasks ?? []).length;
+  // Say the sharpest true thing, not a headcount. "3 open tasks" is a number
+  // he can already see; "the client deck is 2 days overdue" is a reason to
+  // open the phone.
   const bits: string[] = [];
-  bits.push(open ? `${open} open task${open === 1 ? "" : "s"}` : "a clear slate");
+  if (day.overdue.length) {
+    const worst = day.overdue[0];
+    bits.push(`${worst.title} is ${worst.overdueDays}d overdue`);
+  } else if (day.dueToday.length) {
+    bits.push(`${day.dueToday.length} due today, starting with ${day.dueToday[0].title}`);
+  } else if (day.openCount) {
+    bits.push(`${day.openCount} open, nothing overdue`);
+  } else {
+    bits.push("a clear slate");
+  }
+  if (day.next?.startsAt) {
+    bits.push(`first up ${day.next.summary} at ${new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(new Date(day.next.startsAt))}`);
+  }
   if (stats?.streak) bits.push(`${stats.streak}-day LeetCode streak`);
 
-  await sendPush({
+  // A day with something overdue or scheduled genuinely deserves the banner;
+  // an empty one barely does.
+  const score = 45 + Math.min(30, day.overdue.length * 12) + (day.next ? 10 : 0) + Math.min(10, day.dueToday.length * 5);
+
+  return {
+    key: "morning",
+    score,
     title: "☀️ Good morning, sir",
-    body: `${bits.join(" · ")}. Your morning block is ready.`,
-    tag: "morning",
+    body: `${bits.join(" · ")}.`,
     url: "/morning",
-  });
-  await markSent("morning");
-  return 1;
+    digest: day.overdue.length ? `${day.overdue.length} overdue` : `${day.openCount} open`,
+  };
 }
 
 /**
@@ -70,30 +82,36 @@ async function morningBrief(): Promise<number> {
  * something actually moved. Runs on the morning tick (08:30 IST), which is
  * before the Indian open, so this reads as an overnight/pre-open summary.
  */
-async function marketBrief(): Promise<number> {
-  if (tzHour() < 5 || tzHour() >= 14) return 0;
-  if (await seenToday("market")) return 0;
+async function marketBrief(day: DayPicture): Promise<Candidate | null> {
+  if (tzHour() < 5 || tzHour() >= 14) return null;
+  if (await seenToday("market")) return null;
 
   const markets = await getMarkets().catch(() => null);
-  if (!markets?.length) return 0;
+  if (!markets?.length) return null;
 
-  // Rank by absolute move; only speak up if something crossed a real threshold.
   const movers = [...markets].sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h));
   const notable = movers.filter((c) => Math.abs(c.change24h) >= 2).slice(0, 3);
-  if (!notable.length) return 0;
+  if (!notable.length) return null;
+
+  // A move in something he actually holds matters more than the same move in
+  // something he merely watches — that is the difference between news and his
+  // money, and it should decide whether the phone buzzes.
+  const held = new Set((day.portfolio ? day.markets : []).map((m) => m.symbol));
+  const owned = notable.filter((c) => held.has(c.symbol));
+  const biggest = Math.abs(notable[0].change24h);
 
   const body = notable
     .map((c) => `${c.symbol} ${c.change24h >= 0 ? "▲" : "▼"}${Math.abs(c.change24h).toFixed(1)}%`)
     .join("  ·  ");
 
-  await sendPush({
-    title: "📈 Overnight moves",
+  return {
+    key: "market",
+    score: Math.min(90, 25 + biggest * 4 + (owned.length ? 25 : 0)),
+    title: owned.length ? "📈 Your holdings moved" : "📈 Overnight moves",
     body,
-    tag: "market",
     url: "/markets",
-  });
-  await markSent("market");
-  return 1;
+    digest: `${notable[0].symbol} ${notable[0].change24h >= 0 ? "+" : ""}${notable[0].change24h.toFixed(1)}%`,
+  };
 }
 
 /**
@@ -101,92 +119,86 @@ async function marketBrief(): Promise<number> {
  * today and what's due across the rest of the week. Keeps the user ahead of
  * deadlines without pinging all day.
  */
-async function eveningTaskBrief(): Promise<number> {
-  if (tzHour() < 16 || tzHour() >= 23) return 0;
-  if (await seenToday("pending")) return 0;
+async function eveningTaskBrief(day: DayPicture): Promise<Candidate | null> {
+  if (tzHour() < 16 || tzHour() >= 23) return null;
+  if (await seenToday("pending")) return null;
 
-  const { data: tasks } = await db
-    .from("Task")
-    .select("title, dueAt")
-    .eq("userId", DEFAULT_USER_ID)
-    .in("status", ["todo", "doing"])
-    .limit(200);
-  if (!tasks?.length) return 0;
-
-  const now = new Date();
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-  const endOfWeek = new Date();
-  endOfWeek.setDate(endOfWeek.getDate() + 7);
-
-  const dueToday = tasks.filter((t) => t.dueAt && new Date(t.dueAt) <= endOfToday);
-  const overdue = dueToday.filter((t) => t.dueAt && new Date(t.dueAt) < now);
-  const dueWeek = tasks.filter(
-    (t) => t.dueAt && new Date(t.dueAt) > endOfToday && new Date(t.dueAt) <= endOfWeek,
+  // The old version rolled its own "end of today" with setHours(23,59) on a
+  // server running UTC, so in IST it reached 05:29 the following morning and
+  // counted tomorrow's early tasks as due today. The day picture already does
+  // this correctly, in the app timezone, once.
+  const weekAhead = Date.now() + 7 * 86_400_000;
+  const dueWeek = day.tasks.filter(
+    (t) => t.state === "soon" || (t.dueAt && new Date(t.dueAt).getTime() <= weekAhead && t.state === "later"),
   );
 
-  // Only ping if there's something time-bound to act on.
-  if (!dueToday.length && !dueWeek.length) return 0;
+  if (!day.overdue.length && !day.dueToday.length && !dueWeek.length) return null;
 
   const parts: string[] = [];
-  if (overdue.length) parts.push(`${overdue.length} overdue`);
-  const todayPending = dueToday.length - overdue.length;
-  if (todayPending > 0) parts.push(`${todayPending} due today`);
+  if (day.overdue.length) parts.push(`${day.overdue.length} overdue`);
+  if (day.dueToday.length) parts.push(`${day.dueToday.length} due today`);
   if (dueWeek.length) parts.push(`${dueWeek.length} this week`);
 
-  const top = (overdue[0] ?? dueToday[0] ?? dueWeek[0])?.title ?? "";
-  await sendPush({
+  const top = day.headline?.title ?? "";
+
+  return {
+    key: "pending",
+    score: 35 + Math.min(40, day.overdue.length * 15) + Math.min(15, day.dueToday.length * 5),
     title: "🗓️ Pending tasks, sir",
     body: `${parts.join(" · ")}${top ? `. Top: "${top}"` : ""}.`,
-    tag: "pending",
     url: "/workspace",
-  });
-  await markSent("pending");
-  return 1;
+    digest: parts[0] ?? "tasks pending",
+  };
 }
 
 /**
  * Genuinely important, time-sensitive emails (internships, deadlines, offers)
  * — pushed as they arrive, deduped per subject, capped so it never floods.
  */
-async function importantEmails(): Promise<number> {
+async function importantEmails(): Promise<Candidate[]> {
   const q = 'is:unread newer_than:2d (internship OR "application" OR deadline OR interview OR "offer letter" OR "last date" OR shortlisted OR "assessment")';
   const emails = await searchGmail(q, 8).catch(() => null);
-  if (!emails?.length) return 0;
-  let sent = 0;
-  for (const e of emails) {
-    if (sent >= 2) break;
+  if (!emails?.length) return [];
+
+  const out: Candidate[] = [];
+  for (const e of emails.slice(0, 4)) {
     const key = `email:${e.subject}`.slice(0, 120);
     if (await seenToday(key)) continue;
-    await sendPush({
+    // An interview or an offer outranks a generic "application received".
+    const hot = /interview|offer|shortlist|assessment|last date/i.test(e.subject);
+    out.push({
+      key,
+      score: hot ? 85 : 50,
       title: "📋 Important email",
       body: `${e.from}: ${e.subject}`,
-      tag: key,
       url: "/dashboard",
+      digest: `mail from ${e.from}`,
     });
-    await markSent(key);
-    sent++;
   }
-  return sent;
+  return out;
 }
 
 /** Evening LeetCode nudge if today's problem is still unsolved (after 6pm IST). */
-async function leetcodeNudge(): Promise<number> {
-  if (tzHour() < 18 || tzHour() >= 22) return 0;
-  if (await seenToday("leetcode")) return 0;
+async function leetcodeNudge(): Promise<Candidate | null> {
+  if (tzHour() < 18 || tzHour() >= 22) return null;
+  if (await seenToday("leetcode")) return null;
   const [stats, daily] = await Promise.all([
     getLeetStats(LEET_USER).catch(() => null),
     getDailyChallenge().catch(() => null),
   ]);
-  if (!stats || stats.todaySolved > 0) return 0; // already solved (or unknown) → stay quiet
-  await sendPush({
+  if (!stats || stats.todaySolved > 0) return null; // already solved (or unknown) → stay quiet
+
+  // A long streak is worth protecting; day one is not worth a banner.
+  return {
+    key: "leetcode",
+    score: 25 + Math.min(40, stats.streak * 3),
     title: "🧩 LeetCode still pending",
-    body: daily ? `Today's "${daily.title}" (${daily.difficulty}) is unsolved — keep the ${stats.streak}-day streak alive, sir.` : "Today's problem is still unsolved — keep the streak alive, sir.",
-    tag: "leetcode",
+    body: daily
+      ? `Today's "${daily.title}" (${daily.difficulty}) is unsolved — keep the ${stats.streak}-day streak alive, sir.`
+      : "Today's problem is still unsolved — keep the streak alive, sir.",
     url: "/morning",
-  });
-  await markSent("leetcode");
-  return 1;
+    digest: stats.streak ? `${stats.streak}-day streak at risk` : "LeetCode unsolved",
+  };
 }
 
 /**
@@ -195,56 +207,72 @@ async function leetcodeNudge(): Promise<number> {
  * a deadline could pass with the card sitting right there on the page.
  * Morning only, deduped per application per day.
  */
-async function careerNudge(): Promise<number> {
-  if (tzHour() < 8 || tzHour() >= 12) return 0;
+async function careerNudge(): Promise<Candidate[]> {
+  if (tzHour() < 8 || tzHour() >= 12) return [];
   const { insights } = await pipelineReport().catch(() => ({ insights: [] as AppInsight[] }));
   const { dueSoon, stale } = needsAttention(insights);
-  let sent = 0;
+  const out: Candidate[] = [];
 
-  for (const i of dueSoon) {
-    if (sent >= 2) break;
+  for (const i of dueSoon.slice(0, 2)) {
     const key = `career-due:${i.id}:${i.daysToDeadline}`;
     if (await seenToday(key)) continue;
     const when = i.daysToDeadline === 0 ? "today" : i.daysToDeadline === 1 ? "tomorrow" : `in ${i.daysToDeadline} days`;
-    await sendPush({
+    out.push({
+      key,
+      // A deadline today is the single most urgent thing SAGE can tell him:
+      // everything else can slip a day, this cannot.
+      score: 100 - (i.daysToDeadline ?? 0) * 12,
       title: "💼 Application deadline",
       body: `${i.company} — ${i.role} closes ${when}, sir.`,
-      tag: key,
       url: "/career",
+      digest: `${i.company} closes ${when}`,
     });
-    await markSent(key);
-    sent++;
   }
 
-  // One summary for everything that has gone quiet, rather than a push each.
   if (stale.length && !(await seenToday("career-stale"))) {
     const lead = stale[0];
-    await sendPush({
+    out.push({
+      key: "career-stale",
+      score: 30,
       title: "💼 Pipeline has gone quiet",
       body: `${stale.length} application${stale.length === 1 ? "" : "s"} untouched for weeks — ${lead.company} is ${lead.daysInStage} days in ${lead.stage}.`,
-      tag: "career-stale",
       url: "/career",
+      digest: `${stale.length} stale application${stale.length === 1 ? "" : "s"}`,
     });
-    await markSent("career-stale");
-    sent++;
   }
-  return sent;
+  return out;
 }
 
 /**
- * Full notification sweep — called each cron tick. Three scheduled briefs
- * (5am morning · 9am markets · 6pm pending tasks) plus two important-only
- * event channels (time-sensitive emails, evening LeetCode streak). Every
- * channel dedupes itself so a frequent cron never spams.
+ * Full notification sweep — called each cron tick.
+ *
+ * Every channel now proposes a scored candidate instead of pushing on the
+ * spot. One tick used to be able to fire six separate banners; the ranking
+ * sends at most two and folds the rest into the leader's trailing clause, so
+ * nothing is lost but nothing is spammed either. Only what actually went out
+ * is marked sent — a folded candidate has not really been delivered and is
+ * free to come back tomorrow.
  */
-export async function runNotifications(): Promise<Record<string, number>> {
-  const [morning, market, pending, email, leetcode, career] = await Promise.all([
-    morningBrief().catch(() => 0),
-    marketBrief().catch(() => 0),
-    eveningTaskBrief().catch(() => 0),
-    importantEmails().catch(() => 0),
-    leetcodeNudge().catch(() => 0),
-    careerNudge().catch(() => 0),
+export async function runNotifications(): Promise<Record<string, unknown>> {
+  const day = await buildDayPicture().catch(() => null);
+  if (!day) return { error: "no day picture" };
+
+  const [morning, market, pending, emails, leet, career] = await Promise.all([
+    morningBrief(day).catch(() => null),
+    marketBrief(day).catch(() => null),
+    eveningTaskBrief(day).catch(() => null),
+    importantEmails().catch(() => [] as Candidate[]),
+    leetcodeNudge().catch(() => null),
+    careerNudge().catch(() => [] as Candidate[]),
   ]);
-  return { morning, market, pending, email, leetcode, career };
+
+  const candidates: Candidate[] = [
+    morning, market, pending, leet,
+    ...emails, ...career,
+  ].filter((c): c is Candidate => c !== null);
+
+  const { sent, folded } = await dispatch(candidates, day);
+  for (const key of sent) await markSent(key);
+
+  return { considered: candidates.length, sent, folded };
 }

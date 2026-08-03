@@ -37,7 +37,18 @@ const strikes = new Map<string, number>();
  *  twenty-five. */
 const lastPenalty = new Map<string, number>();
 const STRIKE_DEBOUNCE_MS = 15_000;
-let cursor = 0;
+
+/**
+ * Where this instance starts in the key list.
+ *
+ * Serverless has no shared memory: every cold start gets a fresh copy of this
+ * module, so a cursor initialised to 0 meant every new instance began at key
+ * one. Under real traffic — which is mostly cold starts — that is not
+ * round-robin at all, it is "hammer the first key and barely touch the rest",
+ * which is exactly how one key hits its daily cap while four sit idle.
+ * Starting at a random offset spreads cold starts evenly across the keys.
+ */
+let cursor = Math.floor(Math.random() * 1000);
 
 function healthyKeys(): string[] {
   const now = Date.now();
@@ -71,28 +82,60 @@ function penalise(key: string) {
   cooldown.set(key, now + mins * 60_000);
 }
 
+function build(key: string, tier: ModelTier): LanguageModel {
+  const google = createGoogleGenerativeAI({ apiKey: key });
+  return tier === "fast" ? google("gemini-2.5-flash-lite") : google("gemini-2.5-flash");
+}
+
 /**
- * Wrap the model so a quota failure sidelines the key that caused it, without
- * every caller having to catch and report. The SDK reaches the model through
- * doGenerate/doStream, so intercepting those covers every path.
+ * Wrap the model so a quota failure sidelines the key that caused it AND is
+ * retried on the next healthy key, without every caller having to know.
+ *
+ * The sidelining alone was not enough. A 429 on the one key this call happened
+ * to draw was thrown straight at the caller, so a briefing or a research run
+ * failed outright while four other keys sat healthy and unused — the whole
+ * point of holding several keys. Failing over in here fixes every one of the
+ * thirty-odd call sites at once.
+ *
+ * The SDK reaches the model through doGenerate/doStream, so intercepting those
+ * covers every path.
  */
-function observed(model: LanguageModel, key: string): LanguageModel {
-  const target = model as unknown as Record<string, unknown>;
+function observed(first: string, tier: ModelTier): LanguageModel {
+  const target = build(first, tier) as unknown as Record<string, unknown>;
+
   return new Proxy(target, {
     get(obj, prop, receiver) {
       const value = Reflect.get(obj, prop, receiver);
       if ((prop !== "doGenerate" && prop !== "doStream") || typeof value !== "function") {
         return typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(obj) : value;
       }
+
       return async (...args: unknown[]) => {
-        try {
-          const out = await (value as (...a: unknown[]) => Promise<unknown>).apply(obj, args);
-          strikes.delete(key); // a clean call clears the record
-          return out;
-        } catch (err) {
-          if (isQuotaError(err)) penalise(key);
-          throw err;
+        // Each key gets at most one turn, so a total outage still terminates.
+        const tried = new Set<string>();
+        let key = first;
+        let impl = obj;
+        let lastErr: unknown;
+
+        for (let attempt = 0; attempt < Math.max(1, googleKeys().length); attempt++) {
+          tried.add(key);
+          try {
+            const fn = Reflect.get(impl, prop) as (...a: unknown[]) => Promise<unknown>;
+            const out = await fn.apply(impl, args);
+            strikes.delete(key); // a clean call clears the record
+            return out;
+          } catch (err) {
+            lastErr = err;
+            if (!isQuotaError(err)) throw err;   // a real error is not a key problem
+            penalise(key);
+
+            const next = healthyKeys().find((k) => !tried.has(k));
+            if (!next) throw err;
+            key = next;
+            impl = build(next, tier) as unknown as Record<string, unknown>;
+          }
         }
+        throw lastErr;
       };
     },
   }) as unknown as LanguageModel;
@@ -105,9 +148,7 @@ export function getModel(tier: ModelTier = "smart"): LanguageModel | null {
   // Round-robin per call. With N keys that is the whole point: N times the
   // free-tier headroom, spread evenly rather than draining one at a time.
   const key = keys[cursor++ % keys.length];
-  const google = createGoogleGenerativeAI({ apiKey: key });
-  const model = tier === "fast" ? google("gemini-2.5-flash-lite") : google("gemini-2.5-flash");
-  return observed(model, key);
+  return observed(key, tier);
 }
 
 /** Key health, for diagnostics. Never returns key material — tail only. */

@@ -350,3 +350,32 @@ test("describeDay leads with the right task and reports overdue days", () => {
   assert.ok(text.includes("(6d)"), "how long it has been late is the point");
   assert.ok(text.includes('Lead with this one: "Send the invoice"'));
 });
+
+// ── Storage retention ───────────────────────────────────────────────────────
+
+test("retention never prunes a type holding the user's own records", async () => {
+  // A prune runs unattended at 3am and cannot be undone, so the two lists
+  // overlapping even once would be silent, permanent data loss.
+  const mod = await import("@/core/ops/retention");
+  const source = await import("node:fs/promises").then((fs) =>
+    fs.readFile(new URL("../core/ops/retention.ts", import.meta.url), "utf8"),
+  );
+
+  // Pull the prune table straight out of the source so the test reads the
+  // real list rather than a copy that can drift away from it.
+  const block = source.slice(source.indexOf("const RETENTION_DAYS"), source.indexOf("*\n * Types that are"));
+  const pruned = [...block.matchAll(/"([a-z]+\.[a-zA-Z]+)":\s*\d+/g)].map((m) => m[1]);
+
+  assert.ok(pruned.length > 5, "the prune table should have been parsed");
+  for (const type of mod.NEVER_PRUNE) {
+    assert.ok(!pruned.includes(type), `${type} is user data and must never be pruned`);
+  }
+});
+
+test("retention keeps generated briefs longer than the history page reads", () => {
+  // /api/brief/history?limit=14 must never outrun the retention window, or
+  // the page would show gaps that look like missing days rather than pruning.
+  const source = require("node:fs").readFileSync(new URL("../core/ops/retention.ts", import.meta.url), "utf8");
+  const days = Number(/"brief\.generated":\s*(\d+)/.exec(source)?.[1]);
+  assert.ok(days >= 30, `brief.generated kept ${days}d — too short for a 14-entry history`);
+});

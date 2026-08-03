@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordError, listErrors, resolveError } from "@/core/ops/errors";
 import { listTriage, triageOutstanding } from "@/core/ops/triage";
+import { pruneEvents, storageBreakdown } from "@/core/ops/retention";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -31,7 +32,22 @@ async function repoFiles(): Promise<string[]> {
 }
 
 export async function GET(req: Request) {
-  const includeResolved = new URL(req.url).searchParams.get("all") === "1";
+  const url = new URL(req.url);
+
+  // ?storage=1 — what is actually filling the database.
+  if (url.searchParams.get("storage") === "1") {
+    const [breakdown, preview] = await Promise.all([storageBreakdown(), pruneEvents(true)]);
+    return NextResponse.json({
+      ok: true,
+      data: {
+        breakdown,
+        totalRows: breakdown.reduce((a, b) => a + b.rows, 0),
+        prunable: preview.total,
+      },
+    });
+  }
+
+  const includeResolved = url.searchParams.get("all") === "1";
   const [errors, triage] = await Promise.all([listErrors(includeResolved), listTriage()]);
   const byFingerprint = new Map(triage.map((t) => [t.fingerprint, t]));
   return NextResponse.json({
@@ -43,6 +59,10 @@ export async function GET(req: Request) {
 /** Report an error, or run triage. */
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null) as Record<string, unknown> | null;
+
+  if (body?.action === "prune") {
+    return NextResponse.json({ ok: true, data: await pruneEvents(false) });
+  }
 
   if (body?.action === "triage") {
     const files = await repoFiles();

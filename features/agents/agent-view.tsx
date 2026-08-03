@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, BookOpen, Brain, FileText, Loader2 } from "lucide-react";
+import { Search, BookOpen, Brain, Check, FileText, Loader2, Save } from "lucide-react";
 import "@/features/dashboard/command.css";
 
 interface TraceStep { kind: "tool" | "result" | "think"; tool?: string; text: string }
@@ -25,11 +25,45 @@ export function AgentView() {
   const [report, setReport] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastTask, setLastTask] = useState("");
+
+  /**
+   * Keep the work.
+   *
+   * The agent's findings lived only in this component's state, so a refresh
+   * or a second question threw away everything it had just done. The note
+   * keeps the reasoning trail as well as the conclusion — the steps are
+   * usually where the useful detail is.
+   */
+  const save = async () => {
+    if (!report || saved === "saving" || saved === "saved") return;
+    setSaved("saving");
+    const body = [
+      report,
+      "",
+      "— How SAGE got there —",
+      ...trace.map((s, i) => `${i + 1}. ${s.text}`.trim()),
+    ].join("\n");
+
+    const res = await fetch("/api/note", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: `Research — ${(lastTask || "agent run").slice(0, 80)}`,
+        content: body,
+      }),
+    }).then((r) => r.json()).catch(() => null);
+
+    setSaved(res?.ok === false || !res ? "error" : "saved");
+    window.dispatchEvent(new CustomEvent("sage:memory-updated"));
+  };
 
   const run = async (t: string) => {
     const q = t.trim();
     if (!q || running) return;
     setRunning(true); setError(null); setTrace([]); setShown(0); setReport(null);
+    setSaved("idle"); setLastTask(q);
     try {
       const res = await fetch("/api/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ task: q }) });
       const j = await res.json();
@@ -85,7 +119,15 @@ export function AgentView() {
 
         {report && shown >= trace.length && (
           <div className="agent-report">
-            <div className="ar-head">REPORT</div>
+            <div className="ar-head">
+              REPORT
+              <button onClick={save} disabled={saved !== "idle"} className="ar-save">
+                {saved === "saved" ? <><Check className="size-3.5" /> Saved to workspace</>
+                  : saved === "saving" ? <><Loader2 className="size-3.5 animate-spin" /> Saving…</>
+                  : saved === "error" ? <><Save className="size-3.5" /> Retry save</>
+                  : <><Save className="size-3.5" /> Save as note</>}
+              </button>
+            </div>
             <div className="ar-body">{report}</div>
           </div>
         )}

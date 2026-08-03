@@ -618,7 +618,12 @@
 .atrace-step .ats-head { font-size: 12.5px; color: var(--foreground); font-weight: 400; }
 .atrace-step .ats-tx { font-family: var(--mono); font-size: 10px; color: var(--subtle); margin-top: 2px; line-height: 1.5; word-break: break-word; }
 .agent-report { margin-top: 22px; border: 1px solid var(--live-dim); background: var(--panel); padding: 20px 22px; box-shadow: 0 0 30px -12px var(--live-glow); }
-.agent-report .ar-head { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--live); margin-bottom: 12px; }
+.agent-report .ar-head { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--live); margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+/* Keeping the finding. Without this the agent's work lived in component state
+   and a refresh threw it away. */
+.agent-report .ar-save { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 4px 8px; cursor: pointer; }
+.agent-report .ar-save:hover:not(:disabled) { color: var(--foreground); border-color: var(--border-glass-strong); }
+.agent-report .ar-save:disabled { opacity: .55; cursor: default; }
 .agent-report .ar-body { font-size: 14px; line-height: 1.75; color: var(--foreground); font-weight: 300; white-space: pre-wrap; }
 
 /* ── dashboard layout editor (drag to rearrange) ── */

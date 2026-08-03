@@ -6,6 +6,8 @@ const createSchema = z.object({
   title: z.string().min(1).max(200),
   dueAt: z.string().datetime().optional(),
   priority: z.number().int().min(0).max(3).optional(),
+  /** Set false to keep a task local — used when the source is TickTick itself. */
+  mirror: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -23,5 +25,22 @@ export async function POST(req: Request) {
   };
   const { error } = await db.from("Task").insert(task);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, data: task });
+
+  // Mirror into TickTick, exactly as the voice/agent path already did. Only
+  // AI-created tasks were being mirrored, so anything added from the UI — the
+  // morning block's "add as task", a research action, the workspace — stayed
+  // in SAGE and the two lists drifted apart. Deliberately after the insert and
+  // never awaited into the failure path: a task missing from TickTick is a
+  // mild annoyance, losing it because TickTick was slow is not.
+  let tickId: string | null = null;
+  if (parsed.data.mirror !== false) {
+    const { createTickTask } = await import("@/infrastructure/integrations/ticktick");
+    tickId = await createTickTask({
+      title: task.title,
+      dueAt: parsed.data.dueAt ?? null,
+      priority: task.priority,
+    }).catch(() => null);
+  }
+
+  return NextResponse.json({ ok: true, data: { ...task, mirroredToTickTick: !!tickId } });
 }

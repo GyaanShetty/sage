@@ -30,8 +30,8 @@ export function HoloLab() {
       // fetch a real 3D model in parallel
       fetch(`/api/lab/model?q=${encodeURIComponent(j.data.modelQuery || q)}`)
         .then((r) => r.json()).then((m) => setModel(m.data)).catch(() => {});
-    } catch {
-      setError("Link error — try again.");
+    } catch (err) {
+      setError(err instanceof Error ? `Couldn't reach SAGE: ${err.message}` : "Link error — try again.");
     }
     setLoading(false);
   };

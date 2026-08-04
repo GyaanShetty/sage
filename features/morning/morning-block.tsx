@@ -33,6 +33,9 @@ interface Synthesis { summary: string; connections: string[]; watch: string[]; a
 interface Video { id: string; title: string; channel: string; thumb: string }
 
 interface Headline { source: string; title: string; link: string; published: number; image?: string }
+interface Digest {
+  gist: string; themes: string[]; mustRead: string; mustReadLink: string; skip: string; source: string; count: number;
+}
 interface Email { from: string; subject: string; snippet: string; id?: string; important?: boolean }
 interface Daily { link: string; title: string; difficulty: string }
 interface Stats { streak: number; solved: { all: number }; todaySolved: number; calendar?: Record<string, number> }
@@ -84,6 +87,9 @@ export function MorningBlock() {
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
   const cache = useRef<Record<string, Headline[]>>({});
+  const [digest, setDigest] = useState<Digest | null>(null);
+  const [digestLoading, setDigestLoading] = useState(false);
+  const digestCache = useRef<Record<string, Digest>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const step = STEPS[active];
@@ -97,12 +103,28 @@ export function MorningBlock() {
         const j = await fetch("/api/gmail/unread").then((r) => r.json()).catch(() => null);
         if (!cancel) setEmails(j?.data?.emails ?? null);
       } else if (step.kind === "feed" && step.source) {
-        if (cache.current[step.source]) { setFeed(cache.current[step.source]); }
+        const src = step.source;
+        if (cache.current[src]) { setFeed(cache.current[src]); }
         else {
-          const j = await fetch(`/api/feeds?source=${step.source}`).then((r) => r.json()).catch(() => null);
+          const j = await fetch(`/api/feeds?source=${src}`).then((r) => r.json()).catch(() => null);
           const items: Headline[] = j?.data?.items ?? [];
-          cache.current[step.source] = items;
+          cache.current[src] = items;
           if (!cancel) setFeed(items);
+        }
+
+        // The per-source read, fetched separately so the headlines appear
+        // immediately and the summary catches up — it needs a model call, and
+        // blocking the list on it would make every source feel slow.
+        setDigest(digestCache.current[src] ?? null);
+        if (!digestCache.current[src]) {
+          setDigestLoading(true);
+          const d = await fetch(`/api/feeds/digest?source=${src}`).then((r) => r.json()).catch(() => null);
+          if (!cancel) {
+            const got = (d?.data as Digest | null) ?? null;
+            if (got) digestCache.current[src] = got;
+            setDigest(got);
+            setDigestLoading(false);
+          }
         }
       } else if (step.kind === "leetcode") {
         const j = await fetch("/api/leetcode").then((r) => r.json()).catch(() => null);
@@ -262,6 +284,29 @@ export function MorningBlock() {
                 })}
               </>
             ) : <div className="mb-empty">Inbox zero — nothing unread. 📭</div>
+          )}
+
+          {!loading && step.kind === "feed" && (digest || digestLoading) && (
+            <div className="mb-digest">
+              <span className="lbl !text-[9px]"><Newspaper className="inline size-3" /> WHAT {step.label.toUpperCase()} IS LEADING WITH</span>
+              {digestLoading && !digest && <p className="mb-digestwait">Reading the front page…</p>}
+              {digest && (
+                <>
+                  <p className="mb-digestgist">{digest.gist}</p>
+                  {digest.themes.length > 0 && (
+                    <div className="mb-digestthemes">
+                      {digest.themes.map((t) => <span className="mb-theme" key={t}>{t}</span>)}
+                    </div>
+                  )}
+                  <div className="mb-digestfoot">
+                    <a href={digest.mustReadLink} target="_blank" rel="noreferrer" className="mb-digestpick">
+                      <ExternalLink className="size-3" /> {digest.mustRead}
+                    </a>
+                    {digest.skip && <span className="mb-digestskip">Skip: {digest.skip}</span>}
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           {!loading && step.kind === "feed" && (

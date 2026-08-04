@@ -1188,3 +1188,16 @@
 .eis-move button:hover { color: var(--foreground); border-color: var(--live-dim); }
 /* Dragging is unavailable on touch, so the buttons must always be reachable. */
 @media (hover: none) { .eis-move { display: flex; } }
+
+/* ── Per-source morning digest ────────────────────────────────────────────
+   The synthesis at the end of the block ties everything together; this is the
+   other altitude — what one paper is leading with, before you open anything. */
+.mb-digest { border: 1px solid var(--border-glass); border-left: 2px solid var(--live-dim); padding: 11px 13px; margin-bottom: 14px; background: var(--glass); }
+.mb-digestwait { font-size: 12px; color: var(--subtle); margin-top: 6px; }
+.mb-digestgist { font-size: 13px; line-height: 1.55; color: var(--muted); margin-top: 7px; }
+.mb-digestthemes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.mb-theme { font-family: var(--mono); font-size: 9px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--subtle); border: 1px solid var(--border-glass); padding: 3px 7px; }
+.mb-digestfoot { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-top: 10px; }
+.mb-digestpick { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--live); text-decoration: none; min-width: 0; }
+.mb-digestpick:hover { text-decoration: underline; }
+.mb-digestskip { font-size: 11px; color: var(--subtle); font-style: italic; }

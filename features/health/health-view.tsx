@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import "./health.css";
 import { TrainingPanel } from "./components/training-panel";
 import { StepsAuto } from "./components/steps-auto";
+import { ProgressPanel } from "./components/progress-panel";
 
 interface Day {
   day: string;
@@ -108,6 +109,7 @@ export function HealthView() {
       </div>
 
       <TrainingPanel />
+      <ProgressPanel />
 
       {!d && !loadError && <p className="lbl" style={{ padding: 16 }}>LOADING…</p>}
       {!d && loadError && (

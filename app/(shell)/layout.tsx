@@ -14,6 +14,7 @@ import { HudLayer } from "@/components/hud-layer";
 import { ProactiveVoice } from "@/components/proactive-voice";
 import { GestureNav } from "@/features/gestures/gesture-nav";
 import { ErrorReporter } from "@/components/error-reporter";
+import { ReminderTicker } from "@/components/reminder-ticker";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <AmbientCanvas />
       <BootSequence />
       <BootBriefing />
+      <ReminderTicker />
       <StatusBar />
       <TickerTape />
       <div className="flex min-h-0 flex-1">

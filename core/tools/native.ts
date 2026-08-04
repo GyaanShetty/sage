@@ -269,6 +269,65 @@ export const nativeTools = {
     },
   }),
 
+  // ── Calendar (write) ────────────────────────────────────────────────────
+  create_calendar_event: tool({
+    description:
+      "Put an event in the user's Google Calendar. Use for 'put X in my calendar', 'block an hour for Y', 'schedule Z on Friday'. Prefer this over a reminder when the thing occupies a slot in the day rather than being a nudge.",
+    inputSchema: z.object({
+      summary: z.string().max(200).describe("The event title, as a person would write it"),
+      start: z.string().describe("ISO datetime for the start, or YYYY-MM-DD if allDay"),
+      end: z.string().optional().describe("ISO datetime for the end. Omit for a 1-hour default."),
+      allDay: z.boolean().optional(),
+      location: z.string().max(200).optional(),
+    }),
+    execute: async ({ summary, start, end, allDay, location }) => {
+      const { createCalendarEvent } = await import("@/infrastructure/integrations/google");
+
+      // An event with no end is not an event Google will accept, and asking
+      // the model to always compute one invites arithmetic mistakes. An hour
+      // is the sane default for "block some time for X".
+      const startMs = new Date(start).getTime();
+      const resolvedEnd = end ?? (Number.isNaN(startMs)
+        ? start
+        : new Date(startMs + 60 * 60_000).toISOString());
+
+      const ev = await createCalendarEvent({ summary, start, end: resolvedEnd, allDay, location });
+      if (!ev) return { ok: false, error: "Google Calendar isn't connected (Settings → Connect Google)." };
+      return { ok: true, id: ev.id, summary, start, end: resolvedEnd };
+    },
+  }),
+
+  move_calendar_event: tool({
+    description:
+      "Change an existing calendar event's time, title or location. Call calendar_events first to find its id.",
+    inputSchema: z.object({
+      id: z.string(),
+      summary: z.string().max(200).optional(),
+      start: z.string().optional(),
+      end: z.string().optional(),
+      allDay: z.boolean().optional(),
+      location: z.string().max(200).optional(),
+    }),
+    execute: async ({ id, ...patch }) => {
+      const { updateCalendarEvent } = await import("@/infrastructure/integrations/google");
+      const ok = await updateCalendarEvent(id, patch);
+      if (ok === null) return { ok: false, error: "Google Calendar isn't connected." };
+      return ok ? { ok: true, id } : { ok: false, error: "Couldn't update that event." };
+    },
+  }),
+
+  cancel_calendar_event: tool({
+    description:
+      "Remove an event from the calendar. Call calendar_events first to find its id, and only cancel the one the user actually named.",
+    inputSchema: z.object({ id: z.string() }),
+    execute: async ({ id }) => {
+      const { deleteCalendarEvent } = await import("@/infrastructure/integrations/google");
+      const ok = await deleteCalendarEvent(id);
+      if (ok === null) return { ok: false, error: "Google Calendar isn't connected." };
+      return ok ? { ok: true, cancelled: id } : { ok: false, error: "Couldn't cancel that event." };
+    },
+  }),
+
   remember: tool({
     description:
       "Store an explicit long-term memory about the user. Use when they say 'remember …' or state something clearly worth keeping.",

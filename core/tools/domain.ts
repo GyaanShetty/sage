@@ -235,6 +235,68 @@ export const domainTools = {
     },
   }),
 
+  log_expense: tool({
+    description:
+      "Record something the user spent money on, said out loud — 'I spent 400 on lunch', 'paid the electricity bill, 2100'. Amounts are in rupees.",
+    inputSchema: z.object({
+      amount: z.number().positive().max(10_000_000),
+      merchant: z.string().max(80).describe("Where it went — the shop, the service, the person"),
+      category: z.enum(["food", "transport", "shopping", "subscriptions", "bills", "entertainment", "health", "other"]),
+      recurring: z.boolean().optional().describe("True only for subscriptions and standing bills"),
+    }),
+    execute: async (e) => {
+      const { addExpense } = await import("@/core/finance/expenses");
+      const { getPlan, budgetStatus, currentMonth } = await import("@/core/finance/budget");
+      const { listExpenses } = await import("@/core/finance/expenses");
+
+      const id = await addExpense({ ...e, source: "manual" });
+
+      // Say what it did to the budget, not just that it saved. "Logged" is
+      // bookkeeping; "that puts food 300 over for the month" is the reason
+      // he asked SAGE instead of a spreadsheet.
+      const plan = await getPlan(currentMonth()).catch(() => null);
+      if (!plan) return { ok: true, id, logged: `₹${e.amount} at ${e.merchant}` };
+
+      const status = budgetStatus(plan, await listExpenses(60));
+      const line = status.lines.find((l) => l.category.toLowerCase() === e.category);
+      return {
+        ok: true,
+        id,
+        logged: `₹${e.amount} at ${e.merchant}`,
+        budget: line
+          ? { category: line.category, spent: line.spent, limit: line.limit, remaining: line.remaining, state: line.state }
+          : { note: `${e.category} has no budget line this month` },
+      };
+    },
+  }),
+
+  budget_status: tool({
+    description:
+      "How the month's budget is going: what is spent, what is left, what is on pace to overshoot. Use for 'how am I doing on budget', 'can I afford X', 'how much is left for food'.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { getPlan, budgetStatus, currentMonth } = await import("@/core/finance/budget");
+      const { listExpenses } = await import("@/core/finance/expenses");
+
+      const plan = await getPlan(currentMonth());
+      if (!plan) return { ok: true, note: "No budget set for this month yet — there is one on the portfolio page." };
+
+      const s = budgetStatus(plan, await listExpenses(60));
+      return {
+        ok: true,
+        month: s.month,
+        dayOfMonth: `${s.elapsed} of ${s.days}`,
+        spent: s.totalSpent,
+        planned: s.totalBudget,
+        onPaceFor: s.projectedTotal,
+        leftToSpend: s.leftToSpend,
+        lines: s.lines.map((l) => ({ category: l.category, spent: l.spent, limit: l.limit, state: l.state })),
+        unbudgeted: s.unbudgetedTotal,
+        notes: s.notes,
+      };
+    },
+  }),
+
   log_workout: tool({
     description:
       "Record a training session the user describes out loud — 'I did chest and triceps for 50 minutes', 'went for a 5k'. Use for sessions NOT already in Hevy; Hevy syncs itself and logging twice would double the count.",

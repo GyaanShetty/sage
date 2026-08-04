@@ -179,6 +179,40 @@ async function importantEmails(): Promise<Candidate[]> {
 }
 
 /** Evening LeetCode nudge if today's problem is still unsolved (after 6pm IST). */
+/**
+ * Budget warning — but only while it is still actionable.
+ *
+ * A breach reported on the 29th is a receipt; the same warning on the 12th is
+ * something you can do something about. So this only speaks up in the first
+ * three weeks, and only when the month is genuinely heading somewhere bad.
+ */
+async function budgetWarning(day: DayPicture): Promise<Candidate | null> {
+  if (tzHour() < 16 || tzHour() >= 23) return null;
+  const b = day.budget;
+  if (!b || b.planned <= 0) return null;
+  if (await seenToday("budget")) return null;
+
+  const overshootPct = Math.round(((b.projected - b.planned) / b.planned) * 100);
+  const heading = b.projected > b.planned * 1.1;
+  if (!b.over.length && !heading) return null;
+
+  const body = b.over.length
+    ? `Over budget on ${b.over.slice(0, 3).join(", ")}. ₹${b.leftToSpend.toLocaleString("en-IN")} left this month.`
+    : `On pace to finish ${overshootPct}% over budget — ₹${b.projected.toLocaleString("en-IN")} against ₹${b.planned.toLocaleString("en-IN")} planned.`;
+
+  return {
+    key: "budget",
+    // A breach that has already happened scores lower than one you can still
+    // avoid, which is the opposite of how urgency usually works and correct
+    // here: the second is still a decision, the first is only news.
+    score: b.over.length ? 45 : Math.min(70, 40 + overshootPct),
+    title: "💸 Budget",
+    body,
+    url: "/portfolio",
+    digest: b.over.length ? `over on ${b.over[0]}` : `${overshootPct}% over pace`,
+  };
+}
+
 async function leetcodeNudge(): Promise<Candidate | null> {
   if (tzHour() < 18 || tzHour() >= 22) return null;
   if (await seenToday("leetcode")) return null;
@@ -257,17 +291,18 @@ export async function runNotifications(): Promise<Record<string, unknown>> {
   const day = await buildDayPicture().catch(() => null);
   if (!day) return { error: "no day picture" };
 
-  const [morning, market, pending, emails, leet, career] = await Promise.all([
+  const [morning, market, pending, emails, leet, budget, career] = await Promise.all([
     morningBrief(day).catch(() => null),
     marketBrief(day).catch(() => null),
     eveningTaskBrief(day).catch(() => null),
     importantEmails().catch(() => [] as Candidate[]),
     leetcodeNudge().catch(() => null),
+    budgetWarning(day).catch(() => null),
     careerNudge().catch(() => [] as Candidate[]),
   ]);
 
   const candidates: Candidate[] = [
-    morning, market, pending, leet,
+    morning, market, pending, leet, budget,
     ...emails, ...career,
   ].filter((c): c is Candidate => c !== null);
 

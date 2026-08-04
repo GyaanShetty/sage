@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Loader2, TrendingUp } from "lucide-react";
+import { AlertTriangle, Loader2, Trophy, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 
@@ -25,7 +25,11 @@ interface Lift {
   trend: "up" | "flat" | "down" | "new";
   daysSince: number;
 }
+interface Record_ {
+  lift: string; kg: number; at: string; previousKg: number | null; daysAgo: number;
+}
 interface Progress {
+  records: Record_[];
   lifts: Lift[];
   weeklyVolume: { week: string; volumeKg: number; sessions: number }[];
   neglected: Lift[];
@@ -103,6 +107,26 @@ export function ProgressPanel() {
                 <div className="mt-1 flex justify-between text-[9px] uppercase tracking-wider text-subtle">
                   <span>{weeks[0]?.week}</span>
                   <span>peak {tonnes(peak)}</span>
+                </div>
+              </>
+            )}
+
+            {p.records.length > 0 && (
+              <>
+                <p className="hud-label mt-4"><Trophy className="inline size-3" /> PERSONAL BESTS</p>
+                <div className="mt-2 flex flex-col gap-1">
+                  {p.records.slice(0, 5).map((r) => (
+                    <div key={`${r.lift}-${r.at}`} className="flex items-baseline gap-3 text-[12px]">
+                      <span className="min-w-0 flex-1 truncate text-muted">{r.lift}</span>
+                      <span className="font-mono text-[10px] text-subtle">
+                        {r.previousKg}kg →
+                      </span>
+                      <span className="font-mono text-[11px] text-[var(--live)]">{r.kg}kg</span>
+                      <span className="w-12 text-right font-mono text-[9px] text-subtle">
+                        {r.daysAgo === 0 ? "today" : `${r.daysAgo}d`}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </>
             )}

@@ -263,6 +263,7 @@ export const domainTools = {
         topLifts: p.lifts.slice(0, 6).map((l) => ({
           name: l.name, best: l.bestKg, latest: l.latestKg, changeKg: l.changeKg, trend: l.trend, daysSince: l.daysSince,
         })),
+        recentBests: p.records.filter((r) => r.daysAgo <= 30).slice(0, 4).map((r) => `${r.lift} ${r.kg}kg (was ${r.previousKg})`),
         neglected: p.neglected.map((l) => l.name),
         lastWeekVolumeKg: p.weeklyVolume.at(-1)?.volumeKg ?? 0,
         notes: p.notes,

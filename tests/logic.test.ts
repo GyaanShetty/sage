@@ -632,3 +632,33 @@ test("next session: bodyweight lifts carry no weight suggestion", async () => {
   const s = suggestNextSession(bw, []);
   assert.equal(s?.targets[0].suggestKg, null, "no weight recorded means no number to beat");
 });
+
+// ── Prep reminders ──────────────────────────────────────────────────────────
+
+test("the prep marker never reaches the user", async () => {
+  const { stripMarker } = await import("@/core/reminders/prep");
+
+  assert.equal(
+    stripMarker("Standup in 15 minutes ⟨prep:abc123@2026-08-04T09:30:00.000Z⟩"),
+    "Standup in 15 minutes",
+  );
+  // With a location, the marker sits after it.
+  assert.equal(
+    stripMarker("Dentist in 15 minutes · Indiranagar ⟨prep:x@2026-08-04T11:00:00.000Z⟩"),
+    "Dentist in 15 minutes · Indiranagar",
+  );
+  // A hand-written reminder has no marker and must survive untouched.
+  assert.equal(stripMarker("Call the landlord"), "Call the landlord");
+  // An event whose own title contains angle brackets must not confuse it.
+  assert.equal(stripMarker("Review <draft> in 15 minutes"), "Review <draft> in 15 minutes");
+});
+
+test("prep markers are unique per event AND per start time", async () => {
+  const { stripMarker } = await import("@/core/reminders/prep");
+  // Moving an event changes its marker, so a new reminder is created for the
+  // new time rather than the old one silently standing.
+  const a = "Standup in 15 minutes ⟨prep:evt1@2026-08-04T09:30:00.000Z⟩";
+  const b = "Standup in 15 minutes ⟨prep:evt1@2026-08-04T14:00:00.000Z⟩";
+  assert.notEqual(a, b);
+  assert.equal(stripMarker(a), stripMarker(b), "the same event still reads the same to the user");
+});

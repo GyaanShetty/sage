@@ -270,6 +270,22 @@ export const nativeTools = {
   }),
 
   // ── Calendar (write) ────────────────────────────────────────────────────
+  set_reminder_lead: tool({
+    description:
+      "Change how long before a calendar event SAGE nudges him. Use for 'remind me 30 minutes before things', 'give me more warning', 'stop reminding me so early'. Default is 15 minutes.",
+    inputSchema: z.object({
+      minutes: z.number().int().min(1).max(240),
+    }),
+    execute: async ({ minutes }) => {
+      const { setLeadMinutes, syncEventReminders } = await import("@/core/reminders/prep");
+      const set = await setLeadMinutes(minutes);
+      // Apply it to what is already scheduled, or the change would only take
+      // effect for events created after this moment.
+      const { created } = await syncEventReminders().catch(() => ({ created: 0 }));
+      return { ok: true, leadMinutes: set, newRemindersCreated: created };
+    },
+  }),
+
   create_calendar_event: tool({
     description:
       "Put an event in the user's Google Calendar. Use for 'put X in my calendar', 'block an hour for Y', 'schedule Z on Friday'. Prefer this over a reminder when the thing occupies a slot in the day rather than being a nudge.",
@@ -293,7 +309,13 @@ export const nativeTools = {
 
       const ev = await createCalendarEvent({ summary, start, end: resolvedEnd, allDay, location });
       if (!ev) return { ok: false, error: "Google Calendar isn't connected (Settings → Connect Google)." };
-      return { ok: true, id: ev.id, summary, start, end: resolvedEnd };
+
+      // Generate its prep nudge now rather than waiting for the next tick, so
+      // an event booked for an hour's time still gets its warning.
+      const { syncEventReminders } = await import("@/core/reminders/prep");
+      const { lead } = await syncEventReminders().catch(() => ({ lead: 0 }));
+
+      return { ok: true, id: ev.id, summary, start, end: resolvedEnd, ...(lead ? { nudgeMinutesBefore: lead } : {}) };
     },
   }),
 

@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { sendPush } from "@/infrastructure/push";
+import { stripMarker } from "./prep";
 
 /**
  * Firing reminders on time, on a scheduler that runs twice a day.
@@ -58,10 +59,14 @@ export async function fireDueReminders(limit = 50): Promise<FiredReminder[]> {
       .select("id");
     if (!claimed?.length) continue;
 
+    // Prep reminders carry a bookkeeping marker in their text so they can be
+    // deduplicated; it must not reach the user.
+    const spoken = stripMarker(reminder.text as string);
+
     await db.from("Task").insert({
       id: crypto.randomUUID(),
       userId: DEFAULT_USER_ID,
-      title: `⏰ ${reminder.text}`,
+      title: `⏰ ${spoken}`,
       priority: 0,
       source: "automation",
     });
@@ -69,18 +74,18 @@ export async function fireDueReminders(limit = 50): Promise<FiredReminder[]> {
       id: crypto.randomUUID(),
       userId: DEFAULT_USER_ID,
       type: "reminder.fired",
-      payload: { text: reminder.text, remindAt: reminder.remindAt },
+      payload: { text: spoken, remindAt: reminder.remindAt },
     });
     await sendPush({
       title: "⏰ Reminder",
-      body: reminder.text,
+      body: spoken,
       tag: `reminder-${reminder.id}`,
       url: "/workspace",
     }).catch(() => 0);
 
     fired.push({
       id: reminder.id as string,
-      text: reminder.text as string,
+      text: spoken,
       remindAt: reminder.remindAt as string,
       lateMin: Math.max(0, Math.round((now - new Date(reminder.remindAt as string).getTime()) / 60_000)),
     });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fireDueReminders, nextReminder } from "@/core/reminders/fire";
+import { syncEventReminders } from "@/core/reminders/prep";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -14,7 +15,12 @@ export const maxDuration = 30;
  * plan that allows two crons a day.
  */
 export async function GET() {
+  // Generate the prep nudges for anything new in the calendar before firing,
+  // so an event added moments ago is covered on this very tick. Idempotent —
+  // see core/reminders/prep.ts.
+  const prep = await syncEventReminders().catch(() => ({ created: 0, lead: 0 }));
+
   const fired = await fireDueReminders().catch(() => []);
   const next = await nextReminder().catch(() => null);
-  return NextResponse.json({ ok: true, data: { fired, next } });
+  return NextResponse.json({ ok: true, data: { fired, next, prep } });
 }

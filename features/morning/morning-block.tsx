@@ -348,9 +348,15 @@ export function MorningBlock() {
                   <span className="lbl !text-[9px]">DAILY CHALLENGE</span>
                   <div className="mb-lctitle">{lc.daily.title}</div>
                   <span className={`mb-diff ${lc.daily.difficulty.toLowerCase()}`}>{lc.daily.difficulty}</span>
-                  <span className="mb-go">Solve on LeetCode <ExternalLink className="size-3" /></span>
+                  <span className="mb-go">Open on LeetCode <ExternalLink className="size-3" /></span>
                 </a>
               ) : <div className="mb-empty">Couldn&apos;t load today&apos;s challenge.</div>}
+
+              {lc?.daily && (
+                <Link href="/code" className="mb-lcsolve">
+                  <Code2 className="size-3.5" /> SOLVE IT IN SAGE — editor, runner, and a coach that won&apos;t just tell you
+                </Link>
+              )}
               {lc?.stats ? (
                 <div className="mb-stats">
                   <div className="mb-stat"><b>{lc.stats.streak}</b><span>DAY STREAK</span></div>

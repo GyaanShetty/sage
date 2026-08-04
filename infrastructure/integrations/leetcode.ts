@@ -53,6 +53,71 @@ export async function getDailyChallenge(): Promise<DailyChallenge | null> {
   };
 }
 
+export interface Problem {
+  title: string;
+  titleSlug: string;
+  difficulty: string;
+  /** The statement, as plain text. LeetCode returns HTML. */
+  statement: string;
+  hints: string[];
+  topics: string[];
+  /** Starter code per language, keyed by LeetCode's lang slug. */
+  snippets: Record<string, string>;
+  link: string;
+}
+
+/**
+ * A problem's full statement.
+ *
+ * Public, no auth — the same query the website uses to render the page. The
+ * statement arrives as HTML; it is flattened to text because it is displayed
+ * in a plain block, and rendering someone else's markup live is a habit worth
+ * not having.
+ */
+export async function getProblem(titleSlug: string): Promise<Problem | null> {
+  const data = await gql<{
+    question?: {
+      title: string; titleSlug: string; difficulty: string; content: string;
+      hints?: string[];
+      topicTags?: { name: string }[];
+      codeSnippets?: { langSlug: string; code: string }[];
+    };
+  }>(
+    `query q($titleSlug: String!) {
+      question(titleSlug: $titleSlug) {
+        title titleSlug difficulty content hints
+        topicTags { name }
+        codeSnippets { langSlug code }
+      }
+    }`,
+    { titleSlug },
+  );
+
+  const q = data?.question;
+  if (!q) return null;
+
+  const statement = (q.content ?? "")
+    .replace(/<sup>(\d+)<\/sup>/g, "^$1")      // 10<sup>4</sup> reads as 10^4
+    .replace(/<\/(p|div|li|pre)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return {
+    title: q.title,
+    titleSlug: q.titleSlug,
+    difficulty: q.difficulty,
+    statement,
+    hints: q.hints ?? [],
+    topics: (q.topicTags ?? []).map((t) => t.name),
+    snippets: Object.fromEntries((q.codeSnippets ?? []).map((c) => [c.langSlug, c.code])),
+    link: `https://leetcode.com/problems/${q.titleSlug}/`,
+  };
+}
+
 export interface LeetStats {
   username: string;
   ranking: number | null;

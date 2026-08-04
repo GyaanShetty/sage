@@ -1,0 +1,70 @@
+/* The code lab. Statement above, editor and coach side by side. */
+
+.cl-wrap { padding: 0 14px 40px; max-width: 1250px; margin: 0 auto; }
+.cl-dim { font-size: 12px; color: var(--subtle); padding: 10px 0; }
+.cl-err { color: #fca5a5; font-size: 13px; border: 1px dashed var(--border-glass); padding: 16px; margin-top: 14px; }
+
+.cl-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-top: 14px; }
+.cl-title { font-size: 19px; font-weight: 500; }
+.cl-topics { display: flex; flex-wrap: wrap; gap: 5px; }
+.cl-topic { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.1px; text-transform: uppercase; color: var(--subtle); border: 1px solid var(--border-glass); padding: 3px 6px; }
+.cl-link { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--muted); text-decoration: none; border: 1px solid var(--border-glass); padding: 5px 9px; }
+.cl-link:hover { color: var(--foreground); }
+
+.tag.d-easy { color: var(--live); }
+.tag.d-med { color: #e8a13a; }
+.tag.d-hard { color: #f87171; }
+
+.cl-fold { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--subtle); background: none; border: 0; padding: 12px 0 6px; cursor: pointer; }
+.cl-fold:hover { color: var(--foreground); }
+.cl-statement { font-family: inherit; font-size: 13px; line-height: 1.65; color: var(--muted); white-space: pre-wrap; word-break: break-word; border: 1px solid var(--border-glass); padding: 13px; max-height: 320px; overflow-y: auto; }
+
+.cl-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+
+.cl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 8px; }
+.cl-lang { background: transparent; border: 1px solid var(--border-glass); color: var(--muted); font-family: var(--mono); font-size: 10px; padding: 6px 8px; cursor: pointer; }
+.cl-lang option { background: #0d0e11; }
+.cl-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 6px 10px; cursor: pointer; }
+.cl-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--border-glass-strong); }
+.cl-btn:disabled { opacity: .45; cursor: default; }
+.cl-btn.primary { color: var(--live); border-color: var(--live-dim); }
+
+.cl-editor { width: 100%; min-height: 340px; background: rgba(0,0,0,.35); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--mono), monospace; font-size: 12.5px; line-height: 1.6; padding: 11px; outline: none; resize: vertical; tab-size: 4; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+.cl-editor:focus { border-color: var(--live-dim); }
+
+.cl-stdin { margin-top: 8px; }
+.cl-stdin summary { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--subtle); cursor: pointer; }
+.cl-stdin textarea { width: 100%; margin-top: 6px; background: transparent; border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--mono), monospace; font-size: 12px; padding: 8px; outline: none; resize: vertical; }
+
+.cl-out { margin-top: 10px; border: 1px solid var(--border-glass); border-left-width: 2px; padding: 9px 11px; }
+.cl-out.ok { border-left-color: var(--live); }
+.cl-out.bad { border-left-color: #f87171; }
+.cl-outhead { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); }
+.cl-out pre { font-family: var(--mono), monospace; font-size: 12px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; word-break: break-word; margin-top: 6px; max-height: 220px; overflow-y: auto; }
+.cl-out pre.cl-stderr { color: #fca5a5; }
+
+.cl-coachcol { border: 1px solid var(--border-glass); padding: 12px; }
+.cl-coachnote { font-size: 11.5px; line-height: 1.5; color: var(--subtle); margin-top: 7px; }
+.cl-levels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cl-level { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 7px 9px; cursor: pointer; }
+.cl-level:hover:not(:disabled) { color: var(--foreground); border-color: var(--border-glass-strong); }
+.cl-level:disabled { opacity: .5; cursor: default; }
+.cl-level.used { border-color: var(--live-dim); color: var(--live); }
+/* The one that ends the exercise looks like it. */
+.cl-level.danger { color: #e8a13a; border-style: dashed; }
+
+.cl-coaching { margin-top: 12px; border-left: 2px solid var(--live-dim); padding-left: 11px; }
+.cl-coachtext { font-size: 12.5px; line-height: 1.6; color: var(--muted); white-space: pre-wrap; }
+.cl-complexity { font-family: var(--mono); font-size: 10.5px; color: var(--live); margin-top: 8px; }
+.cl-solution { font-family: var(--mono), monospace; font-size: 12px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; border: 1px solid var(--border-glass); padding: 9px; margin-top: 9px; max-height: 300px; overflow-y: auto; }
+
+.cl-hints { margin-top: 14px; }
+.cl-hints summary { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--subtle); cursor: pointer; }
+.cl-hints ol { margin: 8px 0 0 18px; font-size: 12px; line-height: 1.55; color: var(--muted); list-style: decimal; }
+.cl-hints li { margin-bottom: 6px; }
+
+.cl-submitnote { font-size: 10.5px; line-height: 1.5; color: var(--subtle); margin-top: 14px; border-top: 1px solid var(--border-glass); padding-top: 9px; }
+
+@media (max-width: 900px) {
+  .cl-grid { grid-template-columns: 1fr; }
+}

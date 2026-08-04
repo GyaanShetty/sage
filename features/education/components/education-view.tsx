@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, GraduationCap, Loader2, Plus, Trash2, X } from "lucide-react";
+import { Check, GraduationCap, Loader2, NotebookPen, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
+import { StudyLog } from "./study-log";
 
 interface Skill {
   id: string; name: string; category: string;
@@ -47,6 +48,8 @@ export function EducationView() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
+  // Which skill's study log is open — one at a time, so the page stays a list.
+  const [logId, setLogId] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: "", category: "", target: 3 });
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({ name: "", category: "", notes: "" });
@@ -244,6 +247,13 @@ export function EducationView() {
                     </button>
                     <Ladder level={s.level} target={s.target} onSet={(n) => save({ id: s.id, level: n })} />
                     <button
+                      onClick={() => setLogId((id) => (id === s.id ? null : s.id))}
+                      title="Study log — sessions, notes, links, open questions"
+                      className={cn("p-1.5 transition-colors", logId === s.id ? "text-live" : "text-subtle hover:text-foreground")}
+                    >
+                      <NotebookPen className="size-4" />
+                    </button>
+                    <button
                       onClick={() => remove(s.id)}
                       title="Remove"
                       className="p-1.5 text-subtle opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
@@ -252,6 +262,8 @@ export function EducationView() {
                     </button>
                   </div>
                 )}
+
+                {logId === s.id && <StudyLog skillId={s.id} skillName={s.name} />}
               </div>
             ))}
           </div>

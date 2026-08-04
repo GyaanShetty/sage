@@ -1205,3 +1205,50 @@
 /* Straight from the morning block into the code lab. */
 .mb-lcsolve { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; color: var(--live); text-decoration: none; border: 1px solid var(--live-dim); padding: 9px 12px; margin-top: 10px; }
 .mb-lcsolve:hover { background: rgba(255,255,255,.06); }
+
+/* ── Study log ────────────────────────────────────────────────────────────
+   The trail behind a skill: sessions, notes, links, and — first — the
+   questions still unanswered, which a level number hides entirely. */
+.sl-wrap { border-top: 1px solid var(--border-glass); margin-top: 12px; padding-top: 12px; }
+.sl-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+.sl-stat { font-family: var(--mono); font-size: 9.5px; color: var(--subtle); }
+.sl-dim { font-size: 12px; color: var(--subtle); padding: 10px 0; }
+
+.sl-spark { display: flex; align-items: flex-end; gap: 2px; height: 26px; margin-top: 9px; }
+.sl-spark i { flex: 1; background: var(--live); opacity: .6; min-width: 2px; }
+.sl-spark i:hover { opacity: 1; }
+
+.sl-open { border-left: 2px solid #e8a13a; padding: 8px 11px; margin-top: 11px; background: var(--glass); }
+.sl-openrow { display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+.sl-openrow span { flex: 1; }
+.sl-openrow button { background: none; border: 1px solid var(--border-glass); color: var(--subtle); cursor: pointer; padding: 2px 5px; display: flex; }
+.sl-openrow button:hover { color: var(--live); border-color: var(--live-dim); }
+
+.sl-form { margin-top: 12px; }
+.sl-kinds { display: flex; flex-wrap: wrap; gap: 5px; }
+.sl-kind { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; color: var(--subtle); background: none; border: 1px solid var(--border-glass); padding: 5px 8px; cursor: pointer; }
+.sl-kind:hover { color: var(--foreground); }
+.sl-kind.on { background: var(--glass-strong); color: var(--foreground); border-color: var(--border-glass-strong); }
+.sl-form textarea { width: 100%; margin-top: 7px; background: transparent; border: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 12.5px; line-height: 1.5; padding: 8px; outline: none; resize: vertical; }
+.sl-form textarea:focus { border-color: var(--live-dim); }
+.sl-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.sl-row input { flex: 1 1 130px; min-width: 0; background: transparent; border: 1px solid var(--border-glass); color: var(--foreground); font-size: 12px; padding: 6px 8px; outline: none; }
+.sl-row input:focus { border-color: var(--live-dim); }
+.sl-row input.sl-mins { flex: 0 0 80px; font-family: var(--mono); }
+.sl-add { flex: 0 0 auto; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--live); background: none; border: 1px solid var(--live-dim); padding: 6px 12px; cursor: pointer; }
+.sl-add:disabled { opacity: .45; cursor: default; }
+
+.sl-list { margin-top: 12px; display: flex; flex-direction: column; }
+.sl-entry { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-bottom: 1px solid var(--border-glass); color: var(--subtle); }
+.sl-entry:last-child { border-bottom: 0; }
+.sl-entry.question { color: #e8a13a; }
+.sl-entry.insight { color: var(--live); }
+.sl-entry.resolved { opacity: .55; }
+.sl-body { flex: 1; min-width: 0; }
+.sl-text { font-size: 12.5px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; }
+.sl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--subtle); }
+.sl-tag { border: 1px solid var(--border-glass); padding: 1px 5px; }
+.sl-link { display: inline-flex; align-items: center; gap: 4px; color: var(--live); text-decoration: none; }
+.sl-done { color: var(--live); }
+.sl-del { background: none; border: 0; color: var(--subtle); cursor: pointer; padding: 3px; display: flex; }
+.sl-del:hover { color: #f87171; }

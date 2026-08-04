@@ -70,7 +70,16 @@ export interface PersonalRecord {
   daysAgo: number;
 }
 
+export interface SessionSuggestion {
+  /** What to train, and why that rather than something else. */
+  focus: string[];
+  reason: string;
+  /** Specific lifts, with the weight to beat. */
+  targets: { lift: string; lastKg: number | null; suggestKg: number | null; note: string }[];
+}
+
 export interface TrainingProgress {
+  suggestion: SessionSuggestion | null;
   /** Bests set in the window, newest first. */
   records: PersonalRecord[];
   lifts: LiftProgress[];
@@ -204,5 +213,60 @@ export async function trainingProgress(days = 120): Promise<TrainingProgress> {
     notes.push(`New best on ${top.lift}: ${top.kg}kg, up from ${top.previousKg}kg${top.daysAgo === 0 ? " today" : `, ${top.daysAgo}d ago`}.`);
   }
 
-  return { records: records.slice(0, 12), lifts, weeklyVolume, neglected, notes };
+  return { suggestion: suggestNextSession(lifts, neglected), records: records.slice(0, 12), lifts, weeklyVolume, neglected, notes };
+}
+
+/**
+ * What to train next.
+ *
+ * Deliberately arithmetic, not a model call. The rule is the one a coach would
+ * apply without thinking: train what you have not trained, and on what is
+ * moving, add a little. A suggestion you can check against the numbers is
+ * worth more than one you have to trust.
+ *
+ * The increment is 2.5% rounded to the nearest 2.5kg, which is the smallest
+ * plate pair on most bars — suggesting a 1.3kg jump would be advice you cannot
+ * physically follow.
+ */
+export function suggestNextSession(lifts: LiftProgress[], neglected: LiftProgress[]): SessionSuggestion | null {
+  if (lifts.length === 0) return null;
+
+  const plated = (kg: number) => Math.round((kg * 1.025) / 2.5) * 2.5;
+
+  // Neglected first: the point of the suggestion is to correct drift, and
+  // adding weight to what you already do every week corrects nothing.
+  const candidates = [
+    ...neglected,
+    ...lifts.filter((l) => !neglected.includes(l) && l.daysSince >= 4 && l.sessions >= 2),
+  ].slice(0, 5);
+
+  if (candidates.length === 0) {
+    const freshest = [...lifts].sort((a, b) => b.daysSince - a.daysSince).slice(0, 3);
+    return {
+      focus: freshest.map((l) => l.name),
+      reason: "Nothing has been neglected — everything is in rotation. These are simply the longest since.",
+      targets: freshest.map((l) => ({
+        lift: l.name,
+        lastKg: l.latestKg,
+        suggestKg: l.latestKg && l.trend !== "down" ? plated(l.latestKg) : l.latestKg,
+        note: l.trend === "down" ? "repeat the weight — it went backwards last time" : "small step up",
+      })),
+    };
+  }
+
+  return {
+    focus: candidates.map((l) => l.name),
+    reason: neglected.length
+      ? `${neglected.length} ${neglected.length === 1 ? "lift has" : "lifts have"} gone three weeks or more without work.`
+      : "These are the longest since you last touched them.",
+    targets: candidates.map((l) => ({
+      lift: l.name,
+      lastKg: l.latestKg,
+      // Coming back from a long gap, matching the old number IS the session.
+      suggestKg: l.latestKg == null ? null : l.daysSince >= 21 ? l.latestKg : l.trend === "down" ? l.latestKg : plated(l.latestKg),
+      note: l.daysSince >= 21
+        ? `${l.daysSince}d off — match the old weight before adding`
+        : l.trend === "down" ? "repeat it, last session went backwards" : "small step up",
+    })),
+  };
 }

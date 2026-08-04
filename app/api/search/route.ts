@@ -3,7 +3,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
 export const dynamic = "force-dynamic";
 
-export type SearchKind = "task" | "note" | "memory" | "holding" | "career" | "workout" | "expense";
+export type SearchKind = "task" | "note" | "memory" | "holding" | "career" | "workout" | "expense" | "research" | "skill" | "file";
 
 export interface SearchHit {
   kind: SearchKind;
@@ -56,7 +56,7 @@ export async function GET(req: Request) {
     // so they're filtered in memory rather than by SQL.
     settle(db.from("Event").select("id, type, payload, createdAt")
       .eq("userId", DEFAULT_USER_ID)
-      .in("type", ["portfolio.holding", "career.application", "health.workout", "finance.expense"])
+      .in("type", ["portfolio.holding", "career.application", "health.workout", "finance.expense", "research.brief", "skill.node", "file.uploaded"])
       .order("createdAt", { ascending: false }).limit(400)),
   ]);
 
@@ -110,11 +110,44 @@ export async function GET(req: Request) {
         href: "/career", at: ev.createdAt as string,
       });
     } else if (type === "health.workout") {
+      // Two shapes share this type: sessions logged by hand ({type, minutes,
+      // intensity}) and sessions imported from Hevy ({title, exercises,
+      // volumeKg}). Reading only the first rendered every imported workout as
+      // "Workout · 0 min", which is exactly as useless as it sounds.
+      const imported = typeof p.title === "string" && Array.isArray(p.exercises);
       hits.push({
         kind: "workout", id: ev.id as string,
-        title: `${p.type ?? "Workout"} · ${p.minutes ?? 0} min`,
-        subtitle: String(p.intensity ?? ""),
-        href: "/health", at: ev.createdAt as string,
+        title: imported
+          ? `${p.title} · ${p.minutes ?? 0} min`
+          : `${p.type ?? "Workout"} · ${p.minutes ?? 0} min`,
+        subtitle: imported
+          ? `${Math.round(Number(p.volumeKg) || 0).toLocaleString()}kg · ${(p.exercises as { name?: string }[]).slice(0, 3).map((e) => e.name).filter(Boolean).join(", ")}`
+          : String(p.intensity ?? ""),
+        href: "/health",
+        // Imported sessions carry their real training date; createdAt is only
+        // when the CSV happened to be uploaded.
+        at: (imported ? (p.at as string) : null) ?? (ev.createdAt as string),
+      });
+    } else if (type === "research.brief") {
+      hits.push({
+        kind: "research", id: ev.id as string,
+        title: String(p.headline ?? p.topic ?? "Research"),
+        subtitle: String(p.topic ?? "").slice(0, 80),
+        href: "/morning", at: (p.at as string) ?? (ev.createdAt as string),
+      });
+    } else if (type === "skill.node") {
+      hits.push({
+        kind: "skill", id: ev.id as string,
+        title: String(p.name ?? "Skill"),
+        subtitle: `${p.category ?? ""} · level ${p.level ?? 0}${p.target ? ` → ${p.target}` : ""}`,
+        href: "/education", at: ev.createdAt as string,
+      });
+    } else if (type === "file.uploaded") {
+      hits.push({
+        kind: "file", id: ev.id as string,
+        title: String(p.name ?? "File"),
+        subtitle: p.chars ? `${Number(p.chars).toLocaleString()} characters read` : "text could not be read",
+        href: "/knowledge", at: (p.uploadedAt as string) ?? (ev.createdAt as string),
       });
     } else if (type === "finance.expense") {
       hits.push({

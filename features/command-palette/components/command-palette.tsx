@@ -9,15 +9,17 @@ import { useShellStore } from "@/features/shell/store";
 import { PALETTE_ACTIONS, type PaletteAction } from "../actions";
 import {
   CheckSquare, FileText, Brain, Wallet, Briefcase, Dumbbell, Receipt, Loader2,
+  Microscope, GraduationCap, Paperclip,
 } from "lucide-react";
 
 interface SearchHit {
-  kind: "task" | "note" | "memory" | "holding" | "career" | "workout" | "expense";
+  kind: "task" | "note" | "memory" | "holding" | "career" | "workout" | "expense" | "research" | "skill" | "file";
   id: string; title: string; subtitle?: string; href: string;
 }
 const KIND_ICON = {
   task: CheckSquare, note: FileText, memory: Brain, holding: Wallet,
   career: Briefcase, workout: Dumbbell, expense: Receipt,
+  research: Microscope, skill: GraduationCap, file: Paperclip,
 } as const;
 
 export function CommandPalette() {

@@ -328,7 +328,7 @@ const emptyDay: DayPicture = {
   now: new Date().toISOString(), weekday: "Monday", date: "3 August", weekend: false,
   events: [], next: null, committedMin: 0, load: "clear", longestGapMin: null, lastEventEndsAt: null,
   tasks: [], overdue: [], dueToday: [], headline: null, openCount: 0,
-  unread: [], markets: [], portfolio: null, weather: null, reminders: [], goals: [], training: null,
+  unread: [], markets: [], portfolio: null, weather: null, reminders: [], goals: [], budget: null, training: null,
 };
 
 test("describeDay states an empty day plainly instead of inventing work", () => {
@@ -570,4 +570,17 @@ test("schedule: ease has a floor and the interval has a ceiling", async () => {
   let d = { ease: 2.8, interval: 200, reps: 9 };
   for (let i = 0; i < 10; i++) d = schedule(d, 5);
   assert.ok(d.interval <= MAX_INTERVAL_DAYS, `interval ${d.interval} exceeded the cap`);
+});
+
+test("describeDay reports the budget only when one is set", async () => {
+  const withBudget = describeDay({
+    ...emptyDay,
+    budget: { spent: 41_000, planned: 50_000, projected: 61_000, leftToSpend: 9_000, over: ["food"], watch: ["transport"] },
+  });
+  assert.ok(withBudget.includes("BUDGET:"));
+  assert.ok(withBudget.includes("Already over on food"));
+  assert.ok(withBudget.includes("On pace to overshoot transport"));
+
+  // No plan must produce no line at all, not "budget: none".
+  assert.ok(!describeDay(emptyDay).includes("BUDGET"));
 });

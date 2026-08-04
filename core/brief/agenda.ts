@@ -72,6 +72,12 @@ export interface DayPicture {
    *  and what the day is ultimately in service of. */
   reminders: { text: string; remindAt: string | null }[];
   goals: string[];
+  /** This month's budget against what has actually been spent, if one is set. */
+  budget: {
+    spent: number; planned: number; projected: number; leftToSpend: number;
+    over: string[];       // lines already breached
+    watch: string[];      // lines on pace to breach
+  } | null;
   training: { daysSinceLast: number | null; perWeek: number; workouts: number } | null;
 }
 
@@ -115,7 +121,7 @@ export async function buildDayPicture(): Promise<DayPicture> {
   const dayEnd = endOfToday(TZ);
   const { weekday, date, dow } = fmtParts(TZ);
 
-  const [rawEvents, emails, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }] = await Promise.all([
+  const [rawEvents, emails, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }, budget] = await Promise.all([
     listUpcomingEvents(10).catch(() => null),
     listUnreadEmails(6).catch(() => null),
     getMarkets().catch(() => null),
@@ -144,6 +150,7 @@ export async function buildDayPicture(): Promise<DayPicture> {
       .is("supersededBy", null)
       .order("importance", { ascending: false })
       .limit(3),
+    budgetPicture(),
   ]);
 
   // ── Calendar ────────────────────────────────────────────────────────────
@@ -240,6 +247,7 @@ export async function buildDayPicture(): Promise<DayPicture> {
     weather: weather
       ? { label: weather.label, temp: weather.temp, high: weather.high, low: weather.low, place: weather.place, aqi: weather.aqi ?? null }
       : null,
+    budget,
     reminders: (reminderRows ?? []).map((r) => ({ text: r.text as string, remindAt: (r.remindAt as string) ?? null })),
     goals: (goalRows ?? []).map((g) => g.content as string),
     training: training
@@ -250,6 +258,34 @@ export async function buildDayPicture(): Promise<DayPicture> {
         }
       : null,
   };
+}
+
+/**
+ * This month's budget, if there is one.
+ *
+ * Imported lazily so the brief does not pull the finance module on every call
+ * for a user who has never set a budget, and swallowed on failure: a missing
+ * plan must not take the whole day picture down with it.
+ */
+async function budgetPicture(): Promise<DayPicture["budget"]> {
+  try {
+    const { getPlan, budgetStatus, currentMonth } = await import("@/core/finance/budget");
+    const { listExpenses } = await import("@/core/finance/expenses");
+    const plan = await getPlan(currentMonth());
+    if (!plan) return null;
+
+    const s = budgetStatus(plan, await listExpenses(60));
+    return {
+      spent: s.totalSpent,
+      planned: s.totalBudget,
+      projected: s.projectedTotal,
+      leftToSpend: s.leftToSpend,
+      over: s.lines.filter((l) => l.state === "over").map((l) => l.category),
+      watch: s.lines.filter((l) => l.state === "watch").map((l) => l.category),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Prices need an origin to call through; without one, skip rather than throw. */
@@ -325,6 +361,15 @@ export function describeDay(d: DayPicture): string {
     lines.push(
       `PORTFOLIO: worth ~${Math.round(p.value).toLocaleString()}, ${p.pnl >= 0 ? "up" : "down"} ${Math.abs(Math.round(p.pnl)).toLocaleString()} overall.` +
       (p.movers.length ? ` Biggest movers: ${p.movers.map((m) => `${m.symbol} ${(m.change24h ?? 0) > 0 ? "+" : ""}${(m.change24h ?? 0).toFixed(1)}%`).join(", ")}.` : ""),
+    );
+  }
+
+  if (d.budget) {
+    const b = d.budget;
+    lines.push(
+      `BUDGET: ₹${b.spent.toLocaleString("en-IN")} spent of ₹${b.planned.toLocaleString("en-IN")} planned, on pace for ₹${b.projected.toLocaleString("en-IN")}.` +
+      (b.over.length ? ` Already over on ${b.over.join(", ")}.` : "") +
+      (b.watch.length ? ` On pace to overshoot ${b.watch.join(", ")}.` : ""),
     );
   }
 

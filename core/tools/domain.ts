@@ -235,6 +235,142 @@ export const domainTools = {
     },
   }),
 
+  // ── Mail ────────────────────────────────────────────────────────────────
+  triage_inbox: tool({
+    description:
+      "Read the unread inbox and say what actually needs him. Use for 'anything important in my email', 'what's in my inbox', 'do I need to reply to anything'. Slower than a count — it reads each message.",
+    inputSchema: z.object({
+      limit: z.number().int().min(1).max(8).default(5).describe("How many to read properly"),
+    }),
+    execute: async ({ limit }) => {
+      const { listGmail, getGmailMessage } = await import("@/infrastructure/integrations/google");
+
+      const rows = await listGmail("is:unread in:inbox", Math.min(12, limit * 2));
+      if (rows === null) return { ok: false, error: "Gmail isn't connected (Settings → Connect Google)." };
+      if (rows.length === 0) return { ok: true, unread: 0, note: "Inbox is clear." };
+
+      // Read the important ones first, and only as many as asked — each is a
+      // round trip, and reading twelve to answer "anything urgent?" is a
+      // minute of waiting for a one-sentence answer.
+      const ordered = [...rows].sort((a, b) => Number(b.important) - Number(a.important));
+      const bodies = await Promise.all(
+        ordered.slice(0, limit).map(async (r) => {
+          const full = r.id ? await getGmailMessage(r.id).catch(() => null) : null;
+          return {
+            from: r.from,
+            subject: r.subject,
+            important: r.important ?? false,
+            // The body if it could be read, the snippet if not — never silence.
+            text: (full?.body || r.snippet || "").slice(0, 1200),
+          };
+        }),
+      );
+
+      return {
+        ok: true,
+        unread: rows.length,
+        read: bodies.length,
+        messages: bodies,
+        note: "Summarise these for him: who needs what, and by when. Say plainly if none of it matters.",
+      };
+    },
+  }),
+
+  draft_reply: tool({
+    description:
+      "Write a reply and save it as a Gmail DRAFT. Nothing sends — he reviews and sends it himself. Use when he says 'reply to X saying …' or 'draft a response to that'.",
+    inputSchema: z.object({
+      to: z.string().max(200).describe("Email address, or the sender's name if that is all you have"),
+      subject: z.string().max(200),
+      body: z.string().max(4000),
+    }),
+    execute: async ({ to, subject, body }) => {
+      const { createGmailDraft } = await import("@/infrastructure/integrations/google");
+      const ok = await createGmailDraft(to, subject, body);
+      if (ok === null) return { ok: false, error: "Gmail isn't connected." };
+      return ok
+        ? { ok: true, drafted: `to ${to}`, note: "Saved as a draft in Gmail — it will not send until he does." }
+        : { ok: false, error: "Couldn't create that draft." };
+    },
+  }),
+
+  // ── Studying ────────────────────────────────────────────────────────────
+  log_study: tool({
+    description:
+      "Record study against a skill, said out loud — 'I did 40 minutes of DSA on trees', 'note for DBMS: normal forms finally clicked', 'I still don't get how B-trees split'. Matches the skill by name; creates it if it does not exist.",
+    inputSchema: z.object({
+      skill: z.string().max(60).describe("The skill's name — DSA, DBMS, Systems Design…"),
+      kind: z.enum(["session", "note", "resource", "question", "insight"])
+        .describe("question = something he did NOT understand; insight = something that clicked"),
+      text: z.string().max(2000),
+      minutes: z.number().int().min(1).max(600).optional().describe("Only for a session"),
+      url: z.string().max(500).optional(),
+      tags: z.array(z.string().max(30)).max(6).optional(),
+    }),
+    execute: async ({ skill, kind, text, minutes, url, tags }) => {
+      const { listSkills, upsertSkill } = await import("@/core/education/skills");
+      const { addEntry } = await import("@/core/education/log");
+
+      // Match before creating, or "DSA" said twice becomes two skills and the
+      // history splits across both.
+      const all = await listSkills();
+      const hit = all.find((s) => s.name.toLowerCase() === skill.toLowerCase())
+        ?? all.find((s) => s.name.toLowerCase().includes(skill.toLowerCase()));
+
+      const target = hit ?? await upsertSkill({ name: skill, category: "General" });
+      if (!target) return { ok: false, error: "Couldn't find or create that skill." };
+
+      const entry = await addEntry({
+        skillId: target.id, kind, text,
+        ...(minutes ? { minutes } : {}),
+        ...(url ? { url } : {}),
+        ...(tags ? { tags } : {}),
+      });
+      if (!entry) return { ok: false, error: "Couldn't save that." };
+
+      // Practising updates the skill's own timestamp too, so the education
+      // page does not still say "12 days ago" after a session logged by voice.
+      if (kind === "session") await upsertSkill({ id: target.id, lastPractisedAt: new Date().toISOString() });
+
+      return { ok: true, skill: target.name, kind, created: !hit, logged: text.slice(0, 80) };
+    },
+  }),
+
+  study_status: tool({
+    description:
+      "How studying is going: hours per skill, what has been neglected, and — most usefully — the questions he wrote down and never answered. Use for 'how's my prep', 'what am I behind on', 'what don't I understand yet'.",
+    inputSchema: z.object({ skill: z.string().max(60).optional() }),
+    execute: async ({ skill }) => {
+      const { listSkills, summarise } = await import("@/core/education/skills");
+      const { listEntries, studyStats } = await import("@/core/education/log");
+
+      const all = await listSkills();
+      const one = skill
+        ? all.find((s) => s.name.toLowerCase().includes(skill.toLowerCase()))
+        : undefined;
+
+      const entries = await listEntries(one?.id);
+      const stats = studyStats(entries);
+
+      return {
+        ok: true,
+        scope: one?.name ?? "everything",
+        hours: Math.round((stats.minutes / 60) * 10) / 10,
+        sessions: stats.sessions,
+        lastStudiedAt: stats.lastStudiedAt,
+        // The honest measure of what he does not know.
+        openQuestions: stats.openQuestions.slice(0, 6).map((q) => q.text),
+        skills: (one ? [one] : all).slice(0, 12).map((s) => ({
+          name: s.name, level: s.level, target: s.target,
+          daysSince: s.lastPractisedAt
+            ? Math.floor((Date.now() - new Date(s.lastPractisedAt).getTime()) / 86_400_000)
+            : null,
+        })),
+        ...(one ? {} : { overview: summarise(all) }),
+      };
+    },
+  }),
+
   log_expense: tool({
     description:
       "Record something the user spent money on, said out loud — 'I spent 400 on lunch', 'paid the electricity bill, 2100'. Amounts are in rupees.",

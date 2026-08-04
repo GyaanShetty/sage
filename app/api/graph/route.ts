@@ -21,9 +21,22 @@ function keywords(text: string): string[] {
 /** Build a concept graph from memories, notes, and sources. */
 export async function GET() {
   const [{ data: mems }, { data: notes }, { data: sources }] = await Promise.all([
-    db.from("Memory").select("id, content, type, importance").eq("userId", DEFAULT_USER_ID).is("supersededBy", null).limit(60),
-    db.from("Note").select("id, title").eq("userId", DEFAULT_USER_ID).eq("kind", "doc").limit(40),
-    db.from("Source").select("id, title, kind").eq("userId", DEFAULT_USER_ID).limit(30),
+    // Newest first, everywhere. Without an order clause the database is free
+    // to return any 60 of your memories, so a memory saved a minute ago could
+    // simply not be among them — which looks exactly like a graph that has
+    // stopped updating.
+    db.from("Memory").select("id, content, type, importance")
+      .eq("userId", DEFAULT_USER_ID).is("supersededBy", null)
+      .order("createdAt", { ascending: false }).limit(60),
+    // Every kind of note, not just "doc": research briefs and agent reports
+    // save as docs but journal entries do not, and excluding them made a whole
+    // category of thought invisible to the graph.
+    db.from("Note").select("id, title")
+      .eq("userId", DEFAULT_USER_ID)
+      .order("updatedAt", { ascending: false }).limit(40),
+    db.from("Source").select("id, title, kind")
+      .eq("userId", DEFAULT_USER_ID)
+      .order("createdAt", { ascending: false }).limit(30),
   ]);
 
   const nodes: GNode[] = [];

@@ -73,15 +73,25 @@ export function KnowledgeGraph() {
         if (disposed) return;
         const gn: GNode[] = j?.data?.nodes ?? [];
         if (!gn.length) { setEmpty(true); return; }
-        const nextSig = gn.map((n) => n.id).sort().join("|");
-        if (nextSig === sig) return; // nothing new — leave the running sim alone
+        const ge: GEdge[] = Array.isArray(j?.data?.edges) ? (j.data.edges as GEdge[]) : [];
+
+        // The signature decides whether anything changed, so it has to cover
+        // everything that is drawn. It used to be node IDs alone, which meant
+        // editing a memory, retitling a note, or forming a new connection all
+        // produced an identical signature and the graph quietly refused to
+        // update — the ids had not changed, only everything about them.
+        const nextSig = [
+          gn.map((n) => `${n.id}:${n.label}:${n.group}:${n.weight}`).sort().join("|"),
+          ge.map((e) => `${e.a}>${e.b}`).sort().join("|"),
+        ].join("#");
+        if (nextSig === sig) return; // genuinely nothing new — leave the sim alone
         sig = nextSig;
         setEmpty(false);
         // Remember current positions so unchanged nodes stay put.
         prevPos.clear();
         for (const n of nodes) prevPos.set(n.id, { x: n.x, y: n.y });
         pending = gn;
-        pendingEdges = Array.isArray(j?.data?.edges) ? (j.data.edges as GEdge[]) : [];
+        pendingEdges = ge;
         seeded = false; // let the loop re-seed with the new set
         seed();
       }).catch(() => { if (!nodes.length) setEmpty(true); });

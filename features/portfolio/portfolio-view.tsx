@@ -9,6 +9,7 @@ import "@/features/dashboard/command.css";
 import "./panels.css";
 import { EquityPanel } from "./components/equity-panel";
 import { AttributionPanel } from "./components/attribution-panel";
+import { BudgetPanel } from "./components/budget-panel";
 import { RiskPanel } from "./components/risk-panel";
 import { TradesPanel } from "./components/trades-panel";
 import { AlertsPanel } from "./components/alerts-panel";
@@ -71,9 +72,14 @@ export function PortfolioView() {
     setTotals(j?.data?.totals ?? null);
     fetch("/api/portfolio/news").then((r) => r.json()).then((n) => setNews(n?.data ?? [])).catch(() => {});
   }, []);
+  // Bumped whenever expenses change, so the budget beside them re-reads
+  // rather than showing figures from before the entry that was just added.
+  const [expenseKey, setExpenseKey] = useState(0);
+
   const loadExp = useCallback(async () => {
     const j = await fetch("/api/expenses").then((r) => r.json()).catch(() => null);
     setExpenses(j?.data?.expenses ?? []); setSummary(j?.data?.summary ?? null);
+    setExpenseKey((k) => k + 1);
   }, []);
   useEffect(() => { load(); loadExp(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load, loadExp]);
 
@@ -367,6 +373,10 @@ export function PortfolioView() {
           </div>
         </div>
       )}
+
+      {/* The plan sits directly above the spending it is measuring — reading
+          one without the other is how a budget quietly stops being used. */}
+      <BudgetPanel reloadKey={expenseKey} />
 
       {/* Expenses & subscriptions */}
       <div className="pf-exp">

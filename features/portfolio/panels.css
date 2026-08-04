@@ -108,3 +108,72 @@
 }
 .pf-insightx { position: absolute; top: 7px; right: 8px; background: none; border: 0; color: var(--subtle); cursor: pointer; padding: 2px; }
 .pf-insightx:hover { color: var(--foreground); }
+
+/* ── Budget ──────────────────────────────────────────────────────────────
+   The plan beside the spending. Laid out as a real table because it is one:
+   editable cells, a fixed grid so the columns line up down the page. */
+
+.bg-navbtn { background: none; border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer; padding: 1px 7px; font-family: var(--mono); font-size: 11px; line-height: 1.4; }
+.bg-navbtn:hover { color: var(--foreground); border-color: var(--border-glass-strong); }
+
+.bg-err { color: #fca5a5; font-size: 11px; margin-top: 8px; }
+
+.bg-seed { margin-top: 10px; }
+.bg-seedrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.bg-lbl { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; color: var(--subtle); }
+.bg-input { width: 110px; background: transparent; border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--mono); font-size: 12px; padding: 6px 8px; outline: none; }
+.bg-input:focus { border-color: var(--live-dim); }
+
+.bg-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.4px; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 7px 10px; cursor: pointer; }
+.bg-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--border-glass-strong); }
+.bg-btn:disabled { opacity: .45; cursor: default; }
+.bg-btn.primary { color: var(--live); border-color: var(--live-dim); }
+
+/* Spend curve */
+.bg-curve { margin-top: 12px; }
+.bg-curve svg { width: 100%; height: 74px; display: block; }
+.bg-curvefoot { display: flex; align-items: center; gap: 14px; margin-top: 5px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.2px; color: var(--subtle); }
+.bg-curvefoot span { display: inline-flex; align-items: center; gap: 5px; }
+.bg-curvenow { margin-left: auto; color: var(--muted); }
+.bg-key { width: 12px; height: 0; border-top: 2px solid var(--live); display: inline-block; }
+.bg-key.dash { border-top: 1px dashed var(--border-glass-strong); }
+
+/* Buckets */
+.bg-buckets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.bg-bucket { border: 1px solid var(--border-glass); padding: 9px 10px; }
+.bg-bkhead { display: flex; align-items: baseline; justify-content: space-between; }
+.bg-bkname { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
+.bg-bkpct { font-family: var(--mono); font-size: 10px; color: var(--subtle); }
+.bg-bkbar { height: 4px; background: var(--glass-strong); margin: 7px 0 6px; position: relative; }
+.bg-bkbar i { position: absolute; left: 0; top: 0; height: 100%; display: block; }
+.bg-bkfoot { font-family: var(--mono); font-size: 10.5px; color: var(--foreground); }
+.bg-bkfoot span { color: var(--subtle); }
+
+/* Editable table */
+.bg-table { margin-top: 14px; border-top: 1px solid var(--border-glass); }
+.bg-row { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,.9fr) minmax(0,.9fr) 26px; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-glass); }
+.bg-hdr { font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); padding: 7px 0; }
+.bg-cell { background: transparent; border: 0; outline: none; color: var(--foreground); font-size: 12px; padding: 8px 4px; min-width: 0; width: 100%; }
+.bg-cell:focus { background: var(--glass); }
+.bg-num, .bg-ro { font-family: var(--mono); font-size: 11.5px; text-align: right; }
+.bg-ro { color: var(--muted); }
+.bg-select { font-family: var(--mono); font-size: 10px; text-transform: uppercase; color: var(--muted); cursor: pointer; }
+.bg-select option { background: #0d0e11; }
+.bg-del { background: none; border: 0; color: var(--subtle); cursor: pointer; padding: 4px; display: flex; }
+.bg-del:hover { color: #f87171; }
+
+.bg-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 11px; }
+
+/* Spending the plan never accounted for */
+.bg-unbudgeted { margin-top: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.bg-unrow { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); background: none; border: 1px dashed var(--border-glass-strong); padding: 5px 8px; cursor: pointer; }
+.bg-unrow:hover { color: var(--foreground); border-style: solid; }
+.bg-unrow b { font-family: var(--mono); font-size: 10.5px; color: #e8a13a; }
+
+@media (max-width: 640px) {
+  .bg-buckets { grid-template-columns: 1fr; }
+  /* Five numeric columns cannot survive a phone; drop the two derived ones
+     and keep what is editable. */
+  .bg-row { grid-template-columns: minmax(0,1.4fr) minmax(0,.8fr) minmax(0,.8fr) minmax(0,.9fr) 26px; }
+  .bg-row > *:nth-child(4) { display: none; }
+}

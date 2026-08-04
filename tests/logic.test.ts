@@ -379,3 +379,126 @@ test("retention keeps generated briefs longer than the history page reads", () =
   const days = Number(/"brief\.generated":\s*(\d+)/.exec(source)?.[1]);
   assert.ok(days >= 30, `brief.generated kept ${days}d — too short for a 14-entry history`);
 });
+
+// ── Budget ──────────────────────────────────────────────────────────────────
+
+test("applyRule splits income across the three buckets", async () => {
+  const { applyRule, BUCKETS } = await import("@/core/finance/budget");
+  const lines = applyRule(100_000);
+  const perBucket = Object.fromEntries(
+    BUCKETS.map((b) => [b, lines.filter((l) => l.bucket === b).reduce((a, l) => a + l.limit, 0)]),
+  );
+  // Rounding per line means "about", not "exactly" — but never adrift.
+  assert.ok(Math.abs(perBucket.needs - 50_000) <= 4, `needs ${perBucket.needs}`);
+  assert.ok(Math.abs(perBucket.wants - 30_000) <= 4, `wants ${perBucket.wants}`);
+  assert.equal(perBucket.savings, 20_000, "savings has no categories to divide among");
+  assert.ok(lines.every((l) => l.id), "every line needs its own id to be editable");
+});
+
+test("budget: spending outside the plan is reported, not swallowed", async () => {
+  const { budgetStatus } = await import("@/core/finance/budget");
+  const month = "2026-08";
+  const plan = {
+    month, income: 50_000, basis: "custom" as const, updatedAt: "",
+    lines: [{ id: "1", category: "food", bucket: "needs" as const, limit: 10_000 }],
+  };
+  const expenses = [
+    { id: "a", amount: 4_000, merchant: "x", category: "food", date: "2026-08-05T00:00:00Z", recurring: false, source: "manual" },
+    { id: "b", amount: 7_000, merchant: "y", category: "shopping", date: "2026-08-06T00:00:00Z", recurring: false, source: "manual" },
+  ] as never;
+
+  const s = budgetStatus(plan, expenses, new Date("2026-08-10T12:00:00Z"));
+  assert.equal(s.lines[0].spent, 4_000);
+  assert.equal(s.unbudgetedTotal, 7_000, "shopping has no line — it must still be counted");
+  assert.equal(s.totalSpent, 11_000, "the total includes unbudgeted spend");
+  assert.ok(s.notes.some((n) => n.includes("no budget line")));
+});
+
+test("budget: pacing flags an overshoot before the total is exceeded", async () => {
+  const { budgetStatus } = await import("@/core/finance/budget");
+  const plan = {
+    month: "2026-08", income: 50_000, basis: "custom" as const, updatedAt: "",
+    lines: [{ id: "1", category: "food", bucket: "needs" as const, limit: 10_000 }],
+  };
+  // ₹6,000 by the 10th of a 31-day month: still under the cap, but on pace
+  // for ~₹18,600. That is the warning worth having.
+  const expenses = [
+    { id: "a", amount: 6_000, merchant: "x", category: "food", date: "2026-08-03T00:00:00Z", recurring: false, source: "manual" },
+  ] as never;
+
+  const s = budgetStatus(plan, expenses, new Date("2026-08-10T12:00:00Z"));
+  assert.equal(s.lines[0].state, "watch", "under the cap but heading over");
+  assert.ok(s.lines[0].projected > 10_000);
+  assert.ok(s.lines[0].remaining > 0, "still money left today");
+});
+
+test("budget: a month that is over is over, not merely watched", async () => {
+  const { budgetStatus } = await import("@/core/finance/budget");
+  const plan = {
+    month: "2026-08", income: 50_000, basis: "custom" as const, updatedAt: "",
+    lines: [{ id: "1", category: "food", bucket: "needs" as const, limit: 5_000 }],
+  };
+  const expenses = [
+    { id: "a", amount: 6_000, merchant: "x", category: "food", date: "2026-08-03T00:00:00Z", recurring: false, source: "manual" },
+  ] as never;
+  const s = budgetStatus(plan, expenses, new Date("2026-08-10T12:00:00Z"));
+  assert.equal(s.lines[0].state, "over");
+  assert.equal(s.lines[0].remaining, -1_000);
+});
+
+test("budget: expenses from other months are excluded", async () => {
+  const { budgetStatus } = await import("@/core/finance/budget");
+  const plan = {
+    month: "2026-08", income: 50_000, basis: "custom" as const, updatedAt: "",
+    lines: [{ id: "1", category: "food", bucket: "needs" as const, limit: 10_000 }],
+  };
+  const expenses = [
+    { id: "a", amount: 1_000, merchant: "x", category: "food", date: "2026-08-05T00:00:00Z", recurring: false, source: "manual" },
+    { id: "b", amount: 9_999, merchant: "y", category: "food", date: "2026-07-05T00:00:00Z", recurring: false, source: "manual" },
+  ] as never;
+  const s = budgetStatus(plan, expenses, new Date("2026-08-10T12:00:00Z"));
+  assert.equal(s.lines[0].spent, 1_000, "July must not land in August's budget");
+});
+
+test("budget: a zero limit does not produce Infinity", async () => {
+  const { budgetStatus } = await import("@/core/finance/budget");
+  const plan = {
+    month: "2026-08", income: 0, basis: "custom" as const, updatedAt: "",
+    lines: [{ id: "1", category: "food", bucket: "needs" as const, limit: 0 }],
+  };
+  const expenses = [
+    { id: "a", amount: 500, merchant: "x", category: "food", date: "2026-08-05T00:00:00Z", recurring: false, source: "manual" },
+  ] as never;
+  const s = budgetStatus(plan, expenses, new Date("2026-08-10T12:00:00Z"));
+  assert.ok(Number.isFinite(s.lines[0].usedPct), "a percentage of nothing must not be Infinity");
+  assert.equal(s.lines[0].state, "over");
+});
+
+test("spendCurve is cumulative and spans the whole month", async () => {
+  const { spendCurve } = await import("@/core/finance/budget");
+  const plan = {
+    month: "2026-08", income: 50_000, basis: "custom" as const, updatedAt: "",
+    lines: [{ id: "1", category: "food", bucket: "needs" as const, limit: 31_000 }],
+  };
+  const expenses = [
+    { id: "a", amount: 100, merchant: "x", category: "food", date: "2026-08-02T06:00:00Z", recurring: false, source: "manual" },
+    { id: "b", amount: 200, merchant: "y", category: "food", date: "2026-08-04T06:00:00Z", recurring: false, source: "manual" },
+  ] as never;
+
+  const curve = spendCurve(plan, expenses, new Date("2026-08-10T12:00:00Z"));
+  assert.equal(curve.length, 31, "August has 31 days");
+  assert.equal(curve[0].day, 1);
+  // Cumulative: never decreases.
+  for (let i = 1; i < curve.length; i++) assert.ok(curve[i].spent >= curve[i - 1].spent);
+  assert.equal(curve.at(-1)?.spent, 300);
+  assert.equal(curve[0].planned, 1_000, "an even month spends 1/31 a day");
+  assert.ok(curve.some((p) => p.future), "days after today are marked, not drawn as real data");
+});
+
+test("monthProgress treats a finished month as fully elapsed", async () => {
+  const { monthProgress } = await import("@/core/finance/budget");
+  const now = new Date("2026-08-10T12:00:00Z");
+  assert.deepEqual(monthProgress("2026-08", now), { days: 31, elapsed: 10 });
+  // A past month must not be paced as if it were still running.
+  assert.deepEqual(monthProgress("2026-06", now), { days: 30, elapsed: 30 });
+});

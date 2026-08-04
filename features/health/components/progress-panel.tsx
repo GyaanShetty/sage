@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Loader2, Trophy, TrendingUp } from "lucide-react";
+import { AlertTriangle, Loader2, Target, Trophy, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 
@@ -28,7 +28,13 @@ interface Lift {
 interface Record_ {
   lift: string; kg: number; at: string; previousKg: number | null; daysAgo: number;
 }
+interface Suggestion {
+  focus: string[];
+  reason: string;
+  targets: { lift: string; lastKg: number | null; suggestKg: number | null; note: string }[];
+}
 interface Progress {
+  suggestion: Suggestion | null;
   records: Record_[];
   lifts: Lift[];
   weeklyVolume: { week: string; volumeKg: number; sessions: number }[];
@@ -91,6 +97,24 @@ export function ProgressPanel() {
 
         {p && p.lifts.length > 0 && (
           <>
+            {p.suggestion && (
+              <div className="mt-4 border-l-2 border-[var(--live-dim)] pl-3">
+                <p className="hud-label"><Target className="inline size-3" /> NEXT SESSION</p>
+                <p className="mt-1.5 text-[12px] text-muted">{p.suggestion.reason}</p>
+                <div className="mt-2 flex flex-col gap-1">
+                  {p.suggestion.targets.map((t) => (
+                    <div key={t.lift} className="flex items-baseline gap-3 text-[12px]">
+                      <span className="min-w-0 flex-1 truncate text-muted">{t.lift}</span>
+                      <span className="font-mono text-[10px] text-subtle">{t.note}</span>
+                      <span className="w-16 text-right font-mono text-[11px] text-[var(--live)]">
+                        {t.suggestKg != null ? `${t.suggestKg}kg` : "bodyweight"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {weeks.length > 1 && (
               <>
                 <p className="hud-label mt-4">WEEKLY VOLUME</p>

@@ -584,3 +584,51 @@ test("describeDay reports the budget only when one is set", async () => {
   // No plan must produce no line at all, not "budget: none".
   assert.ok(!describeDay(emptyDay).includes("BUDGET"));
 });
+
+// ── Next session ────────────────────────────────────────────────────────────
+
+const lift = (over: Partial<{ name: string; sessions: number; bestKg: number | null; latestKg: number | null; changeKg: number | null; changePct: number | null; e1rm: number | null; trend: "up" | "flat" | "down" | "new"; lastTrained: string; daysSince: number }>) =>
+  ({ name: "Squat", sessions: 5, bestKg: 100, latestKg: 100, changeKg: 5, changePct: 5, e1rm: 127,
+     trend: "up" as const, lastTrained: "", daysSince: 5, ...over });
+
+test("next session: coming back from a long layoff repeats the weight", async () => {
+  const { suggestNextSession } = await import("@/core/health/progression");
+  const neglected = [lift({ name: "Deadlift", daysSince: 30, latestKg: 140 })];
+  const s = suggestNextSession(neglected, neglected);
+  assert.ok(s);
+  const t = s.targets[0];
+  // Adding weight after a month off is how people hurt themselves.
+  assert.equal(t.suggestKg, 140, "match the old weight, do not add to it");
+  assert.ok(t.note.includes("match"));
+});
+
+test("next session: a lift that went backwards is repeated, not raised", async () => {
+  const { suggestNextSession } = await import("@/core/health/progression");
+  const back = [lift({ name: "Bench", trend: "down", latestKg: 80, daysSince: 5 })];
+  const s = suggestNextSession(back, []);
+  assert.equal(s?.targets[0].suggestKg, 80);
+});
+
+test("next session: increments land on real plates", async () => {
+  const { suggestNextSession } = await import("@/core/health/progression");
+  // 100kg + 2.5% = 102.5 — reachable. An unrounded 2.5% of 63 would be 64.575,
+  // which is advice you cannot physically follow.
+  const a = suggestNextSession([lift({ latestKg: 100, daysSince: 5, trend: "up" })], []);
+  assert.equal(a?.targets[0].suggestKg, 102.5);
+
+  const b = suggestNextSession([lift({ latestKg: 63, daysSince: 5, trend: "up" })], []);
+  const kg = b?.targets[0].suggestKg as number;
+  assert.equal(kg % 2.5, 0, `${kg} is not a loadable weight`);
+});
+
+test("next session: no lift data suggests nothing rather than inventing a plan", async () => {
+  const { suggestNextSession } = await import("@/core/health/progression");
+  assert.equal(suggestNextSession([], []), null);
+});
+
+test("next session: bodyweight lifts carry no weight suggestion", async () => {
+  const { suggestNextSession } = await import("@/core/health/progression");
+  const bw = [lift({ name: "Pull Up", latestKg: null, bestKg: null, daysSince: 6 })];
+  const s = suggestNextSession(bw, []);
+  assert.equal(s?.targets[0].suggestKg, null, "no weight recorded means no number to beat");
+});

@@ -1,0 +1,63 @@
+/* Mail. A list that reads like a mailbox, with SAGE's read of each message
+   sitting above the raw text rather than replacing it. */
+
+.ml-wrap { padding: 0 14px 40px; max-width: 1100px; margin: 0 auto; }
+.ml-dim { font-size: 12px; color: var(--subtle); padding: 10px 0; }
+.ml-empty { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); border: 1px dashed var(--border-glass); padding: 18px; margin-top: 14px; }
+
+.ml-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; }
+.ml-views { display: flex; border: 1px solid var(--border-glass); }
+.ml-view { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.4px; color: var(--subtle); background: none; border: 0; padding: 7px 11px; cursor: pointer; }
+.ml-view:hover { color: var(--foreground); }
+.ml-view.on { background: var(--glass-strong); color: var(--foreground); }
+
+.ml-search { flex: 1 1 240px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-glass); padding: 0 10px; color: var(--subtle); }
+.ml-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: 0; color: var(--foreground); font-size: 12.5px; padding: 8px 0; }
+.ml-search input::placeholder { color: var(--subtle); }
+
+.ml-list { margin-top: 12px; border-top: 1px solid var(--border-glass); }
+.ml-item { border-bottom: 1px solid var(--border-glass); }
+.ml-item.open { background: var(--glass); }
+
+/* One line per message on a wide screen; the snippet is the first thing to go. */
+.ml-row { display: grid; grid-template-columns: 150px minmax(0, 1.1fr) minmax(0, 1.4fr) 58px; align-items: baseline; gap: 12px; width: 100%; text-align: left; background: none; border: 0; padding: 11px 2px; cursor: pointer; }
+.ml-row:hover { background: var(--glass); }
+.ml-from { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-subj { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-snip { font-size: 12px; color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-date { font-family: var(--mono); font-size: 9.5px; color: var(--subtle); text-align: right; }
+.ml-item.unread .ml-from, .ml-item.unread .ml-subj { color: var(--foreground); font-weight: 500; }
+
+.ml-body { padding: 4px 2px 16px; }
+.ml-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.ml-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 6px 10px; cursor: pointer; text-decoration: none; }
+.ml-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--border-glass-strong); }
+.ml-btn:disabled { opacity: .5; cursor: default; }
+.ml-btn.primary { color: var(--live); border-color: var(--live-dim); }
+
+.ml-summary { border-left: 2px solid var(--live-dim); padding: 9px 12px; background: var(--glass); margin-bottom: 12px; }
+.ml-urg { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; padding: 3px 7px; border: 1px solid currentColor; }
+.u-now { color: #f87171; }
+.u-week { color: #e8a13a; }
+.u-when { color: var(--muted); }
+.u-ignore { color: var(--subtle); }
+.ml-gist { font-size: 13px; line-height: 1.55; color: var(--muted); margin-top: 8px; }
+.ml-asks { margin: 8px 0 0 16px; font-size: 12.5px; color: var(--muted); list-style: disc; }
+.ml-asks li { margin-bottom: 3px; }
+.ml-deadline { font-family: var(--mono); font-size: 10.5px; color: #e8a13a; margin-top: 8px; }
+
+/* pre, not dangerouslySetInnerHTML — the body is untrusted markup. */
+.ml-raw { font-family: inherit; font-size: 12.5px; line-height: 1.6; color: var(--subtle); white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow-y: auto; border: 1px solid var(--border-glass); padding: 11px; }
+
+.ml-reply { display: flex; flex-direction: column; gap: 8px; margin-top: 11px; }
+.ml-reply textarea { background: transparent; border: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 12.5px; line-height: 1.5; padding: 9px; outline: none; resize: vertical; }
+.ml-reply textarea:focus { border-color: var(--live-dim); }
+.ml-reply .ml-btn { align-self: flex-start; }
+
+@media (max-width: 760px) {
+  /* The snippet is the first casualty; sender and subject stack. */
+  .ml-row { grid-template-columns: minmax(0, 1fr) 52px; row-gap: 3px; }
+  .ml-snip { display: none; }
+  .ml-subj { grid-column: 1; }
+  .ml-date { grid-row: 1; grid-column: 2; }
+}

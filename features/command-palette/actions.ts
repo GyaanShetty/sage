@@ -61,6 +61,7 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "nav-markets", label: "Markets", icon: CandlestickChart, group: "Navigate", href: "/markets" },
   { id: "nav-career", label: "Career", icon: Briefcase, group: "Navigate", href: "/career" },
   { id: "nav-portfolio", label: "Portfolio", icon: Wallet, group: "Navigate", href: "/portfolio" },
+  { id: "nav-mail", label: "Mail", icon: Mail, group: "Navigate", href: "/mail" },
   { id: "nav-workspace", label: "Workspace", icon: FolderKanban, group: "Navigate", href: "/workspace" },
   { id: "nav-knowledge", label: "Knowledge", icon: BookOpen, group: "Navigate", href: "/knowledge" },
   { id: "nav-lab", label: "Holo-Lab", icon: Boxes, group: "Navigate", href: "/lab" },

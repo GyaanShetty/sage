@@ -221,7 +221,9 @@ export function CommandView({
                   <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
                 </div>
               </ExpandableCell>
-              <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: 1 }} hud="notes">
+              {/* grow to fill, but never shrink below the notes it is showing —
+                  inline flex:1 would beat the stylesheet's no-shrink rule */}
+              <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: "1 0 auto" }} hud="notes">
                 <div className="bh"><span className="t">Notes</span><span className="i">NTS</span><span className="r">{pad(notes.length)}</span></div>
                 <div className="notein">
                   <input value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="capture a thought…" />

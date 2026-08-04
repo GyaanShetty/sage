@@ -68,11 +68,37 @@ async function storeSource(
 
 export async function ingestUrl(rawUrl: string) {
   const url = assertPublicHttpUrl(rawUrl);
+
+  // A self-identifying bot user-agent gets 403'd by Cloudflare and most CDNs,
+  // which is what "Fetch failed: 403" was: not a broken link, a refused one.
+  // These are the headers a browser actually sends; without the full set the
+  // request still reads as automated.
   const res = await proxyFetch(url.toString(), {
-    headers: { "user-agent": "Mozilla/5.0 (compatible; SAGE/0.1)" },
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "accept-language": "en-GB,en;q=0.9",
+      "sec-fetch-dest": "document",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-site": "none",
+      "upgrade-insecure-requests": "1",
+    },
+    redirect: "follow",
     signal: AbortSignal.timeout(30_000),
   });
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+
+  if (!res.ok) {
+    // Say which kind of failure it is; "403" alone reads like a bug in SAGE
+    // rather than a site that will not serve anything but a real browser.
+    if (res.status === 403 || res.status === 401) {
+      throw new Error(
+        `${url.hostname} refused the request (${res.status}) — it blocks automated readers. Try saving the page as a PDF and uploading that.`,
+      );
+    }
+    if (res.status === 404) throw new Error(`${url.hostname} returned 404 — check the link.`);
+    throw new Error(`Fetch failed: ${res.status}`);
+  }
   const html = await res.text();
 
   const { JSDOM } = await import("jsdom");

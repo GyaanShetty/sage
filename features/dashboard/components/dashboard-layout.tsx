@@ -53,7 +53,7 @@ export function DashboardLayout({ bands }: { bands: Band[] }) {
       )}
 
       <button
-        className="layout-toggle"
+        className={edit ? "layout-toggle editing" : "layout-toggle"}
         onClick={() => { setEdit((e) => !e); sound.tick(); }}
       >
         {edit ? <><Check className="size-3.5" /> DONE</> : <><LayoutGrid className="size-3.5" /> EDIT LAYOUT</>}

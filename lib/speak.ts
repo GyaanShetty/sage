@@ -68,13 +68,24 @@ export async function speakLowLatency(
   try { mode = JSON.parse(localStorage.getItem("sage-shell") || "{}")?.state?.voiceMode ?? "cloud"; } catch { /* default */ }
   if (mode === "device") return browserSpeak(clean, opts?.onended);
 
-  let res: Response;
-  try {
-    res = await fetch(`/api/voice/speak?stream=1${fast ? "&fast=1" : ""}`, {
+  /**
+   * One segment of the answer.
+   *
+   * The server caps how much it will speak per response, because the function
+   * it runs in is capped at 60 seconds and a long answer cannot be generated
+   * inside that. It reports where it stopped in `x-sage-next`, and this is how
+   * the rest is fetched.
+   */
+  const segment = (from: number) =>
+    fetch(`/api/voice/speak?stream=1${fast ? "&fast=1" : ""}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: clean }),
+      body: JSON.stringify({ text: clean, from }),
     });
+
+  let res: Response;
+  try {
+    res = await segment(0);
   } catch {
     return browserSpeak(clean, opts?.onended);
   }
@@ -142,17 +153,74 @@ export async function speakLowLatency(
       let started = false;
       let bytes = 0;
 
-      const append = (buf: ArrayBuffer) =>
-        new Promise<void>((resolve) => {
-          sb.addEventListener("updateend", () => resolve(), { once: true });
+      const once = (buf: ArrayBuffer) =>
+        new Promise<void>((resolve, reject) => {
+          const ok = () => { cleanup(); resolve(); };
+          const bad = () => { cleanup(); reject(new Error("append failed")); };
+          const cleanup = () => {
+            sb.removeEventListener("updateend", ok);
+            sb.removeEventListener("error", bad);
+          };
+          sb.addEventListener("updateend", ok, { once: true });
+          sb.addEventListener("error", bad, { once: true });
           sb.appendBuffer(buf);
         });
 
+      /**
+       * Append, making room first if the buffer is full.
+       *
+       * A SourceBuffer holds a bounded amount of audio — a few minutes at
+       * most, and far less on mobile. Past that, appendBuffer throws
+       * QuotaExceededError, which ended the read loop and closed the stream:
+       * SAGE stopped mid-sentence on any long answer, always at roughly the
+       * same length, which is exactly what a fixed buffer looks like.
+       *
+       * The fix is to evict what has already been played. Audio behind the
+       * playhead is never needed again, so dropping it costs nothing and
+       * makes the ceiling irrelevant.
+       */
+      const evict = () =>
+        new Promise<void>((resolve) => {
+          const keepFrom = Math.max(0, audio.currentTime - 10);
+          if (keepFrom <= 0 || sb.updating) { resolve(); return; }
+          try {
+            sb.addEventListener("updateend", () => resolve(), { once: true });
+            sb.remove(0, keepFrom);
+          } catch { resolve(); }
+        });
+
+      const append = async (buf: ArrayBuffer) => {
+        try {
+          await once(buf);
+        } catch (err) {
+          const name = (err as DOMException)?.name;
+          // QuotaExceededError is the documented signal for "make room", not
+          // a failure — retrying after eviction is the intended handling.
+          if (name !== "QuotaExceededError" && !(err instanceof Error)) throw err;
+          await evict();
+          await once(buf);
+        }
+      };
+
       (async () => {
         try {
+          let current = reader;
+          let next = res.headers.get("x-sage-next");
+
           for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
+            const { done, value } = await current.read();
+
+            if (done) {
+              // A long answer arrives as several responses; keep appending
+              // into the same buffer so it plays as one unbroken take.
+              if (!next) break;
+              const more = await segment(Number(next)).catch(() => null);
+              if (!more?.ok || !more.body) break;
+              next = more.headers.get("x-sage-next");
+              current = more.body.getReader();
+              continue;
+            }
+
             if (value) {
               bytes += value.byteLength;
               const ab = new ArrayBuffer(value.byteLength);

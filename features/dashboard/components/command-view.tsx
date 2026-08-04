@@ -265,7 +265,10 @@ export function CommandView({
                   ))}
                 </div>
               </ExpandableCell>
-              <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: 1 }} hud="agenda" expanded={<ScheduleManager events={events} />}>
+              {/* grow to fill, never shrink: an inline flex:1 has basis 0%, so once
+                  the column overflowed the Agenda collapsed to zero height and
+                  vanished entirely — the same bug that hid Notes. */}
+              <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: "1 0 auto" }} hud="agenda" expanded={<ScheduleManager events={events} />}>
                 <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
                 {(events ?? []).slice(0, 4).map((e, i) => {
                   const d = new Date(e.start);

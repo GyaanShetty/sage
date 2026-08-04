@@ -59,24 +59,54 @@ const keyCooldown = new Map<string, number>();
 export async function POST(req: Request) {
   const url = new URL(req.url);
   const fast = url.searchParams.get("fast") === "1";   // low-latency flash model
-  const { text } = (await req.json()) as { text?: string };
+  const { text, from } = (await req.json()) as { text?: string; from?: number };
   if (!text?.trim()) return new Response("Empty", { status: 400 });
   // Providers cap how much text they will take per request. Truncating to fit
   // is what made SAGE stop mid-sentence on any long answer; instead the text is
   // split on sentence boundaries and the pieces are spoken in order.
   const clean = text.slice(0, 12_000);
-  const chunks = splitForSpeech(clean, 1200);
+  const all = splitForSpeech(clean, 1200);
+
+  /**
+   * Where this response starts.
+   *
+   * A very long answer cannot be produced inside one invocation: this function
+   * is capped at 60 seconds, and generating a dozen pieces sequentially can
+   * outrun that. So a response covers as many pieces as it can within its
+   * budget and reports where it stopped in `x-sage-next`; the client asks for
+   * the rest and appends it to the same audio stream. The split is
+   * deterministic, so both sides index the same pieces.
+   */
+  const start = Math.max(0, Math.min(Math.max(0, all.length - 1), Math.floor(Number(from) || 0)));
+
+  /**
+   * A fixed number of pieces per response, not a time estimate.
+   *
+   * The continuation header has to be written before the body streams, so
+   * anything measured while streaming is too late to report accurately. Six
+   * pieces is roughly seven thousand characters — comfortably inside the
+   * 60-second ceiling at two to four seconds a piece — and it makes the header
+   * exact rather than a guess the client has to second-guess.
+   */
+  const MAX_PIECES = 6;
+  const chunks = all.slice(start, start + MAX_PIECES);
+  const nextIndex = start + chunks.length < all.length ? start + chunks.length : null;
 
   // Name the rung that answered on the response itself. Silence with a 200 is
   // otherwise indistinguishable from silence with no request at all, and this
   // shows up in both the browser's network tab and the runtime logs.
-  const mp3 = (b: BodyInit, provider: string) => {
+  const mp3 = (b: BodyInit, provider: string, next: number | null = null) => {
     console.log(`[tts] ${provider} answered (${clean.length} chars, fast=${fast})`);
     return new Response(b, {
       headers: {
         "content-type": "audio/mpeg",
         "cache-control": "no-store",
         "x-sage-voice": provider,
+        // How far this response got, so the client can continue where it
+        // stopped rather than losing the tail of a long answer.
+        "x-sage-total": String(all.length),
+        "x-sage-from": String(start),
+        ...(next !== null ? { "x-sage-next": String(next) } : {}),
       },
     });
   };
@@ -163,7 +193,7 @@ export async function POST(req: Request) {
   // audio followed by silence.
   const firstStream = await speakPiece(chunks[0]);
   if (firstStream) {
-    if (chunks.length === 1) return mp3(firstStream, "neural");
+    if (chunks.length === 1) return mp3(firstStream, "neural", nextIndex);
 
     /**
      * Long answers: stream each piece in turn into one continuous response.
@@ -196,7 +226,8 @@ export async function POST(req: Request) {
         }
       },
     });
-    return mp3(stream, `neural×${chunks.length}`);
+
+    return mp3(stream, `neural×${chunks.length}`, nextIndex);
   }
 
   /**

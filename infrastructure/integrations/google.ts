@@ -239,6 +239,150 @@ export async function listUnreadEmails(maxResults = 5): Promise<EmailSummary[] |
   return out;
 }
 
+/**
+ * One message, in full.
+ *
+ * Gmail returns the body base64url-encoded and, for anything modern, split
+ * across a MIME tree with text/plain and text/html siblings. Plain text is
+ * preferred where it exists; HTML is stripped rather than rendered, because a
+ * mail body is untrusted markup and this is only ever read, summarised or
+ * quoted — never displayed as live HTML.
+ */
+export interface EmailFull extends EmailSummary {
+  to: string;
+  date: string;
+  body: string;
+  labelIds: string[];
+  unread: boolean;
+}
+
+interface MimePart {
+  mimeType?: string;
+  body?: { data?: string; size?: number };
+  parts?: MimePart[];
+}
+
+function decodeB64Url(data: string): string {
+  try {
+    const norm = data.replace(/-/g, "+").replace(/_/g, "/");
+    return new TextDecoder().decode(Uint8Array.from(atob(norm), (c) => c.charCodeAt(0)));
+  } catch {
+    return "";
+  }
+}
+
+/** Walk the MIME tree for the best readable body. */
+function extractBody(part: MimePart | undefined): string {
+  if (!part) return "";
+
+  if (part.mimeType === "text/plain" && part.body?.data) return decodeB64Url(part.body.data);
+
+  if (part.parts?.length) {
+    // Prefer plain across the whole subtree before settling for HTML.
+    for (const p of part.parts) {
+      const plain = extractBody(p.mimeType?.startsWith("multipart") ? p : p.mimeType === "text/plain" ? p : undefined);
+      if (plain) return plain;
+    }
+    for (const p of part.parts) {
+      const any = extractBody(p);
+      if (any) return any;
+    }
+  }
+
+  if (part.mimeType === "text/html" && part.body?.data) {
+    return decodeB64Url(part.body.data)
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  return "";
+}
+
+export async function getGmailMessage(id: string): Promise<EmailFull | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const res = await proxyFetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(id)}?format=full`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return null;
+
+  const m = (await res.json()) as {
+    snippet?: string; labelIds?: string[]; internalDate?: string;
+    payload?: MimePart & { headers?: { name: string; value: string }[] };
+  };
+  const header = (name: string) =>
+    m.payload?.headers?.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? "";
+
+  return {
+    id,
+    from: header("From"),
+    to: header("To"),
+    subject: header("Subject"),
+    date: m.internalDate ? new Date(Number(m.internalDate)).toISOString() : "",
+    snippet: m.snippet ?? "",
+    body: extractBody(m.payload).slice(0, 20_000),
+    labelIds: m.labelIds ?? [],
+    unread: (m.labelIds ?? []).includes("UNREAD"),
+    important: (m.labelIds ?? []).includes("IMPORTANT"),
+  };
+}
+
+/**
+ * A page of messages with the metadata a list view needs.
+ *
+ * listUnreadEmails answers one narrow question; this one takes any Gmail query
+ * and returns the date and read state too, which a mailbox cannot render
+ * without.
+ */
+export async function listGmail(query: string, maxResults = 25): Promise<(EmailSummary & { date: string; unread: boolean })[] | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const listRes = await proxyFetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  if (!listRes.ok) return null;
+  const list = (await listRes.json()) as { messages?: { id: string }[] };
+
+  // Gmail has no batch metadata endpoint on this API surface, so these are
+  // fetched in parallel rather than in the sequential loop the older helpers
+  // use — twenty-five round trips one after another is a visibly slow inbox.
+  const details = await Promise.all(
+    (list.messages ?? []).map(async (msg) => {
+      const res = await proxyFetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
+        { headers: { authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return null;
+      const d = (await res.json()) as {
+        snippet?: string; labelIds?: string[]; internalDate?: string;
+        payload?: { headers?: { name: string; value: string }[] };
+      };
+      const header = (name: string) => d.payload?.headers?.find((h) => h.name === name)?.value ?? "";
+      return {
+        id: msg.id,
+        from: header("From"),
+        subject: header("Subject"),
+        snippet: d.snippet ?? "",
+        date: d.internalDate ? new Date(Number(d.internalDate)).toISOString() : "",
+        unread: (d.labelIds ?? []).includes("UNREAD"),
+        important: (d.labelIds ?? []).includes("IMPORTANT"),
+      };
+    }),
+  );
+
+  return details.filter((d): d is NonNullable<typeof d> => d !== null);
+}
+
 /** Search Gmail by query (e.g. "from:linkedin.com newer_than:7d"). */
 export async function searchGmail(query: string, maxResults = 6): Promise<EmailSummary[] | null> {
   const token = await getGoogleAccessToken();

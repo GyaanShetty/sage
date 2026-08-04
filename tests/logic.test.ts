@@ -514,3 +514,60 @@ test("epley weights reps, and refuses nonsense input", async () => {
   assert.equal(epley(100, 0), 0, "no reps is no one-rep max");
   assert.equal(epley(-50, 5), 0);
 });
+
+// ── Spaced repetition ───────────────────────────────────────────────────────
+
+test("schedule: the standard SM-2 ladder", async () => {
+  const { schedule } = await import("@/core/retention/cards");
+  let c = { ease: 2.5, interval: 0, reps: 0 };
+  c = schedule(c, 4); assert.equal(c.interval, 1, "first success: tomorrow");
+  c = schedule(c, 4); assert.equal(c.interval, 6, "second: six days");
+  // Third and beyond: the previous interval multiplied by the card's ease.
+  const easeBefore = c.ease;
+  const third = schedule(c, 4);
+  assert.equal(third.interval, Math.round(6 * easeBefore), "third: interval x ease");
+  assert.equal(third.reps, 3);
+});
+
+test("schedule: a lapse resets the interval but keeps earned ease", async () => {
+  const { schedule } = await import("@/core/retention/cards");
+  const easy = schedule({ ease: 2.7, interval: 40, reps: 6 }, 1);
+  assert.equal(easy.interval, 1, "back to tomorrow");
+  assert.equal(easy.reps, 0);
+  assert.equal(easy.ease, 2.7, "difficulty belongs to the card, not to one bad morning");
+});
+
+test("schedule: a corrupt card is repaired, not propagated", async () => {
+  const { schedule } = await import("@/core/retention/cards");
+  // Older rows and partial writes could arrive without these fields, and the
+  // resulting NaN made a card impossible to schedule ever again.
+  const fixed = schedule({}, 4);
+  assert.ok(Number.isFinite(fixed.ease) && Number.isFinite(fixed.interval));
+  assert.equal(fixed.interval, 1);
+
+  const nanGrade = schedule({ ease: 2.5, interval: 5, reps: 3 }, Number.NaN);
+  assert.ok(Number.isFinite(nanGrade.ease) && Number.isFinite(nanGrade.interval));
+});
+
+test("schedule: an out-of-range grade cannot inflate ease", async () => {
+  const { schedule } = await import("@/core/retention/cards");
+  const perfect = schedule({ ease: 2.5, interval: 6, reps: 2 }, 5);
+  const absurd = schedule({ ease: 2.5, interval: 6, reps: 2 }, 99);
+  assert.equal(absurd.ease, perfect.ease, "99 must be treated as 5, not rewarded beyond it");
+
+  const negative = schedule({ ease: 2.5, interval: 6, reps: 2 }, -3);
+  assert.equal(negative.interval, 1, "below zero is a lapse, not a bonus");
+});
+
+test("schedule: ease has a floor and the interval has a ceiling", async () => {
+  const { schedule, MAX_INTERVAL_DAYS } = await import("@/core/retention/cards");
+  let c = { ease: 1.3, interval: 10, reps: 5 };
+  for (let i = 0; i < 20; i++) c = schedule(c, 3);   // repeated "hard but passed"
+  assert.ok(c.ease >= 1.3, "ease must never fall through the floor");
+
+  // A long streak used to schedule the next review a decade out, which is
+  // retention in name only.
+  let d = { ease: 2.8, interval: 200, reps: 9 };
+  for (let i = 0; i < 10; i++) d = schedule(d, 5);
+  assert.ok(d.interval <= MAX_INTERVAL_DAYS, `interval ${d.interval} exceeded the cap`);
+});

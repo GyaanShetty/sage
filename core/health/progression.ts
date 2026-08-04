@@ -61,7 +61,18 @@ export function epley(weightKg: number, reps: number): number {
   return Math.round(weightKg * (1 + reps / 30));
 }
 
+export interface PersonalRecord {
+  lift: string;
+  kg: number;
+  at: string;
+  /** The previous best this beat, if there was one. */
+  previousKg: number | null;
+  daysAgo: number;
+}
+
 export interface TrainingProgress {
+  /** Bests set in the window, newest first. */
+  records: PersonalRecord[];
   lifts: LiftProgress[];
   /** Weekly volume, oldest first — the shape of the training block. */
   weeklyVolume: { week: string; volumeKg: number; sessions: number }[];
@@ -119,6 +130,30 @@ export async function trainingProgress(days = 120): Promise<TrainingProgress> {
   })
   .sort((a, b) => b.sessions - a.sessions);
 
+  // ── Personal records ────────────────────────────────────────────────────
+  // A best is only a record if it beat something. The first time a lift
+  // appears it sets the bar rather than clearing it, so counting that as a PR
+  // would fill the list with "records" on the day you started tracking.
+  const records: PersonalRecord[] = [];
+  for (const [name, sessions] of byLift) {
+    let best = 0;
+    for (const s of sessions) {
+      const kg = s.topKg ?? 0;
+      if (kg <= 0) continue;
+      if (best > 0 && kg > best) {
+        records.push({
+          lift: name,
+          kg,
+          at: s.at,
+          previousKg: best,
+          daysAgo: Math.floor((now - new Date(s.at).getTime()) / 86_400_000),
+        });
+      }
+      if (kg > best) best = kg;
+    }
+  }
+  records.sort((a, b) => b.at.localeCompare(a.at));
+
   // ── Weekly volume ───────────────────────────────────────────────────────
   const weeks = new Map<string, { volumeKg: number; sessions: number }>();
   for (const w of workouts) {
@@ -163,5 +198,11 @@ export async function trainingProgress(days = 120): Promise<TrainingProgress> {
     }
   }
 
-  return { lifts, weeklyVolume, neglected, notes };
+  const recent = records.filter((r) => r.daysAgo <= 14);
+  if (recent.length) {
+    const top = recent[0];
+    notes.push(`New best on ${top.lift}: ${top.kg}kg, up from ${top.previousKg}kg${top.daysAgo === 0 ? " today" : `, ${top.daysAgo}d ago`}.`);
+  }
+
+  return { records: records.slice(0, 12), lifts, weeklyVolume, neglected, notes };
 }

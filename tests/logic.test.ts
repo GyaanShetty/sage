@@ -502,3 +502,15 @@ test("monthProgress treats a finished month as fully elapsed", async () => {
   // A past month must not be paced as if it were still running.
   assert.deepEqual(monthProgress("2026-06", now), { days: 30, elapsed: 30 });
 });
+
+// ── Training progression ────────────────────────────────────────────────────
+
+test("epley weights reps, and refuses nonsense input", async () => {
+  const { epley } = await import("@/core/health/progression");
+  // 100kg × 1 is 100; the same weight for 10 reps is a bigger lift.
+  assert.equal(epley(100, 1), 103);
+  assert.ok(epley(100, 10) > epley(100, 5));
+  assert.equal(epley(0, 8), 0, "no weight is no one-rep max");
+  assert.equal(epley(100, 0), 0, "no reps is no one-rep max");
+  assert.equal(epley(-50, 5), 0);
+});

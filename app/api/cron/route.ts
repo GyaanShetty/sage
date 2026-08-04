@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { runDueAutomations } from "@/core/automation/run";
 import { maybeSendWeeklyReview } from "@/core/review/weekly";
 import { maybeSaveDailyDigest } from "@/core/review/daily";
@@ -12,7 +11,7 @@ import { maybeGenerateLifeReport } from "@/core/report/life";
 import { syncHevy } from "@/core/health/hevy";
 import { closeHealthDay } from "@/core/health/daily";
 import { pruneEvents } from "@/core/ops/retention";
-import { sendPush } from "@/infrastructure/push";
+import { fireDueReminders } from "@/core/reminders/fire";
 
 export const maxDuration = 300;
 
@@ -27,32 +26,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const { data: due } = await db
-    .from("Reminder")
-    .select("id, text, remindAt")
-    .eq("userId", DEFAULT_USER_ID)
-    .eq("status", "pending")
-    .lte("remindAt", new Date().toISOString())
-    .limit(50);
-
-  for (const reminder of due ?? []) {
-    await db.from("Task").insert({
-      id: crypto.randomUUID(),
-      userId: DEFAULT_USER_ID,
-      title: `⏰ ${reminder.text}`,
-      priority: 0,
-      source: "automation",
-    });
-    await db.from("Reminder").update({ status: "fired" }).eq("id", reminder.id);
-    await db.from("Event").insert({
-      id: crypto.randomUUID(),
-      userId: DEFAULT_USER_ID,
-      type: "reminder.fired",
-      payload: { text: reminder.text, remindAt: reminder.remindAt },
-    });
-    // Reach the user's devices directly if they've enabled push.
-    await sendPush({ title: "⏰ Reminder", body: reminder.text, tag: `reminder-${reminder.id}`, url: "/workspace" }).catch(() => 0);
-  }
+  // Shared with /api/reminders/tick, which the app polls while it is open —
+  // the cron is the floor, not the only path. See core/reminders/fire.ts.
+  const fired = await fireDueReminders().catch(() => []);
 
   const automationsRan = await runDueAutomations().catch(() => 0);
   const weeklyReviewSent = await maybeSendWeeklyReview().catch(() => false);
@@ -79,5 +55,5 @@ export async function GET(req: Request) {
   // content, never the user's own records.
   const pruned = (await pruneEvents().catch(() => null))?.total ?? 0;
 
-  return NextResponse.json({ ok: true, fired: due?.length ?? 0, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed, pruned });
+  return NextResponse.json({ ok: true, fired: fired.length, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed, pruned });
 }

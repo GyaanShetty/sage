@@ -235,6 +235,41 @@ export const domainTools = {
     },
   }),
 
+  log_workout: tool({
+    description:
+      "Record a training session the user describes out loud — 'I did chest and triceps for 50 minutes', 'went for a 5k'. Use for sessions NOT already in Hevy; Hevy syncs itself and logging twice would double the count.",
+    inputSchema: z.object({
+      type: z.string().max(40).describe("push, pull, legs, run, swim, yoga…"),
+      minutes: z.number().int().min(1).max(600),
+      intensity: z.enum(["easy", "moderate", "hard"]).optional(),
+      note: z.string().max(300).optional(),
+    }),
+    execute: async (w) => {
+      const { addWorkout } = await import("@/core/health/store");
+      const id = await addWorkout(w);
+      return { ok: true, id, logged: `${w.type}, ${w.minutes} min` };
+    },
+  }),
+
+  training_progress: tool({
+    description:
+      "How the user's lifts are trending: what is going up, what is going backwards, and which lifts have been neglected. Use for 'am I getting stronger', 'how's my training', 'what am I neglecting'.",
+    inputSchema: z.object({ days: z.number().int().min(28).max(365).optional() }),
+    execute: async ({ days }) => {
+      const { trainingProgress } = await import("@/core/health/progression");
+      const p = await trainingProgress(days ?? 120);
+      return {
+        ok: true,
+        topLifts: p.lifts.slice(0, 6).map((l) => ({
+          name: l.name, best: l.bestKg, latest: l.latestKg, changeKg: l.changeKg, trend: l.trend, daysSince: l.daysSince,
+        })),
+        neglected: p.neglected.map((l) => l.name),
+        lastWeekVolumeKg: p.weeklyVolume.at(-1)?.volumeKg ?? 0,
+        notes: p.notes,
+      };
+    },
+  }),
+
   research_topic: tool({
     description:
       "Go and find out about something using live web sources, then tie it back to the user's holdings and work. Use when the answer depends on current facts — a company, a market move, a technology this month — rather than something you already know. Slow (10-20s), so only when the question warrants it.",

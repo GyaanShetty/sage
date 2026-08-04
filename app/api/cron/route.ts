@@ -12,6 +12,7 @@ import { syncHevy } from "@/core/health/hevy";
 import { closeHealthDay } from "@/core/health/daily";
 import { pruneEvents } from "@/core/ops/retention";
 import { fireDueReminders } from "@/core/reminders/fire";
+import { syncEventReminders } from "@/core/reminders/prep";
 
 export const maxDuration = 300;
 
@@ -28,6 +29,8 @@ export async function GET(req: Request) {
 
   // Shared with /api/reminders/tick, which the app polls while it is open —
   // the cron is the floor, not the only path. See core/reminders/fire.ts.
+  // Prep nudges for anything new in the calendar, then deliver what is due.
+  const prep = await syncEventReminders().catch(() => ({ created: 0, lead: 0 }));
   const fired = await fireDueReminders().catch(() => []);
 
   const automationsRan = await runDueAutomations().catch(() => 0);
@@ -55,5 +58,5 @@ export async function GET(req: Request) {
   // content, never the user's own records.
   const pruned = (await pruneEvents().catch(() => null))?.total ?? 0;
 
-  return NextResponse.json({ ok: true, fired: fired.length, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed, pruned });
+  return NextResponse.json({ ok: true, fired: fired.length, prepCreated: prep.created, automationsRan, weeklyReviewSent, dailyDigestSaved, anticipated, notifications, cardsGenerated, careerScan, memory, lifeReport, hevy, dayClosed, pruned });
 }

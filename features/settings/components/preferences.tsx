@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Hand, Mic, Moon, Sparkles } from "lucide-react";
+import { Bell, Globe, Hand, Mic, Moon, Sparkles } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
+import { useGlobeEnabled } from "@/lib/globe-pref";
 import { disablePush, enablePush, pushEnabled, pushSupported } from "@/features/notifications/push-client";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -42,6 +43,7 @@ export function Preferences() {
   // Client-only capability check — gate behind mount so SSR and first client
   // render agree (avoids a hydration mismatch).
   const [mounted, setMounted] = useState(false);
+  const { on: globe, set: setGlobe } = useGlobeEnabled();
 
   useEffect(() => {
     setMounted(true);
@@ -154,6 +156,22 @@ export function Preferences() {
         </div>
         <Toggle on={gestureNav} onClick={() => setGestureNav(!gestureNav)} />
       </GlassPanel>
+
+      {mounted && (
+        <GlassPanel className="mt-3 flex items-center gap-4 p-5">
+          <Globe className="size-5 text-muted" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">3D globe</p>
+            <p className="text-xs text-subtle">
+              The centrepiece on Home. It is the most expensive thing SAGE draws — a live
+              WebGL scene that polls satellites every few seconds — and the usual cause of
+              the app feeling sluggish. Turned off, the flat map takes over and nothing is
+              rendered at all.
+            </p>
+          </div>
+          <Toggle on={globe} onClick={() => setGlobe(!globe)} />
+        </GlassPanel>
+      )}
 
       {mounted && pushSupported() && (
         <GlassPanel className="mt-3 flex items-center gap-4 p-5">

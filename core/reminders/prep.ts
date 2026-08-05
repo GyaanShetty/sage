@@ -1,5 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { listUpcomingEvents } from "@/infrastructure/integrations/google";
+import { upcomingEvents } from "@/core/calendar";
 
 /**
  * A nudge before every commitment.
@@ -50,7 +50,9 @@ export async function setLeadMinutes(minutes: number): Promise<number> {
  */
 export async function syncEventReminders(): Promise<{ created: number; lead: number }> {
   const lead = await getLeadMinutes();
-  const events = await listUpcomingEvents(15).catch(() => null);
+  // Every calendar, not just Google: a subscribed timetable is exactly the
+  // sort of thing worth a nudge fifteen minutes before.
+  const events = await upcomingEvents(25).catch(() => null);
   if (!events?.length) return { created: 0, lead };
 
   const now = Date.now();

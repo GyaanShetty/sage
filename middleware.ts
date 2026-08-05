@@ -15,6 +15,10 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron") ||
+    // The heartbeat carries its own CRON_SECRET, checked in the route. It has
+    // to be reachable by an external scheduler that has no session cookie —
+    // that is the entire point of it.
+    pathname.startsWith("/api/beat") ||
     pathname.startsWith("/api/webhook") ||
     // Which build is serving — public so "did my fix ship?" is answerable
     // without being logged in. Reports the commit only, never config.

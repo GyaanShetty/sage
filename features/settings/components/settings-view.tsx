@@ -9,6 +9,7 @@ import { APP_NAME } from "@/lib/config";
 import { Preferences } from "./preferences";
 import { Diagnostics } from "./diagnostics";
 import { Vitals } from "./vitals";
+import { CalendarFeeds } from "./calendar-feeds";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
   const disconnect = async () => {
@@ -124,6 +125,10 @@ export function SettingsView({
 
         <motion.div variants={fadeRise}>
           <Preferences />
+        </motion.div>
+
+        <motion.div variants={fadeRise}>
+          <CalendarFeeds />
         </motion.div>
 
         <motion.div variants={fadeRise}>

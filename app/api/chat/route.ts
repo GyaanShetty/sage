@@ -16,7 +16,7 @@ import {
   setThreadSummary,
 } from "@/infrastructure/db/threads";
 import { generateText } from "ai";
-import { recallMemories, renderMemoryBlock, touchMemories } from "@/core/memory/recall";
+import { recallWithin, renderMemoryBlock, touchMemories } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { APP_NAME } from "@/lib/config";
 
@@ -47,15 +47,22 @@ export async function POST(req: Request) {
   const userMessage = messages.findLast((m) => m.role === "user");
   const userText = textOf(userMessage);
 
-  const memories = await recallMemories(userText).catch(() => []);
+  // Everything needed before the model can be called, at once and on a clock.
+  // These were sequential, and both sit in front of the first token: on a long
+  // thread their latencies added up into a visible pause before SAGE said
+  // anything. They have nothing to do with each other, so they run together.
+  const wantsSummary = messages.length > 24 && !!threadId;
+  const [memories, summary] = await Promise.all([
+    recallWithin(userText),
+    wantsSummary ? getThreadSummary(threadId!).catch(() => null) : Promise.resolve(null),
+  ]);
   void touchMemories(memories.map((m) => m.id));
 
   // Context compression: long threads send a rolling summary + recent window
   // instead of the full history.
   let contextMessages = messages;
   let summaryBlock = "";
-  if (messages.length > 24 && threadId) {
-    const summary = await getThreadSummary(threadId).catch(() => null);
+  if (wantsSummary) {
     if (summary) summaryBlock = `\n\nEarlier in this conversation (summary):\n${summary}`;
     contextMessages = messages.slice(-16);
   }

@@ -28,6 +28,29 @@ function score(m: RecalledMemory): number {
  * Semantic recall via the match_memories RPC (pgvector ANN). Falls back to
  * importance/recency ranking when embeddings or the RPC are unavailable.
  */
+/**
+ * How long recall may hold up a reply.
+ *
+ * Recall sits in front of the model call — nothing streams until it returns —
+ * so its latency is dead air on every single message. With the vector index in
+ * place it comes back in tens of milliseconds; this exists for when it does
+ * not: a cold Supabase connection, a slow embedding call, a network hiccup.
+ *
+ * Answering a second later with everything remembered is worse than answering
+ * now with slightly less context, because the memory block is an enrichment,
+ * not a precondition — SAGE is told to say it does not know rather than invent,
+ * so a thin recall degrades honestly instead of wrongly.
+ */
+const RECALL_DEADLINE_MS = 1200;
+
+/** Whatever recall produced by the deadline, or nothing. Never throws. */
+export async function recallWithin(query: string, limit = 8, ms = RECALL_DEADLINE_MS): Promise<RecalledMemory[]> {
+  return Promise.race([
+    recallMemories(query, limit).catch(() => [] as RecalledMemory[]),
+    new Promise<RecalledMemory[]>((resolve) => setTimeout(() => resolve([]), ms)),
+  ]);
+}
+
 export async function recallMemories(query: string, limit = 8): Promise<RecalledMemory[]> {
   const embedding = await embedText(query).catch(() => null);
 

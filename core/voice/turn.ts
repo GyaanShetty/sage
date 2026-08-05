@@ -3,7 +3,7 @@ import { getModel } from "@/infrastructure/llm";
 import { nativeTools } from "@/core/tools/native";
 import { planningTools } from "@/core/tools/planning";
 import { domainTools } from "@/core/tools/domain";
-import { recallMemories, renderMemoryBlock } from "@/core/memory/recall";
+import { recallWithin, renderMemoryBlock } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
 import { APP_NAME, HUMAN_RULES, moodClause, type Mood } from "@/lib/config";
@@ -55,7 +55,9 @@ export async function runVoiceTurnDetailed(
 
   const threadId = await voiceThreadId();
   const [memories, { data: history }] = await Promise.all([
-    recallMemories(text).catch(() => []),
+    // On a deadline: in a spoken turn, a second of silence waiting on recall
+    // is a second of him wondering whether SAGE heard him at all.
+    recallWithin(text),
     db
       .from("Message")
       .select("role, content")

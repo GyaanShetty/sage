@@ -1,5 +1,7 @@
 "use client";
 
+import { splitIntoParts, handoffLine } from "@/lib/speech-split";
+
 /**
  * Low-latency neural speech. Streams MP3 from ElevenLabs (flash model) and
  * begins playback on the FIRST chunk via MediaSource, so there's virtually no
@@ -48,14 +50,94 @@ function announce(title: string, body: string) {
   window.dispatchEvent(new CustomEvent("sage:toast", { detail: { title, body } }));
 }
 
+/**
+ * The rest of a long answer, waiting to be asked for.
+ *
+ * Module state rather than a store: it belongs to the audio element, which is
+ * also a singleton, and threading it through the UI would spread one fact
+ * across four components that do not otherwise care.
+ */
+let pending: { parts: string[]; index: number; opts?: SpeakOpts } | null = null;
+
+export interface SpeakOpts {
+  fast?: boolean;
+  onended?: () => void;
+  audio?: HTMLAudioElement;
+}
+
+/** Is there more of the last answer that SAGE has not said yet? */
+export function hasMoreToSay(): boolean {
+  return !!pending && pending.index < pending.parts.length - 1;
+}
+
+/** How many parts are still unsaid. */
+export function partsRemaining(): number {
+  return pending ? Math.max(0, pending.parts.length - 1 - pending.index) : 0;
+}
+
+/** Drop the rest — a new question makes the old answer's tail irrelevant. */
+export function forgetRest(): void {
+  pending = null;
+  window.dispatchEvent(new CustomEvent("sage:voice-more", { detail: { remaining: 0 } }));
+}
+
+/**
+ * Say the next part of the previous answer.
+ *
+ * Triggered by "go on", by the Continue control, or by anything else that
+ * decides the user wants the rest.
+ */
+export async function speakRest(): Promise<HTMLAudioElement | null> {
+  if (!pending || pending.index >= pending.parts.length - 1) return null;
+  pending.index += 1;
+  const { parts, index, opts } = pending;
+  const more = index < parts.length - 1;
+  const line = more ? `${parts[index]} ${handoffLine(index, parts.length)}` : parts[index];
+
+  window.dispatchEvent(new CustomEvent("sage:voice-more", {
+    detail: { remaining: parts.length - 1 - index },
+  }));
+  if (!more) pending = null;
+
+  return speakOne(line, opts);
+}
+
+/**
+ * Speak an answer, a minute at a time.
+ *
+ * Long answers are not spoken as one unbroken monologue. Five minutes of
+ * uninterrupted speech is a poor way to be told anything, and it is also the
+ * regime where every technical limit bites at once — the audio buffer, the
+ * function timeout, the user's patience. SAGE says a part, tells you how much
+ * is left, and waits to be asked.
+ */
 export async function speakLowLatency(
   text: string,
+  opts?: SpeakOpts,
+): Promise<HTMLAudioElement | null> {
+  const whole = text.trim();
+  if (!whole) return null;
+
+  const parts = splitIntoParts(whole);
+  // A new answer supersedes whatever was left of the last one.
+  pending = parts.length > 1 ? { parts, index: 0, ...(opts ? { opts } : {}) } : null;
+
+  window.dispatchEvent(new CustomEvent("sage:voice-more", {
+    detail: { remaining: Math.max(0, parts.length - 1) },
+  }));
+
+  const first = parts.length > 1 ? `${parts[0]} ${handoffLine(0, parts.length)}` : parts[0];
+  return speakOne(first, opts);
+}
+
+async function speakOne(
+  text: string,
+  /** Reuse a caller's gesture-unlocked <audio>. Mobile autoplay policy binds
+   *  permission to the element that a user gesture touched, so a fresh
+   *  Audio() here would be silently blocked on iOS. */
   opts?: {
     fast?: boolean;
     onended?: () => void;
-    /** Reuse a caller's gesture-unlocked <audio>. Mobile autoplay policy binds
-     *  permission to the element that a user gesture touched, so a fresh
-     *  Audio() here would be silently blocked on iOS. */
     audio?: HTMLAudioElement;
   },
 ): Promise<HTMLAudioElement | null> {

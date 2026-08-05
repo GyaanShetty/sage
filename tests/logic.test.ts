@@ -662,3 +662,33 @@ test("prep markers are unique per event AND per start time", async () => {
   assert.notEqual(a, b);
   assert.equal(stripMarker(a), stripMarker(b), "the same event still reads the same to the user");
 });
+
+// ── Speaking in parts ───────────────────────────────────────────────────────
+
+test("splitIntoParts keeps short answers whole", async () => {
+  const { splitIntoParts, SPOKEN_BUDGET_CHARS } = await import("@/lib/speech-split");
+  const short = "Three tasks open, nothing overdue. The Nifty is flat.";
+  assert.deepEqual(splitIntoParts(short), [short]);
+  assert.ok(short.length < SPOKEN_BUDGET_CHARS);
+  assert.deepEqual(splitIntoParts("   "), [], "nothing to say is no parts, not one empty one");
+});
+
+test("splitIntoParts breaks a long answer without losing a word", async () => {
+  const { splitIntoParts, SPOKEN_BUDGET_CHARS } = await import("@/lib/speech-split");
+  const long = "This is a sentence about your portfolio. ".repeat(80).trim();
+  const parts = splitIntoParts(long);
+
+  assert.ok(parts.length > 1, "a long answer must become several parts");
+  for (const p of parts) assert.ok(p.length <= SPOKEN_BUDGET_CHARS, `part of ${p.length} chars`);
+  // Nothing dropped — the whole point is to defer the tail, not lose it.
+  assert.equal(parts.join(" ").replace(/\s+/g, " ").trim(), long.replace(/\s+/g, " ").trim());
+});
+
+test("the handoff says how much is left, and stays quiet at the end", async () => {
+  const { handoffLine } = await import("@/lib/speech-split");
+  assert.ok(handoffLine(0, 3).includes("first of 3"));
+  assert.ok(handoffLine(1, 3).includes("One part left"));
+  // The last part must not invite a continuation that does not exist.
+  assert.equal(handoffLine(2, 3), "");
+  assert.equal(handoffLine(0, 1), "", "a single part is not 'part one of one'");
+});

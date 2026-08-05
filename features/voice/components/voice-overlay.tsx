@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
 import { sound } from "@/lib/sound";
-import { speakLowLatency } from "@/lib/speak";
+import { speakLowLatency, hasMoreToSay, speakRest } from "@/lib/speak";
 import { APP_NAME } from "@/lib/config";
 import { useShellStore } from "@/features/shell/store";
 
@@ -152,6 +152,13 @@ export function VoiceOverlay() {
   }, []);
 
   const onUtterance = useCallback(async (text: string) => {
+    // "go on" is a continuation, not a question. Sending it to the model would
+    // get an answer to nothing — SAGE has the rest of the last one waiting.
+    if (hasMoreToSay() && /^\s*(go on|continue|carry on|and then|the rest|next part|keep going)\b/i.test(text)) {
+      void speakRest();
+      return "";
+    }
+
     // "open/go to/show me X" → spin the wheel there (works in classic + typed).
     if (/\b(open|go to|take me to|show me|navigate|switch to|jump to)\b/i.test(text)) {
       window.dispatchEvent(new CustomEvent("sage:navigate", { detail: text }));

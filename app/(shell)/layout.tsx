@@ -15,6 +15,7 @@ import { ProactiveVoice } from "@/components/proactive-voice";
 import { GestureNav } from "@/features/gestures/gesture-nav";
 import { ErrorReporter } from "@/components/error-reporter";
 import { ReminderTicker } from "@/components/reminder-ticker";
+import { VoiceContinue } from "@/components/voice-continue";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -23,6 +24,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <BootSequence />
       <BootBriefing />
       <ReminderTicker />
+      <VoiceContinue />
       <StatusBar />
       <TickerTape />
       <div className="flex min-h-0 flex-1">

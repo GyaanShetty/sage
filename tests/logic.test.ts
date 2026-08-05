@@ -787,3 +787,20 @@ test("a task created in a quadrant classifies back into that quadrant", async ()
     assert.equal(c.quadrant, q, `a task added to ${q} landed in ${c.quadrant}`);
   }
 });
+
+test("a key is spent before the next one is taken up", async () => {
+  process.env.GOOGLE_GENERATIVE_AI_API_KEY = "";
+  process.env.GOOGLE_GENERATIVE_AI_API_KEYS = "key-aaaa,key-bbbb,key-cccc";
+  const { getModel, modelKeyStatus } = await import("@/infrastructure/llm");
+
+  getModel("fast");
+  const first = modelKeyStatus().find((k) => k.inUse);
+  assert.ok(first, "some key must be in use once a model has been asked for");
+
+  // Ten more calls must not wander onto another key — rotation happens on
+  // exhaustion, not per request.
+  for (let i = 0; i < 10; i++) getModel(i % 2 ? "fast" : "smart");
+  const still = modelKeyStatus().filter((k) => k.inUse);
+  assert.equal(still.length, 1, "exactly one key is ever in use");
+  assert.equal(still[0].tail, first.tail, "the key changed while it was still healthy");
+});

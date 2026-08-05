@@ -13,10 +13,10 @@ import type { LanguageModel } from "ai";
  * report is a call. On one key the whole system goes quiet for the rest of the
  * day the moment it runs dry.
  *
- * Several keys are rotated round-robin, and a key that reports quota trouble
- * is set aside rather than retried into the ground. All of this lives here on
- * purpose — there are thirty-odd call sites and none of them should have to
- * know about it.
+ * One key is used until it is actually spent, and only then is the next one
+ * taken up; a key that reports quota trouble is set aside rather than retried
+ * into the ground. All of this lives here on purpose — there are thirty-odd
+ * call sites and none of them should have to know about it.
  */
 export type ModelTier = "fast" | "smart";
 
@@ -83,12 +83,27 @@ const STRIKE_DEBOUNCE_MS = 15_000;
  *
  * Serverless has no shared memory: every cold start gets a fresh copy of this
  * module, so a cursor initialised to 0 meant every new instance began at key
- * one. Under real traffic — which is mostly cold starts — that is not
- * round-robin at all, it is "hammer the first key and barely touch the rest",
- * which is exactly how one key hits its daily cap while four sit idle.
- * Starting at a random offset spreads cold starts evenly across the keys.
+ * one — "hammer the first key and barely touch the rest", which is exactly how
+ * one key hits its daily cap while four sit idle. A random offset spreads cold
+ * starts across the keys; it decides only where an instance *begins*.
  */
 let cursor = Math.floor(Math.random() * 1000);
+
+/**
+ * The key this instance is currently working through.
+ *
+ * Rotation only on exhaustion, per Gyaan. The alternative — a fresh key every
+ * call — spreads load evenly but leaves every key partly spent, so there is
+ * never a clean answer to "which of these still has room". Sticking to one
+ * until it is actually out keeps the spending legible: keys are consumed in
+ * order, and modelKeyStatus shows how far down the list you are.
+ *
+ * "Spent" is not a guess. A key moves only when it has refused on quota and
+ * been put on cooldown by penalise(), which is the same signal the in-flight
+ * failover uses — so a burst never costs a key its turn, and a genuinely
+ * exhausted one is never asked twice.
+ */
+let current: string | null = null;
 
 function healthyKeys(): string[] {
   const now = Date.now();
@@ -107,12 +122,26 @@ function isQuotaError(err: unknown): boolean {
   return /quota|429|RESOURCE_EXHAUSTED|rate.?limit|exceeded your current/i.test(msg);
 }
 
+/**
+ * A key that has behaved for an hour is not on its third strike any more.
+ *
+ * This matters more now that one key takes all the traffic until it is spent:
+ * it will brush the per-minute limit several times across a day, and without
+ * decay those unrelated bursts would compound into a two-hour sideline for
+ * what is really a sixty-second problem. Strikes are meant to distinguish a
+ * burst from a daily cap, and a daily cap does not go quiet for an hour.
+ */
+const STRIKE_DECAY_MS = 60 * 60_000;
+
 function penalise(key: string) {
   const now = Date.now();
   const repeat = now - (lastPenalty.get(key) ?? 0) < STRIKE_DEBOUNCE_MS;
+  const since = now - (lastPenalty.get(key) ?? 0);
   lastPenalty.set(key, now);
   // One logical failure, however many times the SDK retried it underneath.
   if (repeat) return;
+
+  if (since > STRIKE_DECAY_MS) strikes.delete(key);
 
   const n = (strikes.get(key) ?? 0) + 1;
   strikes.set(key, n);
@@ -194,6 +223,10 @@ function observed(first: string, tier: ModelTier): LanguageModel {
             const next = healthyKeys().find((k) => !triedKeys.has(k));
             if (!next) throw err;
             key = next;
+            // The call that discovers a key is spent is also the one that
+            // moves on from it. Without this the next getModel() would hand
+            // out the dead key again and rediscover the same 429.
+            current = next;
             impl = build(next, tier, ids[idIndex]) as unknown as Record<string, unknown>;
           }
         }
@@ -207,10 +240,14 @@ export function getModel(tier: ModelTier = "smart"): LanguageModel | null {
   const keys = healthyKeys();
   if (keys.length === 0) return null;
 
-  // Round-robin per call. With N keys that is the whole point: N times the
-  // free-tier headroom, spread evenly rather than draining one at a time.
-  const key = keys[cursor++ % keys.length];
-  return observed(key, tier);
+  // Stay on the current key while it is still healthy. It stops being healthy
+  // only by being penalised for quota, which is what "used up" means here.
+  if (current && keys.includes(current)) return observed(current, tier);
+
+  // Moving on. The offset only matters for the first pick after a cold start —
+  // without it every fresh instance would begin at key one and drain it first.
+  current = keys[cursor++ % keys.length];
+  return observed(current, tier);
 }
 
 /** Key health, for diagnostics. Never returns key material — tail only. */
@@ -220,6 +257,9 @@ export function modelKeyStatus() {
     index: i + 1,
     tail: `…${k.slice(-4)}`,
     healthy: (cooldown.get(k) ?? 0) <= now,
+    /** The one currently being spent. Keys are used up in order, not in parallel. */
+    inUse: k === current,
+    strikes: strikes.get(k) ?? 0,
     cooldownSeconds: Math.max(0, Math.round(((cooldown.get(k) ?? 0) - now) / 1000)),
   }));
 }

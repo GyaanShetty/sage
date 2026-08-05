@@ -60,10 +60,63 @@ function isModelError(err: unknown): boolean {
   return /no longer available|not found|not supported|unsupported model|404|does not exist|invalid model/i.test(msg);
 }
 
-/** Every configured key, across the singular and plural env vars. */
-export function googleKeys(): string[] {
+/**
+ * Keys added from Settings, cached per instance.
+ *
+ * The point of storing keys in the database is that a dead one can be replaced
+ * without a redeploy, so this cache has to expire — but reading it on every
+ * model call would put a database round trip in front of every reply. A minute
+ * is the compromise: fast enough that a newly pasted key works while he is
+ * still looking at the screen, cheap enough to be free.
+ */
+let stored: string[] = [];
+let storedAt = 0;
+/** Has this instance ever successfully looked? Distinguishes "none" from "not yet". */
+let storedChecked = false;
+const KEY_TTL_MS = 60_000;
+let refreshing: Promise<void> | null = null;
+
+function envKeys(): string[] {
   const raw = `${process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? ""},${process.env.GOOGLE_GENERATIVE_AI_API_KEYS ?? ""}`;
   return [...new Set(raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean))];
+}
+
+/** Re-read the stored keys, at most one in flight at a time. */
+export async function refreshKeys(force = false): Promise<void> {
+  if (!force && storedChecked && Date.now() - storedAt < KEY_TTL_MS) return;
+  if (refreshing) return refreshing;
+
+  refreshing = (async () => {
+    try {
+      const { keysFor } = await import("@/core/ops/keys");
+      stored = await keysFor("google");
+    } catch {
+      // A database that cannot be read must not lose him the env keys.
+      stored = [];
+    } finally {
+      storedAt = Date.now();
+      storedChecked = true;
+      refreshing = null;
+    }
+  })();
+
+  return refreshing;
+}
+
+/** Called after a key is added or removed, so the change lands immediately. */
+export function invalidateKeys(): void {
+  storedAt = 0;
+}
+
+/**
+ * Every configured key: the environment first, then anything added in Settings.
+ *
+ * Env keys lead deliberately. They are the ones that were there before this
+ * existed, and a stable order means the sticky choice does not jump around
+ * between instances any more than it must.
+ */
+export function googleKeys(): string[] {
+  return [...new Set([...envKeys(), ...stored])];
 }
 
 /** key → epoch ms until which it is considered spent. */
@@ -175,8 +228,11 @@ function idsFor(tier: ModelTier): string[] {
  * The SDK reaches the model through doGenerate/doStream, so intercepting those
  * covers every path.
  */
-function observed(first: string, tier: ModelTier): LanguageModel {
-  const target = build(first, tier, idsFor(tier)[0]) as unknown as Record<string, unknown>;
+function observed(first: string | null, tier: ModelTier): LanguageModel {
+  // A placeholder key when none is known yet: the object is only built so the
+  // SDK has something with the right shape to call into, and the real key is
+  // resolved below before anything is sent.
+  const target = build(first ?? "pending", tier, idsFor(tier)[0]) as unknown as Record<string, unknown>;
 
   return new Proxy(target, {
     get(obj, prop, receiver) {
@@ -188,12 +244,26 @@ function observed(first: string, tier: ModelTier): LanguageModel {
       return async (...args: unknown[]) => {
         // Each key gets at most one turn, and each model id at most one pass,
         // so a total outage still terminates instead of spinning.
-        const triedKeys = new Set<string>();
         const ids = idsFor(tier);
         let idIndex = 0;
-        let key = first;
         let impl = obj;
         let lastErr: unknown;
+
+        // Resolve the key now if getModel could not. This is the async moment
+        // the synchronous entry point did not have.
+        let key = first;
+        if (!key) {
+          await refreshKeys(true);
+          key = healthyKeys()[0] ?? null;
+          if (!key) {
+            throw new Error(
+              "No AI key configured. Add one in Settings → Vitals, or set GOOGLE_GENERATIVE_AI_API_KEY.",
+            );
+          }
+          impl = build(key, tier, ids[0]) as unknown as Record<string, unknown>;
+        }
+
+        const triedKeys = new Set<string>();
 
         const budget = Math.max(1, googleKeys().length) + ids.length;
 
@@ -239,8 +309,24 @@ function observed(first: string, tier: ModelTier): LanguageModel {
 }
 
 export function getModel(tier: ModelTier = "smart"): LanguageModel | null {
+  // Keep the cache warm without waiting for it: this is a synchronous function
+  // called from forty-odd places, and none of them should grow an await.
+  void refreshKeys();
+
   const keys = healthyKeys();
-  if (keys.length === 0) return null;
+
+  if (keys.length === 0) {
+    // Nothing in the environment and nothing stored, confirmed: there really
+    // is no model, and every caller already handles that honestly.
+    if (storedChecked) return null;
+
+    // Not confirmed. This is a cold instance that has not read the stored keys
+    // yet — returning null here would tell him "no AI configured" purely
+    // because the first request of the day arrived before the first database
+    // read finished. The proxy resolves the key when the call is actually
+    // made, which is async and can wait.
+    return observed(null, tier);
+  }
 
   // Stay on the current key while it is still healthy. It stops being healthy
   // only by being penalised for quota, which is what "used up" means here.

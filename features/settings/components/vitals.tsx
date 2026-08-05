@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Check, Database, Download, Loader2, RefreshCw, ShieldCheck, Upload, Zap } from "lucide-react";
+import { AlertTriangle, Check, Database, Download, KeyRound, Loader2, RefreshCw, ShieldCheck, Trash2, Upload, Zap } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { cn } from "@/lib/utils";
 
@@ -131,6 +131,8 @@ export function Vitals() {
         &ldquo;out of quota&rdquo; and &ldquo;broken&rdquo; stop looking the same.
       </p>
 
+      <ManagedKeys onChanged={load} />
+
       {/* ── The data itself ──────────────────────────────────────────────── */}
       <div className="mt-4 border-t border-border-glass pt-3">
         <div className="flex flex-wrap items-center gap-3">
@@ -182,5 +184,124 @@ export function Vitals() {
         </p>
       </div>
     </GlassPanel>
+  );
+}
+
+interface ManagedKey { id: string; provider: string; tail: string; label: string | null; readable: boolean }
+
+/**
+ * Adding a key without opening the Vercel dashboard.
+ *
+ * The old answer to "the AI stopped working" was: edit an environment
+ * variable, trigger a redeploy, wait for it. Keys added here are picked up on
+ * the next model call. They are encrypted at rest under a secret that is not
+ * in the database, which matters more now that a copy of that database leaves
+ * for GitHub every night.
+ *
+ * Keys are never readable back — only their last four. A page that could show
+ * you a key would turn one leaked session into a leaked Google account.
+ */
+function ManagedKeys({ onChanged }: { onChanged: () => void }) {
+  const [keys, setKeys] = useState<ManagedKey[] | null>(null);
+  const [available, setAvailable] = useState(true);
+  const [value, setValue] = useState("");
+  const [provider, setProvider] = useState("google");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    const j = await fetch("/api/keys").then((r) => r.json()).catch(() => null);
+    if (j?.ok) { setKeys(j.data.keys); setAvailable(j.data.storageAvailable); }
+  }, []);
+  useEffect(() => { if (open) void load(); }, [open, load]);
+
+  const add = async () => {
+    if (!value.trim() || busy) return;
+    setBusy(true); setNote(null);
+    const j = await fetch("/api/keys", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider, key: value.trim() }),
+    }).then((r) => r.json()).catch(() => null);
+    setBusy(false);
+    if (j?.ok) {
+      setKeys(j.data.keys); setValue("");
+      setNote(`Added …${j.data.tail}. It's live now — no redeploy.`);
+      onChanged();
+    } else setNote(j?.error ?? "That key wouldn't save.");
+  };
+
+  const remove = async (id: string) => {
+    const j = await fetch(`/api/keys?id=${id}`, { method: "DELETE" }).then((r) => r.json()).catch(() => null);
+    if (j?.ok) { setKeys(j.data.keys); onChanged(); }
+  };
+
+  return (
+    <div className="mt-3">
+      <button onClick={() => setOpen((s) => !s)} className="flex items-center gap-1.5 text-[11px] text-[var(--live)]">
+        <KeyRound className="size-3" /> {open ? "Hide key management" : "Add or replace a key"}
+      </button>
+
+      {open && (
+        <div className="mt-2 border-l-2 border-border-glass pl-3">
+          {!available && (
+            <p className="mb-2 flex items-start gap-2 text-[11px] text-amber-300/90">
+              <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+              Set <code className="font-mono">KEY_SECRET</code> in the environment first. SAGE
+              won&apos;t store a key it can&apos;t encrypt, and that secret has to live outside
+              the database it protects.
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={provider} onChange={(e) => setProvider(e.target.value)}
+              className="border border-border-glass bg-glass px-2 py-1.5 text-[12px] text-foreground outline-none"
+            >
+              <option value="google">Gemini</option>
+              <option value="tavily">Tavily</option>
+              <option value="hevy">Hevy</option>
+              <option value="alphavantage">Alpha Vantage</option>
+            </select>
+            <input
+              type="password" value={value} onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void add()}
+              placeholder="Paste the key"
+              autoComplete="off" spellCheck={false}
+              className="min-w-0 flex-1 border border-border-glass bg-glass px-3 py-1.5 font-mono text-[12px] text-foreground outline-none focus:border-[var(--live-dim)]"
+            />
+            <button onClick={() => void add()} disabled={busy || !value.trim() || !available} className={btn}>
+              {busy ? <Loader2 className="size-3 animate-spin" /> : <KeyRound className="size-3" />} Add
+            </button>
+          </div>
+
+          {note && <p className="mt-2 text-[11px] text-muted">{note}</p>}
+
+          {keys && keys.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1">
+              {keys.map((k) => (
+                <div key={k.id} className="flex items-center gap-3 text-[11px]">
+                  <span className="font-mono text-subtle">{k.provider}</span>
+                  <span className="font-mono text-muted">…{k.tail}</span>
+                  {!k.readable && (
+                    <span className="text-amber-300" title="KEY_SECRET has changed since this was stored, so it can no longer be decrypted.">
+                      unreadable
+                    </span>
+                  )}
+                  <button onClick={() => void remove(k.id)} className="ml-auto text-subtle hover:text-foreground" title="Remove">
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p className="mt-2 text-[10px] text-subtle">
+            Stored encrypted and never shown again — only the last four. Environment variables
+            still work and are used first; this is for replacing a spent key without a deploy.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

@@ -69,12 +69,34 @@ export interface BackupFile {
 const MAX_ROWS = 20_000;
 const PAGE = 1000;
 
+/**
+ * Rows that must not leave in a backup.
+ *
+ * API keys are stored encrypted, and the secret that decrypts them is not in
+ * the database — so shipping them would be safe in theory. In practice it
+ * would mean a copy of live credentials sitting in a GitHub repo forever,
+ * defended by one environment variable never being leaked at the same time.
+ * The cost of leaving them out is re-pasting a key after a restore, which
+ * takes thirty seconds. That is not a close call.
+ *
+ * The Integration table's OAuth tokens are a different matter: they are
+ * refresh tokens SAGE cannot ask him to retype, and losing them means
+ * reconnecting Google by hand — so those stay, and are the reason BACKUP_REPO
+ * is checked for being private on every single run.
+ */
+const NEVER_BACKED_UP = new Set(["ops.apikeys"]);
+
+function redact(table: string, rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  if (table !== "Event") return rows;
+  return rows.filter((r) => !NEVER_BACKED_UP.has(String(r.type)));
+}
+
 async function dumpTable(table: string): Promise<{ rows: Record<string, unknown>[]; truncated: boolean }> {
   const rows: Record<string, unknown>[] = [];
   for (let from = 0; from < MAX_ROWS; from += PAGE) {
     const { data, error } = await db.from(table).select("*").range(from, from + PAGE - 1);
     if (error) break;                       // table absent or unreadable: skip, don't abort the run
-    rows.push(...((data ?? []) as Record<string, unknown>[]));
+    rows.push(...redact(table, (data ?? []) as Record<string, unknown>[]));
     if (!data || data.length < PAGE) return { rows, truncated: false };
   }
   return { rows, truncated: true };

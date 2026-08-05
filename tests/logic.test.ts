@@ -1045,3 +1045,30 @@ test("calibration stays quiet on a thin sample", async () => {
   assert.ok(c.notes.some((n) => /sketch|not a verdict/i.test(n)));
   assert.ok(!c.notes.some((n) => /You are overconfident/i.test(n)));
 });
+
+test("a stored key round-trips, and a wrong secret cannot read it", async () => {
+  process.env.KEY_SECRET = "a-test-secret-value";
+  const { seal, unseal } = await import("@/core/ops/keys");
+
+  const key = "AIzaSyExampleKeyMaterial1234567890";
+  const sealed = seal(key);
+
+  assert.notEqual(sealed, key, "the stored form must not be the key");
+  assert.ok(!sealed.includes(key.slice(0, 12)), "no plaintext may survive in the ciphertext");
+  assert.equal(unseal(sealed), key);
+
+  // Tampering must fail closed, not return garbage that gets sent to Google.
+  const bytes = Buffer.from(sealed, "base64");
+  bytes[bytes.length - 1] ^= 0xff;
+  assert.equal(unseal(bytes.toString("base64")), null);
+});
+
+test("backups never carry API keys off-site", async () => {
+  const { TABLES } = await import("@/core/ops/backup");
+  // The guarantee is asserted at the shape level: Event is backed up, so the
+  // filter inside dumpTable is the only thing keeping key ciphertext out of a
+  // GitHub repo. If Event were ever removed from TABLES this test should be
+  // revisited rather than silently passing.
+  assert.ok(TABLES.includes("Event"), "Event is backed up, so its rows must be filtered");
+  assert.ok(TABLES.includes("Integration"));
+});

@@ -804,3 +804,14 @@ test("a key is spent before the next one is taken up", async () => {
   assert.equal(still.length, 1, "exactly one key is ever in use");
   assert.equal(still[0].tail, first.tail, "the key changed while it was still healthy");
 });
+
+test("recall never holds a reply past its deadline", async () => {
+  const { recallWithin } = await import("@/core/memory/recall");
+  const started = Date.now();
+  // A 50ms budget against a call that cannot possibly finish that fast: the
+  // point is that it returns anyway, empty, rather than blocking the stream.
+  const out = await recallWithin("anything at all", 8, 50);
+  const took = Date.now() - started;
+  assert.ok(Array.isArray(out), "recall must always hand back a list");
+  assert.ok(took < 900, `recall blocked for ${took}ms past a 50ms deadline`);
+});

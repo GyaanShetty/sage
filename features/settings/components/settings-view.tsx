@@ -8,6 +8,7 @@ import { GlassPanel } from "@/components/ui/glass-panel";
 import { APP_NAME } from "@/lib/config";
 import { Preferences } from "./preferences";
 import { Diagnostics } from "./diagnostics";
+import { Vitals } from "./vitals";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
   const disconnect = async () => {
@@ -123,6 +124,10 @@ export function SettingsView({
 
         <motion.div variants={fadeRise}>
           <Preferences />
+        </motion.div>
+
+        <motion.div variants={fadeRise}>
+          <Vitals />
         </motion.div>
 
         <motion.div variants={fadeRise}>

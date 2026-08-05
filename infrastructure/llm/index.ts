@@ -204,9 +204,11 @@ function observed(first: string, tier: ModelTier): LanguageModel {
             const out = await fn.apply(impl, args);
             strikes.delete(key);            // a clean call clears the record
             chosen.set(tier, ids[idIndex]); // remember what actually works
+            noteCall(tier, true);
             return out;
           } catch (err) {
             lastErr = err;
+            noteCall(tier, false);
 
             // A retired model id fails on every key, so rotating keys would
             // just burn the ring. Move to the next id instead.
@@ -248,6 +250,79 @@ export function getModel(tier: ModelTier = "smart"): LanguageModel | null {
   // without it every fresh instance would begin at key one and drain it first.
   current = keys[cursor++ % keys.length];
   return observed(current, tier);
+}
+
+/**
+ * Counting what SAGE spends.
+ *
+ * Google exposes no usage API for the free tier, so the only way to answer
+ * "how much is left today" is to count our own calls. Without this, an app
+ * that has gone quiet is indistinguishable from an app that is broken — which
+ * is the actual problem: a quota wall looks exactly like a bug.
+ *
+ * Counters are per-instance and flushed into a single row per day, at most
+ * once a minute, so the cost of knowing is a couple of writes an hour rather
+ * than a write per model call. Serverless instances come and go, so the row is
+ * incremented from a stored total rather than overwritten with a local one.
+ */
+interface Usage { calls: number; failures: number; byTier: Record<string, number> }
+const pending: Usage = { calls: 0, failures: 0, byTier: {} };
+let lastFlush = 0;
+const FLUSH_EVERY_MS = 60_000;
+
+function noteCall(tier: ModelTier, ok: boolean) {
+  pending.calls += 1;
+  if (!ok) pending.failures += 1;
+  pending.byTier[tier] = (pending.byTier[tier] ?? 0) + 1;
+  if (Date.now() - lastFlush > FLUSH_EVERY_MS) void flushUsage();
+}
+
+async function flushUsage(): Promise<void> {
+  if (pending.calls === 0) return;
+  lastFlush = Date.now();
+  const batch = { ...pending, byTier: { ...pending.byTier } };
+  pending.calls = 0; pending.failures = 0; pending.byTier = {};
+
+  try {
+    const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const { data: existing } = await db
+      .from("Event").select("id, payload")
+      .eq("userId", DEFAULT_USER_ID).eq("type", "llm.usage").eq("payload->>day", day)
+      .limit(1).maybeSingle();
+
+    const prev = (existing?.payload as Usage | undefined) ?? { calls: 0, failures: 0, byTier: {} };
+    const merged: Usage & { day: string } = {
+      day,
+      calls: prev.calls + batch.calls,
+      failures: prev.failures + batch.failures,
+      byTier: { ...prev.byTier },
+    };
+    for (const [t, n] of Object.entries(batch.byTier)) merged.byTier[t] = (merged.byTier[t] ?? 0) + n;
+
+    if (existing) await db.from("Event").update({ payload: merged }).eq("id", existing.id);
+    else await db.from("Event").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: "llm.usage", payload: merged });
+  } catch {
+    // Losing a counter is not worth failing a reply over.
+  }
+}
+
+/** Today's spend, and the days before it, for the vitals panel. */
+export async function usageHistory(days = 7): Promise<{ day: string; calls: number; failures: number }[]> {
+  const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
+  const { data } = await db
+    .from("Event").select("payload")
+    .eq("userId", DEFAULT_USER_ID).eq("type", "llm.usage")
+    .order("createdAt", { ascending: false }).limit(days);
+  const rows = (data ?? []).map((r) => r.payload as Usage & { day: string });
+  // The in-flight batch has not been written yet; today's number should still
+  // include it, or the panel reads low every time you look at it.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const out = rows.map((r) => ({ day: r.day, calls: r.calls, failures: r.failures }));
+  const mine = out.find((r) => r.day === today);
+  if (mine) { mine.calls += pending.calls; mine.failures += pending.failures; }
+  else if (pending.calls) out.unshift({ day: today, calls: pending.calls, failures: pending.failures });
+  return out.sort((a, b) => b.day.localeCompare(a.day));
 }
 
 /** Key health, for diagnostics. Never returns key material — tail only. */

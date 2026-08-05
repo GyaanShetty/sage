@@ -75,3 +75,55 @@ export async function githubSummary(): Promise<string | null> {
   if (snap.repos.length) parts.push(`recent repos: ${snap.repos.slice(0, 4).map((r) => r.name).join(", ")}`);
   return parts.join(". ") || "No open PRs or review requests.";
 }
+
+/**
+ * Write a file to a repo, creating or updating it.
+ *
+ * Used by the backup: the point of a backup is that it survives the thing it
+ * is backing up, so it has to leave the Supabase project entirely. A private
+ * GitHub repo is free, versioned, and somewhere Gyaan can already reach.
+ *
+ * The existing sha is looked up first because the Contents API rejects an
+ * update that does not name the blob it is replacing.
+ */
+export async function putRepoFile(
+  repo: string,           // "owner/name"
+  path: string,
+  content: string,
+  message: string,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  if (!process.env.GITHUB_TOKEN) return { ok: false, error: "No GITHUB_TOKEN set." };
+
+  const base = `${API}/repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+  let sha: string | undefined;
+  try {
+    const head = await proxyFetch(base, { headers: headers(), signal: AbortSignal.timeout(9000) });
+    if (head.ok) sha = ((await head.json()) as { sha?: string }).sha;
+  } catch {
+    // A missing file is the normal case for a new day's backup, not an error.
+  }
+
+  try {
+    const res = await proxyFetch(base, {
+      method: "PUT",
+      headers: { ...headers(), "content-type": "application/json" },
+      body: JSON.stringify({
+        message,
+        content: Buffer.from(content, "utf8").toString("base64"),
+        ...(sha ? { sha } : {}),
+      }),
+      signal: AbortSignal.timeout(25_000),
+    });
+    if (!res.ok) return { ok: false, error: `GitHub ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    const j = (await res.json()) as { content?: { html_url?: string } };
+    return { ok: true, url: j.content?.html_url ?? `https://github.com/${repo}/blob/main/${path}` };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+/** Whether the repo exists and is private — a backup must never land in public. */
+export async function repoVisibility(repo: string): Promise<"private" | "public" | null> {
+  const r = await gh<{ private: boolean }>(`/repos/${repo}`);
+  return r ? (r.private ? "private" : "public") : null;
+}

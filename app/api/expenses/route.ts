@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
-import { listExpenses, addExpense, deleteExpense, scanExpenses, summarize, type Expense } from "@/core/finance/expenses";
+import { listExpenses, addExpense, deleteExpense, scanExpenses, summarize, knownCategories, type Expense } from "@/core/finance/expenses";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [expenses, summary] = await Promise.all([listExpenses(60), summarize(30)]);
-  return NextResponse.json({ ok: true, data: { expenses, summary } });
+  // The categories come back with the expenses so the form can offer his own
+  // budget envelopes rather than a list baked into the client.
+  const [expenses, summary, categories] = await Promise.all([
+    listExpenses(60),
+    summarize(30),
+    knownCategories().catch(() => []),
+  ]);
+  return NextResponse.json({ ok: true, data: { expenses, summary, categories } });
 }
 
 export async function POST(req: Request) {

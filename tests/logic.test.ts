@@ -815,3 +815,36 @@ test("recall never holds a reply past its deadline", async () => {
   assert.ok(Array.isArray(out), "recall must always hand back a list");
   assert.ok(took < 900, `recall blocked for ${took}ms past a 50ms deadline`);
 });
+
+test("an expense keeps the category he filed it under", async () => {
+  const { normaliseCategory } = await import("@/core/finance/expenses");
+  // The bug: anything outside eight hardcoded slugs became "other", so money
+  // filed under a budget line he wrote landed somewhere he never chose.
+  assert.equal(normaliseCategory("Mess Fees"), "mess fees");
+  assert.equal(normaliseCategory("  Rent  "), "rent");
+  assert.equal(normaliseCategory("food"), "food");
+  // Only genuinely absent categories fall back.
+  assert.equal(normaliseCategory(""), "other");
+  assert.equal(normaliseCategory(undefined), "other");
+});
+
+test("budget lines match spending in his own categories", async () => {
+  const { budgetStatus } = await import("@/core/finance/budget");
+  const month = new Date().toISOString().slice(0, 7);
+  const plan = {
+    month, income: 20000, basis: "custom" as const, updatedAt: new Date().toISOString(),
+    lines: [
+      { id: "1", category: "Mess Fees", bucket: "needs" as const, limit: 5000 },
+      { id: "2", category: "books", bucket: "wants" as const, limit: 1000 },
+    ],
+  };
+  const expenses = [
+    { id: "a", amount: 3000, merchant: "mess", category: "mess fees", date: new Date().toISOString(), recurring: false, source: "manual" as const },
+    { id: "b", amount: 400, merchant: "shop", category: "books", date: new Date().toISOString(), recurring: false, source: "manual" as const },
+  ];
+
+  const s = budgetStatus(plan, expenses);
+  assert.equal(s.lines[0].spent, 3000, "spending must land on the line he wrote, whatever its capitalisation");
+  assert.equal(s.lines[1].spent, 400);
+  assert.equal(s.unbudgetedTotal, 0, "his own categories are not 'unbudgeted'");
+});

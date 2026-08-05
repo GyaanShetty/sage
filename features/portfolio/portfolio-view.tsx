@@ -24,6 +24,11 @@ interface Totals { value: number; cost: number; pnl: number; pnlPct: number }
 interface NewsLink { symbol: string; title: string; link: string; source: string }
 interface Expense { id: string; amount: number; merchant: string; category: string; date: string; recurring: boolean }
 interface Summary { total: number; byCategory: Record<string, number>; recurring: { merchant: string; amount: number }[] }
+/**
+ * Fallback only. The real list is whatever he wrote in the budget table — this
+ * is what the dropdown shows before that has loaded, or if he has no budget
+ * for the month yet.
+ */
 const CATS = ["food", "transport", "shopping", "subscriptions", "bills", "entertainment", "health", "other"];
 // symbol → CoinGecko id, for pushing crypto holdings into the Markets watchlist
 const CRYPTO_IDS: Record<string, string> = {
@@ -75,10 +80,19 @@ export function PortfolioView() {
   // Bumped whenever expenses change, so the budget beside them re-reads
   // rather than showing figures from before the entry that was just added.
   const [expenseKey, setExpenseKey] = useState(0);
+  // His own envelopes, so an expense can be filed where he actually budgets.
+  const [cats, setCats] = useState<string[]>(CATS);
 
   const loadExp = useCallback(async () => {
     const j = await fetch("/api/expenses").then((r) => r.json()).catch(() => null);
     setExpenses(j?.data?.expenses ?? []); setSummary(j?.data?.summary ?? null);
+    const known: string[] = j?.data?.categories ?? [];
+    if (known.length) {
+      setCats(known);
+      // Keep the selection valid when the budget changes underneath it,
+      // otherwise the box shows one category and submits another.
+      setExp((p) => (known.includes(p.category) ? p : { ...p, category: known[0] }));
+    }
     setExpenseKey((k) => k + 1);
   }, []);
   useEffect(() => { load(); loadExp(); const t = setInterval(load, 60000); return () => clearInterval(t); }, [load, loadExp]);
@@ -86,7 +100,7 @@ export function PortfolioView() {
   const addExp = async () => {
     if (!exp.amount) return;
     await fetch("/api/expenses", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ amount: Number(exp.amount), merchant: exp.merchant || "—", category: exp.category, recurring: exp.category === "subscriptions" }) });
-    setExp({ amount: "", merchant: "", category: "food" }); loadExp();
+    setExp((p) => ({ amount: "", merchant: "", category: p.category })); loadExp();
   };
   const scanReceipts = async () => {
     setScanning(true);
@@ -406,7 +420,7 @@ export function PortfolioView() {
         <div className="pf-addform" style={{ marginTop: 12 }}>
           <input value={exp.amount} onChange={(e) => setExp({ ...exp, amount: e.target.value })} placeholder="₹ amount" type="number" />
           <input value={exp.merchant} onChange={(e) => setExp({ ...exp, merchant: e.target.value })} placeholder="Merchant" onKeyDown={(e) => e.key === "Enter" && addExp()} />
-          <select value={exp.category} onChange={(e) => setExp({ ...exp, category: e.target.value })}>{CATS.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+          <select value={exp.category} onChange={(e) => setExp({ ...exp, category: e.target.value })}>{cats.map((c) => <option key={c} value={c}>{c}</option>)}</select>
           <button onClick={addExp} className="cc-btn cc-scan"><Plus className="size-3.5" /> Add</button>
         </div>
 

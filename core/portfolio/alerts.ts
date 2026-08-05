@@ -68,3 +68,56 @@ export function describeAlert(a: PriceAlert): string {
   if (a.condition === "pct_up") return `${a.symbol} gains ${a.value}% in a day`;
   return `${a.symbol} drops ${Math.abs(a.value)}% in a day`;
 }
+
+/**
+ * Actually check the alerts.
+ *
+ * These were storable, editable, deletable — and never once evaluated. Every
+ * alert he had set was a rule nobody read, which is worse than no alerts at
+ * all: he believed he would be told. There was nowhere sensible to run this
+ * from on two crons a day; the heartbeat gives it a home.
+ */
+export async function evaluateAlerts(): Promise<{ checked: number; fired: string[] }> {
+  const alerts = (await listAlerts()).filter((a) => a.enabled);
+  if (alerts.length === 0) return { checked: 0, fired: [] };
+
+  const { getMarkets, getStocks } = await import("@/infrastructure/markets");
+  const [coins, stocks] = await Promise.all([
+    getMarkets(["bitcoin", "ethereum", "solana", "chainlink"]).catch(() => null),
+    getStocks().catch(() => null),
+  ]);
+
+  const quote = new Map<string, { price: number; changePct: number }>();
+  for (const c of coins ?? []) quote.set(c.symbol.toUpperCase(), { price: c.price, changePct: c.change24h });
+  for (const s of stocks ?? []) quote.set(s.symbol.toUpperCase(), { price: s.price, changePct: s.change });
+
+  const fired: string[] = [];
+  for (const a of alerts) {
+    const q = quote.get(a.symbol.toUpperCase());
+    if (!q) continue;
+    if (!alertTriggered(a, q.price, q.changePct)) continue;
+
+    // Once per day per alert. A price sitting above a threshold satisfies the
+    // condition on every beat, and an alert that fires forty times is noise he
+    // will turn off — which loses the alert entirely.
+    const firedToday =
+      a.lastFiredAt &&
+      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(a.lastFiredAt)) ===
+        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    if (firedToday) continue;
+
+    await updateAlert(a.id, { lastFiredAt: new Date().toISOString() });
+
+    const { sendPush } = await import("@/infrastructure/push");
+    await sendPush({
+      title: `📈 ${a.symbol}`,
+      body: `${describeAlert(a)} — now ${q.price.toLocaleString()} (${q.changePct >= 0 ? "+" : ""}${q.changePct.toFixed(1)}%)${a.note ? ` · ${a.note}` : ""}`,
+      tag: `alert-${a.id}`,
+      url: "/portfolio",
+    }).catch(() => 0);
+
+    fired.push(describeAlert(a));
+  }
+
+  return { checked: alerts.length, fired };
+}

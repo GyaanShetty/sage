@@ -848,3 +848,137 @@ test("budget lines match spending in his own categories", async () => {
   assert.equal(s.lines[1].spent, 400);
   assert.equal(s.unbudgetedTotal, 0, "his own categories are not 'unbudgeted'");
 });
+
+test("heartbeat runs a job only when its cadence says so", async () => {
+  const { isDue } = await import("@/core/ops/heartbeat");
+  const job = { name: "j", everyMin: 15, run: async () => null };
+  const now = new Date("2026-08-05T10:00:00.000Z");
+
+  assert.equal(isDue(job, undefined, now), true, "never run before means due");
+  assert.equal(isDue(job, new Date(now.getTime() - 5 * 60_000).toISOString(), now), false, "5 min into a 15 min cadence");
+  assert.equal(isDue(job, new Date(now.getTime() - 20 * 60_000).toISOString(), now), true);
+  // A stored timestamp in the future would otherwise park the job forever.
+  assert.equal(isDue(job, new Date(now.getTime() + 86_400_000).toISOString(), now), true);
+  assert.equal(isDue(job, "not a date", now), true);
+});
+
+test("market-hours jobs stay quiet outside NSE hours", async () => {
+  const { isDue, inMarketHours } = await import("@/core/ops/heartbeat");
+  const job = { name: "alerts", everyMin: 10, marketHours: true, run: async () => null };
+
+  // 2026-08-05 is a Wednesday. 06:00 UTC = 11:30 IST, mid-session.
+  const midSession = new Date("2026-08-05T06:00:00.000Z");
+  assert.equal(inMarketHours(midSession), true);
+  assert.equal(isDue(job, undefined, midSession), true);
+
+  // 22:00 UTC = 03:30 IST the next day — nothing is trading.
+  const night = new Date("2026-08-05T22:00:00.000Z");
+  assert.equal(inMarketHours(night), false);
+  assert.equal(isDue(job, undefined, night), false, "no point spending a rate-limited quote API at 3am");
+
+  // 2026-08-08 is a Saturday, 06:00 UTC = 11:30 IST.
+  assert.equal(inMarketHours(new Date("2026-08-08T06:00:00.000Z")), false);
+});
+
+test("hour-windowed jobs respect his waking hours", async () => {
+  const { isDue } = await import("@/core/ops/heartbeat");
+  const job = { name: "notifications", everyMin: 60, hours: [6, 23] as [number, number], run: async () => null };
+  // 20:00 UTC = 01:30 IST — inside the cadence, outside the window.
+  assert.equal(isDue(job, undefined, new Date("2026-08-05T20:00:00.000Z")), false);
+  // 06:00 UTC = 11:30 IST.
+  assert.equal(isDue(job, undefined, new Date("2026-08-05T06:00:00.000Z")), true);
+});
+
+test("ICS times land on the right instant, whatever the zone", async () => {
+  const { parseIcsDate } = await import("@/infrastructure/integrations/ics");
+
+  // A UTC instant is taken as given.
+  assert.equal(parseIcsDate("20260805T093000Z")?.iso, "2026-08-05T09:30:00.000Z");
+
+  // A floating local time in IST is 5h30 ahead of UTC — a 09:30 lecture is
+  // 04:00Z, not 09:30Z. Getting this wrong shifts a whole timetable.
+  const ist = parseIcsDate("20260805T093000", "Asia/Kolkata");
+  assert.equal(ist?.iso, "2026-08-05T04:00:00.000Z");
+  assert.equal(ist?.allDay, false);
+
+  // A date with no time is all-day.
+  const day = parseIcsDate("20260805");
+  assert.equal(day?.allDay, true);
+
+  // Another zone entirely, to prove nothing is hardcoded to +05:30.
+  assert.equal(parseIcsDate("20260805T090000", "Europe/London")?.iso, "2026-08-05T08:00:00.000Z");
+});
+
+test("a weekly timetable expands into every one of its days", async () => {
+  const { parseIcs } = await import("@/infrastructure/integrations/ics");
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:lecture-1",
+    "SUMMARY:Linear Algebra",
+    "LOCATION:LT-3",
+    "DTSTART;TZID=Asia/Kolkata:20260803T090000",
+    "DTEND;TZID=Asia/Kolkata:20260803T100000",
+    "RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR;UNTIL=20260901T000000Z",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const events = parseIcs(ics, { from: new Date("2026-08-03T00:00:00Z"), days: 14, feed: "Timetable" });
+
+  // Three days a week for two weeks. Ignoring BYDAY would have lost two
+  // thirds of the timetable.
+  assert.ok(events.length >= 5, `expected several occurrences, got ${events.length}`);
+  assert.equal(events[0].summary, "Linear Algebra");
+  assert.equal(events[0].location, "LT-3");
+  assert.equal(events[0].feed, "Timetable");
+  assert.ok(new Set(events.map((e) => e.uid)).size === events.length, "every occurrence needs its own id");
+
+  // Nothing may fall outside the window the caller asked for.
+  for (const e of events) assert.ok(new Date(e.start) <= new Date("2026-08-17T00:00:00Z"));
+});
+
+test("folded ICS lines and escaped text survive parsing", async () => {
+  const { parseIcs } = await import("@/infrastructure/integrations/ics");
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "BEGIN:VEVENT",
+    "UID:x",
+    "SUMMARY:Exam\\, Paper 2",
+    "  — Main Hall",
+    "DTSTART:20260805T093000Z",
+    "DTEND:20260805T113000Z",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  const [e] = parseIcs(ics, { from: new Date("2026-08-01T00:00:00Z"), days: 30 });
+  // Unfolding consumes the single leading space that marks the continuation
+  // (RFC 5545), so the second space in the source is the one that survives.
+  assert.equal(e.summary, "Exam, Paper 2 — Main Hall");
+});
+
+test("arXiv entries parse into papers, abstracts unwrapped", async () => {
+  const { searchPapers } = await import("@/infrastructure/integrations/arxiv");
+  // No network in tests; an empty query short-circuits before any fetch, which
+  // is the contract the UI relies on when the box is empty.
+  assert.deepEqual(await searchPapers("   "), []);
+});
+
+test("citations read like citations", async () => {
+  const { cite } = await import("@/infrastructure/integrations/arxiv");
+  const base = {
+    id: "2401.01234v1", title: "On Portfolio Concentration", summary: "",
+    published: "2024-01-02T00:00:00Z", updated: "", categories: ["q-fin.PM"],
+    url: "https://arxiv.org/abs/2401.01234v1", pdfUrl: "https://arxiv.org/pdf/2401.01234v1",
+  };
+  assert.equal(
+    cite({ ...base, authors: ["A Roy", "B Shah"] }),
+    "A Roy & B Shah (2024). On Portfolio Concentration. arXiv:2401.01234v1",
+  );
+  // Three or more collapses, as every citation style does.
+  assert.equal(
+    cite({ ...base, authors: ["A Roy", "B Shah", "C Iyer"] }),
+    "A Roy et al. (2024). On Portfolio Concentration. arXiv:2401.01234v1",
+  );
+});

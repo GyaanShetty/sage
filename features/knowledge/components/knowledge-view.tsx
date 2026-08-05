@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Papers } from "./papers";
 import { AnimatePresence, motion } from "framer-motion";
 import { FileText, Globe, Link2, Loader2, Trash2, Upload, AlertCircle } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
@@ -112,6 +113,8 @@ export function KnowledgeView({ sources }: { sources: SourceItem[] }) {
             <AlertCircle className="size-4" /> {error}
           </motion.p>
         )}
+
+        <Papers />
 
         <div className="mt-8 flex flex-col gap-3">
           <AnimatePresence initial={false}>

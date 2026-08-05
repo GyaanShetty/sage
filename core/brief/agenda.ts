@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { listUpcomingEvents, listUnreadEmails } from "@/infrastructure/integrations/google";
+import { listUnreadEmails } from "@/infrastructure/integrations/google";
+import { upcomingEvents } from "@/core/calendar";
 import { getMarkets } from "@/infrastructure/markets";
 import { getWeather } from "@/infrastructure/weather";
 import { trainingSummary } from "@/core/health/hevy";
@@ -122,7 +123,7 @@ export async function buildDayPicture(): Promise<DayPicture> {
   const { weekday, date, dow } = fmtParts(TZ);
 
   const [rawEvents, emails, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }, budget] = await Promise.all([
-    listUpcomingEvents(10).catch(() => null),
+    upcomingEvents(10).catch(() => null),
     listUnreadEmails(6).catch(() => null),
     getMarkets().catch(() => null),
     getWeather().catch(() => null),

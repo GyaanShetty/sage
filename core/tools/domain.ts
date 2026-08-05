@@ -377,15 +377,26 @@ export const domainTools = {
     inputSchema: z.object({
       amount: z.number().positive().max(10_000_000),
       merchant: z.string().max(80).describe("Where it went — the shop, the service, the person"),
-      category: z.enum(["food", "transport", "shopping", "subscriptions", "bills", "entertainment", "health", "other"]),
+      // Free text, matched to his budget below. A fixed enum here forced every
+      // spoken expense into one of eight slugs, so "put 200 on mess" was filed
+      // under something he had never chosen.
+      category: z.string().max(40).describe("The budget category it belongs to, e.g. food, rent, mess, books"),
       recurring: z.boolean().optional().describe("True only for subscriptions and standing bills"),
     }),
     execute: async (e) => {
-      const { addExpense } = await import("@/core/finance/expenses");
+      const { addExpense, knownCategories, normaliseCategory } = await import("@/core/finance/expenses");
       const { getPlan, budgetStatus, currentMonth } = await import("@/core/finance/budget");
       const { listExpenses } = await import("@/core/finance/expenses");
 
-      const id = await addExpense({ ...e, source: "manual" });
+      // Snap to one of his own envelopes when it matches, so a spoken "mess"
+      // lands on the "Mess Fees" line rather than creating a second one.
+      const spoken = normaliseCategory(e.category);
+      const known = await knownCategories().catch(() => [] as string[]);
+      const match = known.find((c) => normaliseCategory(c) === spoken)
+        ?? known.find((c) => normaliseCategory(c).startsWith(spoken) || spoken.startsWith(normaliseCategory(c)));
+      const category = match ? normaliseCategory(match) : spoken;
+
+      const id = await addExpense({ ...e, category, source: "manual" });
 
       // Say what it did to the budget, not just that it saved. "Logged" is
       // bookkeeping; "that puts food 300 over for the month" is the reason
@@ -394,14 +405,14 @@ export const domainTools = {
       if (!plan) return { ok: true, id, logged: `₹${e.amount} at ${e.merchant}` };
 
       const status = budgetStatus(plan, await listExpenses(60));
-      const line = status.lines.find((l) => l.category.toLowerCase() === e.category);
+      const line = status.lines.find((l) => normaliseCategory(l.category) === category);
       return {
         ok: true,
         id,
         logged: `₹${e.amount} at ${e.merchant}`,
         budget: line
           ? { category: line.category, spent: line.spent, limit: line.limit, remaining: line.remaining, state: line.state }
-          : { note: `${e.category} has no budget line this month` },
+          : { note: `${category} has no budget line this month` },
       };
     },
   }),
@@ -551,6 +562,58 @@ export const domainTools = {
       const pages = Math.max(1, Math.ceil(hit.text.length / SIZE));
       if (!slice) return { ok: false, error: `Page ${page} is past the end (${pages} pages).` };
       return { ok: true, name: hit.name, page, pages, text: slice };
+    },
+  }),
+
+  // ── Papers ──────────────────────────────────────────────────────────────
+  find_papers: tool({
+    description:
+      "Search arXiv for actual research papers on a topic — machine learning, physics, quantitative finance, mathematics. Use when the user asks what the research says, wants papers on something, or is studying a technical subject. Returns titles, authors and abstracts. Prefer this over web search for anything academic: the web returns blog posts about papers, this returns the papers.",
+    inputSchema: z.object({
+      query: z.string().max(200).describe("Topic, or arXiv field syntax like au:Bengio or cat:q-fin.PM"),
+      recent: z.boolean().optional().describe("True to sort by newest rather than relevance"),
+    }),
+    execute: async ({ query, recent }) => {
+      const { searchPapers, cite } = await import("@/infrastructure/integrations/arxiv");
+      const papers = await searchPapers(query, { limit: 6, sortBy: recent ? "recent" : "relevance" });
+      if (papers === null) return { ok: false, error: "arXiv didn't answer." };
+      if (papers.length === 0) return { ok: true, count: 0, note: "Nothing on arXiv for that." };
+      return {
+        ok: true,
+        count: papers.length,
+        papers: papers.map((p) => ({
+          id: p.id,
+          title: p.title,
+          published: p.published.slice(0, 10),
+          // Trimmed: six full abstracts is most of a context window, and the
+          // first few sentences are what decide whether to open it.
+          abstract: p.summary.slice(0, 600),
+          citation: cite(p),
+          url: p.url,
+        })),
+      };
+    },
+  }),
+
+  save_paper: tool({
+    description:
+      "Save an arXiv paper into the knowledge base by its id (e.g. 2401.01234), so its full text becomes searchable and citable later. Use after find_papers when the user says to keep or read one.",
+    inputSchema: z.object({ id: z.string().max(40) }),
+    execute: async ({ id }) => {
+      const { getPaper, cite } = await import("@/infrastructure/integrations/arxiv");
+      const paper = await getPaper(id);
+      if (!paper) return { ok: false, error: "No paper with that id." };
+
+      const { proxyFetch } = await import("@/infrastructure/http/fetch");
+      const { ingestPdf } = await import("@/core/knowledge/ingest");
+      try {
+        const res = await proxyFetch(paper.pdfUrl, { redirect: "follow", signal: AbortSignal.timeout(40_000) });
+        if (!res.ok) return { ok: false, error: `arXiv returned ${res.status} for the PDF.` };
+        const source = await ingestPdf(Buffer.from(await res.arrayBuffer()), `${paper.title.replace(/[^\w\s-]/g, "").slice(0, 80)}.pdf`);
+        return { ok: true, saved: paper.title, citation: cite(paper), source };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
     },
   }),
 

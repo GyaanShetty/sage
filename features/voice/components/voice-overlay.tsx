@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Mic, MicOff, Paperclip, Send, Volume2, VolumeX, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Paperclip, Send, Square, Volume2, VolumeX, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useVoiceAssistant } from "../engine";
 import { useLiveVoice } from "../live";
@@ -316,6 +316,18 @@ export function VoiceOverlay() {
                   </div>
                   <p className="truncate text-[11px] text-subtle">{statusText}</p>
                 </div>
+                {/* The mic is deaf while she speaks so she cannot interrupt
+                    herself, so cutting her off has to be a tap. */}
+                {liveActive && live.state === "speaking" && (
+                  <button
+                    onClick={live.interrupt}
+                    title="Stop talking"
+                    aria-label="Stop SAGE talking"
+                    className="rounded-lg p-2 text-muted transition-colors hover:text-foreground"
+                  >
+                    <Square className="size-4" />
+                  </button>
+                )}
                 {liveActive && (
                   <button
                     onClick={live.toggleMic}

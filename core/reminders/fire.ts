@@ -63,13 +63,11 @@ export async function fireDueReminders(limit = 50): Promise<FiredReminder[]> {
     // deduplicated; it must not reach the user.
     const spoken = stripMarker(reminder.text as string);
 
-    await db.from("Task").insert({
-      id: crypto.randomUUID(),
-      userId: DEFAULT_USER_ID,
-      title: `⏰ ${spoken}`,
-      priority: 0,
-      source: "automation",
-    });
+    // Deliberately NOT a task. A reminder is a moment, not a piece of work:
+    // mirroring it into the task list left a permanent "⏰ Standup in 15
+    // minutes" sitting among real work long after the standup ended, and
+    // filed under automation as though a directive had produced it. The
+    // notification IS the delivery.
     await db.from("Event").insert({
       id: crypto.randomUUID(),
       userId: DEFAULT_USER_ID,

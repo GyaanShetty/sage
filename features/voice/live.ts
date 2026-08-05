@@ -129,6 +129,32 @@ export function useLiveVoice() {
   const stateRef = useRef<LiveState>("off");
   const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * Until when the microphone should be ignored.
+   *
+   * Echo cancellation is asked for, but it does not reliably cover audio
+   * played through Web Audio rather than an element — so SAGE could hear
+   * herself, the server's voice-activity detector called it a barge-in, and
+   * she cut herself off mid-sentence. On a loudspeaker that becomes a loop:
+   * speak, interrupt, restart, interrupt.
+   *
+   * While she is speaking, the mic is not sent. The cost is that you cannot
+   * talk over her — tap the orb to cut her off instead — and that is a much
+   * better trade than a conversation that fights itself.
+   */
+  const deafUntilRef = useRef(0);
+  /** Room reverb outlasts the audio; swallow the tail before listening again. */
+  const TAIL_MS = 350;
+
+  /**
+   * Set when you cut her off mid-turn.
+   *
+   * Stopping the sources already scheduled is not enough: the server keeps
+   * streaming the rest of the turn, and each arriving chunk would be scheduled
+   * and played. This drops the remainder until the turn actually completes.
+   */
+  const abandonTurnRef = useRef(false);
+
   const setBoth = (s: LiveState) => {
     stateRef.current = s;
     setState(s);
@@ -136,6 +162,10 @@ export function useLiveVoice() {
 
   const stop = useCallback(() => {
     setBoth("off");
+    // A session that ended is not a muted microphone. Leaving this set made
+    // the next session start showing "muted" while the mic was in fact live.
+    setMicMuted(false);
+    deafUntilRef.current = 0;
     try { sessionRef.current?.close(); } catch {}
     sessionRef.current = null;
     playingRef.current.forEach((s) => { try { s.stop(); } catch {} });
@@ -158,6 +188,8 @@ export function useLiveVoice() {
     setTurns([]);
     youBufRef.current = "";
     sageBufRef.current = "";
+    setMicMuted(false);
+    deafUntilRef.current = 0;
     setBoth("connecting");
 
     try {
@@ -187,9 +219,11 @@ export function useLiveVoice() {
         setBoth("speaking");
         if (speakTimerRef.current) clearTimeout(speakTimerRef.current);
         const remaining = Math.max(0, nextStartRef.current - outCtx.currentTime);
+        // Ignore the mic for as long as she is audible, plus the room's tail.
+        deafUntilRef.current = Date.now() + remaining * 1000 + TAIL_MS;
         speakTimerRef.current = setTimeout(() => {
           if (stateRef.current === "speaking") setBoth("listening");
-        }, remaining * 1000 + 220);
+        }, remaining * 1000 + TAIL_MS);
       };
 
       const session = await ai.live.connect({
@@ -261,10 +295,15 @@ export function useLiveVoice() {
             const sc = m.serverContent;
             if (!sc) return;
             if (sc.interrupted) {
-              // Barge-in: user spoke over her — cut playback instantly.
+              // Barge-in: cut playback instantly.
               playingRef.current.forEach((s) => { try { s.stop(); } catch {} });
               playingRef.current = [];
               nextStartRef.current = outCtx.currentTime;
+              // Without this the pending speaking→listening timer fires later
+              // and flips state again, on a turn that has already ended.
+              if (speakTimerRef.current) { clearTimeout(speakTimerRef.current); speakTimerRef.current = null; }
+              deafUntilRef.current = 0;
+              abandonTurnRef.current = false;
               setBoth("listening");
               return;
             }
@@ -277,6 +316,7 @@ export function useLiveVoice() {
               setCaptions((c) => ({ ...c, sage: sageBufRef.current.slice(-220) }));
             }
             if (sc.turnComplete) {
+              abandonTurnRef.current = false;
               // Flush the completed exchange into the scrollable history.
               const you = youBufRef.current.trim();
               const sage = sageBufRef.current.trim();
@@ -291,6 +331,8 @@ export function useLiveVoice() {
               setCaptions({ you: "", sage: "" });
             }
             for (const part of sc.modelTurn?.parts ?? []) {
+              // You told her to stop; the rest of this turn is not wanted.
+              if (abandonTurnRef.current) break;
               const data = part.inlineData?.data;
               if (!data) continue;
               const pcm = base64ToPcm(data);
@@ -328,14 +370,23 @@ export function useLiveVoice() {
       const proc = micCtx.createScriptProcessor(4096, 1, 1);
       proc.onaudioprocess = (e) => {
         if (!sessionRef.current || stateRef.current === "off") return;
+        // Do not feed her own voice back to the server.
+        if (Date.now() < deafUntilRef.current) return;
         const data = toPcm16Base64(e.inputBuffer.getChannelData(0), micCtx.sampleRate);
         try {
           sessionRef.current.sendRealtimeInput({ audio: { data, mimeType: "audio/pcm;rate=16000" } });
         } catch {}
       };
+      // A ScriptProcessor only runs while connected to something. Routing it
+      // through a muted gain node keeps it alive without any path from the
+      // microphone to the speakers — a wiring mistake there is a feedback
+      // squeal, and the safe version costs one node.
+      const sink = micCtx.createGain();
+      sink.gain.value = 0;
       srcNode.connect(proc);
-      proc.connect(micCtx.destination);
-      nodesRef.current = [srcNode, proc];
+      proc.connect(sink);
+      sink.connect(micCtx.destination);
+      nodesRef.current = [srcNode, proc, sink];
 
       return true;
     } catch (err) {
@@ -349,6 +400,25 @@ export function useLiveVoice() {
       return false;
     }
   }, [stop]);
+
+  /**
+   * Cut her off.
+   *
+   * The microphone is deliberately deaf while she speaks, so talking over her
+   * cannot interrupt her any more — this is what replaces that. It stops what
+   * is playing, discards the rest of the turn, and starts listening
+   * immediately rather than waiting out the tail.
+   */
+  const interrupt = useCallback(() => {
+    if (stateRef.current !== "speaking") return;
+    abandonTurnRef.current = true;
+    playingRef.current.forEach((s) => { try { s.stop(); } catch {} });
+    playingRef.current = [];
+    if (outCtxRef.current) nextStartRef.current = outCtxRef.current.currentTime;
+    if (speakTimerRef.current) { clearTimeout(speakTimerRef.current); speakTimerRef.current = null; }
+    deafUntilRef.current = 0;
+    setBoth("listening");
+  }, []);
 
   /**
    * Mute the microphone without dropping the session.
@@ -367,10 +437,12 @@ export function useLiveVoice() {
   const toggleMic = useCallback(() => {
     const track = streamRef.current?.getAudioTracks()[0];
     // Read the live track rather than React state — a track can be disabled by
-    // the OS or another tab, and state would then be lying.
-    const next = track ? !track.enabled : micMuted;
-    setMicEnabled(next);
-  }, [micMuted, setMicEnabled]);
+    // the OS or another tab, and state would then be lying. With no track at
+    // all there is nothing to toggle, and flipping the flag anyway just made
+    // the button lie in the opposite direction.
+    if (!track) return;
+    setMicEnabled(!track.enabled);
+  }, [setMicEnabled]);
 
-  return { state, error, captions, turns, start, stop, micMuted, toggleMic, setMicEnabled };
+  return { state, error, captions, turns, start, stop, interrupt, micMuted, toggleMic, setMicEnabled };
 }

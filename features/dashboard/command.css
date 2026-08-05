@@ -1252,3 +1252,9 @@
 .sl-done { color: var(--live); }
 .sl-del { background: none; border: 0; color: var(--subtle); cursor: pointer; padding: 3px; display: flex; }
 .sl-del:hover { color: #f87171; }
+
+/* "Go on" — the rest of a long answer, without needing the magic phrase.
+   Sits above the mic so it never covers it. */
+.vc-continue { position: fixed; right: calc(18px + var(--sar)); bottom: calc(96px + var(--sab)); z-index: 55; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.4px; color: var(--live); background: rgba(8,9,11,.9); border: 1px solid var(--live-dim); padding: 9px 12px; cursor: pointer; backdrop-filter: blur(8px); }
+.vc-continue:hover { background: rgba(255,255,255,.08); }
+@media (min-width: 768px) { .vc-continue { bottom: calc(104px + var(--sab)); } }

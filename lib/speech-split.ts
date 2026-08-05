@@ -45,3 +45,46 @@ export function splitForSpeech(text: string, limit: number): string[] {
   return out.filter(Boolean);
 }
 
+
+/**
+ * How much speech fits comfortably in one go.
+ *
+ * Neural TTS lands around 150 words a minute, and English averages roughly
+ * 5.7 characters a word including the space — so a minute of speech is about
+ * 850 characters. That is the unit SAGE speaks in.
+ *
+ * The ceiling is not really the audio buffer or the function timeout; both of
+ * those are now handled. It is that a five-minute uninterrupted monologue is
+ * a bad way to be told anything. Stopping at a minute and offering the rest
+ * respects that better than technically being able to continue.
+ */
+export const SPOKEN_BUDGET_CHARS = 850;
+
+/**
+ * Break a long answer into speakable parts at sentence boundaries.
+ *
+ * Distinct from splitForSpeech, which chops a single utterance into provider-
+ * sized requests that play back to back as one continuous take. These are
+ * separate takes, each ending on a full stop, with a pause and a decision
+ * between them.
+ */
+export function splitIntoParts(text: string, budget = SPOKEN_BUDGET_CHARS): string[] {
+  const clean = text.trim();
+  if (!clean) return [];
+  if (clean.length <= budget) return [clean];
+
+  // Slightly generous: a part that would otherwise strand a short tail reads
+  // better finished than followed by ten seconds of epilogue.
+  return splitForSpeech(clean, budget);
+}
+
+/** What SAGE says at the end of a part when there is more waiting. */
+export function handoffLine(partIndex: number, total: number): string {
+  const left = total - partIndex - 1;
+  if (left <= 0) return "";
+  return partIndex === 0
+    ? `That's the first of ${total} parts, sir. Say "go on" for the rest.`
+    : left === 1
+      ? "One part left, sir — say \"go on\"."
+      : `${left} parts left, sir — say "go on".`;
+}

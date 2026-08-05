@@ -223,6 +223,10 @@ async function speakOne(
     try {
       const ms = new MS();
       const audio = opts?.audio ?? sharedAudio();
+      // iOS exposes ManagedMediaSource rather than MediaSource, and refuses to
+      // attach one unless remote playback is disabled first. Without this the
+      // element simply never plays — silently, which is the worst kind.
+      try { (audio as HTMLAudioElement & { disableRemotePlayback?: boolean }).disableRemotePlayback = true; } catch { /* not supported */ }
       audio.src = URL.createObjectURL(ms);
       audio.muted = false;
       audio.volume = 1;
@@ -245,7 +249,7 @@ async function speakOne(
           };
           sb.addEventListener("updateend", ok, { once: true });
           sb.addEventListener("error", bad, { once: true });
-          sb.appendBuffer(buf);
+          try { sb.appendBuffer(buf); } catch (e) { cleanup(); reject(e); }
         });
 
       /**
@@ -263,8 +267,12 @@ async function speakOne(
        */
       const evict = () =>
         new Promise<void>((resolve) => {
-          const keepFrom = Math.max(0, audio.currentTime - 10);
-          if (keepFrom <= 0 || sb.updating) { resolve(); return; }
+          // Keep a short tail behind the playhead, not ten seconds. On a phone
+          // the buffer is small enough that quota can be reached before three
+          // seconds have played, and a ten-second margin made eviction a no-op
+          // exactly when it was needed.
+          const keepFrom = Math.max(0, audio.currentTime - 2);
+          if (keepFrom <= 0.1 || sb.updating) { resolve(); return; }
           try {
             sb.addEventListener("updateend", () => resolve(), { once: true });
             sb.remove(0, keepFrom);
@@ -274,14 +282,44 @@ async function speakOne(
       const append = async (buf: ArrayBuffer) => {
         try {
           await once(buf);
-        } catch (err) {
-          const name = (err as DOMException)?.name;
+        } catch {
           // QuotaExceededError is the documented signal for "make room", not
-          // a failure — retrying after eviction is the intended handling.
-          if (name !== "QuotaExceededError" && !(err instanceof Error)) throw err;
+          // a failure. Anything else gets one retry too — the cost is a few
+          // milliseconds and the alternative is losing the whole utterance.
           await evict();
           await once(buf);
         }
+      };
+
+      /**
+       * Everything received so far.
+       *
+       * MediaSource is the fast path, not the only one, and it fails in ways
+       * that are invisible from here — a phone with a tiny buffer, a
+       * ManagedMediaSource that will not take another append. Keeping the
+       * bytes means such a failure can fall back to plain blob playback
+       * instead of ending in silence, which is what it did before. A minute
+       * of speech is a few hundred kilobytes; the memory is not the problem.
+       */
+      const received: Uint8Array[] = [];
+
+      /** Play what we have as one blob. The slow path, but it always works. */
+      const blobFallback = async (current: ReadableStreamDefaultReader<Uint8Array>) => {
+        try {
+          for (;;) {
+            const { done, value } = await current.read();
+            if (done) break;
+            if (value) received.push(value);
+          }
+        } catch { /* take whatever arrived */ }
+
+        try { if (ms.readyState === "open") ms.endOfStream(); } catch { /* noop */ }
+        if (received.length === 0) { opts?.onended?.(); return; }
+
+        const blob = new Blob(received as BlobPart[], { type: "audio/mpeg" });
+        audio.src = URL.createObjectURL(blob);
+        audio.onended = opts?.onended ?? null;
+        void start(audio);
       };
 
       (async () => {
@@ -305,9 +343,17 @@ async function speakOne(
 
             if (value) {
               bytes += value.byteLength;
+              received.push(value);
               const ab = new ArrayBuffer(value.byteLength);
               new Uint8Array(ab).set(value);
-              await append(ab);
+              try {
+                await append(ab);
+              } catch {
+                // MediaSource has given up. Do not take the audio down with
+                // it — finish reading and play the whole thing as a blob.
+                await blobFallback(current);
+                return;
+              }
               if (!started) { started = true; void start(audio); }
             }
           }

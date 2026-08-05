@@ -565,6 +565,66 @@ export const domainTools = {
     },
   }),
 
+  // ── Decisions ───────────────────────────────────────────────────────────
+  record_decision: tool({
+    description:
+      "Record a decision in the journal: the call, why, what he expects, and how sure he is. Use whenever he commits to a view or a choice — a trade, an offer, a bet on how something plays out — especially if he says how confident he is. Do not use for tasks or reminders; this is for judgements that can later be scored right or wrong.",
+    inputSchema: z.object({
+      title: z.string().max(200).describe("The call itself, in his words"),
+      reasoning: z.string().max(2000).describe("Why he thinks so, as he said it"),
+      expectation: z.string().max(500).describe("What should be true by the review date — specific enough to be wrong"),
+      confidence: z.number().min(50).max(99).describe("How sure, 50-99. Ask if he did not say; do not invent one."),
+      domain: z.enum(["markets", "career", "study", "health", "money", "life"]),
+      reviewInDays: z.number().min(1).max(1095).describe("When to come back and score it. Default 90."),
+    }),
+    execute: async ({ reviewInDays, ...input }) => {
+      const { addDecision } = await import("@/core/decisions/store");
+      const reviewAt = new Date(Date.now() + reviewInDays * 86_400_000);
+      reviewAt.setHours(9, 0, 0, 0);
+
+      const id = await addDecision({ ...input, reviewAt: reviewAt.toISOString() });
+
+      // The reminder is the half that makes the journal work — an unreviewed
+      // decision measures nothing.
+      const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
+      await db.from("Reminder").insert({
+        id: crypto.randomUUID(), userId: DEFAULT_USER_ID,
+        text: `Review your call: ${input.title.slice(0, 120)}`,
+        remindAt: reviewAt.toISOString(),
+      }).then(() => undefined, () => undefined);
+
+      return {
+        ok: true, id,
+        recorded: input.title,
+        confidence: input.confidence,
+        reviewOn: reviewAt.toISOString().slice(0, 10),
+      };
+    },
+  }),
+
+  calibration_check: tool({
+    description:
+      "How well his confidence has matched reality: hit rate, average confidence, whether he is over- or under-confident, and which decisions are owed a verdict. Use for 'how are my calls doing', 'am I overconfident', 'what do I owe a review'.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { listDecisions, dueForReview } = await import("@/core/decisions/store");
+      const { calibrate } = await import("@/core/decisions/calibration");
+      const all = await listDecisions();
+      const cal = calibrate(all);
+      const due = dueForReview(all);
+      return {
+        ok: true,
+        scored: cal.scored,
+        hitRate: Math.round(cal.hitRate * 100),
+        averageConfidence: Math.round(cal.meanConfidence * 100),
+        // Named rather than signed, so it cannot be read backwards aloud.
+        bias: cal.overconfidence < -0.05 ? "overconfident" : cal.overconfidence > 0.05 ? "underconfident" : "well calibrated",
+        notes: cal.notes,
+        awaitingVerdict: due.slice(0, 5).map((d) => ({ title: d.title, confidence: d.confidence, expected: d.expectation })),
+      };
+    },
+  }),
+
   // ── Papers ──────────────────────────────────────────────────────────────
   find_papers: tool({
     description:

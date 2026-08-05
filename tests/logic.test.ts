@@ -692,3 +692,53 @@ test("the handoff says how much is left, and stays quiet at the end", async () =
   assert.equal(handoffLine(2, 3), "");
   assert.equal(handoffLine(0, 1), "", "a single part is not 'part one of one'");
 });
+
+test("an imported Hevy session reads as a session, not a blank row", async () => {
+  const { normaliseWorkout } = await import("@/core/health/store");
+  // What a Hevy import actually stores: a title, a volume, a trained-at — and
+  // none of type/intensity/day, which is what the workouts list renders.
+  const w = normaliseWorkout("e1", {
+    externalId: "hevy-9", title: "Push Day", minutes: 62, volumeKg: 8412.4,
+    at: "2026-07-01T11:00:00.000Z",
+  }, "2026-08-05T04:00:00.000Z");
+
+  assert.equal(w.type, "Push Day", "the title is the name of the session");
+  assert.equal(w.minutes, 62);
+  assert.equal(w.source, "hevy");
+  // Dated when it was trained, not when it was imported.
+  assert.equal(w.day, "2026-07-01");
+  assert.ok(w.note?.includes("kg moved"));
+  assert.equal(w.intensity, "moderate", "Hevy has no intensity — don't invent one");
+});
+
+test("a manually logged workout keeps everything it was given", async () => {
+  const { normaliseWorkout } = await import("@/core/health/store");
+  const w = normaliseWorkout("m1", {
+    type: "Run", minutes: 35, intensity: "hard", kcal: 420, day: "2026-08-04",
+  }, "2026-08-04T12:00:00.000Z");
+
+  assert.equal(w.type, "Run");
+  assert.equal(w.intensity, "hard");
+  assert.equal(w.kcal, 420);
+  assert.equal(w.source, "manual", "only manual rows may offer a delete button");
+});
+
+test("a garbage payload still produces a renderable row", async () => {
+  const { normaliseWorkout } = await import("@/core/health/store");
+  const w = normaliseWorkout("x", {}, "2026-08-05T19:00:00.000Z");
+  assert.equal(w.type, "Workout");
+  assert.equal(w.minutes, 0);
+  assert.equal(w.intensity, "moderate");
+  // 19:00 UTC on the 5th is already the 6th in IST.
+  assert.equal(w.day, "2026-08-06");
+});
+
+test("health day keys follow his calendar, not the server's", async () => {
+  const { dayKey } = await import("@/core/health/store");
+  // The bug this replaces: toISOString().slice(0,10) on the same instant
+  // returns 2026-08-05, so every chart axis and week cutoff was a day out
+  // between midnight and 05:30 IST.
+  const late = new Date("2026-08-05T20:30:00.000Z");
+  assert.equal(dayKey(late), "2026-08-06");
+  assert.equal(late.toISOString().slice(0, 10), "2026-08-05");
+});

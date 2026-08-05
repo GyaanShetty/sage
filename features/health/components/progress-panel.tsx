@@ -57,11 +57,13 @@ export function ProgressPanel() {
   const [days, setDays] = useState(120);
   const [p, setP] = useState<Progress | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   const load = useCallback(async (d: number) => {
     setLoading(true);
     const j = await fetch(`/api/health/progress?days=${d}`).then((r) => r.json()).catch(() => null);
     setP(j?.ok ? (j.data as Progress) : null);
+    setFailed(!j?.ok);
     setLoading(false);
   }, []);
   useEffect(() => { void load(days); }, [load, days]);
@@ -88,6 +90,14 @@ export function ProgressPanel() {
         </div>
 
         {loading && !p && <p className="mt-3 text-sm text-subtle"><Loader2 className="inline size-3 animate-spin" /> reading your sessions…</p>}
+        {/* Without this the panel rendered as an empty box on failure — a
+            header and nothing under it, indistinguishable from having no data. */}
+        {!loading && !p && failed && (
+          <p className="mt-3 text-sm text-subtle">
+            Couldn&apos;t read your progression.{" "}
+            <button onClick={() => void load(days)} className="text-[var(--live)] underline-offset-2 hover:underline">Retry →</button>
+          </p>
+        )}
         {p && p.lifts.length === 0 && (
           <p className="mt-3 text-sm text-subtle">
             No lift data in this window. Import a Hevy CSV above and this fills in — it is

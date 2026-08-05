@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   listDays, listWorkouts, addWorkout, deleteWorkout, addReport,
-  getGoals, setGoals, stepStreak, average, correlate, today, type Goals,
+  getGoals, setGoals, stepStreak, average, correlate, today, dayKey, type Goals,
 } from "@/core/health/store";
 import { getLeetStats } from "@/infrastructure/integrations/leetcode";
 
@@ -23,9 +23,11 @@ export async function GET(req: Request) {
   const todayMetrics = series.find((d) => d.day === todayKey) ?? null;
 
   // workouts done in the last 7 days, for the weekly target
+  // Day keys are his calendar days, so the boundary has to be one too. A UTC
+  // slice put the cutoff on the wrong date every night before 05:30 IST.
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekKey = new Date(weekAgo).toISOString().slice(0, 10);
+  const weekKey = dayKey(weekAgo);
   const workoutsThisWeek = workouts.filter((w) => w.day >= weekKey).length;
 
   // Sleep debt over the last 7 *calendar* days (not the last 7 reports, which

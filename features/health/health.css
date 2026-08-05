@@ -60,7 +60,9 @@
 .hl-wodot.easy { background: #60a5fa; }
 .hl-wodot.moderate { background: var(--live); }
 .hl-wodot.hard { background: #f59e0b; }
-.hl-wotype { font-weight: 500; }
+.hl-wotype { font-weight: 500; display: flex; align-items: center; gap: 7px; min-width: 0; }
+.hl-wosrc { font-style: normal; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); border: 1px solid var(--border-glass); border-radius: 3px; padding: 1px 4px; flex: 0 0 auto; }
+.hl-wospacer { display: block; }
 .hl-womin, .hl-wokcal { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 11.5px; }
 .hl-woday { font-family: var(--mono); font-size: 9px; color: var(--subtle); text-align: right; }
 .hl-empty { margin-top: 12px; font-size: 12px; color: var(--subtle); }

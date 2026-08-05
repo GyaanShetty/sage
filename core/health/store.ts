@@ -21,6 +21,8 @@ export interface Workout {
   kcal: number | null;
   note?: string | null;
   day: string;
+  /** "manual" was typed on this page; "hevy" came from an import or sync. */
+  source: "manual" | "hevy";
 }
 
 export interface Goals {
@@ -52,8 +54,13 @@ function dayOf(iso: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(iso));
 }
 
+/** The calendar day a moment falls on, in his timezone — never the server's. */
+export function dayKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
+}
+
 export function today(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
+  return dayKey(new Date());
 }
 
 /**
@@ -118,18 +125,68 @@ export async function addReport(payload: Record<string, unknown>): Promise<void>
   });
 }
 
+/**
+ * Two different things share the health.workout type: sessions typed into this
+ * page, and sessions imported from Hevy. They have nothing in common but the
+ * type name — a Hevy row carries `title`, `volumeKg` and `at`, and none of
+ * `type`, `intensity` or `day`. Read raw, an imported session rendered as a
+ * blank name with an undefined intensity dot, dated the day it was *imported*
+ * rather than the day it was trained, and offered a delete button that a
+ * re-sync would quietly undo.
+ *
+ * So both shapes are normalised here, once, and the origin is kept.
+ */
 export async function listWorkouts(days = 30): Promise<Workout[]> {
   const since = new Date();
   since.setDate(since.getDate() - days);
   const { data } = await db
     .from("Event").select("id, payload, createdAt")
     .eq("userId", DEFAULT_USER_ID).eq("type", WORKOUT)
-    .gte("createdAt", since.toISOString())
-    .order("createdAt", { ascending: false }).limit(200);
-  return (data ?? []).map((r) => {
-    const p = r.payload as Omit<Workout, "id">;
-    return { id: r.id as string, ...p, day: p.day ?? dayOf(r.createdAt as string) };
-  });
+    // Hevy rows are inserted on import, so a session trained last week arrives
+    // with today's createdAt — filter on the trained date below instead.
+    .order("createdAt", { ascending: false }).limit(300);
+
+  const cutoff = dayOf(since.toISOString());
+
+  return (data ?? [])
+    .map((r) => normaliseWorkout(r.id as string, (r.payload ?? {}) as Record<string, unknown>, r.createdAt as string))
+    .filter((w) => w.day >= cutoff)
+    .sort((a, b) => b.day.localeCompare(a.day));
+}
+
+export function normaliseWorkout(id: string, p: Record<string, unknown>, createdAt: string): Workout {
+  const hevy = typeof p.externalId === "string" || typeof p.volumeKg === "number";
+  const at = typeof p.at === "string" ? p.at : null;
+  const day = typeof p.day === "string" ? p.day : dayOf(at ?? createdAt);
+
+  if (hevy) {
+    const volume = num(p.volumeKg);
+    return {
+      id,
+      type: (typeof p.title === "string" && p.title.trim()) || "Gym",
+      minutes: Math.round(num(p.minutes) ?? 0),
+      // Hevy has no intensity field. Guessing one would be inventing data, so
+      // every imported session sits in the neutral middle.
+      intensity: "moderate",
+      kcal: null,
+      note: volume ? `${Math.round(volume).toLocaleString()} kg moved` : null,
+      day,
+      source: "hevy",
+    };
+  }
+
+  return {
+    id,
+    type: (typeof p.type === "string" && p.type) || "Workout",
+    minutes: Math.round(num(p.minutes) ?? 0),
+    intensity: (["easy", "moderate", "hard"] as const).includes(p.intensity as never)
+      ? (p.intensity as Workout["intensity"])
+      : "moderate",
+    kcal: num(p.kcal),
+    note: typeof p.note === "string" ? p.note : null,
+    day,
+    source: "manual",
+  };
 }
 
 export async function addWorkout(w: Partial<Workout>): Promise<string> {

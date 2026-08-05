@@ -17,7 +17,7 @@ interface Day {
   steps: number | null; sleepHours: number | null; activeKcal: number | null;
   restingHr: number | null; distanceKm: number | null; weightKg: number | null; waterMl: number | null;
 }
-interface Workout { id: string; type: string; minutes: number; intensity: string; kcal: number | null; note?: string | null; day: string }
+interface Workout { id: string; type: string; minutes: number; intensity: string; kcal: number | null; note?: string | null; day: string; source: "manual" | "hevy" }
 interface Goals { steps: number; sleepHours: number; activeKcal: number; waterMl: number; workoutsPerWeek: number }
 interface Corr { r: number; n: number }
 interface Data {
@@ -29,6 +29,8 @@ interface Data {
 }
 
 const WORKOUT_TYPES = ["Run", "Gym", "Walk", "Cycle", "Swim", "Yoga", "Sport", "Other"];
+/** His calendar day, not the browser's UTC offset — the server keys days in IST. */
+const IST_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
 const n0 = (v: number | null | undefined) => (v == null ? "—" : Math.round(v).toLocaleString());
 const n1 = (v: number | null | undefined) => (v == null ? "—" : v.toFixed(1));
 
@@ -108,9 +110,9 @@ export function HealthView() {
         </button>
       </div>
 
-      <TrainingPanel />
-      <ProgressPanel />
-
+      {/* The state of the fetch belongs above the page, not buried under two
+          panels that load separately — a failure used to show two working
+          panels and no hint that the rest of the page was missing. */}
       {!d && !loadError && <p className="lbl" style={{ padding: 16 }}>LOADING…</p>}
       {!d && loadError && (
         <div className="hl-card">
@@ -118,6 +120,9 @@ export function HealthView() {
           <button onClick={load} className="hl-quickask">Retry →</button>
         </div>
       )}
+
+      <TrainingPanel />
+      <ProgressPanel />
 
       {d && (
         <>
@@ -151,9 +156,9 @@ export function HealthView() {
             </span>
           </div>
 
-          <div className="hl-grid">
-            <StepsAuto loggedToday={t?.steps != null} />
-          </div>
+          {/* A single child in a two-column grid is a half-width card with a
+              hole beside it. */}
+          <StepsAuto loggedToday={t?.steps != null} />
 
           {/* trends */}
           <div className="hl-grid">
@@ -197,14 +202,21 @@ export function HealthView() {
             </div>
             {d.workouts.length > 0 ? (
               <div className="hl-wolist">
-                {d.workouts.slice(0, 10).map((w) => (
+                {d.workouts.slice(0, 12).map((w) => (
                   <div key={w.id} className="hl-worow">
                     <span className={cn("hl-wodot", w.intensity)} />
-                    <span className="hl-wotype">{w.type}</span>
-                    <span className="hl-womin">{w.minutes} min</span>
-                    <span className="hl-wokcal">{w.kcal ? `${w.kcal} kcal` : ""}</span>
+                    <span className="hl-wotype">
+                      {w.type}
+                      {w.source === "hevy" && <em className="hl-wosrc">HEVY</em>}
+                    </span>
+                    <span className="hl-womin">{w.minutes ? `${w.minutes} min` : "—"}</span>
+                    <span className="hl-wokcal">{w.kcal ? `${w.kcal} kcal` : w.note ?? ""}</span>
                     <span className="hl-woday">{w.day.slice(5)}</span>
-                    <button onClick={() => delWorkout(w.id)} className="cc-del" title="Remove"><Trash2 className="size-3.5" /></button>
+                    {/* No delete on imported sessions: the next sync would file
+                        it straight back, so the button would be a lie. */}
+                    {w.source === "manual" ? (
+                      <button onClick={() => delWorkout(w.id)} className="cc-del" title="Remove"><Trash2 className="size-3.5" /></button>
+                    ) : <span className="hl-wospacer" />}
                   </div>
                 ))}
               </div>
@@ -222,9 +234,13 @@ export function HealthView() {
               <input type="number" step="0.1" placeholder="Weight (kg)" value={manual.weightKg} onChange={(e) => setManual({ ...manual, weightKg: e.target.value })} onKeyDown={(e) => e.key === "Enter" && logManual()} />
               <button onClick={logManual} disabled={busy} className="cc-btn cc-scan">{busy ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />} Record</button>
             </div>
+            {/* One set of instructions, not two. The Daily Steps card above
+                carries the copyable URL; repeating a second, different endpoint
+                here only ever raised the question of which one was right. */}
             <p className="hl-hint">
-              Shortcuts: POST your Health metrics as JSON to <code>/api/webhook/health?key=CRON_SECRET</code> — keys
-              <code>steps</code>, <code>sleepHours</code>, <code>activeKcal</code>, <code>restingHr</code>, <code>weightKg</code>.
+              Rather not type it? Set up the Shortcut in <b>Daily Steps</b> above — the same
+              endpoint takes <code>steps</code>, <code>sleepHours</code>, <code>activeKcal</code>,{" "}
+              <code>restingHr</code> and <code>weightKg</code>.
             </p>
           </div>
 
@@ -285,7 +301,7 @@ function Bars({ series, pick, goal, tint, days = 30 }: { series: Day[]; pick: (d
   const cursor = new Date();
   cursor.setDate(cursor.getDate() - (days - 1));
   for (let i = 0; i < days; i++) {
-    const key = cursor.toISOString().slice(0, 10);
+    const key = IST_DAY.format(cursor);
     const row = byDay.get(key);
     axis.push({ day: key, v: row ? pick(row) : null });
     cursor.setDate(cursor.getDate() + 1);

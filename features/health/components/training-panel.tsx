@@ -31,9 +31,12 @@ export function TrainingPanel() {
   const [note, setNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const [failed, setFailed] = useState(false);
+
   const load = useCallback(async (d: number) => {
     const j = await fetch(`/api/health/hevy?days=${d}`).then((r) => r.json()).catch(() => null);
     setData(j?.ok ? j.data : null);
+    setFailed(!j?.ok);
   }, []);
   useEffect(() => { void load(days); }, [load, days]);
 
@@ -106,7 +109,15 @@ export function TrainingPanel() {
 
         {note && <p className="mt-2 text-xs text-muted">{note}</p>}
 
-        {!data && <p className="mt-3 text-sm text-subtle">Loading…</p>}
+        {/* "Loading…" that never resolves is worse than an error: it looks
+            like the panel is still working. */}
+        {!data && !failed && <p className="mt-3 text-sm text-subtle">Loading…</p>}
+        {!data && failed && (
+          <p className="mt-3 text-sm text-subtle">
+            Couldn&apos;t read your training.{" "}
+            <button onClick={() => void load(days)} className="text-[var(--live)] underline-offset-2 hover:underline">Retry →</button>
+          </p>
+        )}
         {data && data.workouts === 0 && (
           <p className="mt-3 text-sm text-subtle">
             No sessions in this window. Import a Hevy export (Hevy → Settings → Export Data)

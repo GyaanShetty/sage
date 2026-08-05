@@ -982,3 +982,66 @@ test("citations read like citations", async () => {
     "A Roy et al. (2024). On Portfolio Concentration. arXiv:2401.01234v1",
   );
 });
+
+test("calibration measures overconfidence honestly", async () => {
+  const { calibrate } = await import("@/core/decisions/calibration");
+  const base = {
+    reasoning: "", expectation: "", domain: "markets" as const,
+    decidedAt: "2026-01-01T00:00:00Z", reviewAt: "2026-04-01T00:00:00Z",
+  };
+  // Ten calls at 90% confidence, five of which came off: claiming 90 and
+  // landing 50 is a 40-point gap, and the whole point is to see it.
+  const decisions = Array.from({ length: 10 }, (_, i) => ({
+    ...base, id: String(i), title: `call ${i}`, confidence: 90,
+    outcome: (i < 5 ? "right" : "wrong") as "right" | "wrong",
+  }));
+
+  const c = calibrate(decisions);
+  assert.equal(c.scored, 10);
+  assert.equal(Math.round(c.hitRate * 100), 50);
+  assert.equal(Math.round(c.meanConfidence * 100), 90);
+  assert.ok(c.overconfidence < -0.35, "a 90% claim landing half the time is overconfidence");
+  assert.ok(c.notes.some((n) => /overconfident/i.test(n)));
+  // Brier punishes confident wrongness: 0.5 * (0.9-1)^2 + 0.5 * (0.9-0)^2.
+  assert.ok(c.brier !== null && Math.abs(c.brier - 0.41) < 0.01, `brier was ${c.brier}`);
+});
+
+test("an unresolved call is not a wrong one", async () => {
+  const { calibrate, outcomeValue } = await import("@/core/decisions/calibration");
+  assert.equal(outcomeValue("too-early"), null, "too-early must not count as a miss");
+  assert.equal(outcomeValue("mixed"), 0.5);
+  assert.equal(outcomeValue(null), null);
+
+  const base = { reasoning: "", expectation: "", domain: "life" as const, decidedAt: "", reviewAt: "" };
+  const c = calibrate([
+    { ...base, id: "1", title: "a", confidence: 80, outcome: "right" as const },
+    { ...base, id: "2", title: "b", confidence: 80, outcome: "too-early" as const },
+    { ...base, id: "3", title: "c", confidence: 80 },
+  ]);
+  assert.equal(c.scored, 1, "only resolved calls are scored");
+  assert.equal(c.hitRate, 1);
+});
+
+test("decisions come due for review, once, on their date", async () => {
+  const { dueForReview } = await import("@/core/decisions/store");
+  const base = { reasoning: "", expectation: "", domain: "life" as const, decidedAt: "", confidence: 70 };
+  const now = new Date("2026-08-05T12:00:00Z");
+  const due = dueForReview([
+    { ...base, id: "past", title: "past", reviewAt: "2026-07-01T00:00:00Z" },
+    { ...base, id: "future", title: "future", reviewAt: "2026-12-01T00:00:00Z" },
+    // Already scored: it must not come round again.
+    { ...base, id: "done", title: "done", reviewAt: "2026-07-01T00:00:00Z", outcome: "right" as const },
+  ], now);
+
+  assert.deepEqual(due.map((d) => d.id), ["past"]);
+});
+
+test("calibration stays quiet on a thin sample", async () => {
+  const { calibrate } = await import("@/core/decisions/calibration");
+  const base = { reasoning: "", expectation: "", domain: "life" as const, decidedAt: "", reviewAt: "" };
+  const c = calibrate([{ ...base, id: "1", title: "a", confidence: 95, outcome: "wrong" as const }]);
+  // One wrong call at 95% is not evidence of anything, and claiming otherwise
+  // would be the same overclaiming this feature exists to catch.
+  assert.ok(c.notes.some((n) => /sketch|not a verdict/i.test(n)));
+  assert.ok(!c.notes.some((n) => /You are overconfident/i.test(n)));
+});

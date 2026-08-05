@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { closeHealthDay } from "@/core/health/daily";
 import { syncHevy } from "@/core/health/hevy";
+import { runBackup, lastBackup } from "@/core/ops/backup";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -22,5 +23,14 @@ export async function GET(req: Request) {
   // Catches an evening session before the day is written off as untrained.
   const hevy = await syncHevy().catch(() => ({ ok: false, added: 0, updated: 0 }));
 
-  return NextResponse.json({ ok: true, closed, hevy });
+  // A weekly copy of everything, off-site. Driven from here because this is
+  // the only tick of the day that is guaranteed to run on the free plan; the
+  // Cloudflare heartbeat takes it over when configured. Skipped if a backup
+  // was taken in the last six days, so it costs nothing on the other nights.
+  const previous = await lastBackup().catch(() => null);
+  const backup = !previous || previous.ageDays >= 6
+    ? await runBackup().catch((e: Error) => ({ ok: false, error: e.message }))
+    : { ok: true, skipped: `last backup was ${previous.ageDays}d ago` };
+
+  return NextResponse.json({ ok: true, closed, hevy, backup });
 }

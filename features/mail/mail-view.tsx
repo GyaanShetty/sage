@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  AlertTriangle, ExternalLink, Loader2, Mail, PenLine, Search, Sparkles, Check,
+  AlertTriangle, ExternalLink, Loader2, Mail, Paperclip, PenLine, Search, Sparkles, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fmt } from "@/lib/config";
@@ -27,7 +27,51 @@ interface Row {
   id?: string; from: string; subject: string; snippet: string;
   date: string; unread: boolean; important?: boolean;
 }
-interface Full extends Row { to: string; body: string }
+interface Attachment {
+  attachmentId: string; filename: string; mimeType: string;
+  size: number; inline: boolean; isImage: boolean;
+}
+interface Full extends Row { to: string; body: string; attachments?: Attachment[] }
+
+const kb = (bytes: number) =>
+  bytes >= 1_048_576 ? `${(bytes / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
+/**
+ * Files on a message, shown rather than mentioned.
+ *
+ * Images are the point here: an attached photo or screenshot is the content of
+ * the mail, and being told "1 attachment" while having to open Gmail to see it
+ * makes the mailbox a notification rather than a place to read. Inline images —
+ * signature logos, tracking pixels — are separated out, because six 2 KB
+ * images will otherwise bury the one PDF that matters.
+ */
+function Attachments({ messageId, files }: { messageId: string; files: Attachment[] }) {
+  const real = files.filter((f) => !f.inline || f.size > 40_000);
+  if (real.length === 0) return null;
+
+  const src = (f: Attachment, download = false) =>
+    `/api/mail/attachment?id=${encodeURIComponent(messageId)}&att=${encodeURIComponent(f.attachmentId)}${download ? "&download=1" : ""}`;
+
+  return (
+    <div className="ml-atts">
+      <span className="ml-attlbl">{real.length} ATTACHED</span>
+      <div className="ml-attgrid">
+        {real.map((f) => (
+          <a key={f.attachmentId} href={src(f)} target="_blank" rel="noreferrer" className="ml-att" title={`${f.filename} · ${kb(f.size)}`}>
+            {f.isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={src(f)} alt={f.filename} className="ml-attimg" loading="lazy" />
+            ) : (
+              <span className="ml-attico"><Paperclip className="size-4" /></span>
+            )}
+            <span className="ml-attname">{f.filename}</span>
+            <span className="ml-attsize">{kb(f.size)}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 interface Summary {
   gist: string; asks: string[]; deadline: string;
   urgency: "now" | "this-week" | "whenever" | "ignore";
@@ -207,6 +251,10 @@ export function MailView() {
                       {/* Plain text, deliberately. A mail body is untrusted
                           markup from anyone who knows your address. */}
                       <pre className="ml-raw">{full.body || full.snippet}</pre>
+
+                      {full.attachments?.length ? (
+                        <Attachments messageId={full.id as string} files={full.attachments} />
+                      ) : null}
 
                       <div className="ml-reply">
                         <textarea

@@ -61,3 +61,15 @@
   .ml-subj { grid-column: 1; }
   .ml-date { grid-row: 1; grid-column: 2; }
 }
+
+/* ── attachments ────────────────────────────────────────────────────────────
+   Shown, not merely counted: an attached screenshot usually *is* the mail. */
+.ml-atts { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-glass); }
+.ml-attlbl { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.6px; color: var(--subtle); }
+.ml-attgrid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+.ml-att { display: flex; flex-direction: column; gap: 4px; width: 150px; padding: 8px; border: 1px solid var(--border-glass); text-decoration: none; transition: border-color .15s ease; }
+.ml-att:hover { border-color: var(--live-dim); }
+.ml-attimg { width: 100%; height: 92px; object-fit: cover; background: var(--glass); display: block; }
+.ml-attico { display: flex; align-items: center; justify-content: center; height: 92px; background: var(--glass); color: var(--subtle); }
+.ml-attname { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ml-attsize { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); }

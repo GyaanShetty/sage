@@ -115,6 +115,56 @@ export async function buildMatrix(): Promise<Record<Quadrant, MatrixTask[]>> {
 }
 
 /**
+ * Add a task straight into a quadrant.
+ *
+ * The grid was read-only: it sorted tasks that already existed and offered no
+ * way to write one down. That is the wrong way round — deciding a thing is
+ * urgent and important is usually the same thought as remembering it, and
+ * being sent to another screen to type the title loses that thought.
+ *
+ * The quadrant is expressed the same way a move expresses it, in priority and
+ * due date, so the new task is a real task everywhere else in SAGE — the
+ * notification engine, TickTick and the daily report all see it — rather than
+ * a card that exists only on this grid.
+ */
+export async function createInQuadrant(
+  title: string,
+  quadrant: Quadrant,
+): Promise<{ id: string; mirrored: boolean }> {
+  const target = QUADRANT_META[quadrant];
+  const id = crypto.randomUUID();
+
+  const dueAt = new Date();
+  if (target.urgent) {
+    dueAt.setDate(dueAt.getDate() + 1);
+  } else {
+    dueAt.setDate(dueAt.getDate() + 7);
+  }
+  dueAt.setHours(18, 0, 0, 0);
+
+  const priority = target.important ? 1 : 2;
+
+  const { ensureDefaultUser } = await import("@/infrastructure/db/supabase");
+  await ensureDefaultUser();
+  const { error } = await db.from("Task").insert({
+    id, userId: DEFAULT_USER_ID, title: title.trim().slice(0, 200), priority, dueAt: dueAt.toISOString(),
+  });
+  if (error) throw new Error(error.message);
+
+  const { setTaskMeta } = await import("./meta");
+  // Record the placement, so the deadline this function just invented does not
+  // later drag the task into a quadrant he did not choose.
+  await setTaskMeta(id, { quadrant });
+
+  // Mirrored on a best-effort basis: a task missing from TickTick is an
+  // annoyance, losing it because TickTick was slow would not be.
+  const { createTickTask } = await import("@/infrastructure/integrations/ticktick");
+  const tickId = await createTickTask({ title, dueAt: dueAt.toISOString(), priority }).catch(() => null);
+
+  return { id, mirrored: !!tickId };
+}
+
+/**
  * Move a task into a quadrant by hand.
  *
  * Rather than storing the quadrant as an opaque override, this writes back the

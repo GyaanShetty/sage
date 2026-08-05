@@ -254,12 +254,55 @@ export interface EmailFull extends EmailSummary {
   body: string;
   labelIds: string[];
   unread: boolean;
+  /** Everything the message carried besides its text. */
+  attachments: Attachment[];
+}
+
+/**
+ * A file on a message.
+ *
+ * `inline` separates the two kinds that look identical in the API and are not
+ * the same thing to a reader: a signature logo or a tracking pixel is inline,
+ * and listing those as attachments buries the one PDF that actually matters
+ * under six 2 KB images.
+ */
+export interface Attachment {
+  /** Gmail's attachment id — needed to fetch the bytes, and only valid with the message id. */
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  inline: boolean;
+  isImage: boolean;
 }
 
 interface MimePart {
   mimeType?: string;
-  body?: { data?: string; size?: number };
+  filename?: string;
+  headers?: { name: string; value: string }[];
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: MimePart[];
+}
+
+/** Collect every real file hanging off a message, depth-first. */
+export function collectAttachments(part: MimePart | undefined, out: Attachment[] = []): Attachment[] {
+  if (!part) return out;
+
+  if (part.body?.attachmentId && part.filename) {
+    const disposition = part.headers?.find((h) => h.name.toLowerCase() === "content-disposition")?.value ?? "";
+    const mimeType = part.mimeType ?? "application/octet-stream";
+    out.push({
+      attachmentId: part.body.attachmentId,
+      filename: part.filename,
+      mimeType,
+      size: part.body.size ?? 0,
+      inline: /inline/i.test(disposition),
+      isImage: mimeType.startsWith("image/"),
+    });
+  }
+
+  for (const p of part.parts ?? []) collectAttachments(p, out);
+  return out;
 }
 
 function decodeB64Url(data: string): string {
@@ -333,7 +376,37 @@ export async function getGmailMessage(id: string): Promise<EmailFull | null> {
     labelIds: m.labelIds ?? [],
     unread: (m.labelIds ?? []).includes("UNREAD"),
     important: (m.labelIds ?? []).includes("IMPORTANT"),
+    attachments: collectAttachments(m.payload),
   };
+}
+
+/**
+ * The bytes of one attachment.
+ *
+ * Gmail returns them base64url-encoded in JSON rather than as a file, and only
+ * against the message they belong to — an attachment id alone is not a handle
+ * on anything, which is a useful property: nothing here can be used to reach a
+ * file the caller could not already open.
+ */
+export async function getGmailAttachment(
+  messageId: string,
+  attachmentId: string,
+): Promise<Uint8Array | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const res = await proxyFetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return null;
+  const j = (await res.json()) as { data?: string };
+  if (!j.data) return null;
+  try {
+    const norm = j.data.replace(/-/g, "+").replace(/_/g, "/");
+    return Uint8Array.from(atob(norm), (c) => c.charCodeAt(0));
+  } catch {
+    return null;
+  }
 }
 
 /**

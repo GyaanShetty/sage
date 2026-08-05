@@ -742,3 +742,48 @@ test("health day keys follow his calendar, not the server's", async () => {
   assert.equal(dayKey(late), "2026-08-06");
   assert.equal(late.toISOString().slice(0, 10), "2026-08-05");
 });
+
+test("attachments are collected from the whole MIME tree, inline ones marked", async () => {
+  const { collectAttachments } = await import("@/infrastructure/integrations/google");
+  const files = collectAttachments({
+    mimeType: "multipart/mixed",
+    parts: [
+      { mimeType: "text/plain", body: { data: "aGk" } },
+      {
+        mimeType: "multipart/related",
+        parts: [
+          {
+            mimeType: "image/png", filename: "logo.png",
+            headers: [{ name: "Content-Disposition", value: "inline; filename=logo.png" }],
+            body: { attachmentId: "a1", size: 1800 },
+          },
+        ],
+      },
+      { mimeType: "application/pdf", filename: "offer.pdf", body: { attachmentId: "a2", size: 240_000 } },
+      // No attachmentId: a body part, not a file.
+      { mimeType: "text/html", body: { data: "PGI+" } },
+    ],
+  });
+
+  assert.equal(files.length, 2);
+  assert.deepEqual(files.map((f) => f.filename), ["logo.png", "offer.pdf"]);
+  assert.equal(files[0].inline, true, "a signature logo must not crowd out a real attachment");
+  assert.equal(files[0].isImage, true);
+  assert.equal(files[1].inline, false);
+  assert.equal(files[1].size, 240_000);
+});
+
+test("a task created in a quadrant classifies back into that quadrant", async () => {
+  const { classify, QUADRANT_META } = await import("@/core/tasks/eisenhower");
+  // Mirrors what createInQuadrant writes: priority from importance, a due date
+  // inside or outside the 48h urgency window. Without the meta override, the
+  // derived quadrant must still be the one he picked.
+  for (const q of ["do", "schedule", "delegate", "drop"] as const) {
+    const target = QUADRANT_META[q];
+    const due = new Date();
+    due.setDate(due.getDate() + (target.urgent ? 1 : 7));
+    due.setHours(18, 0, 0, 0);
+    const c = classify({ priority: target.important ? 1 : 2, dueAt: due.toISOString() });
+    assert.equal(c.quadrant, q, `a task added to ${q} landed in ${c.quadrant}`);
+  }
+});

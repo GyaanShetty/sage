@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Clock, Loader2, Pin } from "lucide-react";
+import { Clock, Loader2, Pin, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Quadrant = "do" | "schedule" | "delegate" | "drop";
@@ -36,6 +36,8 @@ export function EisenhowerMatrix() {
   const [grid, setGrid] = useState<Record<Quadrant, MatrixTask[]> | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Partial<Record<Quadrant, string>>>({});
+  const [adding, setAdding] = useState<Quadrant | null>(null);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/task/matrix").then((r) => r.json()).catch(() => null);
@@ -55,6 +57,20 @@ export function EisenhowerMatrix() {
     setDragging(null);
   };
 
+  const add = async (quadrant: Quadrant) => {
+    const title = draft[quadrant]?.trim();
+    if (!title || adding) return;
+    setAdding(quadrant);
+    setDraft((p) => ({ ...p, [quadrant]: "" }));
+    const j = await fetch("/api/task/matrix", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title, quadrant }),
+    }).then((r) => r.json()).catch(() => null);
+    if (j?.ok) setGrid(j.data);
+    else setDraft((p) => ({ ...p, [quadrant]: title }));   // give him his words back
+    setAdding(null);
+  };
+
   const total = grid ? ORDER.reduce((n, q) => n + grid[q].length, 0) : 0;
 
   return (
@@ -68,12 +84,16 @@ export function EisenhowerMatrix() {
 
       {grid === null && <p className="text-sm text-subtle">Loading…</p>}
       {grid && total === 0 && (
-        <p className="text-sm text-subtle">
-          Nothing open. The grid fills itself from priority and due dates — no sorting required.
+        <p className="mb-2 text-sm text-subtle">
+          Nothing open. Write one into a quadrant below — or let the grid fill itself from
+          priority and due dates.
         </p>
       )}
 
-      {grid && total > 0 && (
+      {/* The grid renders empty too. It used to disappear entirely at zero
+          tasks, which meant the one moment you most want to write something
+          down was the one moment there was nowhere to write it. */}
+      {grid && (
         <div className="eis-grid">
           {ORDER.map((q) => (
             <div
@@ -123,6 +143,23 @@ export function EisenhowerMatrix() {
                     </div>
                   );
                 })}
+              </div>
+
+              <div className="eis-add">
+                <input
+                  value={draft[q] ?? ""}
+                  onChange={(e) => setDraft((p) => ({ ...p, [q]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === "Enter") void add(q); }}
+                  placeholder={`Add to ${META[q].label.toLowerCase()}…`}
+                  aria-label={`Add a task to ${META[q].label}`}
+                />
+                <button
+                  onClick={() => void add(q)}
+                  disabled={!draft[q]?.trim() || adding === q}
+                  title="Add"
+                >
+                  {adding === q ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+                </button>
               </div>
             </div>
           ))}

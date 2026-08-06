@@ -5,7 +5,15 @@ import { getMarkets } from "@/infrastructure/markets";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { fmt, tzHour } from "@/lib/config";
 
-export const revalidate = 300;
+/**
+ * No cache, and no revalidate window.
+ *
+ * This used to be cached for five minutes, which for a strip whose whole
+ * purpose is "what needs attention right now" meant it could tell you an event
+ * was in ninety minutes when it had already started. A stale status board is
+ * worse than none, because you act on it.
+ */
+export const dynamic = "force-dynamic";
 
 export interface Alert { level: "info" | "warn" | "high"; icon: string; text: string }
 
@@ -50,5 +58,8 @@ export async function GET() {
   // rank: high → warn → info
   const order = { high: 0, warn: 1, info: 2 } as const;
   alerts.sort((a, b) => order[a.level] - order[b.level]);
-  return NextResponse.json({ ok: true, data: alerts.slice(0, 6), at: fmt(new Date(), { hour: "2-digit", minute: "2-digit", hour12: false }) });
+  return NextResponse.json(
+    { ok: true, data: alerts.slice(0, 6), at: fmt(new Date(), { hour: "2-digit", minute: "2-digit", hour12: false }) },
+    { headers: { "cache-control": "no-store" } },
+  );
 }

@@ -565,6 +565,46 @@ export const domainTools = {
     },
   }),
 
+  // ── Status ──────────────────────────────────────────────────────────────
+  sitrep: tool({
+    description:
+      "Where everything stands right now: next commitment, tasks, steps, budget pace, markets, inbox, and whether SAGE itself is healthy. Use for 'what's the situation', 'sitrep', 'how are we doing', 'anything I should know' — and before answering any broad 'what should I do now' question.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { buildSitrep } = await import("@/core/sitrep");
+      const s = await buildSitrep();
+      return {
+        ok: true,
+        at: s.at,
+        next: s.nextEventTitle
+          ? { title: s.nextEventTitle, at: s.nextEventAt, inMinutes: s.nextEventAt ? Math.round((new Date(s.nextEventAt).getTime() - Date.now()) / 60_000) : null }
+          : null,
+        // Alerts first: if something is wrong that is the answer, and the rest
+        // is context.
+        alerts: s.alerts.map((a) => `${a.label}: ${a.value}${a.detail ? ` (${a.detail})` : ""}`),
+        lines: s.lines.map((l) => `${l.label}: ${l.value}${l.detail ? ` (${l.detail})` : ""}`),
+      };
+    },
+  }),
+
+  overnight_report: tool({
+    description:
+      "What SAGE did overnight — questions researched, tomorrow prepared, things that slipped. Use for 'what did you do last night', 'anything while I was asleep', or as part of a morning greeting.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { latestNightReport } = await import("@/core/night/shift");
+      const report = await latestNightReport();
+      if (!report) return { ok: true, note: "No night shift has run yet." };
+      return {
+        ok: true,
+        ranAt: report.ranAt,
+        quiet: report.quiet,
+        greeting: report.greeting,
+        items: report.items.map((i) => `[${i.kind}] ${i.title}${i.body ? ` — ${i.body.slice(0, 200)}` : ""}`),
+      };
+    },
+  }),
+
   // ── Decisions ───────────────────────────────────────────────────────────
   record_decision: tool({
     description:

@@ -227,7 +227,7 @@ function expand(e: RawEvent, from: Date, until: Date, feed?: string): IcsEvent[]
 }
 
 /** Fetch and parse one feed. Returns null when the URL cannot be read. */
-export async function fetchIcs(url: string, opts: { days?: number; feed?: string } = {}): Promise<IcsEvent[] | null> {
+export async function fetchIcs(url: string, opts: { days?: number; from?: Date; feed?: string } = {}): Promise<IcsEvent[] | null> {
   try {
     // webcal:// is the same thing wearing a different hat — it is what most
     // "subscribe" buttons hand you, and it is not a scheme fetch understands.

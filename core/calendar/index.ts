@@ -1,4 +1,4 @@
-import { listUpcomingEvents, type CalendarEvent } from "@/infrastructure/integrations/google";
+import { listUpcomingEvents, listEventsBetween, type CalendarEvent } from "@/infrastructure/integrations/google";
 import { feedEvents } from "./feeds";
 
 /**
@@ -44,4 +44,44 @@ export async function upcomingEvents(max = 15, days = 14): Promise<MergedEvent[]
     })
     .sort((a, b) => (a.start || "").localeCompare(b.start || ""))
     .slice(0, max);
+}
+
+/**
+ * Every event in a window, from every calendar he has.
+ *
+ * Feed events carry their feed name and no Google id, which is what the UI
+ * uses to decide whether something can be edited: an .ics feed is somebody
+ * else's calendar, and offering an edit button on a lecture the university
+ * publishes would be offering something that cannot work.
+ */
+export async function eventsBetween(from: Date, to: Date): Promise<MergedEvent[]> {
+  const days = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / 86_400_000));
+
+  const [google, feeds] = await Promise.all([
+    listEventsBetween(from.toISOString(), to.toISOString()).catch(() => null),
+    feedEvents(days, from).catch(() => []),
+  ]);
+
+  const merged: MergedEvent[] = [
+    ...(google ?? []),
+    ...feeds.map((e) => ({
+      id: e.uid,
+      summary: e.summary,
+      start: e.start,
+      end: e.end,
+      allDay: e.allDay,
+      ...(e.location ? { location: e.location } : {}),
+      ...(e.feed ? { feed: e.feed } : {}),
+    })),
+  ];
+
+  return merged
+    .filter((e) => e.start)
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+
+/** True when Google is not connected at all, so the page can say so. */
+export async function calendarConnected(): Promise<boolean> {
+  const probe = await listEventsBetween(new Date().toISOString(), new Date(Date.now() + 86_400_000).toISOString()).catch(() => null);
+  return probe !== null;
 }

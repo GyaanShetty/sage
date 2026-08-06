@@ -1191,3 +1191,54 @@ test("dossier search terms drop the scaffolding, keep the subject", async () => 
   assert.deepEqual(searchTerms("Goldman Sachs — OA round 2"), ["Goldman", "Sachs", "OA"]);
   assert.deepEqual(searchTerms("1:1 catch up"), []);
 });
+
+test("the month grid is whole weeks, Monday first, and knows which days belong", async () => {
+  // Mirrors monthGrid() in features/calendar. Anchored at UTC noon so adding
+  // days can never land on a daylight-saving seam and repeat or skip a date.
+  const monthGrid = (year: number, month: number) => {
+    const first = new Date(Date.UTC(year, month, 1, 12));
+    const startOffset = (first.getUTCDay() + 6) % 7;
+    const cursor = new Date(first);
+    cursor.setUTCDate(cursor.getUTCDate() - startOffset);
+    const cells: { key: string; inMonth: boolean }[] = [];
+    for (let i = 0; i < 42; i++) {
+      const y = cursor.getUTCFullYear();
+      const m = String(cursor.getUTCMonth() + 1).padStart(2, "0");
+      const d = String(cursor.getUTCDate()).padStart(2, "0");
+      cells.push({ key: `${y}-${m}-${d}`, inMonth: cursor.getUTCMonth() === month });
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return cells.slice(0, cells.slice(35).every((c) => !c.inMonth) ? 35 : 42);
+  };
+
+  // August 2026 starts on a Saturday, so the grid opens on Monday 27 July.
+  const aug = monthGrid(2026, 7);
+  assert.equal(aug[0].key, "2026-07-27");
+  assert.equal(aug[0].inMonth, false);
+  assert.ok(aug.length === 35 || aug.length === 42);
+  assert.equal(aug.length % 7, 0, "the grid must be whole weeks");
+
+  // Every day of the month appears exactly once.
+  const inMonth = aug.filter((c) => c.inMonth).map((c) => c.key);
+  assert.equal(inMonth.length, 31);
+  assert.equal(inMonth[0], "2026-08-01");
+  assert.equal(inMonth[30], "2026-08-31");
+  assert.equal(new Set(inMonth).size, 31, "no day may repeat");
+
+  // February in a leap year, the case a naive grid gets wrong.
+  const feb = monthGrid(2028, 1);
+  assert.equal(feb.filter((c) => c.inMonth).length, 29);
+});
+
+test("events land on his day, not UTC's", async () => {
+  const DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
+  // 20:30 UTC is 02:00 the next morning in IST. A grid keyed on UTC would put
+  // this on the wrong square — the one failure that makes a calendar useless.
+  assert.equal(DAY.format(new Date("2026-08-05T20:30:00.000Z")), "2026-08-06");
+  assert.equal(DAY.format(new Date("2026-08-05T09:00:00.000Z")), "2026-08-05");
+
+  // An all-day event carries a plain date; putting it through a timezone
+  // would shift it, so the view slices it instead.
+  const allDay = "2026-08-06T00:00:00.000Z";
+  assert.equal(allDay.slice(0, 10), "2026-08-06");
+});

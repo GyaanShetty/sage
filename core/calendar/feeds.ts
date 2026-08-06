@@ -89,13 +89,13 @@ function guessLabel(url: string): string {
  * behaviour for an agenda — a missing society calendar must not hide today's
  * lectures.
  */
-export async function feedEvents(days = 14): Promise<IcsEvent[]> {
+export async function feedEvents(days = 14, from: Date = new Date()): Promise<IcsEvent[]> {
   const feeds = (await listFeeds()).filter((f) => f.enabled);
   if (feeds.length === 0) return [];
 
   const results = await Promise.all(
     feeds.map(async (f) => {
-      const events = await fetchIcs(f.url, { days, feed: f.label });
+      const events = await fetchIcs(f.url, { days, from, feed: f.label });
       // Recording every check would be a write per feed per agenda load, so
       // only a change in state is stored.
       const failed = events === null;

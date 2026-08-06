@@ -149,6 +149,47 @@ export async function listUpcomingEvents(maxResults = 8): Promise<CalendarEvent[
   }));
 }
 
+/**
+ * Events in a window, not just the ones ahead.
+ *
+ * listUpcomingEvents answers "what is next", which is all a brief needs. A
+ * calendar has to show the days already gone in the month you are looking at,
+ * so it needs both ends of the range.
+ */
+export async function listEventsBetween(fromIso: string, toIso: string, maxResults = 250): Promise<CalendarEvent[] | null> {
+  const token = await getGoogleAccessToken();
+  if (!token) return null;
+  const params = new URLSearchParams({
+    timeMin: fromIso,
+    timeMax: toIso,
+    maxResults: String(Math.min(2500, maxResults)),
+    // Recurring events are expanded into their occurrences; without this a
+    // weekly lecture appears once, on the day the series was created.
+    singleEvents: "true",
+    orderBy: "startTime",
+  });
+  const res = await proxyFetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) return null;
+  const json = (await res.json()) as {
+    items?: {
+      id?: string; summary?: string; location?: string;
+      start?: { dateTime?: string; date?: string };
+      end?: { dateTime?: string; date?: string };
+    }[];
+  };
+  return (json.items ?? []).map((e) => ({
+    ...(e.id ? { id: e.id } : {}),
+    summary: e.summary ?? "(no title)",
+    start: e.start?.dateTime ?? e.start?.date ?? "",
+    end: e.end?.dateTime ?? e.end?.date ?? "",
+    allDay: !e.start?.dateTime && !!e.start?.date,
+    ...(e.location ? { location: e.location } : {}),
+  }));
+}
+
 /** Create a calendar event. `start`/`end` are ISO datetimes; if allDay, pass YYYY-MM-DD dates. */
 export async function createCalendarEvent(input: { summary: string; start: string; end: string; allDay?: boolean; location?: string }): Promise<{ id: string } | null> {
   const token = await getGoogleAccessToken();

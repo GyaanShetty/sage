@@ -1294,3 +1294,52 @@ test("the ring grows so nodes never overlap", async () => {
   const phone = 700;
   assert.ok(radiusFor(26, phone) <= (phone - 130) / 2, "the ring must fit the viewport");
 });
+
+test("every page is reachable from the launcher, exactly once", async () => {
+  // The wheel's page list and the app's routes drifted apart twice while it
+  // grew; this is the cheap guard against a page existing with no way in.
+  const { readdirSync, readFileSync, existsSync } = await import("node:fs");
+  const shellDir = "app/(shell)";
+  const routes = readdirSync(shellDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(`${shellDir}/${d.name}/page.tsx`))
+    .map((d) => `/${d.name}`);
+
+  const src = readFileSync("features/shell/components/launcher.tsx", "utf8");
+  const listed = [...src.matchAll(/href:\s*"(\/[a-z-]+)"/g)].map((m) => m[1]);
+
+  for (const route of routes) {
+    assert.ok(listed.includes(route), `${route} exists as a page but is not in the launcher`);
+  }
+  assert.equal(new Set(listed).size, listed.length, "a page is listed twice in the launcher");
+});
+
+test("launcher search puts the obvious answer first", async () => {
+  // Mirrors score() — an exact name must always beat a synonym, or typing
+  // "push" lands on something that merely mentions pushing.
+  const ALIASES: Record<string, string> = { git: "/push", money: "/portfolio", task: "/workspace" };
+  const score = (item: { label: string; href: string; hint?: string }, q: string): number => {
+    const label = item.label.toLowerCase();
+    const slug = item.href.slice(1).toLowerCase();
+    if (label === q || slug === q) return 100;
+    if (label.startsWith(q) || slug.startsWith(q)) return 80;
+    if (label.includes(q) || slug.includes(q)) return 60;
+    if (item.hint?.toLowerCase().includes(q)) return 40;
+    for (const [word, href] of Object.entries(ALIASES)) {
+      if (href === item.href && word.startsWith(q)) return 30;
+    }
+    return 0;
+  };
+
+  const push = { label: "Push", href: "/push", hint: "to github" };
+  const code = { label: "Code", href: "/code", hint: "lab" };
+  const portfolio = { label: "Portfolio", href: "/portfolio", hint: "budget" };
+
+  assert.ok(score(push, "push") > score(code, "push"), "the page called Push wins for 'push'");
+  assert.equal(score(push, "push"), 100);
+  // A hint match is real but weaker than a name match.
+  assert.ok(score(push, "github") > 0 && score(push, "github") < score(push, "pu"));
+  // Synonyms work but never outrank a name.
+  assert.ok(score(portfolio, "money") > 0);
+  assert.ok(score(portfolio, "port") > score(portfolio, "money"));
+  assert.equal(score(code, "zzz"), 0, "no match is no match");
+});

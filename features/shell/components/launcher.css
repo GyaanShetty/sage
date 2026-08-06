@@ -1,0 +1,82 @@
+/* Launcher — a grouped, labelled grid. Replaces the radial wheel, which was
+   good at twelve pages and unreadable at twenty-six. */
+
+.lx-shell {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 56px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── search ─────────────────────────────────────────────────────────── */
+.lx-search {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--border-glass); border-radius: 10px;
+  background: var(--panel-hi); padding: 12px 14px;
+  position: sticky; top: 0; z-index: 2;
+}
+.lx-search:focus-within { border-color: var(--live-dim); }
+.lx-search input {
+  flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  color: var(--foreground); font-size: 15px;
+}
+.lx-search input::placeholder { color: var(--subtle); }
+.lx-count { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--subtle); white-space: nowrap; }
+.lx-close { color: var(--subtle); background: none; border: 0; cursor: pointer; display: flex; }
+.lx-close:hover { color: var(--foreground); }
+
+/* ── groups ─────────────────────────────────────────────────────────── */
+.lx-group { display: flex; flex-direction: column; gap: 8px; }
+.lx-groupname {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 2.4px;
+  text-transform: uppercase; color: var(--subtle);
+}
+
+.lx-grid {
+  display: grid;
+  /* Wide enough for the longest label plus its hint, so nothing truncates —
+     the collision problem the wheel had was labels with nowhere to go. */
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
+}
+
+.lx-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  border: 1px solid var(--border-glass); border-radius: 8px;
+  background: var(--panel); padding: 12px 13px;
+  color: var(--muted); text-align: left; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease, color .12s ease;
+}
+.lx-tile:hover { color: var(--foreground); }
+/* The cursor, driven by keyboard and hover alike, so both feel like one thing. */
+.lx-tile.active {
+  border-color: var(--live-dim);
+  background: color-mix(in srgb, var(--live) 8%, var(--panel));
+  color: var(--foreground);
+}
+/* Where you already are, marked quietly rather than competing with the cursor. */
+.lx-tile.here { box-shadow: inset 2px 0 0 var(--live); }
+.lx-label { font-size: 13px; line-height: 1.2; color: inherit; }
+.lx-hint {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--subtle);
+}
+
+.lx-empty { font-size: 13px; color: var(--subtle); padding: 8px 2px; }
+
+.lx-foot {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1px;
+  color: var(--subtle); text-align: center; padding-top: 4px;
+}
+.lx-foot b { font-weight: 400; color: var(--muted); }
+
+@media (max-width: 560px) {
+  .lx-shell { padding: 40px 12px 32px; gap: 14px; }
+  .lx-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+  .lx-tile { padding: 10px 11px; }
+  /* On a phone the hint is the first thing to go — the label carries it. */
+  .lx-hint { display: none; }
+  .lx-foot { display: none; }
+}

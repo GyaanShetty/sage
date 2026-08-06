@@ -565,6 +565,88 @@ export const domainTools = {
     },
   }),
 
+  // ── Judgement ───────────────────────────────────────────────────────────
+  argue_against: tool({
+    description:
+      "Put the case AGAINST something he is about to do, grounded in his own track record. Use whenever he says he is going to commit to a view — a trade, an offer, a bet — and before recording a decision. Also use if he asks 'talk me out of this' or 'what am I missing'. It is allowed to conclude the reasoning is sound.",
+    inputSchema: z.object({
+      title: z.string().max(200).describe("The call, in his words"),
+      reasoning: z.string().max(2000),
+      expectation: z.string().max(500).describe("What he expects to be true, and by when"),
+      confidence: z.number().min(50).max(99),
+      domain: z.enum(["markets", "career", "study", "health", "money", "life"]),
+    }),
+    execute: async (input) => {
+      const { argueAgainst } = await import("@/core/decisions/advocate");
+      const r = await argueAgainst(input);
+      if ("error" in r) return { ok: false, error: r.error };
+      return {
+        ok: true,
+        verdict: r.verdict,
+        theCaseAgainst: r.strongestCase,
+        blindSpot: r.blindSpot,
+        wouldFalsify: r.wouldFalsify,
+        // Named rather than signed, so it cannot be read out backwards.
+        confidence: r.suggestedConfidence === r.claimed
+          ? `leave it at ${r.claimed}%`
+          : `${r.suggestedConfidence < r.claimed ? "lower" : "raise"} it to ${r.suggestedConfidence}% — ${r.why}`,
+      };
+    },
+  }),
+
+  play_it_out: tool({
+    description:
+      "Work through a decision against his actual money, calendar, goals and judgement record — 'what if I take the offer', 'should I move', 'is it worth doing X'. Use for any open-ended life or career question where the answer depends on his situation rather than on general advice.",
+    inputSchema: z.object({ question: z.string().max(400) }),
+    execute: async ({ question }) => {
+      const { simulate } = await import("@/core/simulate");
+      const r = await simulate(question);
+      if ("error" in r) return { ok: false, error: r.error };
+      return {
+        ok: true,
+        reading: r.reading,
+        ifYouDo: r.ifYouDo.map((x) => `${x.horizon}: ${x.effect}`),
+        ifYouDont: r.ifYouDont,
+        hinges: r.hinges,
+        unknowns: r.unknowns,
+        lean: r.lean,
+      };
+    },
+  }),
+
+  dossier: tool({
+    description:
+      "Everything SAGE already knows about a person, company or topic — past emails, memories, notes, applications, meetings, decisions. Use before a meeting or interview, or when he asks 'what do I know about X', 'have I dealt with them before', 'remind me about Y'.",
+    inputSchema: z.object({ subject: z.string().max(120) }),
+    execute: async ({ subject }) => {
+      const { buildDossier } = await import("@/core/dossier");
+      const d = await buildDossier(subject);
+      if (d.empty) return { ok: true, subject: d.subject, note: "Nothing on file about that." };
+      return {
+        ok: true,
+        subject: d.subject,
+        lastSeen: d.lastSeen,
+        entries: d.entries.slice(0, 12).map((e) => `[${e.source}] ${e.title}${e.detail ? ` — ${e.detail}` : ""}`),
+      };
+    },
+  }),
+
+  whats_off: tool({
+    description:
+      "What has departed from his own normal patterns — spending, sleep, steps, study, market moves — measured against his history rather than fixed thresholds. Use for 'anything unusual', 'is something off', or as part of a check-in.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { detectAnomalies } = await import("@/core/anomaly");
+      const found = await detectAnomalies();
+      if (found.length === 0) return { ok: true, note: "Nothing out of the ordinary — everything is within his usual range." };
+      return {
+        ok: true,
+        count: found.length,
+        anomalies: found.map((a) => `${a.detail} (${Math.abs(a.z).toFixed(1)} standard deviations, from ${a.n} days of history)`),
+      };
+    },
+  }),
+
   // ── Status ──────────────────────────────────────────────────────────────
   sitrep: tool({
     description:

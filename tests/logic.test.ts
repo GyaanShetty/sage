@@ -1149,3 +1149,45 @@ test("the countdown reads like a countdown", async () => {
   assert.equal(countdown(0), "now");
   assert.equal(countdown(-5000), "now", "an event that has started is not negative time");
 });
+
+test("anomaly detection refuses to cry wolf on thin or flat data", async () => {
+  const { baseline, zScore } = await import("@/core/anomaly");
+
+  // Too few points to claim anything.
+  const thin = baseline([100, 120, 90]);
+  assert.equal(zScore(400, thin), null, "three days is not a baseline");
+
+  // A perfectly flat history: any change is a departure, but not a
+  // statistical one — this is where naive detectors report infinity.
+  const flat = baseline([100, 100, 100, 100, 100, 100, 100, 100]);
+  assert.equal(flat.sd, 0);
+  assert.equal(zScore(500, flat), null, "a flat series cannot yield a z-score");
+  assert.equal(zScore(100, flat), 0, "no change against a flat series is no anomaly");
+
+  // A real one.
+  const normal = baseline([100, 110, 95, 105, 100, 98, 102, 101]);
+  const z = zScore(160, normal);
+  assert.ok(z !== null && z > 2, `a 60% jump should clear two sigma, got ${z}`);
+  // And an ordinary day should not.
+  assert.ok(Math.abs(zScore(104, normal) ?? 9) < 2, "an ordinary day is not an anomaly");
+});
+
+test("the baseline uses the sample standard deviation", async () => {
+  const { baseline } = await import("@/core/anomaly");
+  // n-1 rather than n: with a fortnight of data the difference is not
+  // academic, and dividing by n understates the spread, which manufactures
+  // anomalies.
+  const b = baseline([2, 4, 4, 4, 5, 5, 7, 9]);
+  assert.equal(b.mean, 5);
+  assert.ok(Math.abs(b.sd - 2.138) < 0.01, `expected ~2.14 (sample sd), got ${b.sd}`);
+  assert.equal(b.n, 8);
+});
+
+test("dossier search terms drop the scaffolding, keep the subject", async () => {
+  const { searchTerms } = await import("@/core/dossier");
+  // A calendar entry is rarely a bare name. The words worth searching are the
+  // ones that are not in every other entry.
+  assert.deepEqual(searchTerms("Call with Priya re: internship"), ["Priya", "internship"]);
+  assert.deepEqual(searchTerms("Goldman Sachs — OA round 2"), ["Goldman", "Sachs", "OA"]);
+  assert.deepEqual(searchTerms("1:1 catch up"), []);
+});

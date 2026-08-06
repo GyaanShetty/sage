@@ -92,3 +92,19 @@
   .dj-stats { grid-template-columns: 1fr; gap: 6px; }
   .dj-rowdomain { display: none; }
 }
+
+/* ── the case against ────────────────────────────────────────────────────
+   Visually distinct from the form it interrupts: this is SAGE disagreeing,
+   and it should not read as another field to fill in. */
+.dj-advocate { margin-top: 4px; border: 1px solid var(--border-glass); border-left: 2px solid #f59e0b; border-radius: 6px; padding: 11px 13px; background: var(--glass); }
+.dj-advocate.concede { border-left-color: var(--live); }
+.dj-advocate.sharpen { border-left-color: #60a5fa; }
+.dj-advocate p { font-size: 12.5px; line-height: 1.6; color: var(--muted); margin-top: 7px; }
+.dj-advocate p b { color: var(--foreground); font-weight: 500; }
+.dj-verdictlbl { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.5px; text-transform: uppercase; color: #f59e0b; }
+.dj-advocate.concede .dj-verdictlbl { color: var(--live); }
+.dj-advocate.sharpen .dj-verdictlbl { color: #60a5fa; }
+.dj-case { font-size: 13px !important; color: var(--foreground) !important; }
+.dj-confadvice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.dj-confadvice b { color: var(--live); font-weight: 500; font-variant-numeric: tabular-nums; }
+.dj-record { font-size: 11px !important; color: var(--subtle) !important; border-top: 1px solid var(--border-glass); padding-top: 7px; }

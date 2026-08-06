@@ -505,19 +505,23 @@ export function MorningBlock() {
 /** GitHub-style activity heatmap of the last ~18 weeks of LeetCode submissions. */
 function LeetHeatmap({ calendar }: { calendar: Record<string, number> }) {
   const weeks = 18;
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - (weeks * 7 - 1));
-  // align start to Sunday
-  start.setDate(start.getDate() - start.getDay());
+  // The calendar's keys are UTC days (LeetCode buckets them that way), so the
+  // axis is stepped in UTC too. Mixing local date arithmetic with
+  // toISOString() shifted every cell by a day whenever he opened this between
+  // midnight and 05:30 IST — which, for someone solving problems late, is
+  // exactly when the heatmap gets looked at.
+  const now = new Date();
+  const cursor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  cursor.setUTCDate(cursor.getUTCDate() - (weeks * 7 - 1));
+  cursor.setUTCDate(cursor.getUTCDate() - cursor.getUTCDay());   // align to Sunday
+
   const cols: { day: string; count: number }[][] = [];
-  const d = new Date(start);
   for (let w = 0; w < weeks; w++) {
     const col: { day: string; count: number }[] = [];
     for (let i = 0; i < 7; i++) {
-      const key = d.toISOString().slice(0, 10);
+      const key = cursor.toISOString().slice(0, 10);
       col.push({ day: key, count: calendar[key] ?? 0 });
-      d.setDate(d.getDate() + 1);
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
     cols.push(col);
   }

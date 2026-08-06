@@ -152,7 +152,12 @@ export async function getLeetStats(username: string): Promise<LeetStats | null> 
   const calendar: Record<string, number> = {};
   try {
     const cal = JSON.parse(m.userCalendar?.submissionCalendar ?? "{}") as Record<string, number>;
-    const startOfDay = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
+    // LeetCode buckets its calendar by UTC day, so "today" has to mean the
+    // same thing or the count disagrees with the heatmap beside it.
+    // setHours() would have used the server's local midnight — UTC on Vercel,
+    // IST in development, which is how this read differently in the two places.
+    const now = new Date();
+    const startOfDay = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 1000;
     for (const [ts, count] of Object.entries(cal)) {
       if (Number(ts) >= startOfDay) todaySolved += count;
       const day = new Date(Number(ts) * 1000).toISOString().slice(0, 10);

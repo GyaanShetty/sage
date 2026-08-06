@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Orbit, X, Activity, ScrollText, BookMarked, Mail, Code2, type LucideIcon,
-  Scale,
+  Scale, GitBranch,
 } from "lucide-react";
 import { sound } from "@/lib/sound";
 
@@ -20,6 +20,7 @@ const PAGES: Item[] = [
   { href: "/career", label: "Career", icon: Briefcase },
   { href: "/mail", label: "Mail", icon: Mail },
   { href: "/code", label: "Code", icon: Code2 },
+  { href: "/push", label: "Push", icon: GitBranch },
   { href: "/health", label: "Health", icon: Activity },
   { href: "/portfolio", label: "Portfolio", icon: Wallet },
   { href: "/workspace", label: "Workspace", icon: FolderKanban },
@@ -155,6 +156,7 @@ export function RadialNav() {
       else if (/sleep|steps|workout|fitness|gym|body/.test(s)) best = PAGES.findIndex((p) => p.href === "/health");
       else if (/home|main/.test(s)) best = PAGES.findIndex((p) => p.href === "/dashboard");
       else if (/decision|call|bet|judge|calibrat/.test(s)) best = PAGES.findIndex((p) => p.href === "/decisions");
+      else if (/push|git|hub|commit|solution|dsa/.test(s)) best = PAGES.findIndex((p) => p.href === "/push");
     }
     return best;
   }, []);

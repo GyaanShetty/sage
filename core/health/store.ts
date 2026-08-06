@@ -1,4 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { trashRow } from "@/core/ops/trash";
 import { TZ } from "@/lib/config";
 
 /** One day's merged health metrics. Any field may be missing. */
@@ -206,7 +207,7 @@ export async function addWorkout(w: Partial<Workout>): Promise<string> {
 }
 
 export async function deleteWorkout(id: string): Promise<void> {
-  await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  await trashRow("Event", id);
 }
 
 export async function getGoals(): Promise<Goals> {

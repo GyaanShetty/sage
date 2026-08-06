@@ -182,6 +182,8 @@ export function Vitals() {
           A restore only adds and updates rows — it never deletes, so recovering last week
           cannot cost you this week.
         </p>
+
+        <Trash />
       </div>
     </GlassPanel>
   );
@@ -301,6 +303,88 @@ function ManagedKeys({ onChanged }: { onChanged: () => void }) {
             still work and are used first; this is for replacing a spent key without a deploy.
           </p>
         </div>
+      )}
+    </div>
+  );
+}
+
+interface TrashEntry { id: string; label: string; kind: string; deletedAt: string }
+
+/**
+ * What was deleted, and a way back.
+ *
+ * Every delete in SAGE used to be final — a workout, a memory, a holding, a
+ * note — most of them one tap, several beside a frequently-used control, none
+ * of them asking twice. On a phone that is a matter of time rather than luck.
+ */
+function Trash() {
+  const [items, setItems] = useState<TrashEntry[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const j = await fetch("/api/trash").then((r) => r.json()).catch(() => null);
+    if (j?.ok) setItems(j.data.items);
+  }, []);
+  useEffect(() => { if (open) void load(); }, [open, load]);
+
+  const restore = async (id: string) => {
+    setBusy(id); setNote(null);
+    const j = await fetch("/api/trash", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).then((r) => r.json()).catch(() => null);
+    setBusy(null);
+    if (j?.ok) { setItems(j.data.items); setNote(`Restored ${j.data.restored}.`); }
+    else setNote(j?.error ?? "That wouldn't restore.");
+  };
+
+  const age = (iso: string) => {
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+    return days === 0 ? "today" : `${days}d ago`;
+  };
+
+  return (
+    <div className="mt-4 border-t border-border-glass pt-3">
+      <button onClick={() => setOpen((s) => !s)} className="flex items-center gap-2 text-sm font-medium">
+        <Trash2 className="size-3.5" /> Trash
+        <span className="text-xs font-normal text-subtle">
+          {items ? `${items.length} recoverable` : "deleted items, kept 30 days"}
+        </span>
+      </button>
+
+      {open && (
+        <>
+          {items && items.length === 0 && (
+            <p className="mt-2 text-[11px] text-subtle">Nothing deleted recently.</p>
+          )}
+
+          {items && items.length > 0 && (
+            <div className="mt-2 flex flex-col gap-1">
+              {items.slice(0, 20).map((t) => (
+                <div key={t.id} className="flex items-baseline gap-3 text-[11.5px]">
+                  <span className="font-mono text-[9px] uppercase tracking-wide text-subtle">{t.kind}</span>
+                  <span className="min-w-0 flex-1 truncate text-muted">{t.label}</span>
+                  <span className="font-mono text-[9px] text-subtle">{age(t.deletedAt)}</span>
+                  <button
+                    onClick={() => void restore(t.id)} disabled={busy === t.id}
+                    className="text-[var(--live)] disabled:opacity-40"
+                  >
+                    {busy === t.id ? <Loader2 className="size-3 animate-spin" /> : "restore"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {note && <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted"><Check className="size-3" /> {note}</p>}
+
+          <p className="mt-2 text-[10px] text-subtle">
+            Deleted rows are kept whole for 30 days, then cleared by the nightly sweep.
+            Restoring puts the row back exactly as it was.
+          </p>
+        </>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { generateObject } from "ai";
+import { trashRow } from "@/core/ops/trash";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
@@ -83,7 +84,7 @@ export async function addExpense(e: Partial<Expense>): Promise<string> {
 }
 
 export async function deleteExpense(id: string): Promise<void> {
-  await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  await trashRow("Event", id);
 }
 
 const scanSchema = z.object({

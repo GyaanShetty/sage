@@ -69,6 +69,12 @@ export interface PruneResult {
  * with a wide filter, because a mistake there is unrecoverable and this runs
  * unattended at 3am.
  */
+/** Trash older than its window goes with the nightly sweep. */
+async function purgeAgedTrash(): Promise<number> {
+  const { purgeTrash, TRASH_DAYS } = await import("./trash");
+  return purgeTrash(TRASH_DAYS).catch(() => 0);
+}
+
 export async function pruneEvents(dryRun = false): Promise<{ results: PruneResult[]; total: number }> {
   const results: PruneResult[] = [];
 
@@ -100,6 +106,11 @@ export async function pruneEvents(dryRun = false): Promise<{ results: PruneResul
   }
 
   const kept = results.filter((r) => r.deleted > 0);
+  // Trash has its own window (30 days) rather than a per-type retention rule,
+  // because what matters is how long ago it was deleted, not what it was.
+  const trashed = dryRun ? 0 : await purgeAgedTrash();
+  if (trashed > 0) kept.push({ type: "ops.trash", deleted: trashed, keptDays: 30 });
+
   return { results: kept, total: kept.reduce((a, r) => a + r.deleted, 0) };
 }
 

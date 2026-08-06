@@ -1072,3 +1072,47 @@ test("backups never carry API keys off-site", async () => {
   assert.ok(TABLES.includes("Event"), "Event is backed up, so its rows must be filtered");
   assert.ok(TABLES.includes("Integration"));
 });
+
+test("solution file names sort the way a repo should read", async () => {
+  const { fileNameFor, cleanFolder } = await import("@/core/coding/push");
+
+  // Numbered problems keep their natural order in a folder listing; plain
+  // alphabetical would scatter a topic across it.
+  assert.equal(fileNameFor("1. Two Sum", "python3"), "0001-two-sum.py");
+  assert.equal(fileNameFor("42. Trapping Rain Water", "cpp"), "0042-trapping-rain-water.cpp");
+  assert.equal(fileNameFor("Merge Intervals", "java"), "merge-intervals.java");
+  // The extension drives GitHub's syntax highlighting and language stats, so
+  // it has to follow the language, not the title.
+  assert.equal(fileNameFor("Two Sum", "golang"), "two-sum.go");
+  assert.equal(fileNameFor("", "rust"), "solution.rs");
+
+  // Path traversal must not escape the chosen folder.
+  assert.equal(cleanFolder("/arrays/two-pointers/"), "arrays/two-pointers");
+  assert.equal(cleanFolder("../../etc"), "etc");
+  assert.equal(cleanFolder("a//b/./c"), "a/b/c");
+});
+
+test("the header comment uses the language's own comment syntax", async () => {
+  const { buildHeader } = await import("@/core/coding/push");
+  const header = { title: "1. Two Sum", url: "https://leetcode.com/problems/two-sum/", complexity: "O(n) time" };
+
+  assert.ok(buildHeader("python3", header).startsWith("# 1. Two Sum"));
+  assert.ok(buildHeader("cpp", header).startsWith("// 1. Two Sum"));
+  assert.ok(buildHeader("sql", header).startsWith("-- 1. Two Sum"));
+  // Markdown's comment has to be closed or it swallows the file.
+  assert.ok(buildHeader("markdown", header).startsWith("<!-- 1. Two Sum -->"));
+  assert.equal(buildHeader("python3", undefined), "", "no header means no blank comment block");
+});
+
+test("study days follow his calendar, not UTC", async () => {
+  const { tzDay, lastDays } = await import("@/lib/config");
+  // 20:30 UTC is 02:00 IST the next day. A session logged then is tonight's
+  // work in his terms, and used to be filed under yesterday.
+  assert.equal(tzDay("2026-08-05T20:30:00.000Z"), "2026-08-06");
+  assert.equal(tzDay("2026-08-05T10:00:00.000Z"), "2026-08-05");
+
+  const days = lastDays(7, new Date("2026-08-06T10:00:00.000Z"));
+  assert.equal(days.length, 7);
+  assert.equal(days[6], "2026-08-06", "the axis must end on today");
+  assert.equal(days[0], "2026-07-31");
+});

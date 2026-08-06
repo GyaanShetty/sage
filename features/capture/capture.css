@@ -1,0 +1,82 @@
+/* Capture — one ramble in, filed things out. Shares the command.css shell tokens. */
+
+.cp-wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+.cp-head h1 { font-size: 20px; font-weight: 300; letter-spacing: .5px; margin: 0 0 6px; }
+.cp-intro { font-size: 12.5px; line-height: 1.65; color: var(--muted); max-width: 62ch; margin: 0; }
+.cp-empty { font-size: 12.5px; color: var(--subtle); line-height: 1.7; }
+
+.cp-panel { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 13px; overflow: hidden; }
+.cp-panelhead { display: flex; align-items: center; gap: 9px; color: var(--muted); }
+.cp-panelhead h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; color: var(--muted); margin: 0; }
+.cp-count { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--subtle); }
+
+/* ── input ──────────────────────────────────────────────────── */
+.cp-text { width: 100%; background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 13.5px; line-height: 1.65; padding: 11px 12px; border-radius: 6px; outline: none; resize: vertical; }
+.cp-text:focus { border-color: var(--live-dim); }
+.cp-text::placeholder { color: var(--subtle); }
+
+.cp-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.cp-thumb { position: relative; width: 76px; height: 76px; border: 1px solid var(--border-glass); border-radius: 6px; overflow: hidden; }
+.cp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cp-thumb button { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 18px; height: 18px; border: 0; border-radius: 50%; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; }
+
+.cp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cp-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+.cp-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.cp-btn:disabled { opacity: .45; cursor: default; }
+.cp-btn.go { color: var(--live); border-color: var(--live-dim); }
+.cp-btn.rec { color: #f87171; border-color: #f87171; }
+.cp-pulse { width: 6px; height: 6px; border-radius: 50%; background: #f87171; animation: cp-blink 1s infinite; }
+@keyframes cp-blink { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+.cp-spin { animation: cp-rot 1s linear infinite; }
+@keyframes cp-rot { to { transform: rotate(360deg) } }
+.cp-nomic { font-size: 11px; color: var(--subtle); }
+.cp-error { font-size: 12px; color: #f87171; line-height: 1.6; margin: 0; }
+
+/* ── proposed items ─────────────────────────────────────────── */
+.cp-list { display: flex; flex-direction: column; gap: 8px; }
+.cp-item { display: grid; grid-template-columns: 22px 1fr 22px; gap: 9px; align-items: start; border: 1px solid var(--border-glass); border-left: 2px solid var(--border-glass-strong); border-radius: 7px; padding: 10px; background: var(--glass); }
+.cp-item.off { opacity: .42; }
+.cp-item.k-memory { border-left-color: #a78bfa; }
+.cp-item.k-expense { border-left-color: #f59e0b; }
+.cp-item.k-reminder { border-left-color: #60a5fa; }
+.cp-item.k-task { border-left-color: var(--live); }
+.cp-item.k-decision { border-left-color: #f472b6; }
+.cp-item.k-question { border-left-color: #38bdf8; }
+
+.cp-tick, .cp-drop { display: grid; place-items: center; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 0 0; }
+.cp-tick:hover { color: var(--live); }
+.cp-drop:hover { color: #f87171; }
+
+.cp-body { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.cp-row { display: flex; align-items: center; gap: 7px; }
+.cp-kind { background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; padding: 4px 6px; border-radius: 5px; outline: none; }
+.cp-kicon { color: var(--muted); flex: 0 0 auto; }
+.cp-dest { font-family: var(--mono); font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--subtle); }
+
+.cp-itemtext { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 13px; line-height: 1.6; padding: 2px 0 5px; outline: none; resize: vertical; }
+.cp-itemtext:focus { border-bottom-color: var(--live-dim); }
+
+.cp-fields { display: flex; flex-wrap: wrap; gap: 10px; }
+.cp-field { display: flex; flex-direction: column; gap: 3px; }
+.cp-field span { font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--subtle); }
+.cp-field input { background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 12.5px; padding: 6px 8px; border-radius: 5px; outline: none; }
+.cp-field input:focus { border-color: var(--live-dim); }
+.cp-because { font-size: 11px; line-height: 1.55; color: var(--subtle); margin: 0; }
+
+.cp-ignored { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; font-size: 11px; color: var(--subtle); }
+.cp-ignored b { font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; }
+.cp-ignored span { border: 1px solid var(--border-glass); border-radius: 20px; padding: 3px 9px; }
+
+/* ── receipts ───────────────────────────────────────────────── */
+.cp-filed { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.cp-filed > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); }
+.cp-filed .ok > svg { color: var(--live); }
+.cp-filed .bad > svg, .cp-filed .bad b { color: #f87171; }
+.cp-filed b { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; color: var(--subtle); }
+.cp-filed span { color: var(--foreground); }
+.cp-filed i { font-style: normal; font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--subtle); }
+
+@media (max-width: 520px) {
+  .cp-item { grid-template-columns: 20px 1fr 20px; gap: 7px; }
+}

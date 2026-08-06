@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DriftPanel } from "./drift-panel";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Trash2, Brain, Plus, Pencil, Check, X, Pin, PinOff, Loader2, Sparkles, Archive } from "lucide-react";
@@ -340,6 +341,12 @@ export function MemoryView({ memories, retired = 0 }: { memories: MemoryItem[]; 
             })}
           </AnimatePresence>
         </div>
+
+        {/* Attention over months — the thing you cannot see about yourself
+            from inside a list of individual memories. */}
+        <motion.div variants={fadeRise}>
+          <DriftPanel />
+        </motion.div>
       </motion.div>
     </div>
   );

@@ -79,6 +79,20 @@ async function oldestOpenQuestion(): Promise<{ id: string; text: string } | null
  * of text nobody reads, and burns a day's quota before breakfast.
  */
 async function answerOpenQuestion(): Promise<NightItem | null> {
+  // With an exam close, the useful overnight work changes. Researching
+  // whatever he last wondered about is a luxury in the fortnight before a
+  // paper; a fresh set of practice questions off the syllabus is not.
+  const { runExamNight } = await import("@/core/exam");
+  const exam = await runExamNight().catch(() => null);
+  if (exam) {
+    return {
+      kind: "answered",
+      title: `${exam.made} practice questions for ${exam.subject}`,
+      body: `${exam.days} day${exam.days === 1 ? "" : "s"} to go. Closed-book, then check — the checking is where the learning is.`,
+      href: "/exam",
+    };
+  }
+
   const question = await oldestOpenQuestion();
   if (!question) return null;
 

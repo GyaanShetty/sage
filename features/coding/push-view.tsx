@@ -27,6 +27,7 @@ interface Repo { full_name: string; private: boolean; language: string | null; p
 interface Language { key: string; label: string; ext: string }
 interface PushRecord { repo: string; path: string; url: string; language: string; title: string; at: string }
 interface Entry { path: string; type: "file" | "dir" }
+interface TokenCheck { kind: string; canWrite: boolean | null; note: string; scopes: string | null }
 
 const STARTER: Record<string, string> = {
   python3: "class Solution:\n    def solve(self):\n        pass\n",
@@ -54,6 +55,7 @@ export function PushView() {
   const [login, setLogin] = useState<string | null>(null);
   const [pushes, setPushes] = useState<PushRecord[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [token, setToken] = useState<TokenCheck | null>(null);
 
   const [repo, setRepo] = useState("");
   const [folder, setFolder] = useState("");
@@ -81,6 +83,7 @@ export function PushView() {
     if (!j?.ok) { setLoadError(j?.error ?? "Couldn't reach GitHub."); return; }
     setLoadError(null);
     setRepos(j.data.repos); setLangs(j.data.languages); setLogin(j.data.login); setPushes(j.data.pushes);
+    setToken(j.data.token ?? null);
     if (j.data.prefs) {
       setRepo((r) => r || j.data.prefs.repo);
       setFolder((f) => f || j.data.prefs.folder);
@@ -179,6 +182,28 @@ export function PushView() {
         <div className="pu-card">
           <p className="pu-err"><AlertTriangle className="inline size-3.5" /> {loadError}</p>
           <button onClick={load} className="pu-link">Retry →</button>
+        </div>
+      )}
+
+      {/* Said before he writes anything, not after the push fails. */}
+      {token && token.canWrite === false && (
+        <div className="pu-card pu-warn">
+          <p><AlertTriangle className="inline size-3.5" /> {token.note}</p>
+          <p className="pu-warnhow">
+            github.com → Settings → Developer settings → Personal access tokens → your token →
+            tick <b>repo</b> → update. Then replace GITHUB_TOKEN in Vercel and redeploy.
+          </p>
+        </div>
+      )}
+      {token && token.kind === "fine-grained" && (
+        <div className="pu-card pu-warn">
+          <p><AlertTriangle className="inline size-3.5" /> {token.note}</p>
+          <p className="pu-warnhow">
+            github.com → Settings → Developer settings → Fine-grained tokens → your token →
+            Repository permissions → <b>Contents: Read and write</b>, and make sure the repo you
+            push to is in its repository list. Creating repos additionally needs
+            <b> Administration: Read and write</b> on the account.
+          </p>
         </div>
       )}
 

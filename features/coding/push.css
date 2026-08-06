@@ -71,3 +71,9 @@
   .pu-path { display: none; }
   .pu-itempath { display: none; }
 }
+
+/* A token that cannot write is the one failure worth interrupting for. */
+.pu-warn { border-color: rgba(245,158,11,.4); }
+.pu-warn p { font-size: 12.5px; line-height: 1.6; color: #f59e0b; display: flex; align-items: baseline; gap: 6px; }
+.pu-warnhow { margin-top: 7px; font-size: 11.5px; color: var(--muted); display: block; }
+.pu-warnhow b { color: var(--foreground); font-weight: 500; }

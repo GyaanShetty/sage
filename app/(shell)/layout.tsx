@@ -1,5 +1,6 @@
 import { StatusBar } from "@/features/shell/components/status-bar";
 import { Launcher } from "@/features/shell/components/launcher";
+import { Wheel } from "@/features/shell/components/wheel";
 import { CommandPalette } from "@/features/command-palette/components/command-palette";
 import { VoiceOverlay } from "@/features/voice/components/voice-overlay";
 import { TickerTape } from "@/components/ticker-tape";
@@ -30,6 +31,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <div className="flex min-h-0 flex-1">
         <main className="hud-grid flex-1 overflow-y-auto pb-8">{children}</main>
       </div>
+      <Wheel />
       <Launcher />
       <Toaster />
       <MotionLayer />

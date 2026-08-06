@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
-  FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
-  Settings, Orbit, X, Activity, ScrollText, BookMarked, Mail, Code2, Search,
-  Scale, GitBranch, Radio, FileSearch, CalendarDays, CornerDownLeft, FileText, type LucideIcon,
-} from "lucide-react";
+import { X, Search, CornerDownLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
 import "./launcher.css";
@@ -33,99 +28,13 @@ import "./launcher.css";
  * still responds to.
  */
 
-interface Item { href: string; label: string; icon: LucideIcon; hint?: string }
+import { PAGES, GROUP_ORDER, ALIASES, type Item } from "./pages";
 
 /** A thing, rather than a page — a task, a note, a memory, a holding. */
 interface Hit { kind: string; id: string; title: string; subtitle?: string; href: string; at?: string | null }
-interface Group { name: string; items: Item[] }
 
-/**
- * Grouped by what he is *doing*, not by which subsystem built the page.
- *
- * The order is the order of a day: what is happening now, then work, then
- * money, then the long-horizon things, then the machinery.
- */
-const GROUPS: Group[] = [
-  {
-    name: "NOW",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, hint: "command" },
-      { href: "/sitrep", label: "Sitrep", icon: Radio, hint: "live status" },
-      { href: "/morning", label: "Morning", icon: Sunrise, hint: "the block" },
-      { href: "/calendar", label: "Calendar", icon: CalendarDays, hint: "month" },
-      { href: "/chat", label: "Chat", icon: MessageSquare },
-      { href: "/agents", label: "Agent", icon: Bot, hint: "runs" },
-    ],
-  },
-  {
-    name: "WORK",
-    items: [
-      { href: "/workspace", label: "Workspace", icon: FolderKanban, hint: "tasks" },
-      { href: "/career", label: "Career", icon: Briefcase, hint: "applications" },
-      { href: "/mail", label: "Mail", icon: Mail },
-      { href: "/code", label: "Code", icon: Code2, hint: "lab" },
-      { href: "/push", label: "Push", icon: GitBranch, hint: "to github" },
-      { href: "/automations", label: "Automations", icon: Zap },
-    ],
-  },
-  {
-    name: "MONEY",
-    items: [
-      { href: "/portfolio", label: "Portfolio", icon: Wallet, hint: "budget" },
-      { href: "/markets", label: "Markets", icon: CandlestickChart },
-    ],
-  },
-  {
-    name: "JUDGEMENT",
-    items: [
-      { href: "/decisions", label: "Decisions", icon: Scale, hint: "calibration" },
-      { href: "/counsel", label: "Counsel", icon: FileSearch, hint: "dossier · what-if" },
-      { href: "/review", label: "Review", icon: BookMarked, hint: "weekly" },
-      { href: "/report", label: "Report", icon: ScrollText, hint: "life" },
-    ],
-  },
-  {
-    name: "MIND",
-    items: [
-      { href: "/knowledge", label: "Knowledge", icon: BookOpen, hint: "sources · papers" },
-      // Research briefs. This page had no entry in the old wheel either — it
-      // was reachable only by a link from elsewhere, which is how a page
-      // quietly stops existing.
-      { href: "/read", label: "Read", icon: FileText, hint: "briefs" },
-      { href: "/education", label: "Education", icon: GraduationCap, hint: "study" },
-      { href: "/memory", label: "Memory", icon: Brain },
-      { href: "/graph", label: "Mind Graph", icon: Network },
-      { href: "/health", label: "Health", icon: Activity },
-    ],
-  },
-  {
-    name: "MAKE",
-    items: [
-      { href: "/lab", label: "Holo-Lab", icon: Boxes },
-      { href: "/forge", label: "Forge", icon: Shapes },
-      { href: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
-];
-
-const ALL: Item[] = GROUPS.flatMap((g) => g.items);
-
-/** Aliases for the words people use that are not the page's name. */
-const ALIASES: Record<string, string> = {
-  task: "/workspace", todo: "/workspace", work: "/workspace",
-  money: "/portfolio", stock: "/markets", crypto: "/markets", invest: "/portfolio",
-  budget: "/portfolio", expense: "/portfolio", spend: "/portfolio",
-  job: "/career", intern: "/career", application: "/career",
-  note: "/knowledge", doc: "/knowledge", paper: "/knowledge", learn: "/education",
-  sleep: "/health", steps: "/health", workout: "/health", gym: "/health", body: "/health",
-  home: "/dashboard", main: "/dashboard", status: "/sitrep", situation: "/sitrep",
-  decision: "/decisions", call: "/decisions", bet: "/decisions", calibration: "/decisions",
-  dossier: "/counsel", about: "/counsel", simulate: "/counsel",
-  research: "/read", brief: "/read",
-  git: "/push", github: "/push", commit: "/push", dsa: "/push", solution: "/push",
-  schedule: "/calendar", month: "/calendar", diary: "/calendar", timetable: "/calendar",
-  inbox: "/mail", email: "/mail",
-};
+const ALL: Item[] = PAGES;
+const GROUPS = GROUP_ORDER.map((name) => ({ name, items: PAGES.filter((p) => p.group === name) }));
 
 function score(item: Item, q: string): number {
   const label = item.label.toLowerCase();
@@ -338,14 +247,6 @@ export function Launcher() {
 
   return (
     <>
-      <button
-        onClick={() => { sound.swoosh?.(); setOpen(true); }}
-        title="Go to… (⌘K)"
-        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 rounded-r-xl border border-l-0 border-border-glass bg-[var(--panel-hi)]/90 py-4 pl-1.5 pr-2 text-[var(--live)] backdrop-blur-xl transition-transform hover:translate-x-0.5 md:pl-2 md:pr-2.5"
-      >
-        <Orbit className="size-5" strokeWidth={1.6} />
-      </button>
-
       <AnimatePresence>
         {open && (
           <motion.div

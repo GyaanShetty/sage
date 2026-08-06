@@ -75,6 +75,146 @@ function monthGrid(year: number, month: number): { key: string; inMonth: boolean
   return cells.slice(0, cells.slice(35).every((c) => !c.inMonth) ? 35 : 42);
 }
 
+/** The seven day-keys of the week containing `key`, Monday first. */
+function weekOf(key: string): string[] {
+  const anchor = new Date(`${key}T12:00:00Z`);
+  const offset = (anchor.getUTCDay() + 6) % 7;
+  anchor.setUTCDate(anchor.getUTCDate() - offset);
+  const out: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    out.push(anchor.toISOString().slice(0, 10));
+    anchor.setUTCDate(anchor.getUTCDate() + 1);
+  }
+  return out;
+}
+
+/** Minutes since midnight, in his timezone — the y-axis of a week grid. */
+function minutesInto(iso: string): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(new Date(iso));
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
+}
+
+/** Rows start here and end at DAY_END — nobody needs 3am on a timetable. */
+const DAY_START = 7 * 60;
+const DAY_END = 23 * 60;
+const PX_PER_MIN = 0.9;
+
+/**
+ * Colour by what kind of thing it is, from the title.
+ *
+ * Google lets you colour events by hand and SAGE cannot read those colours
+ * through the API, so the next best thing is to infer the category — a week
+ * where lectures, training and revision are visually distinct is readable at a
+ * glance in a way that one uniform colour never is.
+ */
+function toneOf(summary: string, feed?: string): string {
+  const s = summary.toLowerCase();
+  if (/workout|gym|zone|run|boxing|hiit|training|lift/.test(s)) return "body";
+  if (/revise|revision|study|read|practice|prep\b/.test(s)) return "study";
+  if (/lab|seminar|lecture|class|tutorial/.test(s)) return "class";
+  if (/exam|test|interview|deadline|viva|submission/.test(s)) return "sharp";
+  return feed ? "feed" : "plain";
+}
+
+/**
+ * The week, as hours.
+ *
+ * A month grid answers "which days are busy"; a week answers "when am I
+ * free", which is the question a timetable exists for. Events are positioned
+ * by their real start and duration rather than listed, so a two-hour lab
+ * looks like twice a one-hour lecture — the shape of the day is the
+ * information.
+ */
+function WeekGrid({
+  days, byDay, selected, onSelectDay,
+}: {
+  days: string[];
+  byDay: Map<string, Ev[]>;
+  selected: string;
+  onSelectDay: (key: string) => void;
+}) {
+  const height = (DAY_END - DAY_START) * PX_PER_MIN;
+  const hours: number[] = [];
+  for (let m = DAY_START; m <= DAY_END; m += 60) hours.push(m);
+
+  const nowMinutes = minutesInto(new Date().toISOString());
+  const today = todayKey();
+
+  return (
+    <div className="wk">
+      <div className="wk-head">
+        <span className="wk-gutterhead">IST</span>
+        {days.map((key) => {
+          const d = new Date(`${key}T12:00:00Z`);
+          return (
+            <button
+              key={key}
+              onClick={() => onSelectDay(key)}
+              className={cn("wk-day", key === today && "today", key === selected && "sel")}
+            >
+              <span className="wk-dow">{d.toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" })}</span>
+              <span className="wk-num">{d.getUTCDate()}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="wk-body" style={{ height }}>
+        <div className="wk-gutter">
+          {hours.map((m) => (
+            <span key={m} className="wk-hour" style={{ top: (m - DAY_START) * PX_PER_MIN }}>
+              {String(Math.floor(m / 60)).padStart(2, "0")}
+            </span>
+          ))}
+        </div>
+
+        {days.map((key) => {
+          const events = (byDay.get(key) ?? []).filter((e) => !e.allDay);
+          return (
+            <div key={key} className={cn("wk-col", key === selected && "sel")} onClick={() => onSelectDay(key)}>
+              {hours.map((m) => (
+                <span key={m} className="wk-line" style={{ top: (m - DAY_START) * PX_PER_MIN }} />
+              ))}
+
+              {/* Where we are, right now. */}
+              {key === today && nowMinutes >= DAY_START && nowMinutes <= DAY_END && (
+                <span className="wk-now" style={{ top: (nowMinutes - DAY_START) * PX_PER_MIN }} />
+              )}
+
+              {events.map((e, i) => {
+                const startM = minutesInto(e.start);
+                const endM = e.end ? minutesInto(e.end) : startM + 60;
+                // An event ending past the visible window is clipped rather
+                // than dropped; one starting before it is pinned to the top.
+                const top = Math.max(0, (startM - DAY_START) * PX_PER_MIN);
+                const raw = (Math.max(endM, startM + 20) - Math.max(startM, DAY_START)) * PX_PER_MIN;
+                const h = Math.min(raw, height - top);
+                if (h <= 0) return null;
+
+                return (
+                  <div
+                    key={e.id ?? i}
+                    className={cn("wk-ev", toneOf(e.summary, e.feed))}
+                    style={{ top, height: h }}
+                    title={`${e.summary} · ${timeOf(e.start)}`}
+                  >
+                    <b>{e.summary}</b>
+                    {h > 34 && <i>{timeOf(e.start)}{e.end ? `–${timeOf(e.end)}` : ""}</i>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function CalendarView() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -85,6 +225,11 @@ export function CalendarView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>(todayKey());
+  /**
+   * Week is the default because it is the view a timetable lives in — a month
+   * grid tells you which days are busy, a week tells you when you are free.
+   */
+  const [view, setView] = useState<"week" | "month">("week");
 
   const [draft, setDraft] = useState({ summary: "", time: "09:00", minutes: 60, location: "", allDay: false });
   const [saving, setSaving] = useState(false);
@@ -132,6 +277,16 @@ export function CalendarView() {
   }, [events]);
 
   const step = (by: number) => {
+    if (view === "week") {
+      // A week view that pages by month would skip five days at a time.
+      const d = new Date(`${selected}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + by * 7);
+      const key = d.toISOString().slice(0, 10);
+      setSelected(key);
+      setYear(d.getUTCFullYear());
+      setMonth(d.getUTCMonth());
+      return;
+    }
     const d = new Date(Date.UTC(year, month + by, 1, 12));
     setYear(d.getUTCFullYear());
     setMonth(d.getUTCMonth());
@@ -200,6 +355,10 @@ export function CalendarView() {
           >
             TODAY
           </button>
+          <div className="cal-views">
+            <button onClick={() => setView("week")} className={cn(view === "week" && "on")}>WEEK</button>
+            <button onClick={() => setView("month")} className={cn(view === "month" && "on")}>MONTH</button>
+          </div>
         </div>
       </div>
 
@@ -217,6 +376,14 @@ export function CalendarView() {
         </div>
       )}
 
+      {view === "week" ? (
+        <WeekGrid
+          days={weekOf(selected)}
+          byDay={byDay}
+          selected={selected}
+          onSelectDay={setSelected}
+        />
+      ) : (
       <div className="cal-grid">
         {WEEKDAYS.map((d) => <span key={d} className="cal-dow">{d}</span>)}
 
@@ -247,6 +414,7 @@ export function CalendarView() {
           );
         })}
       </div>
+      )}
 
       {/* ── the selected day ───────────────────────────────────────────── */}
       <div className="cal-day">

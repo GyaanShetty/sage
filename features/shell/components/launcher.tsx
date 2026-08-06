@@ -34,6 +34,9 @@ import "./launcher.css";
  */
 
 interface Item { href: string; label: string; icon: LucideIcon; hint?: string }
+
+/** A thing, rather than a page — a task, a note, a memory, a holding. */
+interface Hit { kind: string; id: string; title: string; subtitle?: string; href: string; at?: string | null }
 interface Group { name: string; items: Item[] }
 
 /**
@@ -145,6 +148,17 @@ export function Launcher() {
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  /**
+   * Content results.
+   *
+   * A launcher that only finds pages makes you remember which page a thing is
+   * on — which for a note written four months ago is exactly the thing you
+   * cannot do. The search across tasks, notes, memories, holdings,
+   * applications, workouts and expenses already existed and had no home; this
+   * is it.
+   */
+  const [hits, setHits] = useState<Hit[]>([]);
+  const [searching, setSearching] = useState(false);
   const openRef = useRef(open);
   openRef.current = open;
 
@@ -170,11 +184,35 @@ export function Launcher() {
     setOpen(false);
     setQuery("");
     setCursor(0);
+    setHits([]);
     if (!pathname.startsWith(href)) router.push(href);
   }, [pathname, router]);
 
   // A new query means a new list; the cursor must not point into the old one.
   useEffect(() => { setCursor(0); }, [query]);
+
+  /**
+   * Content search, debounced.
+   *
+   * Two characters is the floor the API itself uses, and 180ms is long enough
+   * that typing a word is one request rather than five — this runs on every
+   * keystroke of a box that is open constantly.
+   */
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setHits([]); setSearching(false); return; }
+
+    let cancelled = false;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const j = await fetch(`/api/search?q=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null);
+      if (cancelled) return;
+      setHits(j?.ok ? (j.data as Hit[]).slice(0, 8) : []);
+      setSearching(false);
+    }, 180);
+
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [query]);
 
   useEffect(() => {
     if (open) {
@@ -347,7 +385,9 @@ export function Launcher() {
                   scatter three results across six headings. */}
               {filtering ? (
                 matches.length === 0 ? (
-                  <p className="lx-empty">Nothing matches &ldquo;{query}&rdquo;.</p>
+                  hits.length === 0 && !searching
+                    ? <p className="lx-empty">Nothing matches &ldquo;{query}&rdquo;.</p>
+                    : null
                 ) : (
                   <div className="lx-grid">{matches.map((item) => <Tile key={item.href} item={item} />)}</div>
                 )
@@ -358,6 +398,33 @@ export function Launcher() {
                     <div className="lx-grid">{g.items.map((item) => <Tile key={item.href} item={item} />)}</div>
                   </div>
                 ))
+              )}
+
+              {/* Things, under pages. Pages first because they are the
+                  predictable half — a launcher that reorders itself around
+                  search results becomes impossible to use by muscle memory. */}
+              {filtering && (hits.length > 0 || searching) && (
+                <div className="lx-group">
+                  <span className="lx-groupname">
+                    IN YOUR DATA {searching && <i className="lx-searching">searching…</i>}
+                  </span>
+                  <div className="lx-hits">
+                    {hits.map((h) => (
+                      <button key={`${h.kind}-${h.id}`} onClick={() => go(h.href)} className="lx-hit">
+                        <span className="lx-hitkind">{h.kind}</span>
+                        <span className="lx-hittext">
+                          <b>{h.title}</b>
+                          {h.subtitle && <i>{h.subtitle}</i>}
+                        </span>
+                        {h.at && (
+                          <span className="lx-hitwhen">
+                            {new Date(h.at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
 
               <p className="lx-foot">

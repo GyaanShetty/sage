@@ -65,3 +65,4 @@
 .fy-block.bad li { color: #fca5a5; }
 .fy-clean { font-size: 12.5px; line-height: 1.65; color: var(--live); margin: 0; }
 .fy-foot { font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--subtle); margin: 0; }
+.fy-standing { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 0; font-variant-numeric: tabular-nums; }

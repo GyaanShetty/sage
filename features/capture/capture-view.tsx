@@ -24,6 +24,7 @@ interface Item {
   when: string;
   amount: number;
   merchant: string;
+  category: string;
   because: string;
 }
 
@@ -61,8 +62,18 @@ export function CaptureView() {
   const [ignored, setIgnored] = useState<string[]>([]);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [filed, setFiled] = useState<Filed[] | null>(null);
+  // His real envelopes, so the category box on an expense offers the same list
+  // the budget matches on rather than free text that will never join.
+  const [categories, setCategories] = useState<string[]>([]);
 
   const recordingRef = useRef(false);
+
+  useEffect(() => {
+    fetch("/api/expenses")
+      .then((r) => r.json())
+      .then((j) => { if (j?.ok) setCategories(j.data.categories ?? []); })
+      .catch(() => undefined);
+  }, []);
 
   const onTranscript = useCallback((chunk: string) => {
     setText((prev) => (prev ? `${prev.trim()} ${chunk}` : chunk));
@@ -237,6 +248,8 @@ export function CaptureView() {
         {error && <p className="cp-error">{error}</p>}
       </section>
 
+      <datalist id="cp-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
+
       {/* ── the review ────────────────────────────────────────────── */}
       {items && (
         <section className="cp-panel">
@@ -294,6 +307,15 @@ export function CaptureView() {
                         <label className="cp-field">
                           <span>Where</span>
                           <input value={item.merchant} onChange={(e) => patch(i, { merchant: e.target.value })} />
+                        </label>
+                        <label className="cp-field">
+                          <span>Category</span>
+                          <input
+                            list="cp-cats"
+                            value={item.category}
+                            onChange={(e) => patch(i, { category: e.target.value })}
+                            placeholder="one of yours"
+                          />
                         </label>
                       </div>
                     )}

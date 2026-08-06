@@ -17,6 +17,7 @@ interface Attempt { at: string; explanation: string; score: number; missed: stri
 interface Concept {
   id: string; title: string; source: string; sourceUrl?: string;
   attempts: Attempt[]; dueAt: string; reps: number; at: string; retiredAt?: string | null;
+  standing?: string;
 }
 
 function scoreTone(score: number): string {
@@ -139,6 +140,8 @@ export function FeynmanView() {
 
         {open && (
           <div className="fy-panelbody">
+            {c.standing && <p className="fy-standing">{c.standing}</p>}
+
             <p className="fy-prompt">
               Say it in your own words, as if to someone who has not read the source. No jargon you
               could not also unpack.

@@ -1610,3 +1610,58 @@ test("exam mode is driven by the soonest paper still ahead", async () => {
   // With only December left, the night shift goes back to its usual work.
   assert.equal(inExamMode([exams[0]], now), false);
 });
+
+test("every insert supplies the columns the database will not default", async () => {
+  // The capture page shipped writing a bare string into Note.content, which is
+  // JSONB, and omitting Memory.sourceType and Note.updatedAt — both NOT NULL
+  // with no default. Postgres rejected all three, and because Supabase returns
+  // errors rather than throwing them, the page reported the rows as filed.
+  //
+  // So this reads the schema and checks the inserts against it, rather than
+  // checking the three that happened to be wrong.
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  const sql = fs.readFileSync("prisma/migrations/0001_init/migration.sql", "utf8");
+  const required = new Map<string, string[]>();
+  for (const table of sql.matchAll(/CREATE TABLE "(\w+)" \(([\s\S]*?)\n\);/g)) {
+    const cols: string[] = [];
+    for (const line of table[2].split("\n")) {
+      const col = /^\s*"(\w+)"\s+(.+?),?\s*$/.exec(line);
+      // NOT NULL and no DEFAULT means the caller has to say it.
+      if (col && /NOT NULL/.test(col[2]) && !/DEFAULT/.test(col[2])) cols.push(col[1]);
+    }
+    required.set(table[1], cols);
+  }
+  assert.ok(required.get("Note")?.includes("updatedAt"), "the schema should have parsed");
+
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (/\.tsx?$/.test(entry.name)) files.push(p);
+    }
+  };
+  walk("core");
+  walk("app");
+
+  const problems: string[] = [];
+  for (const file of files) {
+    const src = fs.readFileSync(file, "utf8");
+    for (const call of src.matchAll(/from\("(\w+)"\)\s*\.insert\(\{([\s\S]{0,900}?)\n\s*\}\)/g)) {
+      const [, table, body] = call;
+      const req = required.get(table);
+      // A spread could be carrying anything; this test cannot see inside it.
+      if (!req?.length || body.includes("...")) continue;
+      const keys = new Set([
+        ...[...body.matchAll(/(?:^|[\s{,])(\w+)\s*:/g)].map((m) => m[1]),
+        ...[...body.matchAll(/(?:^|[\s{,])(\w+)\s*(?=[,}\n])/g)].map((m) => m[1]),
+      ]);
+      const missing = req.filter((c) => !keys.has(c));
+      if (missing.length) problems.push(`${file} → ${table} missing ${missing.join(", ")}`);
+    }
+  }
+
+  assert.deepEqual(problems, []);
+});

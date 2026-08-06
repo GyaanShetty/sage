@@ -1,0 +1,75 @@
+/* The half-wheel: a dial pulled out from the edge of the screen.
+   The hub sits off-screen at x = 0, so only the right half of the ring is
+   visible — which is the point. */
+
+.wh-scrim {
+  position: fixed; inset: 0; z-index: 70;
+  background: color-mix(in srgb, var(--background) 62%, transparent);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+}
+.wh-close { position: absolute; right: 22px; top: 22px; color: var(--subtle); background: none; border: 0; cursor: pointer; }
+.wh-close:hover { color: var(--foreground); }
+
+/* Anchored to the left edge; the arc's centre is the edge itself. */
+.wh-stage { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; touch-action: none; user-select: none; }
+.wh-rim { position: absolute; left: 0; top: 0; pointer-events: none; opacity: .5; }
+
+/* A node: dot on the arc, label running rightward into open space. */
+.wh-node {
+  position: absolute; display: flex; align-items: center; gap: 11px;
+  background: none; border: 0; padding: 0; cursor: pointer; white-space: nowrap;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.wh-dot {
+  display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1px solid var(--border-glass); background: var(--panel);
+  color: var(--muted); flex: 0 0 40px;
+  transition: border-color .18s ease, color .18s ease, box-shadow .18s ease;
+}
+.wh-node.active .wh-dot {
+  border-color: var(--live); color: var(--live);
+  background: color-mix(in srgb, var(--live) 14%, var(--panel));
+  box-shadow: 0 0 28px -6px var(--live-glow);
+}
+.wh-label { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; font-size: 13px; color: var(--muted); }
+.wh-node.active .wh-label { color: var(--foreground); font-size: 15px; }
+.wh-label i {
+  font-style: normal; font-family: var(--mono); font-size: 8.5px;
+  letter-spacing: 1.4px; text-transform: uppercase; color: var(--subtle);
+}
+
+/* The selector line — where the dial reads. */
+.wh-selector {
+  position: absolute; left: 0; width: 100%; height: 0;
+  pointer-events: none; display: flex; align-items: center;
+}
+.wh-marker {
+  display: block; width: 26px; height: 1px;
+  background: linear-gradient(90deg, var(--live), transparent);
+}
+
+/* Enter, kept near the hub so the thumb reaching from the edge finds it. */
+.wh-enter {
+  position: absolute; left: 14px; transform: translateY(-50%);
+  display: none; align-items: center; gap: 8px;
+  border: 1px solid var(--live-dim); border-radius: 999px;
+  background: var(--panel-hi); color: var(--live);
+  padding: 8px 14px; cursor: pointer; font-size: 12px;
+}
+.wh-enter i { font-style: normal; font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); }
+.wh-enter:hover { border-color: var(--live); }
+
+.wh-hint {
+  position: absolute; bottom: 26px; left: 0; right: 0; text-align: center;
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 2.6px; color: var(--subtle);
+}
+
+/* On touch the dial is driven by the thumb at the edge, so a tappable Enter
+   near the hub matters more than it does with a keyboard. */
+@media (hover: none) {
+  .wh-enter { display: inline-flex; }
+  .wh-label { font-size: 12px; }
+  .wh-node.active .wh-label { font-size: 14px; }
+}

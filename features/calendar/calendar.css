@@ -66,3 +66,77 @@
   .cal-more { display: none; }
   .cal-where { display: none; }
 }
+
+/* ── week grid ───────────────────────────────────────────────────────────
+   Hours down the side, days across, events placed by real start and length.
+   The shape of the day is the information, so nothing here is a list. */
+
+.cal-views { display: flex; border: 1px solid var(--border-glass); border-radius: 5px; overflow: hidden; }
+.cal-views button {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; color: var(--subtle);
+  background: none; border: 0; padding: 6px 10px; cursor: pointer;
+}
+.cal-views button.on { background: var(--glass); color: var(--live); }
+
+.wk { border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); overflow: hidden; }
+
+.wk-head { display: grid; grid-template-columns: 44px repeat(7, 1fr); border-bottom: 1px solid var(--border-glass); }
+.wk-gutterhead {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 7.5px; letter-spacing: 1.2px; color: var(--subtle);
+}
+.wk-day {
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 8px 4px; background: none; border: 0; border-left: 1px solid var(--border-glass);
+  cursor: pointer; color: var(--muted);
+}
+.wk-day:hover { background: rgba(255,255,255,.02); }
+.wk-day.sel { background: var(--glass); }
+.wk-dow { font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--subtle); }
+.wk-num { font-size: 15px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.wk-day.today .wk-num { color: var(--live); }
+.wk-day.today .wk-dow { color: var(--live); opacity: .8; }
+
+.wk-body { position: relative; display: grid; grid-template-columns: 44px repeat(7, 1fr); overflow-y: auto; }
+.wk-gutter { position: relative; }
+.wk-hour {
+  position: absolute; right: 6px; transform: translateY(-50%);
+  font-family: var(--mono); font-size: 8.5px; color: var(--subtle); font-variant-numeric: tabular-nums;
+}
+.wk-col { position: relative; border-left: 1px solid var(--border-glass); }
+.wk-col.sel { background: rgba(255,255,255,.015); }
+.wk-line { position: absolute; left: 0; right: 0; height: 1px; background: var(--border-glass); opacity: .55; }
+.wk-now { position: absolute; left: 0; right: 0; height: 1px; background: var(--live); box-shadow: 0 0 8px var(--live-glow); z-index: 3; }
+.wk-now::before {
+  content: ""; position: absolute; left: -3px; top: -2px;
+  width: 5px; height: 5px; border-radius: 50%; background: var(--live);
+}
+
+.wk-ev {
+  position: absolute; left: 2px; right: 2px; z-index: 2;
+  display: flex; flex-direction: column; gap: 1px; overflow: hidden;
+  border-radius: 4px; padding: 3px 5px;
+  border-left: 2px solid var(--border-glass-strong);
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  cursor: default;
+}
+.wk-ev b { font-weight: 400; font-size: 10.5px; line-height: 1.25; color: var(--foreground); }
+.wk-ev i { font-style: normal; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
+
+/* Categories inferred from the title — Google's own colours are not exposed
+   through the API, and a week where lectures, training and revision look the
+   same is a wall of one colour. */
+.wk-ev.class { border-left-color: #8b8cf0; background: color-mix(in srgb, #8b8cf0 16%, transparent); }
+.wk-ev.body  { border-left-color: #f87171; background: color-mix(in srgb, #f87171 15%, transparent); }
+.wk-ev.study { border-left-color: #f0c674; background: color-mix(in srgb, #f0c674 14%, transparent); }
+.wk-ev.sharp { border-left-color: var(--live); background: color-mix(in srgb, var(--live) 15%, transparent); }
+.wk-ev.feed  { border-left-color: #a855f7; background: color-mix(in srgb, #a855f7 13%, transparent); }
+.wk-ev.plain { border-left-color: var(--border-glass-strong); }
+
+@media (max-width: 780px) {
+  .wk-body { grid-template-columns: 34px repeat(7, 1fr); }
+  .wk-head { grid-template-columns: 34px repeat(7, 1fr); }
+  .wk-ev b { font-size: 8.5px; }
+  .wk-ev i { display: none; }
+  .wk-num { font-size: 13px; }
+}

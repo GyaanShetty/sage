@@ -1304,11 +1304,13 @@ test("every page is reachable from the launcher, exactly once", async () => {
     .filter((d) => d.isDirectory() && existsSync(`${shellDir}/${d.name}/page.tsx`))
     .map((d) => `/${d.name}`);
 
-  const src = readFileSync("features/shell/components/launcher.tsx", "utf8");
+  // The wheel and the search launcher are two views of one list; pages.ts is
+  // that list, and this test is the reason it stopped being two.
+  const src = readFileSync("features/shell/components/pages.ts", "utf8");
   const listed = [...src.matchAll(/href:\s*"(\/[a-z-]+)"/g)].map((m) => m[1]);
 
   for (const route of routes) {
-    assert.ok(listed.includes(route), `${route} exists as a page but is not in the launcher`);
+    assert.ok(listed.includes(route), `${route} exists as a page but is in neither the wheel nor the launcher`);
   }
   assert.equal(new Set(listed).size, listed.length, "a page is listed twice in the launcher");
 });
@@ -1342,4 +1344,69 @@ test("launcher search puts the obvious answer first", async () => {
   assert.ok(score(portfolio, "money") > 0);
   assert.ok(score(portfolio, "port") > score(portfolio, "money"));
   assert.equal(score(code, "zzz"), 0, "no match is no match");
+});
+
+test("a week runs Monday to Sunday and contains its own day", async () => {
+  // Mirrors weekOf() in the calendar view.
+  const weekOf = (key: string) => {
+    const anchor = new Date(`${key}T12:00:00Z`);
+    anchor.setUTCDate(anchor.getUTCDate() - ((anchor.getUTCDay() + 6) % 7));
+    const out: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      out.push(anchor.toISOString().slice(0, 10));
+      anchor.setUTCDate(anchor.getUTCDate() + 1);
+    }
+    return out;
+  };
+
+  // 2026-08-06 is a Thursday.
+  const w = weekOf("2026-08-06");
+  assert.equal(w.length, 7);
+  assert.equal(w[0], "2026-08-03", "the week starts on Monday");
+  assert.equal(w[6], "2026-08-09");
+  assert.ok(w.includes("2026-08-06"));
+
+  // A Sunday belongs to the week that started six days earlier, not the next.
+  assert.equal(weekOf("2026-08-09")[0], "2026-08-03");
+  // And a week may straddle a month boundary.
+  assert.deepEqual(weekOf("2026-09-01").slice(0, 2), ["2026-08-31", "2026-09-01"]);
+});
+
+test("events are placed by their real time in his timezone", async () => {
+  const minutesInto = (iso: string) => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date(iso));
+    const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0) % 24;
+    const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+    return h * 60 + m;
+  };
+
+  // 03:30 UTC is 09:00 IST — a 9am lecture must sit on the 9am line, not 3:30.
+  assert.equal(minutesInto("2026-08-06T03:30:00.000Z"), 9 * 60);
+  assert.equal(minutesInto("2026-08-06T05:00:00.000Z"), 10 * 60 + 30);
+  // Midnight IST is 0, not 1440 — an off-by-one here stacks events at the
+  // bottom of the previous day.
+  assert.equal(minutesInto("2026-08-05T18:30:00.000Z"), 0);
+});
+
+test("event tone is inferred from the title", async () => {
+  const toneOf = (summary: string, feed?: string): string => {
+    const s = summary.toLowerCase();
+    if (/workout|gym|zone|run|boxing|hiit|training|lift/.test(s)) return "body";
+    if (/revise|revision|study|read|practice|prep\b/.test(s)) return "study";
+    if (/lab|seminar|lecture|class|tutorial/.test(s)) return "class";
+    if (/exam|test|interview|deadline|viva|submission/.test(s)) return "sharp";
+    return feed ? "feed" : "plain";
+  };
+
+  // Straight from his real timetable.
+  assert.equal(toneOf("Workout"), "body");
+  assert.equal(toneOf("Zone 2"), "body");
+  assert.equal(toneOf("Boxing (HIIT)"), "body");
+  assert.equal(toneOf("Revise + Backend"), "study");
+  assert.equal(toneOf("DBMS lab (Ground Floor seminar)"), "class");
+  assert.equal(toneOf("Elective 1 (AC) (Second Floor Seminar Hall)"), "class");
+  assert.equal(toneOf("ML"), "plain", "an unmatched title stays neutral rather than guessing");
+  assert.equal(toneOf("ML", "Timetable"), "feed", "unmatched but subscribed reads as someone else's");
 });

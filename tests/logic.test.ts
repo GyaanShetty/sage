@@ -1568,3 +1568,45 @@ test("only concepts actually due are asked for", async () => {
   // Oldest first: the one he has been avoiding longest is the one to answer.
   assert.deepEqual(due.map((c) => c.id), ["old", "yesterday"]);
 });
+
+test("the exam countdown floors, and does not round tomorrow into two days", async () => {
+  const { daysUntil, phaseOf, countdownFor } = await import("@/core/exam");
+  const now = new Date("2026-08-06T09:00:00Z");
+
+  // 30 hours away is tomorrow. Rounding it up costs an evening.
+  assert.equal(daysUntil("2026-08-07T15:00:00Z", now), 1);
+  assert.equal(daysUntil("2026-08-06T23:00:00Z", now), 0);
+  assert.equal(daysUntil("2026-08-04T09:00:00Z", now), -2);
+
+  // The switch from learning to testing happens before it feels like it should.
+  assert.equal(phaseOf(14), "build");
+  assert.equal(phaseOf(9), "test");
+  assert.equal(phaseOf(2), "eve");
+  assert.equal(phaseOf(-1), "past");
+
+  const c = countdownFor(
+    { id: "x", subject: "DSA", at: "2026-08-13T04:00:00Z", syllabus: "", at_created: "" },
+    now,
+  );
+  assert.equal(c.phase, "test");
+  assert.match(c.focus, /closed-book|Answer questions/i);
+});
+
+test("exam mode is driven by the soonest paper still ahead", async () => {
+  const { nextExam, inExamMode } = await import("@/core/exam");
+  const now = new Date("2026-08-06T09:00:00Z");
+  const base = { syllabus: "", at_created: "" };
+
+  const exams = [
+    { ...base, id: "far", subject: "Maths", at: "2026-12-01T04:00:00Z" },
+    { ...base, id: "sat", subject: "Physics", at: "2026-08-08T04:00:00Z", doneAt: "2026-08-08T07:00:00Z" },
+    { ...base, id: "soon", subject: "DSA", at: "2026-08-10T04:00:00Z" },
+  ];
+
+  // A paper he has already sat must not keep driving the night shift.
+  assert.equal(nextExam(exams, now)?.id, "soon");
+  assert.equal(inExamMode(exams, now), true);
+
+  // With only December left, the night shift goes back to its usual work.
+  assert.equal(inExamMode([exams[0]], now), false);
+});

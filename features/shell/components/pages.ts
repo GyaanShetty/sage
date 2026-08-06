@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
-  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, type LucideIcon,
+  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -20,6 +20,7 @@ export const PAGES: Item[] = [
   { href: "/morning", label: "Morning", icon: Sunrise, hint: "the block", group: "NOW" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, hint: "week · month", group: "NOW" },
   { href: "/chat", label: "Chat", icon: MessageSquare, group: "NOW" },
+  { href: "/capture", label: "Capture", icon: Mic, hint: "talk · screenshot", group: "NOW" },
   { href: "/agents", label: "Agent", icon: Bot, hint: "runs", group: "NOW" },
 
   { href: "/workspace", label: "Workspace", icon: FolderKanban, hint: "tasks", group: "WORK" },
@@ -65,4 +66,6 @@ export const ALIASES: Record<string, string> = {
   git: "/push", github: "/push", commit: "/push", dsa: "/push", solution: "/push",
   schedule: "/calendar", month: "/calendar", diary: "/calendar", timetable: "/calendar",
   inbox: "/mail", email: "/mail", research: "/read", brief: "/read",
+  capture: "/capture", dictate: "/capture", voice: "/capture", screenshot: "/capture",
+  ramble: "/capture", jot: "/capture",
 };

@@ -1,0 +1,107 @@
+/* Research workspace — a conversation with files in it. */
+
+.rs-wrap { display: grid; grid-template-columns: 210px 1fr; gap: 14px; max-width: 1200px; margin: 0 auto; padding: 16px; height: calc(100dvh - 60px); position: relative; }
+.rs-wrap.dropping { outline: 1px dashed var(--live-dim); outline-offset: -8px; }
+.rs-dim { font-size: 11.5px; color: var(--subtle); }
+
+/* ── threads ────────────────────────────────────────────────────────── */
+.rs-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.rs-new {
+  display: flex; align-items: center; gap: 6px; justify-content: center;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--live); background: var(--glass); border: 1px solid var(--live-dim);
+  border-radius: 6px; padding: 9px; cursor: pointer;
+}
+.rs-threads { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
+.rs-thread { display: flex; align-items: center; gap: 4px; border-radius: 5px; }
+.rs-thread > button:first-child {
+  flex: 1; min-width: 0; text-align: left; background: none; border: 0; cursor: pointer;
+  color: var(--muted); font-size: 12.5px; padding: 7px 8px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rs-thread:hover { background: rgba(255,255,255,.03); }
+.rs-thread.on { background: var(--glass); }
+.rs-thread.on > button:first-child { color: var(--foreground); }
+.rs-kill { color: var(--subtle); background: none; border: 0; cursor: pointer; padding: 0 6px; opacity: 0; }
+.rs-thread:hover .rs-kill { opacity: 1; }
+.rs-kill:hover { color: #f87171; }
+
+/* ── main ───────────────────────────────────────────────────────────── */
+.rs-main { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); overflow: hidden; }
+
+.rs-files { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border-glass); }
+.rs-attach {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--muted); background: none; border: 1px solid var(--border-glass);
+  border-radius: 5px; padding: 5px 9px; cursor: pointer;
+}
+.rs-attach:hover { color: var(--foreground); border-color: var(--live-dim); }
+
+.rs-file {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 230px;
+  border: 1px solid var(--border-glass); border-radius: 5px; padding: 4px 7px;
+  font-size: 11.5px; color: var(--muted);
+}
+/* What SAGE can do with it, at a glance. */
+.rs-file.read { border-color: var(--live-dim); }
+.rs-file.seen { border-color: #a855f7; }
+.rs-file.uploading { color: var(--subtle); }
+.rs-filename { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-file i { font-style: normal; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
+.rs-file button { color: var(--subtle); background: none; border: 0; cursor: pointer; display: flex; }
+.rs-file button:hover { color: #f87171; }
+.rs-thumb { width: 22px; height: 22px; object-fit: cover; border-radius: 3px; flex: 0 0 22px; }
+
+.rs-notes { padding: 8px 12px; border-bottom: 1px solid var(--border-glass); }
+.rs-notes p { font-size: 11px; line-height: 1.5; color: #f59e0b; }
+.rs-notes b { color: var(--foreground); font-weight: 500; }
+
+/* ── log ────────────────────────────────────────────────────────────── */
+.rs-log { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 18px; }
+.rs-blank { display: flex; flex-direction: column; gap: 8px; margin: auto 0; max-width: 52ch; }
+.rs-blank p { font-size: 13.5px; line-height: 1.65; color: var(--muted); }
+
+.rs-msg { display: flex; flex-direction: column; gap: 5px; }
+.rs-who { font-family: var(--mono); font-size: 8px; letter-spacing: 1.8px; color: var(--subtle); }
+.rs-msg.assistant .rs-who { color: var(--live); }
+.rs-body { font-size: 14px; line-height: 1.7; color: var(--foreground); white-space: pre-wrap; }
+.rs-msg.user .rs-body { color: var(--muted); border-left: 2px solid var(--border-glass); padding-left: 12px; }
+.rs-caret { display: inline-block; width: 7px; height: 14px; margin-left: 2px; background: var(--live); vertical-align: text-bottom; animation: rs-blink 1s steps(2) infinite; }
+@keyframes rs-blink { 50% { opacity: 0; } }
+.rs-err { font-size: 12px; color: #f87171; display: flex; align-items: center; gap: 6px; }
+
+/* ── ask ────────────────────────────────────────────────────────────── */
+.rs-ask { display: flex; align-items: flex-end; gap: 8px; padding: 12px; border-top: 1px solid var(--border-glass); }
+.rs-ask textarea {
+  flex: 1; min-height: 42px; max-height: 200px; resize: none;
+  background: var(--glass); border: 1px solid var(--border-glass); border-radius: 8px;
+  color: var(--foreground); font-family: inherit; font-size: 14px; line-height: 1.5;
+  padding: 11px 13px; outline: none;
+}
+.rs-ask textarea:focus { border-color: var(--live-dim); }
+.rs-ask button {
+  display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: 8px;
+  border: 1px solid var(--live-dim); background: var(--glass); color: var(--live); cursor: pointer;
+}
+.rs-ask button:disabled { opacity: .35; cursor: default; }
+
+.rs-dropzone {
+  position: absolute; inset: 8px; z-index: 5; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--live); border-radius: 12px;
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  backdrop-filter: blur(4px);
+}
+.rs-dropzone span { font-family: var(--mono); font-size: 11px; letter-spacing: 2.4px; color: var(--live); }
+
+@media (max-width: 760px) {
+  .rs-wrap { grid-template-columns: 1fr; height: auto; }
+  /* The thread list becomes a strip; a sidebar on a phone is a wasted third. */
+  .rs-side { flex-direction: row; align-items: center; gap: 8px; }
+  .rs-threads { flex-direction: row; overflow-x: auto; }
+  .rs-thread { flex: 0 0 auto; }
+  .rs-new { padding: 8px 10px; white-space: nowrap; }
+  .rs-log { min-height: 50vh; }
+}

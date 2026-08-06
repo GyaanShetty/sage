@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { ResearchView } from "@/features/research/research-view";
 
 /**
  * Read-later intake. Reached two ways:
@@ -57,8 +58,10 @@ function ReadInner() {
 
   return (
     <section className="section">
-      <div className="sectitle"><span className="sn">RL</span><h2>Read Later</h2><span className="line" /><span className="tag">SHARE → SAGE → KNOWLEDGE</span></div>
-      <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+      <div className="sectitle"><span className="sn">RL</span><h2>Research</h2><span className="line" /><span className="tag">FILES · IMAGES · ASK ACROSS THEM</span></div>
+      <ResearchView />
+
+      <div className="grid" style={{ gridTemplateColumns: "1fr", marginTop: 18 }}>
         <div className="cell" style={{ maxWidth: 640 }}>
           <div className="bh"><span className="t">Save a link</span><span className="i">URL</span></div>
           <div className="notein">

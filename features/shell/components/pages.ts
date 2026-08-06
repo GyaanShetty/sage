@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
-  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, type LucideIcon,
+  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -41,6 +41,7 @@ export const PAGES: Item[] = [
   { href: "/knowledge", label: "Knowledge", icon: BookOpen, hint: "sources · papers", group: "MIND" },
   { href: "/read", label: "Read", icon: FileText, hint: "research", group: "MIND" },
   { href: "/education", label: "Education", icon: GraduationCap, hint: "study", group: "MIND" },
+  { href: "/explain", label: "Explain", icon: Lightbulb, hint: "feynman loop", group: "MIND" },
   { href: "/memory", label: "Memory", icon: Brain, group: "MIND" },
   { href: "/graph", label: "Mind Graph", icon: Network, group: "MIND" },
   { href: "/health", label: "Health", icon: Activity, group: "MIND" },
@@ -68,4 +69,5 @@ export const ALIASES: Record<string, string> = {
   inbox: "/mail", email: "/mail", research: "/read", brief: "/read",
   capture: "/capture", dictate: "/capture", voice: "/capture", screenshot: "/capture",
   ramble: "/capture", jot: "/capture",
+  explain: "/explain", feynman: "/explain", understand: "/explain", teach: "/explain",
 };

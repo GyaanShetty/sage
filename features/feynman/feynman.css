@@ -1,0 +1,67 @@
+/* Explain — the Feynman loop. Shares the command.css shell tokens. */
+
+.fy-wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+.fy-head h1 { font-size: 20px; font-weight: 300; letter-spacing: .5px; margin: 0 0 6px; }
+.fy-intro { font-size: 12.5px; line-height: 1.65; color: var(--muted); max-width: 64ch; margin: 0; }
+.fy-empty { font-size: 12.5px; color: var(--subtle); line-height: 1.7; margin: 0; }
+.fy-hint { font-size: 11px; color: var(--subtle); line-height: 1.6; margin: 0; }
+.fy-error { font-size: 12px; color: #f87171; line-height: 1.6; margin: 0; }
+
+.fy-panel { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 13px; overflow: hidden; }
+.fy-panelhead { display: flex; align-items: center; gap: 9px; color: var(--muted); }
+.fy-panelhead.as-button { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; width: 100%; }
+.fy-panelhead h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; color: var(--muted); margin: 0; }
+.fy-count { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--subtle); }
+
+/* ── the list ───────────────────────────────────────────────── */
+.fy-list { display: flex; flex-direction: column; gap: 7px; }
+.fy-item { border: 1px solid var(--border-glass); border-radius: 8px; background: var(--glass); overflow: hidden; }
+.fy-item.open { border-color: var(--live-dim); }
+.fy-itemhead { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: 0; color: var(--foreground); text-align: left; font-family: inherit; font-size: 13px; padding: 11px 12px; cursor: pointer; }
+.fy-itemhead b { font-weight: 500; flex: 1; min-width: 0; }
+.fy-itemhead i { font-style: normal; font-family: var(--mono); font-size: 8.5px; letter-spacing: .8px; text-transform: uppercase; color: var(--subtle); flex: 0 0 auto; }
+.fy-chev { color: var(--subtle); flex: 0 0 auto; transition: transform .18s ease; }
+.fy-item.open .fy-chev { transform: rotate(180deg); }
+
+.fy-score { font-family: var(--mono); font-size: 9.5px; font-variant-numeric: tabular-nums; border: 1px solid var(--border-glass); border-radius: 4px; padding: 2px 6px; }
+.fy-score.good { color: var(--live); border-color: var(--live-dim); }
+.fy-score.ok { color: #f59e0b; border-color: #f59e0b55; }
+.fy-score.bad { color: #f87171; border-color: #f8717155; }
+
+/* ── the attempt ────────────────────────────────────────────── */
+.fy-panelbody { display: flex; flex-direction: column; gap: 9px; padding: 0 12px 12px; border-top: 1px solid var(--border-glass); padding-top: 11px; }
+.fy-prompt { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 0; }
+.fy-probe { font-size: 12.5px; line-height: 1.65; color: var(--foreground); border-left: 2px solid var(--live-dim); padding-left: 11px; margin: 0; }
+.fy-probe b { display: block; font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; color: var(--subtle); margin-bottom: 3px; }
+
+.fy-text, .fy-input { width: 100%; background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 13px; line-height: 1.65; padding: 10px 11px; border-radius: 6px; outline: none; }
+.fy-text { resize: vertical; }
+.fy-text:focus, .fy-input:focus { border-color: var(--live-dim); }
+.fy-text::placeholder, .fy-input::placeholder { color: var(--subtle); }
+
+.fy-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fy-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 8px 12px; border-radius: 6px; cursor: pointer; }
+.fy-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.fy-btn:disabled { opacity: .45; cursor: default; }
+.fy-btn.go { color: var(--live); border-color: var(--live-dim); }
+.fy-btn.rec { color: #f87171; border-color: #f87171; }
+.fy-btn.danger:hover { color: #f87171; border-color: #f8717155; }
+.fy-pulse { width: 6px; height: 6px; border-radius: 50%; background: #f87171; animation: fy-blink 1s infinite; }
+@keyframes fy-blink { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+.fy-spin { animation: fy-rot 1s linear infinite; }
+@keyframes fy-rot { to { transform: rotate(360deg) } }
+
+/* ── the marking ────────────────────────────────────────────── */
+.fy-result { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border-glass); padding-top: 11px; }
+.fy-bigscore { font-size: 34px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.fy-bigscore span { font-size: 14px; color: var(--subtle); margin-left: 2px; }
+.fy-bigscore.good { color: var(--live); }
+.fy-bigscore.ok { color: #f59e0b; }
+.fy-bigscore.bad { color: #f87171; }
+
+.fy-block b { display: block; font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; color: var(--subtle); margin-bottom: 5px; }
+.fy-block ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.fy-block li { font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.fy-block.bad li { color: #fca5a5; }
+.fy-clean { font-size: 12.5px; line-height: 1.65; color: var(--live); margin: 0; }
+.fy-foot { font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--subtle); margin: 0; }

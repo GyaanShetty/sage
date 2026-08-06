@@ -1532,3 +1532,39 @@ test("drift says nothing on too little history", async () => {
   assert.deepEqual(d.emerged, []);
   assert.match(d.notes[0], /at least three/);
 });
+
+test("a hole in an explanation brings it back tomorrow, not in a fortnight", async () => {
+  const { gradeFromScore } = await import("@/core/feynman");
+  const { schedule } = await import("@/core/retention/cards");
+
+  // The whole point of the loop: a fluent explanation with a real gap in it is
+  // a lapse, however confident it sounded.
+  assert.ok(gradeFromScore(55) < 3, "under 60% is a lapse");
+  assert.equal(schedule({ ease: 2.5, interval: 30, reps: 6 }, gradeFromScore(55)).dueInDays, 1);
+
+  // And a good one is allowed to space out.
+  assert.ok(schedule({ ease: 2.5, interval: 6, reps: 2 }, gradeFromScore(95)).dueInDays > 6);
+
+  // Nonsense in, no NaN out — the score comes from a model, so it can be junk.
+  assert.equal(gradeFromScore(Number.NaN), 0);
+  assert.equal(gradeFromScore(1e9), 5);
+});
+
+test("only concepts actually due are asked for", async () => {
+  const { dueOf } = await import("@/core/feynman");
+  const now = new Date("2026-08-06T09:00:00Z");
+  const base = { title: "x", source: "s", attempts: [], ease: 2.5, interval: 1, reps: 0, at: "" };
+
+  const due = dueOf(
+    [
+      { ...base, id: "later", dueAt: "2026-08-20T00:00:00Z" },
+      { ...base, id: "old", dueAt: "2026-08-01T00:00:00Z" },
+      { ...base, id: "retired", dueAt: "2026-07-01T00:00:00Z", retiredAt: "2026-07-02T00:00:00Z" },
+      { ...base, id: "yesterday", dueAt: "2026-08-05T00:00:00Z" },
+    ],
+    now,
+  );
+
+  // Oldest first: the one he has been avoiding longest is the one to answer.
+  assert.deepEqual(due.map((c) => c.id), ["old", "yesterday"]);
+});

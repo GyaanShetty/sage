@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Check, ChevronDown, Code2, ExternalLink, Loader2, Play, Save, Sparkles,
+  Check, ChevronDown, Code2, ExternalLink, Loader2, Play, Save, Sparkles, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
@@ -54,6 +55,7 @@ interface Coaching { response: string; code: string; complexity: string; level: 
 const DIFFICULTY: Record<string, string> = { Easy: "d-easy", Medium: "d-med", Hard: "d-hard" };
 
 export function CodeLab({ slug }: { slug?: string }) {
+  const router = useRouter();
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [lang, setLang] = useState<LangKey>("python3");
@@ -130,6 +132,27 @@ export function CodeLab({ slug }: { slug?: string }) {
     }).catch(() => {});
   };
 
+  /**
+   * Hand the solution to the push page.
+   *
+   * sessionStorage rather than a query string: a whole solution does not
+   * belong in a URL, and this survives exactly one navigation, which is all it
+   * needs to.
+   */
+  const sendToPush = () => {
+    try {
+      sessionStorage.setItem("sage:push-draft", JSON.stringify({
+        title: problem?.title ?? "",
+        url: problem?.link ?? "",
+        code,
+        language: lang,
+      }));
+    } catch {
+      // Private mode, or a full quota. The push page still opens; he pastes.
+    }
+    router.push("/push");
+  };
+
   const copy = async () => {
     await navigator.clipboard.writeText(code).catch(() => {});
     setCopied(true);
@@ -187,6 +210,11 @@ export function CodeLab({ slug }: { slug?: string }) {
                 </button>
                 <button className="cl-btn" onClick={save} disabled={saved || !code.trim()}>
                   {saved ? <><Check className="size-3" /> SAVED</> : <><Save className="size-3" /> SAVE</>}
+                </button>
+                {/* Solving it and filing it are one thought; they should not be
+                    two screens with a copy-paste in between. */}
+                <button className="cl-btn" onClick={sendToPush} disabled={!code.trim()}>
+                  <Upload className="size-3" /> PUSH
                 </button>
               </div>
 

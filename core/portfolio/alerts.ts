@@ -1,4 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { trashRow } from "@/core/ops/trash";
 
 export type AlertCondition = "above" | "below" | "pct_up" | "pct_down";
 
@@ -48,7 +49,7 @@ export async function updateAlert(id: string, patch: Partial<PriceAlert>): Promi
 }
 
 export async function deleteAlert(id: string): Promise<void> {
-  await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  await trashRow("Event", id);
 }
 
 /** Does this live quote satisfy the alert's condition? */

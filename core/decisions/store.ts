@@ -1,4 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { trashRow } from "@/core/ops/trash";
 
 /**
  * A decision journal, with the scoring left in.
@@ -121,7 +122,7 @@ export async function reviewDecision(
 }
 
 export async function deleteDecision(id: string): Promise<void> {
-  await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  await trashRow("Event", id);
 }
 
 /** Decisions whose review date has arrived and that he has not scored yet. */

@@ -127,3 +127,87 @@ export async function repoVisibility(repo: string): Promise<"private" | "public"
   const r = await gh<{ private: boolean }>(`/repos/${repo}`);
   return r ? (r.private ? "private" : "public") : null;
 }
+
+// ── Pushing code from SAGE ───────────────────────────────────────────────────
+
+/**
+ * Repos he can push to.
+ *
+ * Sorted by most recently pushed rather than alphabetically: the repo you want
+ * is nearly always the one you touched last, and a DSA repo gets touched daily.
+ */
+export async function listWritableRepos(limit = 60): Promise<Repo[]> {
+  const repos = await gh<(Repo & { permissions?: { push?: boolean } })[]>(
+    `/user/repos?sort=pushed&per_page=${Math.min(100, limit)}&affiliation=owner,collaborator`,
+  );
+  return (repos ?? [])
+    .filter((r) => r.permissions?.push !== false)
+    .map((r) => ({ name: r.name, full_name: r.full_name, pushed_at: r.pushed_at, language: r.language, private: r.private }));
+}
+
+/** Create a repo under the authenticated user. */
+export async function createRepo(
+  name: string,
+  { priv = true, description }: { priv?: boolean; description?: string } = {},
+): Promise<{ ok: true; repo: string } | { ok: false; error: string }> {
+  if (!process.env.GITHUB_TOKEN) return { ok: false, error: "No GITHUB_TOKEN set." };
+  try {
+    const res = await proxyFetch(`${API}/user/repos`, {
+      method: "POST",
+      headers: { ...headers(), "content-type": "application/json" },
+      body: JSON.stringify({
+        name,
+        private: priv,
+        ...(description ? { description } : {}),
+        // Without a first commit the repo has no default branch, and the
+        // Contents API cannot write into a branch that does not exist yet.
+        auto_init: true,
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      if (res.status === 422) return { ok: false, error: `GitHub rejected that name — ${name} may already exist.` };
+      return { ok: false, error: `GitHub ${res.status}: ${body.slice(0, 160)}` };
+    }
+    const j = (await res.json()) as { full_name: string };
+    return { ok: true, repo: j.full_name };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+export interface TreeEntry { path: string; type: "file" | "dir" }
+
+/**
+ * List one directory of a repo.
+ *
+ * Used to browse to a folder rather than type a path from memory. Git has no
+ * empty directories, so a folder exists exactly when something is in it —
+ * which is why creating one is the same operation as pushing a file into it.
+ */
+export async function listRepoPath(repo: string, path = ""): Promise<TreeEntry[] | null> {
+  const clean = path.replace(/^\/+|\/+$/g, "");
+  const entries = await gh<{ name: string; path: string; type: string }[]>(
+    `/repos/${repo}/contents/${clean.split("/").filter(Boolean).map(encodeURIComponent).join("/")}`,
+  );
+  if (!entries) return null;
+  // A single file returns an object rather than an array.
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((e) => ({ path: e.path, type: e.type === "dir" ? ("dir" as const) : ("file" as const) }))
+    .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "dir" ? -1 : 1));
+}
+
+/** Does this path already hold a file? Answered before overwriting one. */
+export async function repoFileExists(repo: string, path: string): Promise<boolean> {
+  const r = await gh<{ sha?: string }>(
+    `/repos/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
+  );
+  return !!r?.sha;
+}
+
+/** The signed-in account, so the UI can show whose repos these are. */
+export async function githubLogin(): Promise<string | null> {
+  return (await gh<{ login: string }>("/user"))?.login ?? null;
+}

@@ -1,4 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { trashRow } from "@/core/ops/trash";
 
 /**
  * Skill tracking.
@@ -111,7 +112,7 @@ export async function upsertSkill(input: Partial<Skill> & { id?: string }): Prom
 }
 
 export async function deleteSkill(id: string): Promise<boolean> {
-  const { error } = await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID).eq("type", TYPE);
+  const error = await trashRow("Event", id).then(() => null, (e: Error) => e);
   return !error;
 }
 

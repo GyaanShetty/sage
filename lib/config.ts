@@ -63,6 +63,25 @@ export function startOfTodayUtc(d = new Date()): string {
   return new Date(new Date(`${ymd}T00:00:00Z`).getTime() - offsetMs).toISOString();
 }
 
+/**
+ * The calendar day a moment falls on, in the app timezone.
+ *
+ * `toISOString().slice(0, 10)` is the UTC date, which in IST is the *previous*
+ * day between midnight and 05:30 — so a session logged at 1am, which is when a
+ * student actually studies, landed on yesterday. Every day key in the app
+ * should come from here.
+ */
+export function tzDay(d: Date | string | number = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(d));
+}
+
+/** Day keys for the last `n` days, oldest first — the x-axis of every heatmap. */
+export function lastDays(n: number, from: Date = new Date()): string[] {
+  const out: string[] = [];
+  for (let i = n - 1; i >= 0; i--) out.push(tzDay(from.getTime() - i * 86_400_000));
+  return out;
+}
+
 /** Format a date in the app timezone. */
 export function fmt(d: Date | string, opts: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, ...opts }).format(new Date(d));

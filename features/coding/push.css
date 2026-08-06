@@ -1,0 +1,73 @@
+/* Push — repo picker, folder browser, code box. Shares command.css tokens. */
+
+.pu-wrap { max-width: 980px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+.pu-card { border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 13px; }
+.pu-cardhead { display: flex; align-items: center; gap: 7px; margin-bottom: 11px; color: var(--muted); }
+.pu-cardhead h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; color: var(--muted); margin: 0; }
+.pu-avg { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--subtle); }
+.pu-path { color: var(--live); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.pu-dim { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--subtle); }
+.pu-err { font-size: 12.5px; color: #f87171; display: flex; align-items: center; gap: 6px; }
+
+.pu-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 10px; }
+.pu-row:last-child { margin-bottom: 0; }
+.pu-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pu-grow { flex: 1; min-width: 200px; }
+.pu-field > span { font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--subtle); }
+.pu-field input, .pu-field select {
+  background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground);
+  font-size: 13px; padding: 8px 10px; border-radius: 6px; outline: none; min-width: 0; width: 100%;
+}
+.pu-field input:focus, .pu-field select:focus { border-color: var(--live-dim); }
+
+.pu-btn {
+  display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--glass);
+  border: 1px solid var(--border-glass); padding: 9px 11px; border-radius: 6px; cursor: pointer;
+}
+.pu-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
+.pu-btn:disabled { opacity: .4; cursor: default; }
+
+.pu-newrepo { margin-top: 4px; }
+.pu-newrepo input {
+  flex: 1; min-width: 200px; background: var(--glass); border: 1px solid var(--border-glass);
+  color: var(--foreground); font-size: 12.5px; padding: 8px 10px; border-radius: 6px; outline: none;
+}
+.pu-newrepo input:focus { border-color: var(--live-dim); }
+
+.pu-browse { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.pu-crumb {
+  display: inline-flex; align-items: center; gap: 3px; font-family: var(--mono); font-size: 10px;
+  color: var(--muted); background: none; border: 1px solid var(--border-glass); padding: 4px 8px;
+  border-radius: 5px; cursor: pointer;
+}
+.pu-crumb:hover { color: var(--foreground); border-color: var(--live-dim); }
+
+/* The code box is the point of the page, so it gets the room. */
+.pu-code {
+  width: 100%; margin-top: 4px; background: #0b0c0e; border: 1px solid var(--border-glass);
+  color: #e7e9ee; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+  padding: 12px; border-radius: 8px; outline: none; resize: vertical; tab-size: 4;
+}
+.pu-code:focus { border-color: var(--live-dim); }
+.pu-code::placeholder { color: var(--subtle); }
+
+.pu-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 10px; }
+.pu-result { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.pu-result.ok { color: var(--live); }
+.pu-result.bad { color: #f87171; }
+.pu-link { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); background: none; border: 0; cursor: pointer; padding: 0; margin-left: 6px; }
+.pu-conflict { margin-top: 9px; font-size: 12px; line-height: 1.6; color: #f59e0b; }
+
+.pu-list { display: flex; flex-direction: column; }
+.pu-item { display: flex; align-items: baseline; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--border-glass); text-decoration: none; font-size: 12.5px; }
+.pu-item:last-child { border-bottom: 0; }
+.pu-item:hover { background: rgba(255,255,255,.02); }
+.pu-itemtitle { color: var(--foreground); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pu-itempath { flex: 1; min-width: 0; font-family: var(--mono); font-size: 9.5px; color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pu-itemdate { font-family: var(--mono); font-size: 9px; color: var(--subtle); white-space: nowrap; }
+
+@media (max-width: 620px) {
+  .pu-path { display: none; }
+  .pu-itempath { display: none; }
+}

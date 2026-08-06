@@ -1,4 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { trashRow } from "@/core/ops/trash";
 import { getMarkets } from "@/infrastructure/markets";
 
 export interface Holding {
@@ -47,7 +48,7 @@ export async function upsertHolding(h: Partial<Holding> & { id?: string }): Prom
 }
 
 export async function deleteHolding(id: string): Promise<void> {
-  await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  await trashRow("Event", id);
 }
 
 /**

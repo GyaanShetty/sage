@@ -1,4 +1,5 @@
 import { startOfTodayUtc } from "@/lib/config";
+import { trashRow } from "@/core/ops/trash";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
@@ -79,7 +80,7 @@ export async function upsertApplication(app: Partial<Application> & { id?: strin
 }
 
 export async function deleteApplication(id: string): Promise<void> {
-  await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  await trashRow("Event", id);
 }
 
 const scanSchema = z.object({

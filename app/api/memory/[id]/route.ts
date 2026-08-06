@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { trashRow } from "@/core/ops/trash";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 
@@ -29,7 +30,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { error } = await db.from("Memory").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  // Memories are the least replaceable thing in SAGE — nobody can retype what
+  // it learned about you six months ago — so they go to the trash, not away.
+  const error = await trashRow("Memory", id).then(() => null, (e: Error) => e);
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

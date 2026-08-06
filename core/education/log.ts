@@ -1,3 +1,5 @@
+import { tzDay, lastDays } from "@/lib/config";
+import { trashRow } from "@/core/ops/trash";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
 /**
@@ -84,7 +86,7 @@ export async function listEntries(skillId?: string, limit = 200): Promise<LogEnt
 }
 
 export async function deleteEntry(id: string): Promise<boolean> {
-  const { error } = await db.from("Event").delete().eq("id", id).eq("userId", DEFAULT_USER_ID);
+  const error = await trashRow("Event", id).then(() => null, (e: Error) => e);
   return !error;
 }
 
@@ -128,15 +130,14 @@ export function studyStats(entries: LogEntry[]): StudyStats {
   for (const e of sessions) {
     const t = new Date(e.at).getTime();
     if (Number.isNaN(t) || t < since) continue;
-    const day = e.at.slice(0, 10);
+    const day = tzDay(e.at);
     byDay.set(day, (byDay.get(day) ?? 0) + (e.minutes ?? 0));
   }
 
-  const recent: { day: string; minutes: number }[] = [];
-  for (let i = 13; i >= 0; i--) {
-    const day = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
-    recent.push({ day, minutes: byDay.get(day) ?? 0 });
-  }
+  // Both sides of this join must be his calendar days, not UTC ones — see
+  // tzDay. Studying at 1am used to be filed under the previous day, and the
+  // axis rolled over at 05:30 rather than midnight.
+  const recent = lastDays(14).map((day) => ({ day, minutes: byDay.get(day) ?? 0 }));
 
   return {
     entries: entries.length,

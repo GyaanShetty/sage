@@ -7,13 +7,14 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Orbit, X, Activity, ScrollText, BookMarked, Mail, Code2, type LucideIcon,
-  Scale, GitBranch,
+  Scale, GitBranch, Radio,
 } from "lucide-react";
 import { sound } from "@/lib/sound";
 
 interface Item { href: string; label: string; icon: LucideIcon }
 const PAGES: Item[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/sitrep", label: "Sitrep", icon: Radio },
   { href: "/morning", label: "Morning", icon: Sunrise },
   { href: "/chat", label: "Chat", icon: MessageSquare },
   { href: "/markets", label: "Markets", icon: CandlestickChart },
@@ -155,6 +156,7 @@ export function RadialNav() {
       else if (/note|doc|learn/.test(s)) best = PAGES.findIndex((p) => p.href === "/knowledge");
       else if (/sleep|steps|workout|fitness|gym|body/.test(s)) best = PAGES.findIndex((p) => p.href === "/health");
       else if (/home|main/.test(s)) best = PAGES.findIndex((p) => p.href === "/dashboard");
+      else if (/sitrep|status|situation|where.*stand/.test(s)) best = PAGES.findIndex((p) => p.href === "/sitrep");
       else if (/decision|call|bet|judge|calibrat/.test(s)) best = PAGES.findIndex((p) => p.href === "/decisions");
       else if (/push|git|hub|commit|solution|dsa/.test(s)) best = PAGES.findIndex((p) => p.href === "/push");
     }

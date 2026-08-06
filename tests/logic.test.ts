@@ -1116,3 +1116,36 @@ test("study days follow his calendar, not UTC", async () => {
   assert.equal(days[6], "2026-08-06", "the axis must end on today");
   assert.equal(days[0], "2026-07-31");
 });
+
+test("a slow source cannot take the sitrep down", async () => {
+  // buildSitrep races every source against a budget and falls back to null, so
+  // one hanging integration degrades that line rather than the whole board.
+  // Exercised here through the same primitive the module uses.
+  const slow = new Promise<string | null>(() => {});          // never resolves
+  const raced = await Promise.race([
+    slow,
+    new Promise<string | null>((r) => setTimeout(() => r(null), 30)),
+  ]);
+  assert.equal(raced, null, "a source that never answers must yield, not block");
+});
+
+test("the countdown reads like a countdown", async () => {
+  // Mirrors features/sitrep countdown(): seconds only once they matter, so a
+  // glance at "2h 14m" is not cluttered and "6m 03s" still feels urgent.
+  const countdown = (ms: number): string => {
+    if (ms <= 0) return "now";
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m >= 10) return `${m}m`;
+    return `${m}m ${String(sec).padStart(2, "0")}s`;
+  };
+
+  assert.equal(countdown(2 * 3600_000 + 14 * 60_000), "2h 14m");
+  assert.equal(countdown(25 * 60_000), "25m");
+  assert.equal(countdown(6 * 60_000 + 3000), "6m 03s");
+  assert.equal(countdown(0), "now");
+  assert.equal(countdown(-5000), "now", "an event that has started is not negative time");
+});

@@ -7,6 +7,7 @@ import { evaluateAlerts } from "@/core/portfolio/alerts";
 import { runNotifications } from "@/core/notify/engine";
 import { runBackup, lastBackup } from "@/core/ops/backup";
 import { syncHevy } from "@/core/health/hevy";
+import { runNightShift } from "@/core/night/shift";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -68,6 +69,15 @@ const JOBS: Job[] = [
     everyMin: 180,
     hours: [6, 23],
     run: () => syncHevy(),
+  },
+  {
+    // The night shift — the thing the heartbeat was really for. Once a night,
+    // early enough to be finished before he wakes, late enough that anything
+    // logged in the evening is already in.
+    name: "night-shift",
+    everyMin: 60 * 20,
+    hours: [3, 6],
+    run: () => runNightShift(),
   },
   {
     // Daily rather than weekly now that there is something to run it. The

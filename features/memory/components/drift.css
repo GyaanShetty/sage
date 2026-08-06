@@ -1,0 +1,18 @@
+/* Drift — months as columns of the words that belonged to them. */
+.dr-card { border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); padding: 13px; margin-top: 14px; }
+.dr-head { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; color: var(--muted); }
+.dr-head h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; margin: 0; }
+.dr-avg { margin-left: auto; font-family: var(--mono); font-size: 9px; color: var(--subtle); }
+.dr-dim { font-size: 11.5px; color: var(--subtle); }
+.dr-note { font-size: 12.5px; line-height: 1.65; color: var(--muted); margin-bottom: 4px; }
+.dr-months { display: flex; gap: 10px; overflow-x: auto; margin-top: 12px; padding-bottom: 4px; }
+.dr-month { flex: 0 0 auto; min-width: 116px; display: flex; flex-direction: column; gap: 6px; }
+.dr-mlabel { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--subtle); }
+.dr-terms { display: flex; flex-direction: column; gap: 3px; }
+.dr-term { font-size: 12px; color: var(--muted); }
+/* What arrived and what left, marked where it happened. */
+.dr-term.new { color: var(--live); }
+.dr-term.gone { color: var(--subtle); text-decoration: line-through; text-decoration-color: rgba(255,255,255,.2); }
+.dr-constant { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.dr-constant b { color: var(--foreground); font-weight: 500; }
+.dr-foot { margin-top: 10px; font-size: 10px; line-height: 1.6; color: var(--subtle); }

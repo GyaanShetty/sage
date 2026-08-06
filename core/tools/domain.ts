@@ -647,6 +647,82 @@ export const domainTools = {
     },
   }),
 
+  // ── Patterns ────────────────────────────────────────────────────────────
+  readiness_check: tool({
+    description:
+      "Training readiness from load and sleep — the acute:chronic workload ratio against his own four-week baseline. Use for 'should I train today', 'am I overdoing it', 'how's my recovery', or before suggesting a hard session.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { readiness } = await import("@/core/health/readiness");
+      const r = await readiness();
+      return {
+        ok: true,
+        band: r.band,
+        ratio: r.ratio,
+        score: r.score,
+        sleepDebtHours: r.sleepDebt,
+        verdict: r.verdict,
+        advice: r.advice,
+      };
+    },
+  }),
+
+  attention_drift: tool({
+    description:
+      "How his interests have moved month to month — what is newly on his mind, what has gone quiet, what is constant. Use for 'what have I been thinking about', 'have I drifted', or in a reflective review.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const { drift } = await import("@/core/memory/drift");
+      const d = await drift();
+      return {
+        ok: true,
+        months: d.months.length,
+        emerged: d.emerged,
+        faded: d.faded,
+        constant: d.constant,
+        notes: d.notes,
+      };
+    },
+  }),
+
+  shadow_book: tool({
+    description:
+      "Trades he considered and did not take, scored against what actually happened — whether his hesitation is costing him or saving him. Also use to LOG one when he says he thought about a trade and passed.",
+    inputSchema: z.object({
+      log: z.boolean().optional().describe("True to record a skipped trade rather than read the book"),
+      symbol: z.string().max(20).optional(),
+      side: z.enum(["buy", "short"]).optional(),
+      price: z.number().optional().describe("What he would have paid"),
+      size: z.number().optional(),
+      thesis: z.string().max(500).optional(),
+      whyNot: z.string().max(300).optional().describe("Why he did not take it — the half that teaches something"),
+    }),
+    execute: async (input) => {
+      const { scoreShadow, addShadow } = await import("@/core/portfolio/shadow");
+
+      if (input.log) {
+        if (!input.symbol || !input.price || !input.size) {
+          return { ok: false, error: "A skipped trade needs a symbol, the price he would have paid, and a size." };
+        }
+        await addShadow({
+          symbol: input.symbol, side: input.side ?? "buy",
+          price: input.price, size: input.size,
+          thesis: input.thesis ?? "", whyNot: input.whyNot ?? "",
+        });
+        return { ok: true, logged: `${input.side ?? "buy"} ${input.symbol} at ${input.price}` };
+      }
+
+      const s = await scoreShadow();
+      return {
+        ok: true,
+        scored: s.scored,
+        wouldHaveWon: s.wouldHaveWon,
+        netPnl: Math.round(s.netPnl),
+        verdict: s.verdict,
+      };
+    },
+  }),
+
   // ── Status ──────────────────────────────────────────────────────────────
   sitrep: tool({
     description:

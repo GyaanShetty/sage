@@ -10,6 +10,7 @@ import "./panels.css";
 import { EquityPanel } from "./components/equity-panel";
 import { AttributionPanel } from "./components/attribution-panel";
 import { BudgetPanel } from "./components/budget-panel";
+import { ShadowPanel } from "./components/shadow-panel";
 import { RiskPanel } from "./components/risk-panel";
 import { TradesPanel } from "./components/trades-panel";
 import { AlertsPanel } from "./components/alerts-panel";
@@ -391,6 +392,8 @@ export function PortfolioView() {
       {/* The plan sits directly above the spending it is measuring — reading
           one without the other is how a budget quietly stops being used. */}
       <BudgetPanel reloadKey={expenseKey} />
+
+      <ShadowPanel />
 
       {/* Expenses & subscriptions */}
       <div className="pf-exp">

@@ -1445,3 +1445,90 @@ test("a tap opens, a drag does not — the pointer-capture trap", async () => {
   assert.equal(drag.captured, true, "a real drag does need the capture");
   assert.equal(drag.opens, false, "releasing a spin over a node must not navigate");
 });
+
+test("a skipped short is scored as the mirror of a long", async () => {
+  const { pnlOf } = await import("@/core/portfolio/shadow");
+  const base = { id: "1", symbol: "BTC", price: 100, size: 2, thesis: "", whyNot: "", at: "" };
+
+  // Long: price up is money you did not make.
+  assert.equal(pnlOf({ ...base, side: "buy" }, 120), 40);
+  assert.equal(pnlOf({ ...base, side: "buy" }, 90), -20);
+  // Short: exactly inverted, from the same expression.
+  assert.equal(pnlOf({ ...base, side: "short" }, 120), -40);
+  assert.equal(pnlOf({ ...base, side: "short" }, 90), 20);
+});
+
+test("readiness refuses to score on thin history", async () => {
+  const { computeReadiness } = await import("@/core/health/readiness");
+  const now = new Date("2026-08-06T12:00:00Z");
+
+  // Three sessions in a month is arithmetic, not information.
+  const thin = computeReadiness(
+    [{ day: "2026-08-01", load: 50 }, { day: "2026-08-03", load: 50 }, { day: "2026-08-05", load: 50 }],
+    [{ day: "2026-08-05", hours: 7 }],
+    7.5,
+    now,
+  );
+  assert.equal(thin.ratio, null, "a ratio from three sessions would be a lie");
+  assert.equal(thin.band, "unknown");
+  assert.equal(thin.score, null, "no score rather than a guessed one");
+  assert.match(thin.verdict, /Not enough training history/);
+});
+
+test("readiness spots a hard ramp", async () => {
+  const { computeReadiness, sessionLoad } = await import("@/core/health/readiness");
+  const now = new Date("2026-08-28T12:00:00Z");
+
+  // Four weeks of steady work, then a week of triple.
+  const sessions: { day: string; load: number }[] = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86_400_000).toISOString().slice(0, 10);
+    sessions.push({ day: d, load: i < 7 ? 90 : 30 });
+  }
+
+  const r = computeReadiness(sessions, [{ day: now.toISOString().slice(0, 10), hours: 7.5 }], 7.5, now);
+  assert.ok(r.ratio !== null && r.ratio > 1.5, `expected a hard ramp, got ${r.ratio}`);
+  assert.equal(r.band, "danger");
+  assert.match(r.verdict, /injury/);
+
+  // Session load: volume where it exists, session-RPE otherwise.
+  assert.equal(sessionLoad({ volumeKg: 8000 }), 80);
+  assert.ok(sessionLoad({ minutes: 60, intensity: "hard" }) > sessionLoad({ minutes: 60, intensity: "easy" }));
+});
+
+test("drift finds what is distinctive, not what is frequent", async () => {
+  const { themesByMonth, diffThemes } = await import("@/core/memory/drift");
+
+  const entries = [
+    // "college" every month — frequent, and therefore uninformative.
+    { at: "2026-03-10T06:00:00Z", text: "college recursion recursion trees college" },
+    { at: "2026-03-12T06:00:00Z", text: "recursion trees college backtracking" },
+    { at: "2026-04-10T06:00:00Z", text: "college markets markets valuation" },
+    { at: "2026-04-14T06:00:00Z", text: "markets valuation college derivatives" },
+    { at: "2026-05-10T06:00:00Z", text: "college markets derivatives derivatives" },
+    { at: "2026-05-16T06:00:00Z", text: "derivatives college markets hedging hedging" },
+  ];
+
+  const months = themesByMonth(entries);
+  assert.equal(months.length, 3);
+  assert.equal(months[0].month, "2026-03");
+
+  const march = months[0].themes.map((t) => t.term);
+  assert.ok(march.includes("recursion"), "the distinctive term should surface");
+  assert.ok(!march.includes("college"), "a word used every month distinguishes nothing");
+
+  const d = diffThemes(months);
+  assert.ok(d.faded.includes("recursion"), "recursion stopped coming up and should be flagged");
+  assert.ok(d.notes.some((n) => /gone quiet/i.test(n)));
+
+  // The word he says every month is reported as a constant, not a finding.
+  const { constantTerms } = await import("@/core/memory/drift");
+  assert.ok(constantTerms(entries).includes("college"));
+});
+
+test("drift says nothing on too little history", async () => {
+  const { themesByMonth, diffThemes } = await import("@/core/memory/drift");
+  const d = diffThemes(themesByMonth([{ at: "2026-08-01T06:00:00Z", text: "markets markets valuation" }]));
+  assert.deepEqual(d.emerged, []);
+  assert.match(d.notes[0], /at least three/);
+});

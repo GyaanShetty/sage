@@ -85,3 +85,22 @@
   .hl-wokcal { display: none; }
   .hl-quickmeta { margin-left: 0; width: 100%; }
 }
+
+/* ── readiness ───────────────────────────────────────────────────────────
+   The ratio, drawn against the band that actually matters. */
+.rd-score { display: flex; align-items: baseline; gap: 9px; margin-bottom: 12px; }
+.rd-score b { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.rd-score span { font-size: 11px; color: var(--subtle); }
+.rd-scale { position: relative; height: 8px; background: rgba(255,255,255,.05); border-radius: 4px; }
+.rd-sweet { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--live) 22%, transparent); border-radius: 4px; }
+.rd-marker { position: absolute; top: -3px; width: 3px; height: 14px; border-radius: 2px; background: var(--foreground); transform: translateX(-50%); }
+.rd-ticks { display: flex; justify-content: space-between; margin-top: 4px; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
+.rd-verdict { margin-top: 12px; font-size: 12.5px; line-height: 1.6; color: var(--foreground); }
+.rd-advice { margin-top: 5px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.rd-foot { margin-top: 9px; font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--subtle); }
+.rd-danger, .rd-marker.rd-danger { color: #f87171; background: #f87171; }
+.rd-ramping, .rd-marker.rd-ramping { color: #f59e0b; background: #f59e0b; }
+.rd-sweet-spot, .rd-marker.rd-sweet-spot { color: var(--live); background: var(--live); }
+.rd-detraining, .rd-marker.rd-detraining { color: #60a5fa; background: #60a5fa; }
+.rd-unknown { color: var(--subtle); }
+.hl-avg.rd-danger, .hl-avg.rd-ramping, .hl-avg.rd-sweet-spot, .hl-avg.rd-detraining { background: none; }

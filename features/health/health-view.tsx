@@ -11,6 +11,7 @@ import "./health.css";
 import { TrainingPanel } from "./components/training-panel";
 import { StepsAuto } from "./components/steps-auto";
 import { ProgressPanel } from "./components/progress-panel";
+import { ReadinessPanel } from "./components/readiness-panel";
 
 interface Day {
   day: string;
@@ -121,6 +122,7 @@ export function HealthView() {
         </div>
       )}
 
+      <ReadinessPanel />
       <TrainingPanel />
       <ProgressPanel />
 

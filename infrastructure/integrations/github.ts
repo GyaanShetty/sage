@@ -114,12 +114,43 @@ export async function putRepoFile(
       }),
       signal: AbortSignal.timeout(25_000),
     });
-    if (!res.ok) return { ok: false, error: `GitHub ${res.status}: ${(await res.text()).slice(0, 200)}` };
+    if (!res.ok) return { ok: false, error: await writeError(res, repo) };
     const j = (await res.json()) as { content?: { html_url?: string } };
     return { ok: true, url: j.content?.html_url ?? `https://github.com/${repo}/blob/main/${path}` };
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
+}
+
+/**
+ * Turn a failed write into something actionable.
+ *
+ * "Resource not accessible by personal access token" is GitHub telling you the
+ * token can read but not write, and it is worth saying so plainly: the raw
+ * message sends people looking for a bug in the app, when the fix is thirty
+ * seconds in token settings. Classic tokens report their scopes in a response
+ * header, so when they are present the answer can be exact.
+ */
+async function writeError(res: Response, repo: string): Promise<string> {
+  const body = await res.text().catch(() => "");
+
+  if (res.status === 403 || res.status === 404) {
+    const scopes = res.headers.get("x-oauth-scopes");
+
+    // The header exists only on classic tokens. Its absence means fine-grained,
+    // where permissions are per-repository rather than per-scope.
+    if (scopes === null) {
+      return `GitHub refused the write to ${repo}. This looks like a fine-grained token without write access: open the token's settings, give it "Contents: Read and write", and make sure ${repo} is in its repository list.`;
+    }
+    if (!/\brepo\b|public_repo/.test(scopes)) {
+      return `GitHub refused the write to ${repo}. The token's scopes are "${scopes}" — none of which allow writing files. A classic token needs the "repo" scope.`;
+    }
+    return `GitHub refused the write to ${repo} (${res.status}) even though the token has "${scopes}". Check you have push access to that repo, and that it is not archived.`;
+  }
+
+  if (res.status === 401) return "GitHub rejected the token entirely — it may have expired or been revoked.";
+  if (res.status === 409) return `A conflicting change landed in ${repo} first. Try again.`;
+  return `GitHub ${res.status}: ${body.slice(0, 200)}`;
 }
 
 /** Whether the repo exists and is private — a backup must never land in public. */
@@ -166,9 +197,17 @@ export async function createRepo(
       signal: AbortSignal.timeout(20_000),
     });
     if (!res.ok) {
-      const body = await res.text();
       if (res.status === 422) return { ok: false, error: `GitHub rejected that name — ${name} may already exist.` };
-      return { ok: false, error: `GitHub ${res.status}: ${body.slice(0, 160)}` };
+      if (res.status === 403 || res.status === 404) {
+        const scopes = res.headers.get("x-oauth-scopes");
+        return {
+          ok: false,
+          error: scopes === null
+            ? "That token cannot create repositories. Fine-grained tokens need the account-level \"Administration: Read and write\" permission; a classic token needs \"repo\"."
+            : `The token's scopes are "${scopes}", which don't allow creating repositories. A classic token needs "repo".`,
+        };
+      }
+      return { ok: false, error: `GitHub ${res.status}: ${(await res.text()).slice(0, 160)}` };
     }
     const j = (await res.json()) as { full_name: string };
     return { ok: true, repo: j.full_name };
@@ -210,4 +249,61 @@ export async function repoFileExists(repo: string, path: string): Promise<boolea
 /** The signed-in account, so the UI can show whose repos these are. */
 export async function githubLogin(): Promise<string | null> {
   return (await gh<{ login: string }>("/user"))?.login ?? null;
+}
+
+export interface TokenCheck {
+  ok: boolean;
+  login: string | null;
+  /** Classic-token scopes, when GitHub reports them. Null for fine-grained. */
+  scopes: string | null;
+  kind: "classic" | "fine-grained" | "unknown";
+  canWrite: boolean | null;
+  note: string;
+}
+
+/**
+ * What this token can actually do.
+ *
+ * Worth answering before he writes a solution rather than after: discovering
+ * the token is read-only at the moment you press Push means the code is
+ * sitting in a textarea with nowhere to go.
+ *
+ * Write access cannot be tested without writing something, so this reports
+ * what GitHub says about the token and stops short of claiming certainty it
+ * does not have.
+ */
+export async function checkToken(): Promise<TokenCheck> {
+  const base: TokenCheck = { ok: false, login: null, scopes: null, kind: "unknown", canWrite: null, note: "" };
+  if (!process.env.GITHUB_TOKEN) {
+    return { ...base, note: "No GITHUB_TOKEN set." };
+  }
+
+  try {
+    const res = await proxyFetch(`${API}/user`, { headers: headers(), signal: AbortSignal.timeout(9000) });
+    if (!res.ok) {
+      return { ...base, note: res.status === 401 ? "GitHub rejected the token — expired or revoked." : `GitHub ${res.status}.` };
+    }
+
+    const login = ((await res.json()) as { login?: string }).login ?? null;
+    const scopes = res.headers.get("x-oauth-scopes");
+
+    // Only classic tokens carry this header; fine-grained ones grant
+    // per-repository permissions that no endpoint enumerates.
+    if (scopes === null) {
+      return {
+        ok: true, login, scopes: null, kind: "fine-grained", canWrite: null,
+        note: "Fine-grained token. It needs \"Contents: Read and write\" on the repositories you push to — GitHub doesn't expose which ones it has, so a failed push is the only way to find out.",
+      };
+    }
+
+    const canWrite = /\brepo\b|public_repo/.test(scopes);
+    return {
+      ok: true, login, scopes, kind: "classic", canWrite,
+      note: canWrite
+        ? "Classic token with write access."
+        : `Classic token, scopes "${scopes || "none"}" — read-only. Add the "repo" scope to push.`,
+    };
+  } catch (e) {
+    return { ...base, note: (e as Error).message };
+  }
 }

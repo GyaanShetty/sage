@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  listWritableRepos, createRepo, listRepoPath, githubLogin,
+  listWritableRepos, createRepo, listRepoPath, githubLogin, checkToken,
 } from "@/infrastructure/integrations/github";
 import {
   pushCode, recentPushes, getPushPrefs, setPushPrefs, LANGUAGES, type PushInput,
@@ -35,14 +35,17 @@ export async function GET(req: Request) {
     );
   }
 
-  const [repos, login, prefs, pushes] = await Promise.all([
+  const [repos, login, prefs, pushes, token] = await Promise.all([
     listWritableRepos().catch(() => []),
     githubLogin().catch(() => null),
     getPushPrefs().catch(() => null),
     recentPushes().catch(() => []),
+    // Checked up front: finding out the token is read-only at the moment you
+    // press Push means the solution is sitting in a textarea with nowhere to go.
+    checkToken().catch(() => null),
   ]);
 
-  return NextResponse.json({ ok: true, data: { repos, login, prefs, pushes, languages: LANGUAGES } });
+  return NextResponse.json({ ok: true, data: { repos, login, prefs, pushes, token, languages: LANGUAGES } });
 }
 
 export async function POST(req: Request) {

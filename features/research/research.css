@@ -105,3 +105,8 @@
   .rs-new { padding: 8px 10px; white-space: nowrap; }
   .rs-log { min-height: 50vh; }
 }
+
+/* A failed upload stays visible until dismissed — a file that quietly
+   disappears reads as success until you ask a question about it. */
+.rs-file.failed { border-color: rgba(248,113,113,.5); color: #f87171; }
+.rs-file.failed i { color: #f87171; }

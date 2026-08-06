@@ -14,10 +14,11 @@ export const maxDuration = 60;
  * request limit.
  */
 export async function POST(req: Request) {
-  const { threadId, name } = (await req.json().catch(() => ({}))) as { threadId?: string; name?: string };
+  const { threadId, name, size } = (await req.json().catch(() => ({}))) as
+    { threadId?: string; name?: string; size?: number };
   if (!threadId || !name) return NextResponse.json({ ok: false, error: "threadId and name required" }, { status: 400 });
 
-  const signed = await signUpload(threadId, name);
+  const signed = await signUpload(threadId, name, Number(size) || 0);
   if ("error" in signed) return NextResponse.json({ ok: false, error: signed.error }, { status: 500 });
   return NextResponse.json({ ok: true, data: signed });
 }

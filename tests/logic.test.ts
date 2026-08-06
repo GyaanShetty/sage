@@ -1410,3 +1410,38 @@ test("event tone is inferred from the title", async () => {
   assert.equal(toneOf("ML"), "plain", "an unmatched title stays neutral rather than guessing");
   assert.equal(toneOf("ML", "Timetable"), "feed", "unmatched but subscribed reads as someone else's");
 });
+
+test("a tap opens, a drag does not — the pointer-capture trap", async () => {
+  /**
+   * The bug this encodes: calling setPointerCapture on pointerdown retargets
+   * the following `click` to the capturing element, so a button underneath it
+   * never fires and nothing opens. Capture must wait until the pointer has
+   * actually travelled.
+   */
+  const SLOP = 6;
+  const gesture = (points: { x: number; y: number }[]) => {
+    const start = points[0];
+    let dragging = false;
+    let captured = false;
+    for (const p of points.slice(1)) {
+      if (!dragging) {
+        if (Math.hypot(p.x - start.x, p.y - start.y) < SLOP) continue;
+        dragging = true;
+        captured = true;          // only now
+      }
+    }
+    return { dragging, captured, opens: !dragging };
+  };
+
+  // A tap with the tiny jitter a finger always has.
+  const tap = gesture([{ x: 100, y: 300 }, { x: 101, y: 302 }, { x: 100, y: 303 }]);
+  assert.equal(tap.dragging, false);
+  assert.equal(tap.captured, false, "capturing on a tap is what ate the click");
+  assert.equal(tap.opens, true);
+
+  // A deliberate spin.
+  const drag = gesture([{ x: 100, y: 300 }, { x: 102, y: 340 }, { x: 103, y: 420 }]);
+  assert.equal(drag.dragging, true);
+  assert.equal(drag.captured, true, "a real drag does need the capture");
+  assert.equal(drag.opens, false, "releasing a spin over a node must not navigate");
+});

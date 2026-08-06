@@ -1,5 +1,45 @@
 import { NextResponse } from "next/server";
 import { createCalendarEvent, updateCalendarEvent, deleteCalendarEvent } from "@/infrastructure/integrations/google";
+import { eventsBetween } from "@/core/calendar";
+import { listFeeds } from "@/core/calendar/feeds";
+import { getLeadMinutes } from "@/core/reminders/prep";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Everything in a window: Google plus every subscribed feed.
+ *
+ * The range comes from the client because it is the client that knows which
+ * month is on screen, and a month grid needs the days already gone as much as
+ * the ones ahead.
+ */
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  if (!from || !to) return NextResponse.json({ ok: false, error: "from and to required" }, { status: 400 });
+
+  const fromDate = new Date(from);
+  const toDate = new Date(to);
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    return NextResponse.json({ ok: false, error: "from and to must be dates" }, { status: 400 });
+  }
+
+  const [events, feeds, lead] = await Promise.all([
+    eventsBetween(fromDate, toDate).catch(() => []),
+    listFeeds().catch(() => []),
+    getLeadMinutes().catch(() => 15),
+  ]);
+
+  return NextResponse.json({
+    ok: true,
+    data: {
+      events,
+      feeds: feeds.map((f) => ({ label: f.label, enabled: f.enabled, error: f.lastError ?? null })),
+      lead,
+    },
+  });
+}
 
 export const maxDuration = 30;
 

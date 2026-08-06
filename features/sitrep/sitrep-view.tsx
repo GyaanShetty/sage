@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Moon, Radio, RefreshCw } from "lucide-react";
+import { Activity, AlertTriangle, Loader2, Moon, Radio, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import "./sitrep.css";
@@ -26,6 +26,7 @@ interface Line { key: string; label: string; value: string; detail?: string; lev
 interface Sitrep { at: string; nextEventAt: string | null; nextEventTitle: string | null; lines: Line[]; alerts: Line[] }
 interface NightItem { kind: string; title: string; body: string; href?: string }
 interface NightReport { day: string; ranAt: string; greeting: string; items: NightItem[]; quiet: boolean }
+interface Anomaly { key: string; subject: string; detail: string; z: number; n: number; direction: "up" | "down"; href?: string }
 
 const POLL_MS = 20_000;
 
@@ -44,6 +45,7 @@ function countdown(ms: number): string {
 export function SitrepView({ compact = false }: { compact?: boolean }) {
   const [sitrep, setSitrep] = useState<Sitrep | null>(null);
   const [night, setNight] = useState<NightReport | null>(null);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -52,7 +54,7 @@ export function SitrepView({ compact = false }: { compact?: boolean }) {
     setRefreshing(true);
     const j = await fetch("/api/sitrep/live").then((r) => r.json()).catch(() => null);
     setRefreshing(false);
-    if (j?.ok) { setSitrep(j.data.sitrep); setNight(j.data.night ?? null); }
+    if (j?.ok) { setSitrep(j.data.sitrep); setNight(j.data.night ?? null); setAnomalies(j.data.anomalies ?? []); }
   }, []);
 
   // Poll, but only while the tab is actually being looked at. Coming back to
@@ -130,6 +132,24 @@ export function SitrepView({ compact = false }: { compact?: boolean }) {
                   <AlertTriangle className="size-3" /> {a.label}: {a.value}
                   {a.detail && <i>{a.detail}</i>}
                 </span>
+              ))}
+            </div>
+          )}
+
+          {/* Not thresholds — departures from his own normal. Kept separate
+              from the alerts above because "unusual" and "wrong" are different
+              claims, and conflating them makes both easier to ignore. */}
+          {anomalies.length > 0 && (
+            <div className="sr-odd">
+              <span className="sr-oddhead"><Activity className="size-3" /> UNUSUAL FOR YOU</span>
+              {anomalies.map((a) => (
+                <div key={a.key} className="sr-oddrow">
+                  <span className={cn("sr-arrow", a.direction)}>{a.direction === "up" ? "▲" : "▼"}</span>
+                  <span className="sr-odddetail">{a.detail}</span>
+                  <span className="sr-oddz" title={`${Math.abs(a.z).toFixed(1)} standard deviations from your ${a.n}-day baseline`}>
+                    {Math.abs(a.z).toFixed(1)}σ
+                  </span>
+                </div>
               ))}
             </div>
           )}

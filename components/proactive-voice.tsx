@@ -13,6 +13,31 @@ interface Alert {
 const POLL_MS = 180_000; // check the situation every 3 minutes
 const SEEN_KEY = "sage-proactive-seen";
 
+/**
+ * Hours SAGE keeps his mouth shut.
+ *
+ * A voice that speaks at 2am is a voice you turn off, and a voice you have
+ * turned off cannot tell you anything. Nothing here is urgent enough to be
+ * worth that trade — the notification path still delivers overnight, silently.
+ */
+const WAKING_FROM = 7;
+const WAKING_TO = 23;
+
+function withinWakingHours(): boolean {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", hour12: false }).format(new Date()),
+  ) % 24;
+  return hour >= WAKING_FROM && hour < WAKING_TO;
+}
+
+/** Don't talk over him mid-sentence. */
+function isTyping(): boolean {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || (el as HTMLElement).isContentEditable;
+}
+
 /** Speak an alert aloud with SAGE's voice (neural TTS, browser fallback). */
 async function speak(text: string): Promise<void> {
   try {
@@ -87,10 +112,22 @@ export function ProactiveVoice() {
     let first = true;
     const check = async () => {
       if (!armed.current || voiceOpen.current || !sound.isOn()) return;
+      if (!withinWakingHours() || isTyping()) return;
       try {
-        const j = await fetch("/api/sitrep").then((r) => r.json());
-        const alerts: Alert[] = j?.data ?? [];
-        const high = alerts.filter((a) => a.level === "high");
+        // Two sources now: the threshold alerts, and departures from his own
+        // baselines. The second is the more interesting half — a threshold
+        // only catches what someone thought to worry about in advance.
+        const [sitrep, anomalies] = await Promise.all([
+          fetch("/api/sitrep").then((r) => r.json()).catch(() => null),
+          fetch("/api/anomaly").then((r) => r.json()).catch(() => null),
+        ]);
+
+        const alerts: Alert[] = sitrep?.data ?? [];
+        const odd: Alert[] = (anomalies?.data?.anomalies ?? []).map(
+          (a: { detail: string }) => ({ level: "high" as const, icon: "◇", text: a.detail }),
+        );
+
+        const high = [...alerts.filter((a) => a.level === "high"), ...odd];
         if (!high.length) return;
         const seen = readSeen();
         const fresh = high.filter((a) => !seen[a.text]);

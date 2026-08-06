@@ -147,6 +147,12 @@ async function whatSlipped(): Promise<string[]> {
   const notes: string[] = [];
 
   await Promise.all([
+    // Departures from his own patterns, which thresholds cannot see.
+    (async () => {
+      const { detectAnomalies } = await import("@/core/anomaly");
+      for (const a of await detectAnomalies(2)) notes.push(a.detail);
+    })().catch(() => undefined),
+
     (async () => {
       const { getPlan, budgetStatus, currentMonth } = await import("@/core/finance/budget");
       const { listExpenses } = await import("@/core/finance/expenses");

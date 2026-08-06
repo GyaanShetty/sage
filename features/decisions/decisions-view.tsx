@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Brain, Check, ChevronDown, Loader2, Plus, Scale, Target, Trash2, TrendingDown, TrendingUp,
+  Brain, Check, ChevronDown, Loader2, Plus, Scale, Swords, Target, Trash2, TrendingDown, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "./decisions.css";
@@ -40,6 +40,12 @@ const OUTCOMES: { key: Outcome; label: string }[] = [
   { key: "too-early", label: "Too early" },
 ];
 
+interface Advocacy {
+  verdict: "push-back" | "sharpen" | "concede";
+  strongestCase: string; blindSpot: string; wouldFalsify: string;
+  suggestedConfidence: number; why: string; claimed: number; record: string | null;
+}
+
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
 
@@ -63,6 +69,8 @@ export function DecisionsView() {
     confidence: 70, domain: "markets", reviewAt: defaultReview(),
   });
   const [review, setReview] = useState<{ id: string; outcome: Outcome; whatHappened: string; lesson: string } | null>(null);
+  const [advocacy, setAdvocacy] = useState<Advocacy | null>(null);
+  const [arguing, setArguing] = useState(false);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/decisions").then((r) => r.json()).catch(() => null);
@@ -87,8 +95,26 @@ export function DecisionsView() {
     setBusy(false);
     if (apply(j)) {
       setDraft({ title: "", reasoning: "", expectation: "", alternatives: "", confidence: 70, domain: draft.domain, reviewAt: defaultReview() });
+      setAdvocacy(null);
       setAdding(false);
     }
+  };
+
+  /**
+   * Ask SAGE to argue the other side, before committing.
+   *
+   * Deliberately before saving rather than after: an objection raised once the
+   * call is made is a post-mortem, and post-mortems change nothing.
+   */
+  const argue = async () => {
+    if (!draft.title.trim() || !draft.expectation.trim() || arguing) return;
+    setArguing(true); setAdvocacy(null);
+    const j = await fetch("/api/decisions/advocate", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(draft),
+    }).then((r) => r.json()).catch(() => null);
+    setArguing(false);
+    if (j?.ok) setAdvocacy(j.data as Advocacy);
   };
 
   const submitReview = async () => {
@@ -174,10 +200,52 @@ export function DecisionsView() {
               <input type="date" value={draft.reviewAt} onChange={(e) => setDraft({ ...draft, reviewAt: e.target.value })} />
             </label>
 
+            <button
+              onClick={() => void argue()}
+              disabled={arguing || !draft.title.trim() || !draft.expectation.trim()}
+              className="cc-btn"
+              title="Have SAGE put the case against, before you commit"
+            >
+              {arguing ? <Loader2 className="size-3.5 animate-spin" /> : <Swords className="size-3.5" />} Argue against it
+            </button>
             <button onClick={add} disabled={busy || !draft.title.trim() || !draft.expectation.trim()} className="cc-btn cc-scan">
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Record
             </button>
           </div>
+          {advocacy && (
+            <div className={cn("dj-advocate", advocacy.verdict)}>
+              <span className="dj-verdictlbl">
+                {advocacy.verdict === "concede" ? "The reasoning holds"
+                  : advocacy.verdict === "sharpen" ? "It holds, but it is not yet scorable"
+                  : "I'd push back"}
+              </span>
+
+              {advocacy.strongestCase && <p className="dj-case">{advocacy.strongestCase}</p>}
+              {advocacy.blindSpot && <p><b>Not mentioned:</b> {advocacy.blindSpot}</p>}
+              {advocacy.wouldFalsify && <p><b>What would show you wrong:</b> {advocacy.wouldFalsify}</p>}
+
+              <div className="dj-confadvice">
+                {advocacy.suggestedConfidence === advocacy.claimed ? (
+                  <span>Confidence looks right at {advocacy.claimed}%.</span>
+                ) : (
+                  <>
+                    <span>
+                      {advocacy.claimed}% → <b>{advocacy.suggestedConfidence}%</b> · {advocacy.why}
+                    </span>
+                    <button
+                      onClick={() => setDraft({ ...draft, confidence: advocacy.suggestedConfidence })}
+                      className="dj-quickask"
+                    >
+                      Take it →
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {advocacy.record && <p className="dj-record">{advocacy.record}</p>}
+            </div>
+          )}
+
           <p className="dj-hint">
             Below 50% isn&apos;t a confidence, it&apos;s the opposite decision — so the slider starts there.
             You&apos;ll get a reminder on the review date.

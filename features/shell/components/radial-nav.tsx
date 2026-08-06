@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Orbit, X, Activity, ScrollText, BookMarked, Mail, Code2, type LucideIcon,
-  Scale, GitBranch, Radio,
+  Scale, GitBranch, Radio, FileSearch,
 } from "lucide-react";
 import { sound } from "@/lib/sound";
 
@@ -33,6 +33,7 @@ const PAGES: Item[] = [
   { href: "/review", label: "Review", icon: BookMarked },
   { href: "/automations", label: "Automations", icon: Zap },
   { href: "/decisions", label: "Decisions", icon: Scale },
+  { href: "/counsel", label: "Counsel", icon: FileSearch },
   { href: "/memory", label: "Memory", icon: Brain },
   { href: "/graph", label: "Mind Graph", icon: Network },
   { href: "/agents", label: "Agent", icon: Bot },
@@ -157,6 +158,7 @@ export function RadialNav() {
       else if (/sleep|steps|workout|fitness|gym|body/.test(s)) best = PAGES.findIndex((p) => p.href === "/health");
       else if (/home|main/.test(s)) best = PAGES.findIndex((p) => p.href === "/dashboard");
       else if (/sitrep|status|situation|where.*stand/.test(s)) best = PAGES.findIndex((p) => p.href === "/sitrep");
+      else if (/dossier|counsel|what if|play out|about them/.test(s)) best = PAGES.findIndex((p) => p.href === "/counsel");
       else if (/decision|call|bet|judge|calibrat/.test(s)) best = PAGES.findIndex((p) => p.href === "/decisions");
       else if (/push|git|hub|commit|solution|dsa/.test(s)) best = PAGES.findIndex((p) => p.href === "/push");
     }

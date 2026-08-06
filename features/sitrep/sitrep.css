@@ -49,3 +49,12 @@ a.sr-cell:hover { background: rgba(255,255,255,.03); }
 .sr-nightbody p { margin-top: 3px; font-size: 11.5px; line-height: 1.55; color: var(--subtle); white-space: pre-wrap; }
 
 .sr-compact .sr-night { display: none; }
+
+/* Departures from his own baselines — a different claim from "wrong". */
+.sr-odd { margin: 10px 0; border: 1px solid var(--border-glass); border-left: 2px solid #a855f7; border-radius: 6px; padding: 9px 11px; }
+.sr-oddhead { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: #a855f7; }
+.sr-oddrow { display: flex; align-items: baseline; gap: 8px; margin-top: 7px; font-size: 12px; line-height: 1.5; }
+.sr-arrow { font-size: 8px; color: var(--live); }
+.sr-arrow.down { color: #f87171; }
+.sr-odddetail { flex: 1; min-width: 0; color: var(--muted); }
+.sr-oddz { font-family: var(--mono); font-size: 9px; color: var(--subtle); white-space: nowrap; }

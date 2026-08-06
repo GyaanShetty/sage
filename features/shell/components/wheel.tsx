@@ -39,7 +39,17 @@ export function Wheel() {
   const [R, setR] = useState(320);
   const [height, setHeight] = useState(700);
 
+  /**
+   * Drag state.
+   *
+   * `dragging` only becomes true once the pointer has actually travelled —
+   * see onPointerMove. Capturing the pointer on pointerdown, which is the
+   * obvious thing to write, retargets the following `click` to the capturing
+   * element, so a node's own onClick never fires and nothing opens. The
+   * capture has to wait until it is genuinely a drag.
+   */
   const dragging = useRef(false);
+  const downAt = useRef<{ x: number; y: number } | null>(null);
   const lastY = useRef(0);
   const accum = useRef(0);
   const openRef = useRef(open);
@@ -142,14 +152,30 @@ export function Wheel() {
   // ── gestures ─────────────────────────────────────────────────────────
   // Vertical drag, because the arc is vertical: dragging down should bring the
   // lower pages up, the way a physical dial would.
+  /** Past this much travel it is a drag, not a tap. */
+  const DRAG_SLOP = 6;
+
   const onPointerDown = (e: React.PointerEvent) => {
-    dragging.current = true;
+    downAt.current = { x: e.clientX, y: e.clientY };
     lastY.current = e.clientY;
     accum.current = 0;
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragging.current = false;
   };
+
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current) return;
+    const start = downAt.current;
+    if (!start) return;
+
+    if (!dragging.current) {
+      // Still might be a tap. Only once it has moved does this become a drag,
+      // and only then is the pointer captured — capturing earlier would eat
+      // the click.
+      const travelled = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+      if (travelled < DRAG_SLOP) return;
+      dragging.current = true;
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    }
+
     accum.current += e.clientY - lastY.current;
     lastY.current = e.clientY;
     // One node per ~52px of travel: enough that a flick moves several without
@@ -157,7 +183,16 @@ export function Wheel() {
     const nodes = Math.trunc(accum.current / 52);
     if (nodes !== 0) { move(-nodes); accum.current -= nodes * 52; }
   };
-  const onPointerUp = () => { dragging.current = false; };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (dragging.current) (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    // Cleared on the next frame so the click that follows this pointerup can
+    // still see that a drag happened and decline to open anything.
+    const wasDragging = dragging.current;
+    downAt.current = null;
+    requestAnimationFrame(() => { dragging.current = false; });
+    if (!wasDragging) dragging.current = false;
+  };
   const onWheel = (e: React.WheelEvent) => move(Math.sign(e.deltaY));
 
   const active = PAGES[index];
@@ -193,7 +228,12 @@ export function Wheel() {
               exit={{ x: -40, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="wh-stage"
-              onClick={(e) => e.stopPropagation()}
+              onClick={() => {
+                // The stage covers the screen, so a click that reaches it is a
+                // click on empty space. Swallowing it, which is the usual
+                // modal pattern, left the backdrop unable to close anything.
+                if (!dragging.current) setOpen(false);
+              }}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={onPointerUp}
@@ -234,7 +274,14 @@ export function Wheel() {
                 return (
                   <button
                     key={p.href}
-                    onClick={() => (activeNode ? go(p.href) : setIndex(i))}
+                    onClick={(e) => {
+                      // Stop the stage seeing this as a click on empty space.
+                      e.stopPropagation();
+                      // A tap that ended a spin should not also navigate.
+                      if (dragging.current) return;
+                      go(p.href);
+                    }}
+                    onPointerEnter={() => { if (!dragging.current) setIndex(i); }}
                     className={cn("wh-node", activeNode && "active")}
                     style={{
                       left: x,
@@ -262,7 +309,11 @@ export function Wheel() {
                 <span className="wh-marker" />
               </div>
 
-              <button className="wh-enter" style={{ top: height / 2 }} onClick={() => go(active.href)}>
+              <button
+                className="wh-enter"
+                style={{ top: height / 2 }}
+                onClick={(e) => { e.stopPropagation(); go(active.href); }}
+              >
                 <ActiveIcon className="size-4" />
                 <span>{active.label}</span>
                 <i>ENTER</i>

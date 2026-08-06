@@ -72,19 +72,47 @@ export function readability(mime: string, name: string): "text" | "image" | "pdf
  * Private, so nothing uploaded is reachable without a signed URL — a research
  * workspace holds coursework, contracts and photographs of whiteboards.
  */
-async function ensureBucket(): Promise<void> {
+/**
+ * The per-file ceiling.
+ *
+ * Supabase's own project-wide limit on the free plan is 50MB, and a bucket
+ * cannot be created with a limit above it — asking for 200MB got the bucket
+ * rejected, which meant every upload failed at the first step with an error
+ * about the bucket rather than about the size.
+ */
+export const MAX_FILE_BYTES = 50 * 1024 * 1024;
+
+async function ensureBucket(): Promise<{ ok: true } | { ok: false; error: string }> {
   const { data } = await db.storage.getBucket(BUCKET);
-  if (data) return;
-  await db.storage.createBucket(BUCKET, {
+  if (data) return { ok: true };
+
+  const { error } = await db.storage.createBucket(BUCKET, {
     public: false,
-    fileSizeLimit: 200 * 1024 * 1024,
+    fileSizeLimit: MAX_FILE_BYTES,
   });
+  // "already exists" is a race between two uploads starting at once, not a
+  // failure — the bucket is there either way.
+  if (error && !/already exists/i.test(error.message)) {
+    return { ok: false, error: `Storage isn't ready: ${error.message}` };
+  }
+  return { ok: true };
 }
 
 /** A short-lived URL the browser can PUT straight to. */
-export async function signUpload(threadId: string, name: string): Promise<{ path: string; token: string } | { error: string }> {
-  await ensureBucket();
-  const safe = name.replace(/[^\w.\- ]/g, "_").slice(-80);
+export async function signUpload(
+  threadId: string,
+  name: string,
+  size = 0,
+): Promise<{ path: string; token: string } | { error: string }> {
+  if (size > MAX_FILE_BYTES) {
+    return { error: `That file is ${(size / 1_048_576).toFixed(0)}MB — the storage plan caps a single file at 50MB.` };
+  }
+
+  const bucket = await ensureBucket();
+  if (!bucket.ok) return { error: bucket.error };
+
+  // Spaces and unicode in a storage key are a common source of silent 400s.
+  const safe = name.replace(/[^\w.\-]/g, "_").slice(-80);
   const path = `${threadId}/${crypto.randomUUID()}-${safe}`;
 
   const { data, error } = await db.storage.from(BUCKET).createSignedUploadUrl(path);

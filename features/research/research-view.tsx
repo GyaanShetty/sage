@@ -45,7 +45,8 @@ export function ResearchView() {
   const [question, setQuestion] = useState("");
   const [streaming, setStreaming] = useState("");
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState<string[]>([]);
+  /** Per-file state, so a failure names the file it belongs to. */
+  const [uploading, setUploading] = useState<{ name: string; state: "sending" | "reading" | "failed"; error?: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -86,6 +87,16 @@ export function ResearchView() {
    * shared connection finishes all of them slowly and none of them early.
    */
   const upload = useCallback(async (files: FileList | File[]) => {
+    // The browser client, made once. It uses the anon key and the signed
+    // token; without the key configured nothing can upload, so that is said
+    // plainly rather than surfacing as a cryptic storage error per file.
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !anon) {
+      setError("Uploads need NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the environment.");
+      return;
+    }
+
     let threadId = id;
     if (!threadId) {
       const j = await fetch("/api/research/thread", {
@@ -97,25 +108,37 @@ export function ResearchView() {
       setId(threadId);
     }
 
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(url, anon);
+
+    const mark = (name: string, patch: Partial<{ state: "sending" | "reading" | "failed"; error: string }>) =>
+      setUploading((u) => u.map((f) => (f.name === name ? { ...f, ...patch } : f)));
+
+    // Sequential: a phone uploading six files at once on a shared connection
+    // finishes all of them slowly and none of them early.
     for (const file of Array.from(files)) {
-      setUploading((u) => [...u, file.name]);
+      setUploading((u) => [...u, { name: file.name, state: "sending" }]);
       setError(null);
+
       try {
         const signed = await fetch("/api/research/upload", {
           method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ threadId, name: file.name }),
+          body: JSON.stringify({ threadId, name: file.name, size: file.size }),
         }).then((r) => r.json());
         if (!signed?.ok) throw new Error(signed?.error ?? "Couldn't prepare the upload.");
 
-        const { createClient } = await import("@supabase/supabase-js");
-        const supabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        );
         const { error: upErr } = await supabase.storage
           .from("research")
-          .uploadToSignedUrl(signed.data.path, signed.data.token, file);
+          .uploadToSignedUrl(signed.data.path, signed.data.token, file, {
+            // Without this the object is stored as application/json and the
+            // reader downstream cannot tell a PDF from a photograph.
+            contentType: file.type || "application/octet-stream",
+          });
         if (upErr) throw new Error(upErr.message);
+
+        // The bytes are up; the server now reads them. On a long PDF this is
+        // the slow half, so it gets its own state rather than looking stuck.
+        mark(file.name, { state: "reading" });
 
         const reg = await fetch("/api/research/upload", {
           method: "PUT", headers: { "content-type": "application/json" },
@@ -124,11 +147,13 @@ export function ResearchView() {
             mime: file.type || "application/octet-stream", size: file.size,
           }),
         }).then((r) => r.json());
-        if (!reg?.ok) throw new Error(reg?.error ?? "Couldn't read that file.");
+        if (!reg?.ok) throw new Error(reg?.error ?? "Uploaded, but I couldn't read it.");
+
+        setUploading((u) => u.filter((f) => f.name !== file.name));
       } catch (e) {
-        setError(`${file.name}: ${(e as Error).message}`);
-      } finally {
-        setUploading((u) => u.filter((n) => n !== file.name));
+        // Left on screen as failed rather than vanishing — a file that
+        // silently disappears reads as "it worked" until you ask about it.
+        mark(file.name, { state: "failed", error: (e as Error).message });
       }
     }
 
@@ -240,12 +265,33 @@ export function ResearchView() {
             );
           })}
 
-          {uploading.map((n) => (
-            <span key={n} className="rs-file uploading">
-              <Loader2 className="size-3.5 animate-spin" /> <span className="rs-filename">{n}</span>
+          {uploading.map((f) => (
+            <span
+              key={f.name}
+              className={cn("rs-file", f.state === "failed" ? "failed" : "uploading")}
+              title={f.error}
+            >
+              {f.state === "failed"
+                ? <AlertTriangle className="size-3.5 shrink-0" />
+                : <Loader2 className="size-3.5 shrink-0 animate-spin" />}
+              <span className="rs-filename">{f.name}</span>
+              <i>{f.state === "sending" ? "uploading" : f.state === "reading" ? "reading" : "failed"}</i>
+              {f.state === "failed" && (
+                <button onClick={() => setUploading((u) => u.filter((x) => x.name !== f.name))} aria-label="Dismiss">
+                  <X className="size-3" />
+                </button>
+              )}
             </span>
           ))}
         </div>
+
+        {uploading.some((f) => f.state === "failed") && (
+          <div className="rs-notes">
+            {uploading.filter((f) => f.state === "failed").map((f) => (
+              <p key={f.name}><AlertTriangle className="inline size-3" /> <b>{f.name}</b> — {f.error}</p>
+            ))}
+          </div>
+        )}
 
         {/* Files SAGE cannot read say so here rather than producing a vague
             answer that leaves you guessing whether it looked. */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -50,6 +50,16 @@ export function RadialNav() {
   const [open, setOpen] = useState(false);
   const [rot, setRot] = useState(0);
   const [R, setR] = useState(190); // ring radius — responsive so it fits phones
+  /**
+   * Typed filter.
+   *
+   * The wheel was designed for a dozen pages and now carries twenty-six. Past
+   * about eighteen, spinning stops being a shortcut and becomes a chore — you
+   * are hunting a target you cannot see the label of. Typing narrows the ring
+   * to what matches, which keeps the wheel as the fast path rather than the
+   * slow one.
+   */
+  const [filter, setFilter] = useState("");
   const router = useRouter();
   const pathname = usePathname();
   const ringRef = useRef<HTMLDivElement>(null);
@@ -62,10 +72,25 @@ export function RadialNav() {
   const rotRef = useRef(rot);
   rotRef.current = rot;
 
-  const N = PAGES.length;
+  const shown = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return PAGES;
+    const hits = PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.href.slice(1).includes(q));
+    // Never filter down to nothing — an empty wheel looks broken and gives no
+    // way back except deleting characters you cannot see the effect of.
+    return hits.length ? hits : PAGES;
+  }, [filter]);
+
+  // The gesture handlers are bound once and would otherwise close over the
+  // unfiltered list from their first render.
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
+
+  const N = shown.length;
   const step = TAU / N;
   // Which item sits nearest the top slot right now.
   const activeIndex = ((Math.round(-rot / step) % N) + N) % N;
+  const activePage = shown[activeIndex] ?? shown[0];
 
   // Ratchet click as each page clicks past the selector while rotating.
   const prevActive = useRef(activeIndex);
@@ -74,29 +99,43 @@ export function RadialNav() {
     prevActive.current = activeIndex;
   }, [activeIndex, open]);
 
+  // A new filter means a new ring; leaving the old rotation would land the
+  // selector on an arbitrary match.
+  useEffect(() => { setRot(0); }, [filter]);
+
   const go = useCallback((href: string) => {
     sound.blip?.();
     setOpen(false);
+    setFilter("");
     if (!pathname.startsWith(href)) router.push(href);
   }, [router, pathname]);
 
-  // Size the ring to the viewport so it never overflows (no phone h-scroll).
+  /**
+   * Size the ring to the viewport and to how many nodes are on it.
+   *
+   * A fixed radius that fitted twelve pages puts twenty-six shoulder to
+   * shoulder. Each node needs roughly 46px of arc to stay separate, so the
+   * radius has a floor derived from the count rather than a constant — and it
+   * is still capped by the viewport, because overflowing is worse than tight.
+   */
   useEffect(() => {
     const fit = () => {
       const m = Math.min(window.innerWidth, window.innerHeight);
-      setR(Math.max(110, Math.min(190, (m - 150) / 2)));
+      const viewportMax = (m - 130) / 2;
+      const needed = (N * 46) / TAU;                 // arc length per node → radius
+      setR(Math.max(110, Math.min(Math.max(190, needed), viewportMax)));
     };
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, []);
+  }, [N]);
 
   // open on this page → align the wheel to the current page
   useEffect(() => {
     if (!open) return;
-    const i = PAGES.findIndex((p) => pathname.startsWith(p.href));
+    const i = shown.findIndex((p) => pathname.startsWith(p.href));
     if (i >= 0) setRot(-i * step);
-  }, [open, pathname, step]);
+  }, [open, pathname, step, shown]);
 
   /**
    * Gesture control surface.
@@ -125,7 +164,10 @@ export function RadialNav() {
       // never happened.
       if (!openRef.current) return;
       const i = ((Math.round(-rotRef.current / step) % N) + N) % N;
-      go(PAGES[i].href);
+      // The ring may be filtered, so the index means a position in `shown`,
+      // not in PAGES. Reading the full list here opened whatever page happened
+      // to sit at that index instead of the one under the selector.
+      go(shownRef.current[i]?.href ?? PAGES[i].href);
     };
     window.addEventListener("sage:nav-open", onOpen);
     window.addEventListener("sage:nav-close", onClose);
@@ -175,7 +217,10 @@ export function RadialNav() {
       const i = matchPage(q);
       if (i < 0) return;
       setOpen(true);
-      setRot(-i * step);
+      // matchPage indexes the full list, so any filter has to go before the
+      // rotation is set against it.
+      setFilter("");
+      setRot(-i * (TAU / PAGES.length));
       // let the wheel visibly spin to it, then navigate
       window.setTimeout(() => go(PAGES[i].href), 620);
     };
@@ -190,14 +235,23 @@ export function RadialNav() {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-      else if (e.key === "ArrowRight" || e.key === "ArrowDown") setRot((r) => r - step);
+      if (e.key === "Escape") {
+        // Escape clears a filter first, and only closes an unfiltered wheel —
+        // otherwise a typo costs you the whole launcher.
+        if (filter) setFilter("");
+        else setOpen(false);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") setRot((r) => r - step);
       else if (e.key === "ArrowLeft" || e.key === "ArrowUp") setRot((r) => r + step);
-      else if (e.key === "Enter") go(PAGES[activeIndex].href);
+      else if (e.key === "Enter") go(activePage.href);
+      else if (e.key === "Backspace") setFilter((f) => f.slice(0, -1));
+      // Any printable character starts filtering, with no box to click into
+      // first. The wheel is a launcher; asking someone to aim at an input
+      // before they can type is the thing launchers exist to avoid.
+      else if (e.key.length === 1 && /[a-z0-9 ]/i.test(e.key)) setFilter((f) => f + e.key);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, step, activeIndex, go]);
+  }, [open, step, activeIndex, go, activePage, filter]);
 
   const center = () => {
     const el = ringRef.current;
@@ -232,8 +286,8 @@ export function RadialNav() {
     setRot((r) => r - Math.sign(e.deltaY) * step);
   };
 
-  const Active = PAGES[activeIndex].icon;
-  const box = R * 2 + 96; // container size with room for labels
+  const Active = activePage.icon;
+  const box = R * 2 + 64; // container size; nodes are unlabelled now
 
   return (
     <>
@@ -256,7 +310,22 @@ export function RadialNav() {
             onClick={() => setOpen(false)}
           >
             <button className="absolute right-6 top-6 text-muted transition-colors hover:text-foreground" onClick={() => setOpen(false)} aria-label="Close"><X className="size-5" /></button>
-            <p className="lbl absolute top-10 !text-[9px] !tracking-[4px] text-subtle">SPIN TO SELECT · TAP THE TOP TO OPEN</p>
+            <div className="absolute top-9 flex flex-col items-center gap-2">
+              <p className="lbl !text-[9px] !tracking-[4px] text-subtle">
+                {filter ? "TYPE TO NARROW · ENTER TO OPEN" : "SPIN OR TYPE · ENTER TO OPEN"}
+              </p>
+              {/* Shown only once he starts typing: an always-present search box
+                  would compete with the wheel for the first glance. */}
+              {filter && (
+                <span
+                  className="flex items-center gap-2 rounded-full border border-[var(--live-dim)] bg-[var(--panel-hi)]/80 px-3 py-1 font-mono text-[12px] text-[var(--live)] backdrop-blur-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {filter}
+                  <b className="font-normal text-subtle">{N} of {PAGES.length}</b>
+                </span>
+              )}
+            </div>
 
             <motion.div
               ref={ringRef}
@@ -280,7 +349,7 @@ export function RadialNav() {
               <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border-glass" style={{ width: R * 2, height: R * 2 }} />
 
               {/* items */}
-              {PAGES.map((p, i) => {
+              {shown.map((p, i) => {
                 const ang = i * step + rot + TOP;
                 const cx = box / 2;
                 const x = cx + R * Math.cos(ang);
@@ -302,30 +371,32 @@ export function RadialNav() {
                     style={{ left: x, top: y, cursor: active ? "pointer" : "grab" }}
                   >
                     <motion.span
-                      animate={{ scale: active ? 1.35 : 1, opacity: active ? 1 : 0.5 }}
+                      animate={{ scale: active ? 1.4 : 1, opacity: active ? 1 : 0.34 }}
                       className="flex items-center justify-center rounded-full border"
                       style={{
-                        width: 44, height: 44,
+                        width: 40, height: 40,
                         borderColor: active ? "var(--live)" : "var(--border-glass)",
                         background: active ? "color-mix(in srgb, var(--live) 16%, transparent)" : "var(--panel)",
                         color: active ? "var(--live)" : "var(--muted)",
                         boxShadow: active ? "0 0 24px -6px var(--live-glow)" : "none",
                       }}
                     >
-                      <Icon className="size-[18px]" strokeWidth={1.7} />
+                      <Icon className="size-[17px]" strokeWidth={1.7} />
                     </motion.span>
-                    <span className="text-[9px] tracking-wide" style={{ color: active ? "var(--foreground)" : "var(--subtle)", opacity: active ? 1 : 0.6 }}>{p.label}</span>
+                    {/* No label per node. Twenty-six of them overlapped into
+                        noise, and the centre already names the selection —
+                        printing it twice cost legibility for nothing. */}
                   </button>
                 );
               })}
 
               {/* centre = go to active */}
               <button
-                onClick={() => go(PAGES[activeIndex].href)}
+                onClick={() => go(activePage.href)}
                 className="absolute left-1/2 top-1/2 flex size-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-full border border-border-glass-strong bg-[var(--panel-hi)]/80 text-foreground backdrop-blur-xl transition-colors hover:border-[var(--live-dim)]"
               >
                 <Active className="size-6 text-[var(--live)]" strokeWidth={1.6} />
-                <span className="text-[11px] font-medium">{PAGES[activeIndex].label}</span>
+                <span className="text-[11px] font-medium">{activePage.label}</span>
                 <span className="lbl !text-[7px] !tracking-[2px]">ENTER →</span>
               </button>
             </motion.div>

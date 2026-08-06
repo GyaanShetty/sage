@@ -1242,3 +1242,55 @@ test("events land on his day, not UTC's", async () => {
   const allDay = "2026-08-06T00:00:00.000Z";
   assert.equal(allDay.slice(0, 10), "2026-08-06");
 });
+
+test("the launcher filter narrows without ever emptying the ring", async () => {
+  // Mirrors the `shown` memo in radial-nav: a wheel filtered to nothing looks
+  // broken and offers no way back except deleting characters whose effect you
+  // cannot see.
+  const PAGES = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/calendar", label: "Calendar" },
+    { href: "/counsel", label: "Counsel" },
+    { href: "/health", label: "Health" },
+    { href: "/push", label: "Push" },
+  ];
+  const shown = (filter: string) => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return PAGES;
+    const hits = PAGES.filter((p) => p.label.toLowerCase().includes(q) || p.href.slice(1).includes(q));
+    return hits.length ? hits : PAGES;
+  };
+
+  assert.equal(shown("").length, 5);
+  assert.deepEqual(shown("c").map((p) => p.label), ["Calendar", "Counsel"]);
+  // Matches the path too, so "board" finds Dashboard.
+  assert.deepEqual(shown("board").map((p) => p.label), ["Dashboard"]);
+  assert.deepEqual(shown("cal").map((p) => p.label), ["Calendar"]);
+  assert.equal(shown("zzz").length, 5, "no match falls back to everything, not nothing");
+  assert.deepEqual(shown("  CAL ").map((p) => p.label), ["Calendar"], "trimmed and case-insensitive");
+});
+
+test("the ring grows so nodes never overlap", async () => {
+  // Each node needs roughly 46px of arc to stay separate. The radius floor is
+  // derived from the count rather than fixed, which is what broke when the
+  // wheel went from twelve pages to twenty-six.
+  const TAU = Math.PI * 2;
+  const radiusFor = (n: number, viewportMin: number) => {
+    const viewportMax = (viewportMin - 130) / 2;
+    const needed = (n * 46) / TAU;
+    return Math.max(110, Math.min(Math.max(190, needed), viewportMax));
+  };
+
+  const desktop = 900;
+  const r12 = radiusFor(12, desktop);
+  const r26 = radiusFor(26, desktop);
+  assert.ok(r26 > r12, "more pages must mean a wider ring");
+
+  // At 26 nodes the arc between neighbours must still clear the 40px node.
+  const gap = (TAU * r26) / 26;
+  assert.ok(gap >= 40, `nodes would overlap: ${gap.toFixed(1)}px of arc each`);
+
+  // And it must never outgrow a phone.
+  const phone = 700;
+  assert.ok(radiusFor(26, phone) <= (phone - 130) / 2, "the ring must fit the viewport");
+});

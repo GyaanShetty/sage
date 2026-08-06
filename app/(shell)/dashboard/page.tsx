@@ -15,6 +15,7 @@ import { EisenhowerBand } from "@/features/dashboard/components/eisenhower-band"
 import { DashboardLayout } from "@/features/dashboard/components/dashboard-layout";
 import { MissionControl } from "@/features/dashboard/components/mission-control";
 import { OpsBand } from "@/features/dashboard/components/ops-band";
+import { ExamStrip } from "@/features/dashboard/components/exam-strip";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getWeather } from "@/infrastructure/weather";
@@ -152,6 +153,8 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      {/* Above everything, and only when a paper is close. */}
+      <ExamStrip />
       <DashboardLayout bands={bands} />
     </div>
   );

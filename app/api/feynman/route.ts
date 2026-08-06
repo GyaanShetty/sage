@@ -1,14 +1,17 @@
 import { NextResponse } from "next/server";
 import {
-  listConcepts, addConcept, retireConcept, deleteConcept, gradeExplanation, dueOf,
+  listConcepts, addConcept, retireConcept, deleteConcept, gradeExplanation, dueOf, standing,
 } from "@/core/feynman";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET() {
-  const concepts = await listConcepts();
-  return NextResponse.json({ ok: true, data: { concepts, due: dueOf(concepts) } });
+  const raw = await listConcepts();
+  // Where he is with each one, in words. The score alone reads as a mark; what
+  // he wants to know is whether it is moving.
+  const concepts = raw.map((c) => ({ ...c, standing: standing(c) }));
+  return NextResponse.json({ ok: true, data: { concepts, due: dueOf(raw) } });
 }
 
 export async function POST(req: Request) {

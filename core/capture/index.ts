@@ -36,6 +36,14 @@ const itemSchema = z.object({
   amount: z.number().describe("Amount in rupees for an expense, else 0"),
   /** Where the money went, for expenses. */
   merchant: z.string().describe("Merchant for an expense, else empty string"),
+  /**
+   * Which of his own budget envelopes an expense belongs to.
+   *
+   * Chosen by the model from the real list, which is passed in — guessing it
+   * afterwards by looking for a category name inside the sentence never
+   * worked, because nobody says "I spent three hundred on the food category".
+   */
+  category: z.string().describe("For an expense: exactly one of the categories offered, else empty string"),
   /** Why this was classified as it was — shown so a wrong call is obvious. */
   because: z.string().describe("A few words on why this is that kind of thing"),
 });
@@ -82,6 +90,12 @@ export async function parseCapture(
   const model = getModel("smart") ?? getModel("fast");
   if (!model) return { error: "No model available right now." };
 
+  // His real envelopes, offered to the model so an expense lands in one of
+  // them rather than in "other".
+  const categories = await import("@/core/finance/expenses")
+    .then((m) => m.knownCategories())
+    .catch(() => [] as string[]);
+
   const lead = images.length
     ? `What he shared — ${images.length} image(s), shown to you directly.${clean ? `\nHis note on it:\n${clean.slice(0, 4000)}` : ""}`
     : `What he said:\n${clean.slice(0, 8000)}`;
@@ -95,7 +109,13 @@ export async function parseCapture(
         {
           role: "user",
           content: [
-            { type: "text" as const, text: `Today is ${new Date().toISOString()} (Asia/Kolkata).\n\n${lead}` },
+            {
+              type: "text" as const,
+              text:
+                `Today is ${new Date().toISOString()} (Asia/Kolkata).\n` +
+                (categories.length ? `His budget categories: ${categories.join(", ")}. Use one of these verbatim for an expense.\n` : "") +
+                `\n${lead}`,
+            },
             ...images.map((image) => ({ type: "image" as const, image })),
           ],
         },
@@ -119,13 +139,28 @@ export interface FiledResult { kind: Kind; text: string; ok: boolean; detail?: s
 export async function fileItems(items: CapturedItem[]): Promise<FiledResult[]> {
   const out: FiledResult[] = [];
 
+  /**
+   * Supabase returns errors, it does not throw them.
+   *
+   * The first cut of this awaited the insert and moved on, so a row the
+   * database rejected was reported back as filed. That is the worst possible
+   * failure for this feature specifically: he ticks the list, sees seven green
+   * ticks, closes the page, and the thing he wanted remembered is nowhere. Any
+   * write that does not confirm now says so.
+   */
+  const insert = async (table: string, row: Record<string, unknown>) => {
+    const { db } = await import("@/infrastructure/db/supabase");
+    const { error } = await db.from(table).insert(row);
+    if (error) throw new Error(error.message);
+  };
+
   for (const item of items) {
     try {
       if (item.kind === "task") {
-        const { db, DEFAULT_USER_ID, ensureDefaultUser } = await import("@/infrastructure/db/supabase");
+        const { DEFAULT_USER_ID, ensureDefaultUser } = await import("@/infrastructure/db/supabase");
         await ensureDefaultUser();
         const id = crypto.randomUUID();
-        await db.from("Task").insert({ id, userId: DEFAULT_USER_ID, title: item.text.slice(0, 200), priority: 2 });
+        await insert("Task", { id, userId: DEFAULT_USER_ID, title: item.text.slice(0, 200), priority: 2 });
         // Mirrored to TickTick on a best-effort basis, as everywhere else.
         const { createTickTask } = await import("@/infrastructure/integrations/ticktick");
         await createTickTask({ title: item.text, dueAt: null, priority: 2 }).catch(() => null);
@@ -137,21 +172,24 @@ export async function fileItems(items: CapturedItem[]): Promise<FiledResult[]> {
           out.push({ kind: item.kind, text: item.text, ok: false, detail: "No time in it — filed as a task instead would be a guess." });
           continue;
         }
-        const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
-        await db.from("Reminder").insert({
+        const { DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
+        await insert("Reminder", {
           id: crypto.randomUUID(), userId: DEFAULT_USER_ID,
           text: item.text.slice(0, 200), remindAt: when.toISOString(),
         });
         out.push({ kind: item.kind, text: item.text, ok: true, detail: when.toLocaleString("en-GB", { timeZone: "Asia/Kolkata" }) });
 
       } else if (item.kind === "memory") {
-        const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
+        const { DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
         const { embedText, toVectorLiteral } = await import("@/infrastructure/embeddings");
         const embedding = await embedText(item.text).catch(() => null);
-        await db.from("Memory").insert({
+        await insert("Memory", {
           id: crypto.randomUUID(), userId: DEFAULT_USER_ID,
           type: "fact", content: item.text.slice(0, 1000),
           importance: 0.6, confidence: 0.7,
+          // Not nullable, and it earns its place: a memory he dictated deserves
+          // to be distinguishable later from one SAGE inferred from a chat.
+          sourceType: "capture",
           ...(embedding ? { embedding: toVectorLiteral(embedding) } : {}),
         });
         out.push({ kind: item.kind, text: item.text, ok: true });
@@ -162,11 +200,13 @@ export async function fileItems(items: CapturedItem[]): Promise<FiledResult[]> {
           continue;
         }
         const { addExpense, knownCategories, normaliseCategory } = await import("@/core/finance/expenses");
-        // Snap to one of his own envelopes rather than inventing a category.
+        // The model picked from his real list; fall back to "other" only when
+        // it picked something that is not on it.
         const known = await knownCategories().catch(() => [] as string[]);
-        const guess = normaliseCategory(item.text.split(/\s+/).find((w) => known.includes(normaliseCategory(w))) ?? "other");
-        await addExpense({ amount: item.amount, merchant: item.merchant || "—", category: guess, source: "manual" });
-        out.push({ kind: item.kind, text: item.text, ok: true, detail: `₹${item.amount} · ${guess}` });
+        const picked = normaliseCategory(item.category || "other");
+        const category = known.length === 0 || known.includes(picked) ? picked : "other";
+        await addExpense({ amount: item.amount, merchant: item.merchant || "—", category, source: "manual" });
+        out.push({ kind: item.kind, text: item.text, ok: true, detail: `₹${item.amount} · ${category}` });
 
       } else if (item.kind === "decision") {
         // Filed as an open call with a default review, because a decision
@@ -182,8 +222,8 @@ export async function fileItems(items: CapturedItem[]): Promise<FiledResult[]> {
         out.push({ kind: item.kind, text: item.text, ok: true, detail: "review in 3 months · confidence 70%, edit it on the page" });
 
       } else if (item.kind === "question") {
-        const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
-        await db.from("Event").insert({
+        const { DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
+        await insert("Event", {
           id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: "education.log",
           payload: { skillId: "capture", kind: "question", text: item.text.slice(0, 2000), tags: [], at: new Date().toISOString(), resolvedAt: null },
         });
@@ -191,11 +231,16 @@ export async function fileItems(items: CapturedItem[]): Promise<FiledResult[]> {
         out.push({ kind: item.kind, text: item.text, ok: true, detail: "the night shift will research it" });
 
       } else {
-        const { db, DEFAULT_USER_ID, ensureDefaultUser } = await import("@/infrastructure/db/supabase");
+        const { DEFAULT_USER_ID, ensureDefaultUser } = await import("@/infrastructure/db/supabase");
         await ensureDefaultUser();
-        await db.from("Note").insert({
+        await insert("Note", {
           id: crypto.randomUUID(), userId: DEFAULT_USER_ID,
-          title: item.text.slice(0, 60), content: item.text.slice(0, 4000),
+          kind: "doc",
+          title: item.text.slice(0, 60),
+          // Note.content is a rich-text document, not a string, and updatedAt
+          // has no default. Writing a bare string failed every single time.
+          content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: item.text.slice(0, 4000) }] }] },
+          updatedAt: new Date().toISOString(),
         });
         out.push({ kind: item.kind, text: item.text, ok: true });
       }

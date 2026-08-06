@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Orbit, X, type LucideIcon } from "lucide-react";
+import { Orbit, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
 import { PAGES } from "./pages";

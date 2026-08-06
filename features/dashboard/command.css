@@ -1268,3 +1268,18 @@
 .vc-continue { position: fixed; right: calc(18px + var(--sar)); bottom: calc(96px + var(--sab)); z-index: 55; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.4px; color: var(--live); background: rgba(8,9,11,.9); border: 1px solid var(--live-dim); padding: 9px 12px; cursor: pointer; backdrop-filter: blur(8px); }
 .vc-continue:hover { background: rgba(255,255,255,.08); }
 @media (min-width: 768px) { .vc-continue { bottom: calc(104px + var(--sab)); } }
+
+/* ── exam strip ──────────────────────────────────────────────────────────
+   Only rendered inside exam mode, so it is allowed to be loud. */
+.xs-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 auto 12px; max-width: 1400px; border: 1px solid var(--border-glass); border-left: 3px solid var(--live); border-radius: 8px; background: var(--panel); padding: 11px 14px; color: var(--muted); text-decoration: none; }
+.xs-strip:hover { border-color: var(--live-dim); }
+.xs-strip b { font-size: 22px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.xs-sub { font-size: 12.5px; color: var(--foreground); }
+.xs-focus { font-size: 12px; color: var(--muted); }
+.xs-pill { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; text-transform: uppercase; border: 1px solid var(--border-glass); border-radius: 20px; padding: 3px 9px; color: var(--live); }
+.xs-arrow { margin-left: auto; flex: 0 0 auto; }
+.xs-eve { border-left-color: #f87171; }
+.xs-eve b, .xs-eve .xs-pill { color: #f87171; }
+.xs-test { border-left-color: #f59e0b; }
+.xs-test .xs-pill { color: #f59e0b; }
+@media (max-width: 640px) { .xs-focus { display: none; } }

@@ -67,15 +67,41 @@ export function useVoice({ onTranscript }: { onTranscript: (text: string) => voi
 
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    // Strip markdown noise before speaking
+    const synth = window.speechSynthesis;
+    synth.cancel();
+
+    // Strip markdown noise before speaking. Nothing is truncated: this used to
+    // cut at 1200 characters, so any long answer was simply not finished, and
+    // the cut fell wherever it fell — usually mid-word.
     const clean = text
       .replace(/```[\s\S]*?```/g, " code block omitted ")
       .replace(/[*_#`>\[\]()]/g, "")
-      .slice(0, 1200);
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.rate = 1.05;
-    window.speechSynthesis.speak(utterance);
+      .trim();
+    if (!clean) return;
+
+    // Chrome stalls a long utterance after ~15 seconds without firing an error.
+    // Speaking a paragraph at a time, and poking pause/resume while it runs,
+    // are the two halves of the workaround.
+    const paragraphs = clean.split(/\n{2,}|\n/).map((p) => p.trim()).filter(Boolean);
+    let keepalive: number | null = null;
+    const stopKeepalive = () => { if (keepalive !== null) { clearInterval(keepalive); keepalive = null; } };
+
+    const say = (i: number) => {
+      if (i >= paragraphs.length) { stopKeepalive(); return; }
+      const utterance = new SpeechSynthesisUtterance(paragraphs[i]);
+      utterance.rate = 1.05;
+      utterance.onend = () => { stopKeepalive(); say(i + 1); };
+      utterance.onerror = () => { stopKeepalive(); say(i + 1); };
+      synth.speak(utterance);
+      stopKeepalive();
+      keepalive = window.setInterval(() => {
+        if (!synth.speaking) { stopKeepalive(); return; }
+        synth.pause();
+        synth.resume();
+      }, 10_000) as unknown as number;
+    };
+
+    say(0);
   }, []);
 
   const stopSpeaking = useCallback(() => window.speechSynthesis?.cancel(), []);

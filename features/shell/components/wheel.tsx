@@ -62,6 +62,8 @@ export function Wheel() {
   const downAt = useRef<{ x: number; y: number } | null>(null);
   const lastY = useRef(0);
   const accum = useRef(0);
+  /** Wheel deltas since the last page turn — separate from the drag's. */
+  const wheelAccum = useRef(0);
   const openRef = useRef(open);
   openRef.current = open;
   const indexRef = useRef(index);
@@ -100,6 +102,10 @@ export function Wheel() {
   // Open on the page you are already on.
   useEffect(() => {
     if (!open) return;
+    // Leftover travel from the last time it was open would turn the dial
+    // early on the first notch of this one.
+    accum.current = 0;
+    wheelAccum.current = 0;
     const i = PAGES.findIndex((p) => pathname.startsWith(p.href));
     if (i >= 0) setIndex(i);
   }, [open, pathname]);
@@ -164,6 +170,12 @@ export function Wheel() {
   // lower pages up, the way a physical dial would.
   /** Past this much travel it is a drag, not a tap. */
   const DRAG_SLOP = 6;
+  /** Pixels of drag per page. */
+  const DRAG_PER_NODE = 96;
+  /** Wheel delta per page. A trackpad fires a stream of small deltas, so
+   *  moving one page per event — which is what Math.sign did — meant a single
+   *  two-finger flick spun the dial through the entire list. */
+  const WHEEL_PER_NODE = 120;
 
   const onPointerDown = (e: React.PointerEvent) => {
     downAt.current = { x: e.clientX, y: e.clientY };
@@ -191,10 +203,13 @@ export function Wheel() {
 
     accum.current += e.clientY - lastY.current;
     lastY.current = e.clientY;
-    // One node per ~52px of travel: enough that a flick moves several without
-    // the dial feeling slippery.
-    const nodes = Math.trunc(accum.current / 52);
-    if (nodes !== 0) { move(-nodes); accum.current -= nodes * 52; }
+
+    // One node per DRAG_PER_NODE of travel. At 52px a normal thumb swipe threw
+    // the dial six pages past whatever he was aiming at, which is not a dial,
+    // it is a slot machine. A node per ~96px means a full swipe moves about
+    // four — enough to cross the list, slow enough to stop on one.
+    const nodes = Math.trunc(accum.current / DRAG_PER_NODE);
+    if (nodes !== 0) { move(-nodes); accum.current -= nodes * DRAG_PER_NODE; }
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -214,7 +229,12 @@ export function Wheel() {
    */
   const onWheel = (e: React.WheelEvent) => {
     e.stopPropagation();
-    move(Math.sign(e.deltaY));
+    // deltaMode 1 is lines, 2 is pages — a mouse notch reports lines, and
+    // treating that as pixels would make a real wheel almost immobile.
+    const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+    wheelAccum.current += px;
+    const nodes = Math.trunc(wheelAccum.current / WHEEL_PER_NODE);
+    if (nodes !== 0) { move(nodes); wheelAccum.current -= nodes * WHEEL_PER_NODE; }
   };
 
   const active = PAGES[index];

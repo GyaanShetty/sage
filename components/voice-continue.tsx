@@ -5,12 +5,12 @@ import { ChevronRight } from "lucide-react";
 import { speakRest } from "@/lib/speak";
 
 /**
- * The rest of a long answer, one tap away.
+ * Skip to the next part of a long answer.
  *
- * SAGE says a minute at a time and tells you how much is left. Saying "go on"
- * works, but it should not be the only way — a spoken command is the wrong
- * affordance in a quiet room, and asking someone to remember a magic phrase to
- * hear the end of a sentence is a poor trade.
+ * A long answer plays its parts back to back on its own now, so this is no
+ * longer how you hear the rest — it is how you stop waiting through the part
+ * you are in. It doubles as the honest indicator of how much is left, which is
+ * worth having on screen while SAGE talks.
  */
 export function VoiceContinue() {
   const [remaining, setRemaining] = useState(0);
@@ -27,10 +27,10 @@ export function VoiceContinue() {
     <button
       onClick={() => void speakRest()}
       className="vc-continue"
-      title="Hear the rest"
+      title="Skip to the next part"
     >
       <ChevronRight className="size-3.5" />
-      GO ON · {remaining} {remaining === 1 ? "PART" : "PARTS"} LEFT
+      SKIP · {remaining} {remaining === 1 ? "PART" : "PARTS"} LEFT
     </button>
   );
 }

@@ -63,6 +63,32 @@ export interface SpeakOpts {
   fast?: boolean;
   onended?: () => void;
   audio?: HTMLAudioElement;
+  /**
+   * Carry on to the next part by itself.
+   *
+   * On by default. Waiting to be asked was the right instinct for a five-minute
+   * monologue and the wrong one for everything else: the morning brief, a long
+   * answer, anything read out while he is walking or getting dressed simply
+   * stopped a minute in and sat there. If he is not looking at the screen —
+   * which is the entire point of speech — "say go on" is a dead end.
+   *
+   * Pass false where a deliberate pause is wanted.
+   */
+  autoContinue?: boolean;
+}
+
+/**
+ * Which answer is currently being spoken.
+ *
+ * Bumped on every new one. The auto-continue chain checks it before speaking
+ * the next part, so an answer that has been superseded — by a new question, by
+ * `forgetRest`, by anything — stops instead of talking over its replacement.
+ */
+let session = 0;
+let chainTimer: number | null = null;
+
+function stopChain() {
+  if (chainTimer !== null) { clearTimeout(chainTimer); chainTimer = null; }
 }
 
 /** Is there more of the last answer that SAGE has not said yet? */
@@ -77,6 +103,8 @@ export function partsRemaining(): number {
 
 /** Drop the rest — a new question makes the old answer's tail irrelevant. */
 export function forgetRest(): void {
+  session += 1;
+  stopChain();
   pending = null;
   window.dispatchEvent(new CustomEvent("sage:voice-more", { detail: { remaining: 0 } }));
 }
@@ -89,6 +117,9 @@ export function forgetRest(): void {
  */
 export async function speakRest(): Promise<HTMLAudioElement | null> {
   if (!pending || pending.index >= pending.parts.length - 1) return null;
+  // Asked for explicitly, so cancel any pending automatic continuation rather
+  // than letting both fire and speak the same part twice.
+  stopChain();
   pending.index += 1;
   const { parts, index, opts } = pending;
   const more = index < parts.length - 1;
@@ -103,13 +134,17 @@ export async function speakRest(): Promise<HTMLAudioElement | null> {
 }
 
 /**
- * Speak an answer, a minute at a time.
+ * Speak an answer, a minute at a time, without stopping.
  *
- * Long answers are not spoken as one unbroken monologue. Five minutes of
- * uninterrupted speech is a poor way to be told anything, and it is also the
- * regime where every technical limit bites at once — the audio buffer, the
- * function timeout, the user's patience. SAGE says a part, tells you how much
- * is left, and waits to be asked.
+ * Long answers are still cut into parts — a part is one request to the
+ * provider, one buffer, one thing that can fail on its own — but the parts are
+ * played back to back with a breath between them, so what he hears is the
+ * whole answer. Only the seams are engineered; the pause is not a decision
+ * point unless someone asked for one.
+ *
+ * The caller's `onended` fires once, at the end of the last part. Firing it
+ * per part told the UI the answer was finished four times over, which is how
+ * the mic came back mid-sentence.
  */
 export async function speakLowLatency(
   text: string,
@@ -119,15 +154,41 @@ export async function speakLowLatency(
   if (!whole) return null;
 
   const parts = splitIntoParts(whole);
+  const auto = opts?.autoContinue !== false;
+
   // A new answer supersedes whatever was left of the last one.
+  session += 1;
+  stopChain();
+  const mine = session;
   pending = parts.length > 1 ? { parts, index: 0, ...(opts ? { opts } : {}) } : null;
 
-  window.dispatchEvent(new CustomEvent("sage:voice-more", {
-    detail: { remaining: Math.max(0, parts.length - 1) },
-  }));
+  const speakPart = (i: number): Promise<HTMLAudioElement | null> => {
+    if (pending) pending.index = i;
+    const last = i >= parts.length - 1;
 
-  const first = parts.length > 1 ? `${parts[0]} ${handoffLine(0, parts.length)}` : parts[0];
-  return speakOne(first, opts);
+    window.dispatchEvent(new CustomEvent("sage:voice-more", {
+      detail: { remaining: Math.max(0, parts.length - 1 - i) },
+    }));
+
+    // The handoff line only makes sense when he is actually being asked. On
+    // auto-continue it would announce a pause that is about to not happen.
+    const line = !last && !auto ? `${parts[i]} ${handoffLine(i, parts.length)}` : parts[i];
+
+    return speakOne(line, {
+      ...opts,
+      onended: () => {
+        if (last) { pending = null; opts?.onended?.(); return; }
+        if (!auto || mine !== session) { opts?.onended?.(); return; }
+        // A beat between parts, so it reads as breathing rather than a fault.
+        chainTimer = window.setTimeout(() => {
+          chainTimer = null;
+          if (mine === session) void speakPart(i + 1);
+        }, 420) as unknown as number;
+      },
+    });
+  };
+
+  return speakPart(0);
 }
 
 async function speakOne(
@@ -435,16 +496,36 @@ function browserSpeak(text: string, onended?: () => void): null {
   // abbreviations like "U.S." don't cause a hard stop mid-sentence.
   const chunks = clean.split(/\n{2,}|\n/).map((p) => p.trim()).filter(Boolean);
 
+  /**
+   * Chrome stops speaking after about fifteen seconds.
+   *
+   * Not an error, not an `onend` — the utterance simply stalls, which is why a
+   * long paragraph in device mode always died mid-sentence. Poking pause/resume
+   * on a timer keeps it going; it is a well-known workaround for a bug that has
+   * been open for years, and there is no better one.
+   */
+  let keepalive: number | null = null;
+  const stopKeepalive = () => { if (keepalive !== null) { clearInterval(keepalive); keepalive = null; } };
+  const startKeepalive = () => {
+    stopKeepalive();
+    keepalive = window.setInterval(() => {
+      if (!synth.speaking) { stopKeepalive(); return; }
+      synth.pause();
+      synth.resume();
+    }, 10_000) as unknown as number;
+  };
+
   const speakOne = (i: number) => {
-    if (i >= chunks.length) { onended?.(); return; }
+    if (i >= chunks.length) { stopKeepalive(); onended?.(); return; }
     const u = new SpeechSynthesisUtterance(chunks[i]);
     const v = pickMaleVoice(synth);
     if (v) u.voice = v;
     u.rate = 0.95;  // natural, unhurried — not sluggish
     u.pitch = 0.82; // deep male
-    u.onend = () => window.setTimeout(() => speakOne(i + 1), 300); // beat between paragraphs
-    u.onerror = () => speakOne(i + 1);
+    u.onend = () => { stopKeepalive(); window.setTimeout(() => speakOne(i + 1), 300); }; // beat between paragraphs
+    u.onerror = () => { stopKeepalive(); speakOne(i + 1); };
     synth.speak(u);
+    startKeepalive();
   };
 
   // voices can load async

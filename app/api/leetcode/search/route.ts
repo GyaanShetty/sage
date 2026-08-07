@@ -31,7 +31,16 @@ export async function GET(req: Request) {
   const problems = await searchProblems(q, {
     ...(difficulty ? { difficulty } : {}),
     ...(topic ? { topic } : {}),
-  }).catch(() => []);
+  }).catch(() => null);
+
+  // Null means LeetCode did not answer — say so rather than showing an empty
+  // list, which reads as "no such problem" and is a different thing entirely.
+  if (problems === null) {
+    return NextResponse.json(
+      { ok: false, error: "LeetCode didn't answer the search. Their problem-list API may have changed shape again." },
+      { status: 502 },
+    );
+  }
 
   return NextResponse.json({ ok: true, data: { problems } });
 }

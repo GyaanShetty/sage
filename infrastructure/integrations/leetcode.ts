@@ -130,17 +130,6 @@ export interface ProblemSummary {
   frontendId: string;
 }
 
-/**
- * Search the problem set.
- *
- * The same public query the website's problem list uses. Premium problems come
- * back in the results but are marked, because the statement behind them is not
- * fetchable without an account — better to show one greyed out than to have it
- * silently missing from a search he knows should match.
- *
- * A number typed instead of a name is handled by the caller: LeetCode's
- * `searchKeywords` matches titles, not IDs.
- */
 interface RawQuestion {
   title: string; titleSlug: string; difficulty: string;
   acRate: number; paidOnly: boolean; frontendQuestionId: string;
@@ -166,7 +155,7 @@ async function questionPage(
   limit: number,
   skip: number,
   filters: Record<string, unknown>,
-): Promise<RawQuestion[]> {
+): Promise<RawQuestion[] | null> {
   const vars = { categorySlug: "", limit, skip, filters };
 
   for (const field of ["problemsetQuestionList", "questionList"] as const) {
@@ -178,23 +167,39 @@ async function questionPage(
       }`,
       vars,
     );
-    const page = data?.page;
-    if (page?.questions?.length) return page.questions;
+    // An answered query with an empty list is a real "no matches" and must not
+    // send us on to try the other field name.
+    if (Array.isArray(data?.page?.questions)) return data.page.questions;
   }
-  return [];
+
+  // Null, not an empty array. "LeetCode did not answer" and "nothing matched
+  // your search" are different facts, and showing the second when the first is
+  // true is how a broken integration goes unnoticed for a month.
+  return null;
 }
 
+/**
+ * Search the problem set.
+ *
+ * The same public query the website's problem list uses. Premium problems come
+ * back in the results but are marked, because the statement behind them is not
+ * fetchable without an account — better to show one greyed out than to have it
+ * silently missing from a search he knows should match.
+ *
+ * A number typed instead of a name is handled by the caller: LeetCode's
+ * `searchKeywords` matches titles, not IDs.
+ */
 export async function searchProblems(
   keyword: string,
   opts: { difficulty?: "EASY" | "MEDIUM" | "HARD"; topic?: string; limit?: number } = {},
-): Promise<ProblemSummary[]> {
+): Promise<ProblemSummary[] | null> {
   const filters: Record<string, unknown> = {};
   if (keyword.trim()) filters.searchKeywords = keyword.trim().slice(0, 80);
   if (opts.difficulty) filters.difficulty = opts.difficulty;
   if (opts.topic) filters.tags = [opts.topic];
 
   const questions = await questionPage(Math.min(50, opts.limit ?? 25), 0, filters);
-  return questions.map(toSummary);
+  return questions === null ? null : questions.map(toSummary);
 }
 
 function toSummary(q: RawQuestion): ProblemSummary {
@@ -223,7 +228,7 @@ export async function problemByNumber(id: number): Promise<ProblemSummary | null
   // premium-only and retired problems make the alignment drift, so the window
   // is wide and widened once before giving up.
   for (const [skip, limit] of [[Math.max(0, id - 25), 60], [Math.max(0, id - 120), 250]] as const) {
-    const hit = (await questionPage(limit, skip, {})).find((q) => q.frontendQuestionId === wanted);
+    const hit = (await questionPage(limit, skip, {}) ?? []).find((q) => q.frontendQuestionId === wanted);
     if (hit) return toSummary(hit);
   }
   return null;

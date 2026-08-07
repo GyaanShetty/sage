@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { listDays, listWorkouts, getGoals, average, stepStreak } from "@/core/health/store";
 import { getWeather } from "@/infrastructure/weather";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 
 export const maxDuration = 45;
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
   const { text } = await generateText({
     model,
     system:
-      `You are SAGE, Gyaan's chief of staff, advising on his health. ${HUMAN_RULES} ` +
+      `You are SAGE, ${OWNER}'s chief of staff, advising on his health. ${HUMAN_RULES} ` +
       "Ground every claim in the numbers given — quote the actual figures. If the data doesn't support an answer, say so plainly instead of speculating. Be direct about what's slipping and specific about the next action. Under 140 words. No markdown, no bullet lists, no medical disclaimers — you're a trusted aide, not a liability form. You are not a doctor; if something looks genuinely concerning, tell him to see one.",
     prompt: [
       question?.trim() ? `His question: "${question.trim()}"` : "Give him a short read on how his health is trending and the one thing to fix.",

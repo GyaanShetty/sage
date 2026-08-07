@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
 import { webSearch } from "@/infrastructure/search/tavily";
 import { recallMemories, renderMemoryBlock } from "@/core/memory/recall";
+import { OWNER } from "@/lib/config";
 
 export const maxDuration = 60;
 
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
   const { object } = await generateObject({
     model,
     schema,
-    system: `You are SAGE, prepping Gyaan for an interview. Be specific and genuinely useful — no generic filler. Use the fresh web results for recent news; use his memory for the fit (be honest about gaps).`,
+    system: `You are SAGE, prepping ${OWNER} for an interview. Be specific and genuinely useful — no generic filler. Use the fresh web results for recent news; use his memory for the fit (be honest about gaps).`,
     prompt: `Company: ${company}\nRole: ${role ?? "unspecified"}\n\nFresh web results:\n${(news ?? []).map((n) => `- ${n.title}: ${n.content?.slice(0, 200) ?? ""}`).join("\n") || "(none)"}\n${renderMemoryBlock(memories)}`,
   });
 

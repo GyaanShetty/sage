@@ -4,7 +4,7 @@ import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { getMarkets } from "@/infrastructure/markets";
 import { getNews } from "@/infrastructure/news";
-import { TZ, tzHour } from "@/lib/config";
+import { TZ, tzHour, OWNER } from "@/lib/config";
 
 export const maxDuration = 60;
 
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
   try {
     const { text } = await generateText({
       model,
-      prompt: `You are SAGE's markets desk. Write a tight market analysis for Gyaan (Indian investor, IST timezone). 4 short paragraphs max, plain text with simple CAPS headers: PULSE (one-line read of the session), INDIA (Nifty/Sensex + the watchlist stocks), GLOBAL & CRYPTO (US names + BTC/ETH moves), WATCH (one specific thing to watch next session, tied to the headlines). Be concrete with numbers from the data. No advice disclaimers, no hedging filler.
+      prompt: `You are SAGE's markets desk. Write a tight market analysis for ${OWNER} (Indian investor, IST timezone). 4 short paragraphs max, plain text with simple CAPS headers: PULSE (one-line read of the session), INDIA (Nifty/Sensex + the watchlist stocks), GLOBAL & CRYPTO (US names + BTC/ETH moves), WATCH (one specific thing to watch next session, tied to the headlines). Be concrete with numbers from the data. No advice disclaimers, no hedging filler.
 
 Quotes: ${JSON.stringify(quotesRes?.data ?? [])}
 Crypto: ${JSON.stringify((coins ?? []).map((c) => ({ s: c.symbol, p: c.price, chg: c.change24h })))}

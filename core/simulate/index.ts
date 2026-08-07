@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 
 /**
  * Playing a decision out.
@@ -102,7 +102,7 @@ export async function simulate(question: string): Promise<Simulation | { error: 
       model,
       schema,
       system:
-        `You are SAGE, Gyaan's chief of staff, playing out a decision with him. ${HUMAN_RULES} ` +
+        `You are SAGE, ${OWNER}'s chief of staff, playing out a decision with him. ${HUMAN_RULES} ` +
         "Work from the facts given below and nothing else — where they run out, say so in unknowns rather than filling the gap. " +
         "Never invent a number he did not give you. Take an actual position in `lean`; a chief of staff who says 'it depends' is furniture. " +
         "Be concrete and unsentimental. No markdown.",

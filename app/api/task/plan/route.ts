@@ -4,7 +4,7 @@ import { generateObject } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
-import { TZ, tzHour, HUMAN_RULES } from "@/lib/config";
+import { TZ, tzHour, HUMAN_RULES, OWNER } from "@/lib/config";
 
 export const maxDuration = 45;
 
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
     const { object } = await generateObject({
       model, schema: nextSchema,
       system:
-        `You are SAGE, picking exactly one task for Gyaan to start now. ${HUMAN_RULES} ` +
+        `You are SAGE, picking exactly one task for ${OWNER} to start now. ${HUMAN_RULES} ` +
         "Weigh: anything overdue, what fits before his next commitment, and whether the hour suits deep work or admin. Hard tasks belong in his sharp hours, admin in the flagging ones. Copy the chosen id exactly. Be specific about the constraint driving the choice — never generic encouragement.",
       prompt: [
         `It is ${nowInTz()} — ${band}.`,

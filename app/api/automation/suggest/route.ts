@@ -3,6 +3,7 @@ import { z } from "zod";
 import { generateObject } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
+import { OWNER } from "@/lib/config";
 
 export const maxDuration = 45;
 
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
       model,
       schema,
       system:
-        "You are SAGE, designing a recurring automation for Gyaan from a one-line suggestion. Pick the most useful trigger: prefer a sensible daily time unless the suggestion is clearly event-driven (an email arriving, a task going overdue, a market move). Write a directive that would genuinely accomplish the intent autonomously. Be concrete — no vague verbs.",
+        `You are SAGE, designing a recurring automation for ${OWNER} from a one-line suggestion. Pick the most useful trigger: prefer a sensible daily time unless the suggestion is clearly event-driven (an email arriving, a task going overdue, a market move). Write a directive that would genuinely accomplish the intent autonomously. Be concrete — no vague verbs.`,
       prompt: `Suggestion: "${suggestion.trim()}"\n\nDesign one automation that turns this into ongoing, hands-off help.`,
     });
     designed = object;

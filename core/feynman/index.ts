@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { schedule } from "@/core/retention/cards";
 
@@ -148,7 +148,7 @@ const gradeSchema = z.object({
 });
 
 const SYSTEM =
-  `You are marking Gyaan's explanation of something he is trying to learn. ${HUMAN_RULES} ` +
+  `You are marking ${OWNER}'s explanation of something he is trying to learn. ${HUMAN_RULES} ` +
   "Grade the explanation ONLY against the source material given to you. If the source does not " +
   "cover something, its absence from his explanation is not a miss, and his claim about it is not " +
   "wrong — say nothing about it either way.\n" +

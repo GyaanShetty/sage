@@ -1,7 +1,7 @@
 import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { TZ, tzHour, startOfTodayUtc } from "@/lib/config";
+import { TZ, tzHour, startOfTodayUtc, OWNER } from "@/lib/config";
 
 function tzDay(d = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
@@ -61,7 +61,7 @@ export async function maybeSaveDailyDigest(): Promise<boolean> {
   if (model) {
     const { text } = await generateText({
       model,
-      prompt: `You are SAGE, Gyaan's chief of staff. Write a short, warm daily "learning log" note (120-180 words, plain prose, no markdown headers) reflecting what he engaged with today. Draw threads between the items — what themes emerged, what he seems to be digging into. Second person ("you"). If a couple of items connect, say so. End with one gentle forward pointer for tomorrow.
+      prompt: `You are SAGE, ${OWNER}'s chief of staff. Write a short, warm daily "learning log" note (120-180 words, plain prose, no markdown headers) reflecting what he engaged with today. Draw threads between the items — what themes emerged, what he seems to be digging into. Second person ("you"). If a couple of items connect, say so. End with one gentle forward pointer for tomorrow.
 
 Tasks shipped: ${JSON.stringify(done)}
 Notes written: ${JSON.stringify(noteTitles)}

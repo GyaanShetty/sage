@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
 /**
@@ -356,7 +356,7 @@ export async function generateQuestions(exam: Exam, count = 5): Promise<number> 
       model,
       schema: paperSchema,
       system:
-        `You are setting practice questions for Gyaan's ${exam.subject} exam. ${HUMAN_RULES} ` +
+        `You are setting practice questions for ${OWNER}'s ${exam.subject} exam. ${HUMAN_RULES} ` +
         "Set questions that could plausibly appear on the real paper: they must be answerable from " +
         "the syllabus given and nothing else. Ask for reasoning and application, not recall of a " +
         "definition — a question whose answer is one remembered sentence tests nothing worth testing. " +

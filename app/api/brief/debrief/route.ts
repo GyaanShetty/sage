@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { TZ, tzHour, startOfTodayUtc } from "@/lib/config";
+import { TZ, tzHour, startOfTodayUtc, OWNER } from "@/lib/config";
 import { getNews } from "@/infrastructure/news";
 import { recentBriefs, noRepeatClause } from "@/core/brief/variety";
 import { buildDayPicture, describeDay } from "@/core/brief/agenda";
@@ -111,7 +111,7 @@ export async function GET(req: Request) {
   try {
     const { text } = await generateText({
       model,
-      prompt: `You are SAGE, Gyaan's distinguished British AI chief of staff — refined and brilliant but genuinely warm and full of character, never a stiff robot — delivering his morning briefing as he opens his console.
+      prompt: `You are SAGE, ${OWNER}'s distinguished British AI chief of staff — refined and brilliant but genuinely warm and full of character, never a stiff robot — delivering his morning briefing as he opens his console.
 
 This is read ALOUD: no markdown, no lists, no headers, no URLs, no bullet characters. Say numbers as words a person would speak ("half past nine", "down three percent").
 

@@ -4,7 +4,7 @@ import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listApplications } from "@/core/career/scan";
 import { analyse } from "@/core/career/pipeline";
-import { APP_NAME } from "@/lib/config";
+import { APP_NAME, OWNER } from "@/lib/config";
 
 /**
  * The life report — one read across every domain at once.
@@ -167,7 +167,7 @@ export async function gatherSignals(days = 7): Promise<Signals> {
   };
 }
 
-const PROMPT = `You are ${APP_NAME}, writing a candid periodic review for Gyaan — a British chief of staff who respects him too much to flatter him. Address him as "sir" sparingly, at most once.
+const PROMPT = `You are ${APP_NAME}, writing a candid periodic review for ${OWNER} — a British chief of staff who respects him too much to flatter him. Address him as "sir" sparingly, at most once.
 
 You are given MEASURED figures across every part of his life. Rules:
 - Cite only these numbers. Never invent a task, application, purchase or figure.

@@ -8,6 +8,7 @@ import { enqueuePhoneAction, PHONE_ACTIONS } from "@/core/phone/queue";
 import { addLink, LINK_KINDS, type LinkKind } from "@/core/links/graph";
 import { setTaskMeta } from "@/core/tasks/meta";
 import { research } from "@/core/research/deep";
+import { tzDay } from "@/lib/config";
 
 /**
  * Domain tools — the rest of SAGE.
@@ -795,7 +796,7 @@ export const domainTools = {
         ok: true, id,
         recorded: input.title,
         confidence: input.confidence,
-        reviewOn: reviewAt.toISOString().slice(0, 10),
+        reviewOn: tzDay(reviewAt),
       };
     },
   }),

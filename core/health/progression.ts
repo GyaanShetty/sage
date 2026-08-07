@@ -1,3 +1,4 @@
+import { tzDay } from "@/lib/config";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import type { WorkoutSummary } from "@/infrastructure/integrations/hevy";
 
@@ -56,6 +57,22 @@ export interface LiftProgress {
  * an estimate and drifts above ~10 reps, which is why it is reported beside the
  * real number rather than instead of it.
  */
+/**
+ * The Monday of the week a timestamp falls in, as a day key.
+ *
+ * Every step is taken in the app timezone: which weekday it is, how far back
+ * Monday is, and the key that comes out. Mixing zones at any of those three
+ * points silently moves sessions between weeks.
+ */
+export function weekKeyOf(at: string | number | Date): string {
+  const day = tzDay(at);                       // YYYY-MM-DD in the app's zone
+  // Noon UTC on that date is the same calendar day in every practical zone,
+  // which makes the weekday arithmetic below safe from another offset error.
+  const anchor = new Date(`${day}T12:00:00Z`);
+  anchor.setUTCDate(anchor.getUTCDate() - ((anchor.getUTCDay() + 6) % 7));
+  return anchor.toISOString().slice(0, 10);
+}
+
 export function epley(weightKg: number, reps: number): number {
   if (weightKg <= 0 || reps <= 0) return 0;
   return Math.round(weightKg * (1 + reps / 30));
@@ -166,11 +183,15 @@ export async function trainingProgress(days = 120): Promise<TrainingProgress> {
   // ── Weekly volume ───────────────────────────────────────────────────────
   const weeks = new Map<string, { volumeKg: number; sessions: number }>();
   for (const w of workouts) {
-    const d = new Date(w.at);
-    // ISO-ish week key: Monday of that week, so weeks compare like for like.
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    const key = monday.toISOString().slice(0, 10);
+    // Monday of that week, so weeks compare like for like.
+    //
+    // The key has to be derived in the app's timezone at both ends. It used to
+    // find Monday from local time and then read the date back out of
+    // toISOString(), which is UTC — so a session at 02:00 on Monday IST keyed
+    // to the previous Sunday while one at 10:00 the same morning keyed to
+    // Monday, splitting a single training week across two buckets and halving
+    // both. weekKeyOf does the whole trip in one zone.
+    const key = weekKeyOf(w.at);
     const cur = weeks.get(key) ?? { volumeKg: 0, sessions: 0 };
     cur.volumeKg += w.volumeKg ?? 0;
     cur.sessions += 1;

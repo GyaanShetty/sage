@@ -1724,3 +1724,27 @@ test("the timezone is not hardcoded anywhere it decides a day", async () => {
 
   assert.deepEqual(offenders, [], "use TZ or tzDay() from lib/config instead");
 });
+
+test("a training week is one bucket, not two", async () => {
+  const { weekKeyOf } = await import("@/core/health/progression");
+
+  // Two sessions on the same Monday in IST: an early one and a mid-morning
+  // one. 02:00 IST Monday is 20:30 UTC *Sunday*, so the old code — which found
+  // Monday from local time and then read the date back out of toISOString() —
+  // filed them under different weeks, halving the volume of both.
+  const earlyMonday = "2026-08-03T02:00:00+05:30";
+  const lateMonday = "2026-08-03T10:00:00+05:30";
+  assert.equal(weekKeyOf(earlyMonday), weekKeyOf(lateMonday));
+
+  // And the whole week agrees, Monday through Sunday.
+  const week = [
+    "2026-08-03T23:30:00+05:30",  // Mon, late
+    "2026-08-06T07:00:00+05:30",  // Thu
+    "2026-08-09T21:00:00+05:30",  // Sun, late — still this week
+  ].map(weekKeyOf);
+  assert.deepEqual(new Set(week).size, 1, "one week, one key");
+  assert.equal(week[0], "2026-08-03");
+
+  // The next day starts a new week.
+  assert.equal(weekKeyOf("2026-08-10T09:00:00+05:30"), "2026-08-10");
+});

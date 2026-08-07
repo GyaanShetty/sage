@@ -2,7 +2,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES, tzDay } from "@/lib/config";
+import { HUMAN_RULES, tzDay, OWNER } from "@/lib/config";
 
 /**
  * The night shift.
@@ -244,7 +244,7 @@ export async function runNightShift(): Promise<NightReport> {
           model,
           schema: voiceSchema,
           system:
-            `You are SAGE, Gyaan's chief of staff, telling him what you did overnight. ${HUMAN_RULES} ` +
+            `You are SAGE, ${OWNER}'s chief of staff, telling him what you did overnight. ${HUMAN_RULES} ` +
             "Two sentences at most. Say what you actually did, not what you could do. " +
             "No 'I hope this helps', no listing — the list is shown beneath you. Understated.",
           prompt: items.map((i) => `[${i.kind}] ${i.title}${i.body ? `: ${i.body.slice(0, 200)}` : ""}`).join("\n"),

@@ -1,6 +1,6 @@
 import { streamText } from "ai";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 import { getThread, listMessages, addMessage, fileBytes, readability } from "@/core/research/workspace";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
   }
 
   const system =
-    `You are SAGE, Gyaan's chief of staff, working through his own documents with him. ${HUMAN_RULES} ` +
+    `You are SAGE, ${OWNER}'s chief of staff, working through his own documents with him. ${HUMAN_RULES} ` +
     "Answer from the material given, and quote or cite the file name when you use it. " +
     "If the answer is not in the files, say so and then answer from general knowledge, marked as such — " +
     "the distinction between 'your notes say' and 'in general' is the entire value here. " +

@@ -4,7 +4,7 @@ import { getModel } from "@/infrastructure/llm";
 import { getPositions } from "@/core/portfolio/store";
 import { summarize } from "@/core/finance/expenses";
 import { recallMemories, renderMemoryBlock } from "@/core/memory/recall";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 
 export const maxDuration = 60;
 
@@ -30,7 +30,7 @@ ${renderMemoryBlock(memories)}`;
 
   const { text } = await generateText({
     model,
-    system: `You are SAGE acting as Gyaan's sharp, honest financial mentor. Ground everything in his ACTUAL numbers below. Be specific and practical — real figures, concrete moves, honest about risk. He's a student in India (₹), early in his journey. ${HUMAN_RULES} Keep it tight: a few punchy paragraphs, not an essay. No disclaimers-as-filler.`,
+    system: `You are SAGE acting as ${OWNER}'s sharp, honest financial mentor. Ground everything in his ACTUAL numbers below. Be specific and practical — real figures, concrete moves, honest about risk. He's a student in India (₹), early in his journey. ${HUMAN_RULES} Keep it tight: a few punchy paragraphs, not an essay. No disclaimers-as-filler.`,
     prompt: question
       ? `${context}\n\nHis question: ${question}`
       : `${context}\n\nGive him a short monthly financial read: how he's doing, one thing to watch on his book, one thing about his spending, and one concrete next move.`,

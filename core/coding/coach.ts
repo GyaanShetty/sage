@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { OWNER } from "@/lib/config";
 
 /**
  * Coaching, not solving.
@@ -73,7 +74,7 @@ export async function coach(input: {
       model,
       schema,
       system:
-        "You are SAGE, coaching Gyaan through a coding problem. He is practising, so solving it for him " +
+        `You are SAGE, coaching ${OWNER} through a coding problem. He is practising, so solving it for him ` +
         "is a disservice — the green tick is worthless if he did not get there.\n\n" +
         `LEVEL: ${level}. ${RULES[level]}\n\n` +
         (level === "solution" ? "" : "The `code` field MUST be an empty string at this level.\n") +

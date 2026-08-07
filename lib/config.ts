@@ -5,7 +5,19 @@ export const APP_NAME = "SAGE";
 export const APP_TAGLINE = "Your personal AI operating system";
 
 /** Everything user-facing is formatted in this timezone. */
-export const TZ = "Asia/Kolkata";
+export const TZ = process.env.SAGE_TZ?.trim() || "Asia/Kolkata";
+
+/**
+ * Whose assistant this is.
+ *
+ * Threaded into every system prompt rather than hardcoded, so a fork is a
+ * matter of setting one variable instead of grepping the codebase for a name.
+ * The default keeps this instance behaving exactly as it did.
+ */
+export const OWNER = process.env.SAGE_OWNER_NAME?.trim() || "Gyaan";
+
+/** How SAGE addresses him. "sir" in the original; anything, or nothing. */
+export const HONORIFIC = process.env.SAGE_HONORIFIC?.trim() || "sir";
 
 /**
  * SAGE's spoken persona — a distinguished, unflappable British gentleman:

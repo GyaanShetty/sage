@@ -19,6 +19,7 @@ import { ExamStrip } from "@/features/dashboard/components/exam-strip";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getWeather } from "@/infrastructure/weather";
+import { OWNER } from "@/lib/config";
 
 export const metadata: Metadata = { title: "Command" };
 export const dynamic = "force-dynamic";
@@ -137,7 +138,7 @@ export default async function DashboardPage() {
         stats={stats}
         weather={weather}
         steps={typeof health?.steps === "number" ? health.steps : Number(health?.steps) || null}
-        userName="Gyaan"
+        userName={OWNER}
       />
     ) },
     { id: "mission", label: "03 · Mission Control", node: <MissionControl /> },

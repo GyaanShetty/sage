@@ -6,6 +6,7 @@ import { webSearch, type WebResult } from "@/infrastructure/search/tavily";
 import { getSourceHeadlines, NEWS_SOURCES } from "@/infrastructure/news";
 import { getMarkets } from "@/infrastructure/markets";
 import { listHoldings } from "@/core/portfolio/store";
+import { OWNER } from "@/lib/config";
 
 /**
  * Research a topic properly, rather than answering from memory.
@@ -69,7 +70,7 @@ export async function research(topic: string): Promise<ResearchBrief | { error: 
     .filter((h) => clean.toLowerCase().split(/\s+/).some((w) => w.length > 4 && h.title.toLowerCase().includes(w)))
     .slice(0, 8);
 
-  const system = `You are SAGE, Gyaan's chief of staff, writing a research brief.
+  const system = `You are SAGE, ${OWNER}'s chief of staff, writing a research brief.
 
 Rules:
 - Use the supplied sources. Where you rely on general knowledge instead, say so in "uncertainty".

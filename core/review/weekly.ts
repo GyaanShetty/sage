@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { sendGmail } from "@/infrastructure/integrations/google";
-import { TZ, tzHour } from "@/lib/config";
+import { TZ, tzHour, OWNER } from "@/lib/config";
 
 const REVIEW_TO = process.env.SAGE_EMAIL ?? "gyaanshetty@gmail.com";
 
@@ -126,7 +126,7 @@ export async function maybeSendWeeklyReview(): Promise<boolean> {
 
   const { text } = await generateText({
     model,
-    prompt: `You are SAGE, Gyaan's personal AI chief of staff. Write his Sunday weekly review email. Plain text, warm but direct, under 450 words. No markdown symbols; use simple caps headers.
+    prompt: `You are SAGE, ${OWNER}'s personal AI chief of staff. Write his Sunday weekly review email. Plain text, warm but direct, under 450 words. No markdown symbols; use simple caps headers.
 
 Structure: a one-line verdict on the week, then SHIPPED (completed tasks), BODY (training), MIND (studying), MONEY (budget), PIPELINE (applications) — skipping any section with nothing real to say rather than padding it — then CARRYING OVER (open tasks, flag what matters), and one concrete suggestion for next week.
 

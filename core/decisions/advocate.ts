@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 import { listDecisions } from "./store";
 import { calibrate } from "./calibration";
 
@@ -86,7 +86,7 @@ export async function argueAgainst(input: AdvocateInput): Promise<Advocacy | { e
       model,
       schema,
       system:
-        `You are SAGE, Gyaan's chief of staff, and your job here is to argue against him before he commits. ${HUMAN_RULES} ` +
+        `You are SAGE, ${OWNER}'s chief of staff, and your job here is to argue against him before he commits. ${HUMAN_RULES} ` +
         "Take the opposing case seriously — state it as someone who believes it would state it, not as a disclaimer. " +
         "Be specific to this decision; anything you could say about any decision is worthless here. " +
         "You are explicitly allowed to concede: if the reasoning is sound, say so and leave the confidence alone. " +

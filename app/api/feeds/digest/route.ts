@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { getSourceHeadlines, NEWS_SOURCES } from "@/infrastructure/news";
-import { TZ, tzHour } from "@/lib/config";
+import { TZ, tzHour, OWNER } from "@/lib/config";
 
 export const maxDuration = 45;
 export const dynamic = "force-dynamic";
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
       model,
       schema,
       system:
-        `You are SAGE, reading ${src.source} on Gyaan's behalf before he opens it. ` +
+        `You are SAGE, reading ${src.source} on ${OWNER}'s behalf before he opens it. ` +
         "Summarise what THIS publication is leading with — its angle, not a neutral wire report. " +
         "Be specific: name companies, numbers and places from the headlines. " +
         "mustRead must be copied verbatim from the supplied titles, never invented or paraphrased. " +

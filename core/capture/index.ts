@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES } from "@/lib/config";
+import { HUMAN_RULES, OWNER } from "@/lib/config";
 
 /**
  * Capture: one ramble in, filed things out.
@@ -58,7 +58,7 @@ export type CapturedItem = z.infer<typeof itemSchema>;
 export interface Capture { items: CapturedItem[]; ignored: string[]; source: string }
 
 const SYSTEM =
-  `You are SAGE, sorting what Gyaan just said or showed you into things you can file. ${HUMAN_RULES} ` +
+  `You are SAGE, sorting what ${OWNER} just said or showed you into things you can file. ${HUMAN_RULES} ` +
   "Split it into separate items — one thought, one item. Classify each:\n" +
   "- task: something he has to do\n" +
   "- reminder: something that must reach him at a specific time\n" +

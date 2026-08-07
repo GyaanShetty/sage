@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { speakLowLatency } from "@/lib/speak";
+import { speakLowLatency, forgetRest } from "@/lib/speak";
 
 export type AssistantState = "off" | "sleeping" | "listening" | "thinking" | "speaking";
 
@@ -98,10 +98,13 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
   }, []);
 
   const speak = useCallback(async (text: string) => {
+    // Not truncated. This used to cut at 1400 characters, so a long answer was
+    // silently abridged before it was ever spoken — the length is handled by
+    // splitting into parts downstream, not by throwing the tail away.
     const clean = text
       .replace(/```[\s\S]*?```/g, " I've put the code on screen. ")
       .replace(/[*_#`>\[\]()|]/g, "")
-      .slice(0, 1400);
+      .trim();
 
     // Neural TTS, streamed: playback starts on the first chunk instead of
     // after the whole file arrives. The gesture-unlocked element is handed in
@@ -118,7 +121,12 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
       // stream that stalls, or a play() the browser quietly refuses, would
       // hang the turn forever and the loop would never listen again.
       const words = clean.split(/\s+/).length;
-      const ceiling = Math.min(90_000, 6_000 + (words / 2.3) * 1000);
+      // Generous, and no longer capped at ninety seconds: a long answer now
+      // plays its parts back to back instead of stopping after the first, so
+      // the old ceiling fired mid-answer and set the loop listening while SAGE
+      // was still talking. Doubled over the estimate, because the guard exists
+      // for a stall, not for a slow reader.
+      const ceiling = Math.min(900_000, 8_000 + (words / 2.3) * 2000);
       const guard = window.setTimeout(done, ceiling);
 
       // A null element means browser speech took over — it still calls
@@ -295,6 +303,9 @@ export function useVoiceAssistant({ onUtterance }: { onUtterance: (text: string)
     } catch {}
     audioRef.current?.pause();
     window.speechSynthesis?.cancel();
+    // Pausing the element stops the part that is playing; this stops the ones
+    // queued behind it, which would otherwise start talking on their own.
+    forgetRest();
   }, []);
 
   useEffect(() => () => disable(), [disable]);

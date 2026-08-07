@@ -9,7 +9,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { sound } from "@/lib/sound";
-import { speakLowLatency } from "@/lib/speak";
+import { speakLowLatency, forgetRest } from "@/lib/speak";
 import { ResearchPanel } from "./research-panel";
 import "@/features/dashboard/command.css";
 
@@ -187,6 +187,9 @@ export function MorningBlock() {
     audioRef.current?.pause();
     audioRef.current = null;
     window.speechSynthesis?.cancel();
+    // Stop means stop: without this the next part starts by itself a moment
+    // after the pause, which is worse than not stopping at all.
+    forgetRest();
     setSpeaking(false);
   }, []);
 

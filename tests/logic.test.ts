@@ -1665,3 +1665,22 @@ test("every insert supplies the columns the database will not default", async ()
 
   assert.deepEqual(problems, []);
 });
+
+test("exam weakness is scored by marks, not by averaging percentages", async () => {
+  const { topicWeakness } = await import("@/core/exam");
+  const base = { examId: "e", question: "q", answer: "a", at: "", topic: "" };
+
+  const weakest = topicWeakness([
+    // A ten-mark question half-lost should outweigh a two-mark one aced.
+    { ...base, id: "1", topic: "Trees", marks: 10, attempt: { at: "", answer: "", awarded: 5, outOf: 10, earned: [], lost: [], comment: "" } },
+    { ...base, id: "2", topic: "Trees", marks: 2, attempt: { at: "", answer: "", awarded: 2, outOf: 2, earned: [], lost: [], comment: "" } },
+    { ...base, id: "3", topic: "Graphs", marks: 6, attempt: { at: "", answer: "", awarded: 5, outOf: 6, earned: [], lost: [], comment: "" } },
+    // Unanswered questions are not evidence of anything.
+    { ...base, id: "4", topic: "DP", marks: 8 },
+  ]);
+
+  assert.deepEqual(weakest.map((t) => t.topic), ["trees", "graphs"]);
+  assert.equal(weakest[0].percent, 58);   // 7 of 12, not the 75% an average would give
+  assert.equal(weakest[0].attempts, 2);
+  assert.equal(weakest[1].percent, 83);
+});

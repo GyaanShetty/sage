@@ -1,5 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { TZ } from "@/lib/config";
+import { TZ, tzDay } from "@/lib/config";
 
 export interface Snapshot {
   day: string;   // YYYY-MM-DD
@@ -42,8 +42,9 @@ export async function listSnapshots(days = 180): Promise<Snapshot[]> {
     .eq("userId", DEFAULT_USER_ID).eq("type", S_TYPE)
     .order("createdAt", { ascending: true }).limit(400);
   const rows = (data ?? []).map((r) => r.payload as Snapshot).filter((s) => s?.day);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const cut = cutoff.toISOString().slice(0, 10);
+  // Compared against `day`, which is written in the app's timezone — so the
+  // cutoff has to be read in it too, or an evening request quietly includes an
+  // extra day.
+  const cut = tzDay(Date.now() - days * 86_400_000);
   return rows.filter((s) => s.day >= cut).sort((a, b) => a.day.localeCompare(b.day));
 }

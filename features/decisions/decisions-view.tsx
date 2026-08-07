@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "./decisions.css";
+import { TZ } from "@/lib/config";
 
 /**
  * The decision journal.
@@ -53,7 +54,9 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2
 function defaultReview(): string {
   const d = new Date();
   d.setMonth(d.getMonth() + 3);
-  return d.toISOString().slice(0, 10);
+  // Read back in the app's timezone. toISOString() is UTC, so any evening in
+  // IST offered a default one day earlier than three months out.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 }
 
 export function DecisionsView() {

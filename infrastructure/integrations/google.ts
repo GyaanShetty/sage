@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { TZ } from "@/lib/config";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 export const GOOGLE_SCOPES = [
@@ -197,8 +198,8 @@ export async function createCalendarEvent(input: { summary: string; start: strin
   const body = {
     summary: input.summary,
     ...(input.location ? { location: input.location } : {}),
-    start: input.allDay ? { date: input.start.slice(0, 10) } : { dateTime: input.start, timeZone: "Asia/Kolkata" },
-    end: input.allDay ? { date: input.end.slice(0, 10) } : { dateTime: input.end, timeZone: "Asia/Kolkata" },
+    start: input.allDay ? { date: input.start.slice(0, 10) } : { dateTime: input.start, timeZone: TZ },
+    end: input.allDay ? { date: input.end.slice(0, 10) } : { dateTime: input.end, timeZone: TZ },
   };
   const res = await proxyFetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
     method: "POST",
@@ -217,8 +218,8 @@ export async function updateCalendarEvent(id: string, input: { summary?: string;
   const body: Record<string, unknown> = {};
   if (input.summary !== undefined) body.summary = input.summary;
   if (input.location !== undefined) body.location = input.location;
-  if (input.start) body.start = input.allDay ? { date: input.start.slice(0, 10) } : { dateTime: input.start, timeZone: "Asia/Kolkata" };
-  if (input.end) body.end = input.allDay ? { date: input.end.slice(0, 10) } : { dateTime: input.end, timeZone: "Asia/Kolkata" };
+  if (input.start) body.start = input.allDay ? { date: input.start.slice(0, 10) } : { dateTime: input.start, timeZone: TZ };
+  if (input.end) body.end = input.allDay ? { date: input.end.slice(0, 10) } : { dateTime: input.end, timeZone: TZ };
   const res = await proxyFetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(id)}`, {
     method: "PATCH",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },

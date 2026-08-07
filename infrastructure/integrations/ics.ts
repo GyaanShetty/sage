@@ -1,4 +1,5 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { TZ } from "@/lib/config";
 
 /**
  * Calendars that are not Google's.
@@ -75,7 +76,7 @@ export function parseIcsDate(value: string, tzid?: string): { iso: string; allDa
   if (z) return { iso: `${y}-${mo}-${d}T${h}:${mi}:${s}.000Z`, allDay: false };
 
   const naive = `${y}-${mo}-${d}T${h}:${mi}:${s}`;
-  return { iso: zonedToUtc(naive, tzid ?? "Asia/Kolkata"), allDay: false };
+  return { iso: zonedToUtc(naive, tzid ?? TZ), allDay: false };
 }
 
 /**

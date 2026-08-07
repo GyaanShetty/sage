@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useShellStore } from "@/features/shell/store";
-import { APP_NAME } from "@/lib/config";
+import { APP_NAME, TZ } from "@/lib/config";
 
 const IDLE_MS = 90_000; // 90s of no interaction → ambient mode
 const ACTIVITY = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
@@ -48,19 +48,19 @@ export function AmbientMode() {
   const now = useClock();
 
   const time = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata",
+    timeZone: TZ,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   }).format(now);
   const date = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata",
+    timeZone: TZ,
     weekday: "long",
     day: "numeric",
     month: "long",
   }).format(now);
   const istHour = Number(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", hour12: false }).format(now),
+    new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(now),
   );
 
   const arm = useCallback(() => {

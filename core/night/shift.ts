@@ -2,7 +2,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES, tzDay, OWNER } from "@/lib/config";
+import { HUMAN_RULES, tzDay, OWNER, TZ } from "@/lib/config";
 
 /**
  * The night shift.
@@ -144,7 +144,7 @@ async function prepareTomorrow(): Promise<NightItem | null> {
 
   return {
     kind: "prepared",
-    title: `${next.summary} · ${when.toLocaleString("en-GB", { timeZone: "Asia/Kolkata", weekday: "short", hour: "2-digit", minute: "2-digit" })}`,
+    title: `${next.summary} · ${when.toLocaleString("en-GB", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit" })}`,
     body: lines.slice(0, 5).join("\n"),
     href: "/dashboard",
   };

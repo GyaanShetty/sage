@@ -12,6 +12,7 @@ import { TrainingPanel } from "./components/training-panel";
 import { StepsAuto } from "./components/steps-auto";
 import { ProgressPanel } from "./components/progress-panel";
 import { ReadinessPanel } from "./components/readiness-panel";
+import { TZ } from "@/lib/config";
 
 interface Day {
   day: string;
@@ -31,7 +32,7 @@ interface Data {
 
 const WORKOUT_TYPES = ["Run", "Gym", "Walk", "Cycle", "Swim", "Yoga", "Sport", "Other"];
 /** His calendar day, not the browser's UTC offset — the server keys days in IST. */
-const IST_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" });
+const IST_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: TZ });
 const n0 = (v: number | null | undefined) => (v == null ? "—" : Math.round(v).toLocaleString());
 const n1 = (v: number | null | undefined) => (v == null ? "—" : v.toFixed(1));
 

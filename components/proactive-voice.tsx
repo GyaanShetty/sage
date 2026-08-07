@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { sound } from "@/lib/sound";
 import { hudHighlight } from "@/lib/hud";
+import { TZ } from "@/lib/config";
 
 interface Alert {
   level: "info" | "warn" | "high";
@@ -25,7 +26,7 @@ const WAKING_TO = 23;
 
 function withinWakingHours(): boolean {
   const hour = Number(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", hour12: false }).format(new Date()),
+    new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", hour12: false }).format(new Date()),
   ) % 24;
   return hour >= WAKING_FROM && hour < WAKING_TO;
 }
@@ -96,7 +97,7 @@ export function ProactiveVoice() {
     };
     window.addEventListener("sage:voice-state", onVoice);
 
-    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
     const readSeen = (): Record<string, string> => {
       try {
         const raw = JSON.parse(localStorage.getItem(SEEN_KEY) || "{}");

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Loader2, Trash2, Check, Eye, Sparkles, Mic, Square } from "lucide-react";
 import { useVoice } from "@/features/voice/use-voice";
 import "./exam.css";
+import { TZ } from "@/lib/config";
 
 /**
  * Exam mode — the countdown, and the questions the night shift set.
@@ -146,7 +147,7 @@ export function ExamView() {
           <p className="ex-focus">{countdown.focus}</p>
           <p className="ex-when">
             {new Date(countdown.exam.at).toLocaleString("en-GB", {
-              timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+              timeZone: TZ, weekday: "long", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
             })}
           </p>
         </section>
@@ -277,7 +278,7 @@ export function ExamView() {
           {exams.map((e) => (
             <div key={e.id} className={`ex-row ${e.doneAt ? "done" : ""}`}>
               <b>{e.subject}</b>
-              <span>{new Date(e.at).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" })}</span>
+              <span>{new Date(e.at).toLocaleDateString("en-GB", { timeZone: TZ, day: "numeric", month: "short" })}</span>
               <button type="button" onClick={() => void post({ id: e.id, done: !e.doneAt })} title={e.doneAt ? "Not done after all" : "Sat it"}>
                 <Check size={13} />
               </button>

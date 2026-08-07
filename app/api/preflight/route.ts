@@ -53,6 +53,22 @@ export async function GET() {
     check("HEVY_API_KEY", "Workout sync."),
   ];
 
+  /**
+   * Traps that look like nothing.
+   *
+   * A variable read by both server and browser has to be NEXT_PUBLIC_, because
+   * Next only inlines those into the client bundle. Set the plain one and the
+   * server uses your value while the browser silently uses the default — which
+   * for a timezone means day keys computed two different ways in one app.
+   */
+  const traps: string[] = [];
+  if (process.env.SAGE_TZ && !process.env.NEXT_PUBLIC_SAGE_TZ) {
+    traps.push("SAGE_TZ is set but NEXT_PUBLIC_SAGE_TZ is not — the browser is still using the default timezone. Set the NEXT_PUBLIC_ one.");
+  }
+  if (!process.env.SAGE_PASSWORD) {
+    traps.push("SAGE_PASSWORD is empty, so there is no login. Anyone with the URL has everything.");
+  }
+
   // ── live state, not just configuration ───────────────────────────────────
   let database = "unreachable";
   let keys = 0;
@@ -94,7 +110,9 @@ export async function GET() {
   const heartbeatHealthy = beatAgeMin !== null && beatAgeMin < 15;
 
   const verdict =
-    missingRequired.length > 0
+    traps.length > 0 && missingRequired.length === 0
+      ? traps[0]
+      : missingRequired.length > 0
       ? `Not ready: ${missingRequired.join(", ")} ${missingRequired.length === 1 ? "is" : "are"} missing.`
       : database !== "ok"
         ? "The database is not answering. Everything else is moot until it does."
@@ -109,6 +127,7 @@ export async function GET() {
       database,
       storedKeys: keys,
       heartbeat: { lastBeat, ageMinutes: beatAgeMin, healthy: heartbeatHealthy },
+      traps,
       required, scheduled, durability, optional,
     },
   });

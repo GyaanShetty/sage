@@ -1,4 +1,4 @@
-import { startOfTodayUtc } from "@/lib/config";
+import { startOfTodayUtc, tzDay } from "@/lib/config";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
@@ -107,7 +107,7 @@ const genSchema = z.object({ cards: z.array(z.object({ front: z.string(), back: 
 /** Generate review cards from the day's learning — notes + morning synthesis +
  *  learned memories — so consumption becomes retained knowledge. Once/day. */
 export async function generateDailyCards(): Promise<number> {
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const day = tzDay(new Date());
   const { data: already } = await db.from("Event").select("id")
     .eq("userId", DEFAULT_USER_ID).eq("type", "review.generated")
     .gte("createdAt", startOfTodayUtc()).limit(1).maybeSingle();

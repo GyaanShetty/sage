@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GeoMap } from "./geo-map";
 import { ExpandableCell } from "./expandable-cell";
+import { TZ } from "@/lib/config";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -40,7 +41,7 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
     return () => clearInterval(t);
   }, []);
 
-  const istTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" });
+  const istTime = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
 
   return (
     <section className="section" id="world" style={{ paddingTop: 0 }}>

@@ -68,3 +68,26 @@
 @media (max-width: 900px) {
   .cl-grid { grid-template-columns: 1fr; }
 }
+
+/* ── problem picker ──────────────────────────────────────────────────────
+   The lab used to show only the daily. Any problem, by name or by number. */
+.cl-pickbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.cl-pickbtn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.2px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); padding: 7px 11px; border-radius: 6px; cursor: pointer; }
+.cl-pickbtn:hover { color: var(--live); border-color: var(--live-dim); }
+
+.cl-picker { display: flex; flex-direction: column; gap: 9px; border: 1px solid var(--border-glass); border-radius: 8px; background: var(--panel); padding: 12px; margin-bottom: 12px; }
+.cl-pickrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.cl-pickinput { flex: 1; min-width: 140px; background: var(--glass); border: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 13px; padding: 8px 10px; border-radius: 6px; outline: none; }
+.cl-pickinput:focus { border-color: var(--live-dim); }
+.cl-pickinput::placeholder { color: var(--subtle); }
+.cl-pickdiff { flex: 0 0 auto; min-width: 92px; }
+
+.cl-results { display: flex; flex-direction: column; gap: 1px; max-height: 340px; overflow-y: auto; }
+.cl-result { display: grid; grid-template-columns: 44px 1fr auto auto; gap: 9px; align-items: center; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border-glass); color: var(--foreground); font-family: inherit; font-size: 13px; padding: 9px 4px; cursor: pointer; }
+.cl-result:hover:not(:disabled) { background: rgba(255,255,255,.03); }
+.cl-result.locked { opacity: .42; cursor: not-allowed; }
+.cl-rnum { font-family: var(--mono); font-size: 10px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+.cl-rtitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-rrate { font-family: var(--mono); font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
+.cl-rlock { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: #f59e0b; }
+@media (max-width: 520px) { .cl-result { grid-template-columns: 36px 1fr auto; } .cl-rrate { display: none; } }

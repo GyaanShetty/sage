@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Check, ChevronDown, Code2, ExternalLink, Loader2, Play, Save, Sparkles, Upload,
+  Check, ChevronDown, Code2, ExternalLink, Loader2, Play, Save, Search, Sparkles, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
@@ -47,6 +47,12 @@ interface Problem {
   title: string; titleSlug: string; difficulty: string; statement: string;
   hints: string[]; topics: string[]; snippets: Record<string, string>; link: string;
 }
+/** A search hit — enough to choose between, not the whole problem. */
+interface Found {
+  title: string; titleSlug: string; difficulty: string;
+  acRate: number; paidOnly: boolean; frontendId: string;
+}
+
 interface RunResult {
   ok: boolean; stdout: string; stderr: string; code: number | null; error?: string; timedOut: boolean;
 }
@@ -69,9 +75,47 @@ export function CodeLab({ slug }: { slug?: string }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showStatement, setShowStatement] = useState(true);
+  // ── the picker ──────────────────────────────────────────────────────────
+  // Until now the lab only ever showed the daily challenge, which is a fine
+  // default and a poor constraint: revision means solving the problem you are
+  // stuck on, not the one the site chose this morning.
+  const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [results, setResults] = useState<Found[] | null>(null);
+  const [searching, setSearching] = useState(false);
   // Edited code must survive a language switch, so starter code is only
   // dropped in when nothing has been written for that language yet.
   const touched = useRef<Record<string, boolean>>({});
+
+  /**
+   * Search as he types, but not on every keystroke — a keystroke is not a
+   * question, and LeetCode does not need to hear about each one.
+   */
+  useEffect(() => {
+    if (!picking) return;
+    if (!query.trim() && !difficulty) { setResults(null); return; }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      if (difficulty) params.set("difficulty", difficulty);
+      const j = await fetch(`/api/leetcode/search?${params}`).then((r) => r.json()).catch(() => null);
+      setSearching(false);
+      setResults(j?.ok ? (j.data.problems as Found[]) : []);
+    }, 320);
+    return () => clearTimeout(t);
+  }, [query, difficulty, picking]);
+
+  const open = (found: Found) => {
+    if (found.paidOnly) return;
+    setPicking(false);
+    setResults(null);
+    setQuery("");
+    // Through the URL, so the problem he is on survives a refresh and can be
+    // linked to from anywhere else in the app.
+    router.push(`/code?slug=${encodeURIComponent(found.titleSlug)}`);
+  };
 
   const load = useCallback(async () => {
     setLoadErr(null);
@@ -170,6 +214,61 @@ export function CodeLab({ slug }: { slug?: string }) {
           )}
         </div>
       </div>
+
+      <div className="cl-pickbar">
+        <button className="cl-pickbtn" onClick={() => setPicking((v) => !v)}>
+          <Search className="size-3" /> {picking ? "CLOSE" : "PICK A PROBLEM"}
+        </button>
+        {slug && (
+          <button className="cl-pickbtn" onClick={() => router.push("/code")}>
+            TODAY&rsquo;S DAILY
+          </button>
+        )}
+      </div>
+
+      {picking && (
+        <div className="cl-picker">
+          <div className="cl-pickrow">
+            <input
+              className="cl-pickinput"
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Name, number, or slug — 'two sum', '146', 'lru-cache'"
+            />
+            <select className="cl-pickinput cl-pickdiff" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+              <option value="">Any</option>
+              <option value="EASY">Easy</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HARD">Hard</option>
+            </select>
+          </div>
+
+          {searching && <p className="cl-dim"><Loader2 className="inline size-3 animate-spin" /> searching…</p>}
+
+          {results && results.length === 0 && !searching && (
+            <p className="cl-dim">Nothing matched. Try the number, or fewer words.</p>
+          )}
+
+          <div className="cl-results">
+            {(results ?? []).map((r) => (
+              <button
+                key={r.titleSlug}
+                className={cn("cl-result", r.paidOnly && "locked")}
+                onClick={() => open(r)}
+                disabled={r.paidOnly}
+                title={r.paidOnly ? "Premium — the statement is not public" : "Open it"}
+              >
+                <span className="cl-rnum">{r.frontendId}</span>
+                <span className="cl-rtitle">{r.title}</span>
+                <span className={cn("tag", DIFFICULTY[r.difficulty])}>{r.difficulty.toUpperCase()}</span>
+                <span className="cl-rrate">{r.acRate}%</span>
+                {r.paidOnly && <span className="cl-rlock">PREMIUM</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loadErr && <div className="cl-err">{loadErr}</div>}
       {!problem && !loadErr && <p className="cl-dim"><Loader2 className="inline size-3 animate-spin" /> fetching today&apos;s problem…</p>}

@@ -61,3 +61,30 @@
 .ex-btn.go { color: var(--live); border-color: var(--live-dim); }
 .ex-spin { animation: ex-rot 1s linear infinite; }
 @keyframes ex-rot { to { transform: rotate(360deg) } }
+
+/* ── marking ─────────────────────────────────────────────────────────────
+   The marks lost matter more than the number, so the number is small. */
+.ex-mark { display: flex; flex-direction: column; gap: 9px; border-top: 1px solid var(--border-glass); padding-top: 10px; }
+.ex-awarded { font-size: 26px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.ex-awarded span { font-size: 13px; color: var(--subtle); }
+.ex-awarded.good { color: var(--live); }
+.ex-awarded.ok { color: #f59e0b; }
+.ex-awarded.bad { color: #f87171; }
+.ex-block b { display: block; font-family: var(--mono); font-size: 8px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; color: var(--subtle); margin-bottom: 5px; }
+.ex-block ul { margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 4px; }
+.ex-block li { font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.ex-block.bad li { color: #fca5a5; }
+.ex-comment { font-size: 12.5px; line-height: 1.65; color: var(--foreground); border-left: 2px solid var(--live-dim); padding-left: 11px; margin: 0; }
+.ex-btn.rec { color: #f87171; border-color: #f87171; }
+
+/* ── topic weakness ──────────────────────────────────────────────────── */
+.ex-topics { display: flex; flex-direction: column; gap: 7px; }
+.ex-topic-row { display: grid; grid-template-columns: minmax(90px, 1fr) 2fr 40px auto; gap: 10px; align-items: center; }
+.ex-tname { font-size: 12.5px; color: var(--foreground); text-transform: capitalize; }
+.ex-track { position: relative; height: 6px; background: rgba(255,255,255,.05); border-radius: 3px; overflow: hidden; }
+.ex-track i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--live); }
+.ex-track i.ok { background: #f59e0b; }
+.ex-track i.bad { background: #f87171; }
+.ex-topic-row b { font-family: var(--mono); font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; text-align: right; }
+.ex-topic-row > i { font-style: normal; font-family: var(--mono); font-size: 8.5px; letter-spacing: .6px; color: var(--subtle); }
+@media (max-width: 560px) { .ex-topic-row { grid-template-columns: 1fr 60px; } .ex-track, .ex-topic-row > i { display: none; } }

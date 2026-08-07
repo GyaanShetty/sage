@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   listExams, addExam, markExamDone, deleteExam, listQuestions, markAttempted,
-  generateQuestions, nextExam, countdownFor, inExamMode,
+  generateQuestions, nextExam, countdownFor, inExamMode, gradeAnswer, topicWeakness,
 } from "@/core/exam";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ export async function GET(req: Request) {
       questions,
       examMode: inExamMode(exams),
       countdown: next ? countdownFor(next) : null,
+      weakest: topicWeakness(questions),
     },
   });
 }
@@ -26,8 +27,15 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     subject?: string; at?: string; syllabus?: string;
-    id?: string; done?: boolean; attempted?: boolean; generate?: boolean;
+    id?: string; done?: boolean; attempted?: boolean; generate?: boolean; answer?: string;
   };
+
+  // An answer names the question it is answering.
+  if (body.id && typeof body.answer === "string") {
+    const result = await gradeAnswer(body.id, body.answer);
+    if ("error" in result) return NextResponse.json({ ok: false, error: result.error }, { status: 400 });
+    return NextResponse.json({ ok: true, data: result });
+  }
 
   if (body.id && body.attempted) {
     await markAttempted(body.id);

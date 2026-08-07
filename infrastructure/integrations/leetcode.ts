@@ -118,6 +118,117 @@ export async function getProblem(titleSlug: string): Promise<Problem | null> {
   };
 }
 
+export interface ProblemSummary {
+  title: string;
+  titleSlug: string;
+  difficulty: string;
+  /** Percentage of submissions accepted — a rough proxy for how nasty it is. */
+  acRate: number;
+  paidOnly: boolean;
+  topics: string[];
+  /** LeetCode's own number, which is how everyone refers to these. */
+  frontendId: string;
+}
+
+/**
+ * Search the problem set.
+ *
+ * The same public query the website's problem list uses. Premium problems come
+ * back in the results but are marked, because the statement behind them is not
+ * fetchable without an account — better to show one greyed out than to have it
+ * silently missing from a search he knows should match.
+ *
+ * A number typed instead of a name is handled by the caller: LeetCode's
+ * `searchKeywords` matches titles, not IDs.
+ */
+interface RawQuestion {
+  title: string; titleSlug: string; difficulty: string;
+  acRate: number; paidOnly: boolean; frontendQuestionId: string;
+  topicTags?: { name: string }[];
+}
+
+const FIELDS = `
+  questions: data {
+    title titleSlug difficulty acRate paidOnly frontendQuestionId
+    topicTags { name }
+  }
+`;
+
+/**
+ * LeetCode has renamed this endpoint before.
+ *
+ * `questionList` is the long-standing name and `problemsetQuestionList` is the
+ * newer one; which answers depends on the day. Rather than pick one and have
+ * search quietly return nothing the next time they swap, try both — the second
+ * costs a round trip only when the first has already failed.
+ */
+async function questionPage(
+  limit: number,
+  skip: number,
+  filters: Record<string, unknown>,
+): Promise<RawQuestion[]> {
+  const vars = { categorySlug: "", limit, skip, filters };
+
+  for (const field of ["problemsetQuestionList", "questionList"] as const) {
+    const data = await gql<Record<string, { questions: RawQuestion[] } | undefined>>(
+      `query list($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
+        page: ${field}(categorySlug: $categorySlug, limit: $limit, skip: $skip, filters: $filters) {
+          ${FIELDS}
+        }
+      }`,
+      vars,
+    );
+    const page = data?.page;
+    if (page?.questions?.length) return page.questions;
+  }
+  return [];
+}
+
+export async function searchProblems(
+  keyword: string,
+  opts: { difficulty?: "EASY" | "MEDIUM" | "HARD"; topic?: string; limit?: number } = {},
+): Promise<ProblemSummary[]> {
+  const filters: Record<string, unknown> = {};
+  if (keyword.trim()) filters.searchKeywords = keyword.trim().slice(0, 80);
+  if (opts.difficulty) filters.difficulty = opts.difficulty;
+  if (opts.topic) filters.tags = [opts.topic];
+
+  const questions = await questionPage(Math.min(50, opts.limit ?? 25), 0, filters);
+  return questions.map(toSummary);
+}
+
+function toSummary(q: RawQuestion): ProblemSummary {
+  return {
+    title: q.title,
+    titleSlug: q.titleSlug,
+    difficulty: q.difficulty,
+    acRate: Math.round((q.acRate ?? 0) * 10) / 10,
+    paidOnly: !!q.paidOnly,
+    topics: (q.topicTags ?? []).map((t) => t.name),
+    frontendId: q.frontendQuestionId,
+  };
+}
+
+/**
+ * Find a problem by its number.
+ *
+ * Searching "1" by keyword returns everything with a 1 in the title and not
+ * Two Sum, so a numeric query is resolved by pulling a page of the problem set
+ * and matching the id exactly. Slower than a lookup would be, but LeetCode
+ * does not expose one.
+ */
+export async function problemByNumber(id: number): Promise<ProblemSummary | null> {
+  const wanted = String(id);
+  // The list is ordered by id, so the page holding it is predictable — but
+  // premium-only and retired problems make the alignment drift, so the window
+  // is wide and widened once before giving up.
+  for (const [skip, limit] of [[Math.max(0, id - 25), 60], [Math.max(0, id - 120), 250]] as const) {
+    const hit = (await questionPage(limit, skip, {})).find((q) => q.frontendQuestionId === wanted);
+    if (hit) return toSummary(hit);
+  }
+  return null;
+}
+
 export interface LeetStats {
   username: string;
   ranking: number | null;

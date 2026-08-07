@@ -184,6 +184,61 @@ export interface PracticeQuestion {
   topic: string;
   at: string;
   attemptedAt?: string | null;
+  /** What he wrote, and what it scored against the mark scheme. */
+  attempt?: QuestionAttempt | null;
+}
+
+export interface QuestionAttempt {
+  at: string;
+  answer: string;
+  /** Marks awarded out of the question's own total — not a percentage. */
+  awarded: number;
+  outOf: number;
+  /** Where the marks went, and where they did not. */
+  earned: string[];
+  lost: string[];
+  comment: string;
+}
+
+export interface TopicScore {
+  topic: string;
+  /** Marks awarded over marks available, as a percentage. */
+  percent: number;
+  attempts: number;
+  marks: number;
+}
+
+/**
+ * Where the marks are actually going.
+ *
+ * Averaging percentages per question would let a two-mark question outweigh a
+ * ten-mark one, which is exactly backwards — so this sums marks and divides,
+ * the way a real paper is scored. Topics with a single attempt are still
+ * reported, but the count is shown so one bad afternoon is not read as a
+ * weakness.
+ */
+export function topicWeakness(questions: PracticeQuestion[]): TopicScore[] {
+  const byTopic = new Map<string, { got: number; out: number; n: number }>();
+
+  for (const q of questions) {
+    if (!q.attempt) continue;
+    const topic = (q.topic || "general").trim().toLowerCase();
+    const prev = byTopic.get(topic) ?? { got: 0, out: 0, n: 0 };
+    prev.got += q.attempt.awarded;
+    prev.out += q.attempt.outOf || q.marks || 0;
+    prev.n += 1;
+    byTopic.set(topic, prev);
+  }
+
+  return [...byTopic.entries()]
+    .filter(([, v]) => v.out > 0)
+    .map(([topic, v]) => ({
+      topic,
+      percent: Math.round((v.got / v.out) * 100),
+      attempts: v.n,
+      marks: v.out,
+    }))
+    .sort((a, b) => a.percent - b.percent);
 }
 
 export async function listQuestions(examId?: string, limit = 120): Promise<PracticeQuestion[]> {
@@ -200,6 +255,73 @@ export async function markAttempted(id: string): Promise<void> {
   await db.from("Event")
     .update({ payload: { ...(data.payload as object), attemptedAt: new Date().toISOString() } })
     .eq("id", id);
+}
+
+const markSchema = z.object({
+  awarded: z.number().describe("Marks awarded, from 0 to the question's total"),
+  earned: z.array(z.string()).describe("The points he made that the scheme credits"),
+  lost: z.array(z.string()).describe("Points in the scheme he did not make"),
+  comment: z.string().describe("One sentence an examiner would write in the margin"),
+});
+
+/**
+ * Mark an answer against the scheme that came with the question.
+ *
+ * Against the scheme, not against what a model happens to know — same
+ * discipline as the Feynman loop, and for the same reason. A mark scheme is
+ * also the one thing that makes this fair to argue with: if it credits a point
+ * he did not get, that is visible.
+ */
+export async function gradeAnswer(
+  id: string,
+  answer: string,
+): Promise<{ attempt: QuestionAttempt } | { error: string }> {
+  const clean = answer.trim();
+  if (clean.length < 5) return { error: "Write something first — a blank is a zero either way." };
+
+  const { data } = await db.from("Event").select("payload").eq("id", id).eq("userId", DEFAULT_USER_ID).maybeSingle();
+  if (!data) return { error: "That question is gone." };
+  const q = data.payload as Omit<PracticeQuestion, "id">;
+
+  const model = getModel("smart") ?? getModel("fast");
+  if (!model) return { error: "No model available right now." };
+
+  const outOf = Math.max(1, q.marks || 4);
+
+  try {
+    const { object } = await generateObject({
+      model,
+      schema: markSchema,
+      system:
+        `You are marking one exam answer. ${HUMAN_RULES} ` +
+        "Award marks strictly against the mark scheme you are given, out of the stated total. " +
+        "Credit a point he made in his own words even when the wording differs — a mark scheme is a " +
+        "list of ideas, not a list of phrases. Do not award marks for anything outside the scheme, " +
+        "however true it is, and do not deduct for it either. Be exact about what was lost: name the " +
+        "point, do not say 'more depth needed'.",
+      prompt:
+        `Question (${outOf} marks): ${q.question}\n\n` +
+        `── Mark scheme ──\n${q.answer}\n\n── His answer ──\n${clean.slice(0, 6000)}`,
+    });
+
+    const attempt: QuestionAttempt = {
+      at: new Date().toISOString(),
+      answer: clean.slice(0, 6000),
+      awarded: Math.min(outOf, Math.max(0, Math.round(object.awarded))),
+      outOf,
+      earned: object.earned.slice(0, 8),
+      lost: object.lost.slice(0, 8),
+      comment: object.comment.slice(0, 400),
+    };
+
+    await db.from("Event")
+      .update({ payload: { ...q, attempt, attemptedAt: new Date().toISOString() } })
+      .eq("id", id);
+
+    return { attempt };
+  } catch (e) {
+    return { error: `Couldn't mark that: ${(e as Error).message.slice(0, 140)}` };
+  }
 }
 
 const paperSchema = z.object({
@@ -225,6 +347,8 @@ export async function generateQuestions(exam: Exam, count = 5): Promise<number> 
 
   const existing = await listQuestions(exam.id, 60);
   const covered = [...new Set(existing.map((q) => q.topic).filter(Boolean))].slice(0, 25);
+  // Anything under 70% counts as weak ground worth returning to.
+  const weak = topicWeakness(existing).filter((t) => t.percent < 70).slice(0, 4);
   const days = daysUntil(exam.at);
 
   try {
@@ -240,6 +364,13 @@ export async function generateQuestions(exam: Exam, count = 5): Promise<number> 
       prompt:
         `Exam in ${days} day(s).\n\n── Syllabus ──\n${exam.syllabus.slice(0, 12_000)}\n\n` +
         (covered.length ? `Already asked about: ${covered.join("; ")}. Cover different ground.\n\n` : "") +
+        // Where he actually lost marks, so the set drifts toward the weak
+        // ground instead of sampling the syllabus evenly. Even coverage is
+        // fair; it is not what someone revising needs.
+        (weak.length
+          ? `He has scored worst on: ${weak.map((t) => `${t.topic} (${t.percent}%)`).join("; ")}. ` +
+            `Weight the set toward those, without repeating the exact questions.\n\n`
+          : "") +
         `Set ${count} questions.`,
     });
 

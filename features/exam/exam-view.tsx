@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Plus, Loader2, Trash2, Check, Eye, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Loader2, Trash2, Check, Eye, Sparkles, Mic, Square } from "lucide-react";
+import { useVoice } from "@/features/voice/use-voice";
 import "./exam.css";
 
 /**
@@ -12,7 +13,12 @@ import "./exam.css";
  */
 
 interface Exam { id: string; subject: string; at: string; syllabus: string; doneAt?: string | null }
-interface Question { id: string; examId: string; question: string; answer: string; marks: number; topic: string; attemptedAt?: string | null }
+interface Attempt { at: string; answer: string; awarded: number; outOf: number; earned: string[]; lost: string[]; comment: string }
+interface Question {
+  id: string; examId: string; question: string; answer: string; marks: number; topic: string;
+  attemptedAt?: string | null; attempt?: Attempt | null;
+}
+interface TopicScore { topic: string; percent: number; attempts: number; marks: number }
 interface Countdown { exam: Exam; days: number; hours: number; phase: string; headline: string; focus: string }
 
 export function ExamView() {
@@ -23,6 +29,25 @@ export function ExamView() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState({ subject: "", at: "", syllabus: "" });
+  const [weakest, setWeakest] = useState<TopicScore[]>([]);
+  // Which question is being answered, and what has been written so far. One at
+  // a time on purpose: an exam is answered one question at a time.
+  const [answering, setAnswering] = useState<string | null>(null);
+  const [answer, setAnswer] = useState("");
+  const [marking, setMarking] = useState(false);
+  const [recording, setRecording] = useState(false);
+
+  const recordingRef = useRef(false);
+  const voice = useVoice({
+    onTranscript: (chunk) => setAnswer((prev) => (prev ? `${prev.trim()} ${chunk}` : chunk)),
+  });
+
+  useEffect(() => {
+    if (recordingRef.current && !voice.listening) {
+      const t = setTimeout(() => { if (recordingRef.current) voice.start(); }, 220);
+      return () => clearTimeout(t);
+    }
+  }, [voice.listening, voice]);
 
   const load = useCallback(async () => {
     try {
@@ -32,6 +57,7 @@ export function ExamView() {
       setExams(json.data.exams as Exam[]);
       setQuestions(json.data.questions as Question[]);
       setCountdown(json.data.countdown as Countdown | null);
+      setWeakest((json.data.weakest ?? []) as TopicScore[]);
     } catch { setError("Couldn't reach the papers."); }
   }, []);
 
@@ -67,6 +93,37 @@ export function ExamView() {
     if (!q.attemptedAt) void post({ id: q.id, attempted: true });
   }
 
+  function toggleRecording() {
+    if (recordingRef.current) { recordingRef.current = false; setRecording(false); voice.stop(); return; }
+    recordingRef.current = true; setRecording(true); voice.start();
+  }
+
+  function startAnswering(id: string) {
+    if (recordingRef.current) toggleRecording();
+    setAnswering(answering === id ? null : id);
+    setAnswer("");
+    setError(null);
+  }
+
+  async function mark(id: string) {
+    if (recordingRef.current) toggleRecording();
+    if (answer.trim().length < 5) { setError("Write something first — a blank is a zero either way."); return; }
+    setMarking(true); setError(null);
+    try {
+      const res = await fetch("/api/exam", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, answer }),
+      });
+      const json = await res.json();
+      if (!json.ok) { setError(json.error ?? "Couldn't mark that."); return; }
+      setAnswering(null);
+      setAnswer("");
+      setRevealed((p) => new Set([...p, id]));
+      await load();
+    } catch { setError("Network dropped on the way there."); }
+    finally { setMarking(false); }
+  }
+
   const unattempted = questions.filter((q) => !q.attemptedAt);
 
   return (
@@ -95,6 +152,29 @@ export function ExamView() {
         </section>
       )}
 
+      {weakest.length > 0 && (
+        <section className="ex-panel">
+          <div className="ex-panelhead">
+            <h3>Where the marks are going</h3>
+            <span className="ex-count-lbl">weakest first</span>
+          </div>
+          <div className="ex-topics">
+            {weakest.map((t) => (
+              <div key={t.topic} className="ex-topic-row">
+                <span className="ex-tname">{t.topic}</span>
+                <span className="ex-track"><i style={{ width: `${Math.max(2, t.percent)}%` }} className={t.percent >= 70 ? "good" : t.percent >= 45 ? "ok" : "bad"} /></span>
+                <b>{t.percent}%</b>
+                <i>{t.marks} marks · {t.attempts} {t.attempts === 1 ? "question" : "questions"}</i>
+              </div>
+            ))}
+          </div>
+          <p className="ex-hint">
+            Tonight&rsquo;s questions lean toward whatever is at the top of this list. One question is
+            not a weakness — the count is there so you can tell the difference.
+          </p>
+        </section>
+      )}
+
       {/* ── the questions ─────────────────────────────────────────── */}
       {countdown && (
         <section className="ex-panel">
@@ -117,13 +197,64 @@ export function ExamView() {
                   <span className="ex-marks">{q.marks} marks</span>
                 </div>
                 <p className="ex-qtext">{q.question}</p>
-                {revealed.has(q.id) ? (
-                  <div className="ex-answer"><b>Mark scheme</b>{q.answer}</div>
-                ) : (
-                  <button type="button" className="ex-btn" onClick={() => reveal(q)}>
-                    <Eye size={12} /> {q.attemptedAt ? "Show scheme" : "I've had a go — show the scheme"}
-                  </button>
+
+                {q.attempt && (
+                  <div className="ex-mark">
+                    <div className={`ex-awarded ${q.attempt.awarded / q.attempt.outOf >= 0.7 ? "good" : q.attempt.awarded / q.attempt.outOf >= 0.4 ? "ok" : "bad"}`}>
+                      {q.attempt.awarded}<span>/{q.attempt.outOf}</span>
+                    </div>
+                    {q.attempt.lost.length > 0 && (
+                      <div className="ex-block bad">
+                        <b>Marks lost</b>
+                        <ul>{q.attempt.lost.map((l, i) => <li key={i}>{l}</li>)}</ul>
+                      </div>
+                    )}
+                    {q.attempt.earned.length > 0 && (
+                      <div className="ex-block">
+                        <b>Credited</b>
+                        <ul>{q.attempt.earned.map((l, i) => <li key={i}>{l}</li>)}</ul>
+                      </div>
+                    )}
+                    <p className="ex-comment">{q.attempt.comment}</p>
+                  </div>
                 )}
+
+                {answering === q.id ? (
+                  <>
+                    <textarea
+                      className="ex-input ex-area"
+                      rows={6}
+                      value={answer}
+                      onChange={(e) => setAnswer(e.target.value)}
+                      placeholder="Answer it as you would on the paper…"
+                    />
+                    <div className="ex-actions">
+                      {voice.supported && (
+                        <button type="button" className={`ex-btn ${recording ? "rec" : ""}`} onClick={toggleRecording}>
+                          {recording ? <><Square size={12} /> Stop</> : <><Mic size={12} /> Talk</>}
+                        </button>
+                      )}
+                      <button type="button" className="ex-btn go" onClick={() => void mark(q.id)} disabled={marking}>
+                        {marking ? <Loader2 size={12} className="ex-spin" /> : <Check size={12} />}
+                        {marking ? "Marking" : "Mark it"}
+                      </button>
+                      <button type="button" className="ex-btn" onClick={() => setAnswering(null)}>Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="ex-actions">
+                    <button type="button" className="ex-btn go" onClick={() => startAnswering(q.id)}>
+                      <Check size={12} /> {q.attempt ? "Answer again" : "Answer it"}
+                    </button>
+                    {!revealed.has(q.id) && (
+                      <button type="button" className="ex-btn" onClick={() => reveal(q)}>
+                        <Eye size={12} /> Show scheme
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {revealed.has(q.id) && <div className="ex-answer"><b>Mark scheme</b>{q.answer}</div>}
               </div>
             ))}
           </div>

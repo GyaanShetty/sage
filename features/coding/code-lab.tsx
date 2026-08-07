@@ -84,6 +84,7 @@ export function CodeLab({ slug }: { slug?: string }) {
   const [difficulty, setDifficulty] = useState("");
   const [results, setResults] = useState<Found[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [searchErr, setSearchErr] = useState<string | null>(null);
   // Edited code must survive a language switch, so starter code is only
   // dropped in when nothing has been written for that language yet.
   const touched = useRef<Record<string, boolean>>({});
@@ -102,7 +103,8 @@ export function CodeLab({ slug }: { slug?: string }) {
       if (difficulty) params.set("difficulty", difficulty);
       const j = await fetch(`/api/leetcode/search?${params}`).then((r) => r.json()).catch(() => null);
       setSearching(false);
-      setResults(j?.ok ? (j.data.problems as Found[]) : []);
+      if (j?.ok) { setSearchErr(null); setResults(j.data.problems as Found[]); }
+      else { setSearchErr(j?.error ?? "The search didn't come back."); setResults([]); }
     }, 320);
     return () => clearTimeout(t);
   }, [query, difficulty, picking]);
@@ -246,7 +248,9 @@ export function CodeLab({ slug }: { slug?: string }) {
 
           {searching && <p className="cl-dim"><Loader2 className="inline size-3 animate-spin" /> searching…</p>}
 
-          {results && results.length === 0 && !searching && (
+          {searchErr && <div className="cl-err">{searchErr}</div>}
+
+          {results && results.length === 0 && !searching && !searchErr && (
             <p className="cl-dim">Nothing matched. Try the number, or fewer words.</p>
           )}
 

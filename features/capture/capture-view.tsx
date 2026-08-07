@@ -103,23 +103,75 @@ export function CaptureView() {
     voice.stop();
   }
 
+  /**
+   * Shrink before sending.
+   *
+   * The old limit was 3MB per image, checked after decoding on the server —
+   * which could not work. The request carries base64, a third larger than the
+   * bytes, and the platform caps a body at about 4.5MB and rejects it before
+   * any handler runs. So one 3MB screenshot was borderline and four were
+   * impossible, and the browser reported the rejection as "network dropped" —
+   * a network message for a size problem.
+   *
+   * Downscaling fixes the cause rather than the message. A phone screenshot is
+   * three or four megapixels; at 1600px on the long edge it is a few hundred
+   * kilobytes and still perfectly legible to a vision model, which is reading
+   * text and layout rather than admiring the resolution.
+   */
+  async function shrink(file: File): Promise<string> {
+    const raw = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.readAsDataURL(file);
+    });
+
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = reject;
+        el.src = raw;
+      });
+
+      const MAX_EDGE = 1600;
+      const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+      // Already small enough, and re-encoding would only lose detail.
+      if (scale === 1 && raw.length < 700_000) return raw;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return raw;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // JPEG at 0.82: text stays sharp, the file stops being the problem.
+      return canvas.toDataURL("image/jpeg", 0.82);
+    } catch {
+      // Decoding failed (an exotic format, a canvas the browser taints). Send
+      // the original and let the size check below have the last word.
+      return raw;
+    }
+  }
+
   async function addImages(files: FileList | null) {
     if (!files?.length) return;
+    setError(null);
     const next: { name: string; data: string }[] = [];
+
     for (const file of Array.from(files).slice(0, 4)) {
       if (!file.type.startsWith("image/")) continue;
-      if (file.size > 3 * 1024 * 1024) {
-        setError(`${file.name} is over 3MB — the free-tier upload ceiling. Crop it or screenshot smaller.`);
-        continue;
-      }
-      const data = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result ?? ""));
-        reader.readAsDataURL(file);
-      });
+      const data = await shrink(file);
       next.push({ name: file.name, data });
     }
-    setImages((prev) => [...prev, ...next].slice(0, 4));
+
+    const combined = [...images, ...next].slice(0, 4);
+    // The real constraint is the whole request, not any one picture.
+    const total = combined.reduce((n, i) => n + i.data.length, 0);
+    if (total > 3_500_000) {
+      setError("Those add up to more than one request can carry. Send them a couple at a time.");
+      return;
+    }
+    setImages(combined);
   }
 
   async function parse() {

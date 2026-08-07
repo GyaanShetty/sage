@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "./calendar.css";
+import { TZ } from "@/lib/config";
 
 /**
  * The calendar, as a place rather than a panel.
@@ -38,7 +39,7 @@ interface Ev {
 }
 interface Feed { label: string; enabled: boolean; error: string | null }
 
-const TZ = "Asia/Kolkata";
+
 const DAY_KEY = new Intl.DateTimeFormat("en-CA", { timeZone: TZ });
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 

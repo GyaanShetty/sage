@@ -1,7 +1,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
-import { HUMAN_RULES, OWNER } from "@/lib/config";
+import { HUMAN_RULES, OWNER, TZ } from "@/lib/config";
 
 /**
  * Capture: one ramble in, filed things out.
@@ -112,7 +112,7 @@ export async function parseCapture(
             {
               type: "text" as const,
               text:
-                `Today is ${new Date().toISOString()} (Asia/Kolkata).\n` +
+                `Today is ${new Date().toISOString()} (${TZ}).\n` +
                 (categories.length ? `His budget categories: ${categories.join(", ")}. Use one of these verbatim for an expense.\n` : "") +
                 `\n${lead}`,
             },
@@ -177,7 +177,7 @@ export async function fileItems(items: CapturedItem[]): Promise<FiledResult[]> {
           id: crypto.randomUUID(), userId: DEFAULT_USER_ID,
           text: item.text.slice(0, 200), remindAt: when.toISOString(),
         });
-        out.push({ kind: item.kind, text: item.text, ok: true, detail: when.toLocaleString("en-GB", { timeZone: "Asia/Kolkata" }) });
+        out.push({ kind: item.kind, text: item.text, ok: true, detail: when.toLocaleString("en-GB", { timeZone: TZ }) });
 
       } else if (item.kind === "memory") {
         const { DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");

@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
+import { TZ } from "@/lib/config";
 
 /**
  * Model tiers per docs/architecture/04. Currently backed by Gemini's free
@@ -371,7 +372,7 @@ async function flushUsage(): Promise<void> {
 
   try {
     const { db, DEFAULT_USER_ID } = await import("@/infrastructure/db/supabase");
-    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
     const { data: existing } = await db
       .from("Event").select("id, payload")
       .eq("userId", DEFAULT_USER_ID).eq("type", "llm.usage").eq("payload->>day", day)
@@ -403,7 +404,7 @@ export async function usageHistory(days = 7): Promise<{ day: string; calls: numb
   const rows = (data ?? []).map((r) => r.payload as Usage & { day: string });
   // The in-flight batch has not been written yet; today's number should still
   // include it, or the panel reads low every time you look at it.
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
   const out = rows.map((r) => ({ day: r.day, calls: r.calls, failures: r.failures }));
   const mine = out.find((r) => r.day === today);
   if (mine) { mine.calls += pending.calls; mine.failures += pending.failures; }

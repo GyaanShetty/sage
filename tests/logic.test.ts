@@ -1684,3 +1684,43 @@ test("exam weakness is scored by marks, not by averaging percentages", async () 
   assert.equal(weakest[0].attempts, 2);
   assert.equal(weakest[1].percent, 83);
 });
+
+test("the timezone is not hardcoded anywhere it decides a day", async () => {
+  // This class of bug has bitten three times: the health chart, the study
+  // streak and the LeetCode heatmap all read a day key from a different zone
+  // than the rest of the app. Making TZ configurable made it worse — a fork
+  // setting its own zone would have had some code in its zone and some still
+  // in IST. So: no literal zone outside lib/config, except where a second zone
+  // is the actual point.
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  const allowed = new Set([
+    // A deliberate multi-zone world clock.
+    "features/dashboard/components/bands.tsx",
+    // A tooltip that labels its zone explicitly.
+    "features/atlas/atlas-map.tsx",
+    // Documentation of an ICS line's format, not a formatting call.
+    "infrastructure/integrations/ics.ts",
+  ]);
+
+  const offenders: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(p); continue; }
+      if (!/\.tsx?$/.test(entry.name)) continue;
+      if (allowed.has(p)) continue;
+      const src = fs.readFileSync(p, "utf8");
+      src.split("\n").forEach((line, i) => {
+        if (!line.includes("Asia/Kolkata")) return;
+        // A comment explaining the default is fine.
+        if (/^\s*(\*|\/\/)/.test(line)) return;
+        offenders.push(`${p}:${i + 1}`);
+      });
+    }
+  };
+  for (const dir of ["core", "app", "features", "infrastructure", "components"]) walk(dir);
+
+  assert.deepEqual(offenders, [], "use TZ or tzDay() from lib/config instead");
+});

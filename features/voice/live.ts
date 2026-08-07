@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { APP_NAME, HUMAN_RULES, moodClause, OWNER } from "@/lib/config";
+import { APP_NAME, HUMAN_RULES, moodClause, OWNER, TZ } from "@/lib/config";
 import { useShellStore } from "@/features/shell/store";
 
 export type LiveState = "off" | "connecting" | "listening" | "speaking";
@@ -234,7 +234,7 @@ export function useLiveVoice() {
           systemInstruction:
             SYSTEM_BASE +
             moodClause(useShellStore.getState().mood) +
-            ` Current datetime: ${new Date().toISOString()} (user timezone: Asia/Kolkata). Use your tools whenever they apply, then confirm the outcome briefly.`,
+            ` Current datetime: ${new Date().toISOString()} (user timezone: ${TZ}). Use your tools whenever they apply, then confirm the outcome briefly.`,
           outputAudioTranscription: {},
           inputAudioTranscription: {},
           // Plain-JSON declarations; the SDK's Type enum values are these strings.

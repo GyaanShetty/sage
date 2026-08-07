@@ -1,4 +1,4 @@
-import { startOfTodayUtc } from "@/lib/config";
+import { startOfTodayUtc, tzDay } from "@/lib/config";
 import { trashRow } from "@/core/ops/trash";
 import { generateObject } from "ai";
 import { z } from "zod";
@@ -131,7 +131,7 @@ export async function scanInbox(): Promise<{ added: number; updated: number }> {
 /** Cron-safe: runs the inbox scan at most once per day (the /career button uses
  *  scanInbox directly, un-throttled). */
 export async function maybeScanInbox(): Promise<{ added: number; updated: number }> {
-  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const day = tzDay(new Date());
   const { data } = await db.from("Event").select("id")
     .eq("userId", DEFAULT_USER_ID).eq("type", "career.autoscan")
     .gte("createdAt", startOfTodayUtc()).limit(1).maybeSingle();

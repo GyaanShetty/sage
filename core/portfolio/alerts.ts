@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { trashRow } from "@/core/ops/trash";
+import { tzDay } from "@/lib/config";
 
 export type AlertCondition = "above" | "below" | "pct_up" | "pct_down";
 
@@ -103,8 +104,8 @@ export async function evaluateAlerts(): Promise<{ checked: number; fired: string
     // will turn off — which loses the alert entirely.
     const firedToday =
       a.lastFiredAt &&
-      new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(a.lastFiredAt)) ===
-        new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+      tzDay(new Date(a.lastFiredAt)) ===
+        tzDay(new Date());
     if (firedToday) continue;
 
     await updateAlert(a.id, { lastFiredAt: new Date().toISOString() });

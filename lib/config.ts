@@ -4,8 +4,17 @@ import { z } from "zod";
 export const APP_NAME = "SAGE";
 export const APP_TAGLINE = "Your personal AI operating system";
 
-/** Everything user-facing is formatted in this timezone. */
-export const TZ = process.env.SAGE_TZ?.trim() || "Asia/Kolkata";
+/**
+ * Everything user-facing is formatted in this timezone.
+ *
+ * NEXT_PUBLIC_ deliberately. This file is imported by client components as
+ * well as server code, and Next only inlines NEXT_PUBLIC_* into the browser
+ * bundle — a plain SAGE_TZ would be the configured zone on the server and
+ * silently the default in the browser. Two timezones in one app is the day-key
+ * bug that has already cost this codebase a health chart, a study streak and a
+ * LeetCode heatmap; it is not worth risking again for a shorter variable name.
+ */
+export const TZ = process.env.NEXT_PUBLIC_SAGE_TZ?.trim() || "Asia/Kolkata";
 
 /**
  * Whose assistant this is.
@@ -14,7 +23,8 @@ export const TZ = process.env.SAGE_TZ?.trim() || "Asia/Kolkata";
  * matter of setting one variable instead of grepping the codebase for a name.
  * The default keeps this instance behaving exactly as it did.
  */
-export const OWNER = process.env.SAGE_OWNER_NAME?.trim() || "Gyaan";
+export const OWNER =
+  process.env.NEXT_PUBLIC_SAGE_OWNER_NAME?.trim() || process.env.SAGE_OWNER_NAME?.trim() || "Gyaan";
 
 /** How SAGE addresses him. "sir" in the original; anything, or nothing. */
 export const HONORIFIC = process.env.SAGE_HONORIFIC?.trim() || "sir";

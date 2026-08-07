@@ -12,6 +12,7 @@ import { sound } from "@/lib/sound";
 import { speakLowLatency, forgetRest } from "@/lib/speak";
 import { ResearchPanel } from "./research-panel";
 import "@/features/dashboard/command.css";
+import { TZ } from "@/lib/config";
 
 type StepKind = "gmail" | "feed" | "leetcode" | "synthesis" | "watch";
 interface Step { id: string; label: string; kind: StepKind; source?: string; icon: typeof Mail; tint: string }
@@ -40,7 +41,7 @@ interface Email { from: string; subject: string; snippet: string; id?: string; i
 interface Daily { link: string; title: string; difficulty: string }
 interface Stats { streak: number; solved: { all: number }; todaySolved: number; calendar?: Record<string, number> }
 
-const dayKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+const dayKey = () => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 const LS = "sage-morning";
 
 function useDone(): [Set<string>, (id: string) => void, () => void] {

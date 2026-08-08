@@ -60,10 +60,10 @@ npm run dev
 password. Everything else degrades gracefully — a missing key disables that
 feature and says so on the page, rather than crashing.
 
-1. **Database.** Create a Supabase project. Run
-   `prisma/migrations/0001_init/migration.sql`, then every file in
-   `prisma/sql/` (RPCs and indexes, including the pgvector index without which
-   memory recall takes over a second).
+1. **Database.** Create a Supabase project, open the SQL editor, and paste
+   [`prisma/bootstrap.sql`](prisma/bootstrap.sql) — the schema, the RPCs and
+   the indexes in one file, including the pgvector index without which memory
+   recall takes over a second.
 2. **Identity.** Set `SAGE_OWNER_NAME`, `SAGE_TZ`, `SAGE_PLACE`, `SAGE_LAT`,
    `SAGE_LON`. The name is threaded into every system prompt from one constant,
    so forking is a variable, not a grep.
@@ -115,10 +115,15 @@ runbook is [docs/OPERATIONS.md](docs/OPERATIONS.md).
 ## Tests
 
 ```bash
-npm test                 # 115 pure-logic tests, no network
+npm test                 # 117 pure-logic tests, no network
 npx tsc --noEmit
 npx next build
 ```
+
+All three run with **no configuration at all** — no database, no API keys. That
+is deliberate: a contributor should be able to clone, install and verify
+without first being given credentials, and CI runs exactly the same three
+commands with no secrets.
 
 One test parses the SQL schema and checks that every object-literal insert in
 the codebase supplies the NOT NULL columns. Supabase *returns* errors rather
@@ -127,12 +132,18 @@ bug is silent, and it cost real data before the test existed.
 
 ## Contributing
 
-Issues and pull requests welcome. Two conventions worth matching:
+Issues and pull requests welcome. `npm install && npm test` needs nothing else
+to work; if it does, that is a bug worth reporting on its own.
+
+Three conventions worth matching:
 
 - **Comments explain why, not what.** The code says what it does. Comments are
   for the constraint, the failure it prevents, or the reason the obvious
   approach was wrong.
 - **Degrade, don't crash.** A missing key disables a feature and says so.
+- **A silent failure is worse than a loud one.** Supabase returns errors rather
+  than throwing them; check them. "Nothing matched" and "the request failed"
+  must not look the same on screen.
 
 ## Licence
 

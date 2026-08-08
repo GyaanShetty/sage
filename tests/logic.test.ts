@@ -372,10 +372,11 @@ test("retention never prunes a type holding the user's own records", async () =>
   }
 });
 
-test("retention keeps generated briefs longer than the history page reads", () => {
+test("retention keeps generated briefs longer than the history page reads", async () => {
   // /api/brief/history?limit=14 must never outrun the retention window, or
   // the page would show gaps that look like missing days rather than pruning.
-  const source = require("node:fs").readFileSync(new URL("../core/ops/retention.ts", import.meta.url), "utf8");
+  const fs = await import("node:fs");
+  const source = fs.readFileSync(new URL("../core/ops/retention.ts", import.meta.url), "utf8");
   const days = Number(/"brief\.generated":\s*(\d+)/.exec(source)?.[1]);
   assert.ok(days >= 30, `brief.generated kept ${days}d — too short for a 14-entry history`);
 });
@@ -1747,4 +1748,30 @@ test("a training week is one bucket, not two", async () => {
 
   // The next day starts a new week.
   assert.equal(weekKeyOf("2026-08-10T09:00:00+05:30"), "2026-08-10");
+});
+
+test("the database bootstrap matches the migrations it is built from", async () => {
+  // Setup instructions and reality drift apart the moment someone adds a
+  // migration and forgets the generated file. Then a new instance runs a
+  // schema missing whatever was added last, and the failure surfaces much
+  // later as a column that does not exist.
+  const fs = await import("node:fs");
+
+  const parts = [
+    fs.readFileSync("prisma/migrations/0001_init/migration.sql", "utf8"),
+    ...fs.readdirSync("prisma/sql").sort()
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => fs.readFileSync(`prisma/sql/${f}`, "utf8")),
+  ];
+
+  const bootstrap = fs.readFileSync("prisma/bootstrap.sql", "utf8");
+  for (const part of parts) {
+    // Compare on content rather than byte-for-byte, so the generated banner
+    // and section headers are free to change without failing this.
+    const body = part.trim();
+    assert.ok(
+      bootstrap.includes(body),
+      "prisma/bootstrap.sql is stale — run scripts/build-bootstrap.sh",
+    );
+  }
 });

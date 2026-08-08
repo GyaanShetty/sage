@@ -293,7 +293,31 @@ export async function searchProblems(
   if (opts.topic) filters.tags = [opts.topic];
 
   const questions = await questionPage(Math.min(50, opts.limit ?? 25), 0, filters);
-  return questions === null ? null : questions.map(toSummary);
+  if (questions !== null) return questions.map(toSummary);
+
+  /**
+   * GraphQL declined. Search the catalogue instead.
+   *
+   * Substring matching over three and a half thousand titles is not as good as
+   * their relevance ranking, and it is enormously better than an error
+   * message. The picker keeps working through a schema change, which is the
+   * whole point of having a second source.
+   */
+  const all = await allProblems();
+  if (all === null) return null;
+
+  const needle = keyword.trim().toLowerCase();
+  const wanted = opts.difficulty
+    ? opts.difficulty.charAt(0) + opts.difficulty.slice(1).toLowerCase()
+    : null;
+
+  return all
+    .filter((p) => (!needle || p.title.toLowerCase().includes(needle) || p.titleSlug.includes(needle)))
+    .filter((p) => (!wanted || p.difficulty === wanted))
+    // Shorter titles first: a search for "sum" should offer Two Sum before
+    // Sum of Nodes with Even-Valued Grandparent.
+    .sort((a, b) => a.title.length - b.title.length)
+    .slice(0, Math.min(50, opts.limit ?? 25));
 }
 
 function toSummary(q: RawQuestion): ProblemSummary {
@@ -316,7 +340,97 @@ function toSummary(q: RawQuestion): ProblemSummary {
  * and matching the id exactly. Slower than a lookup would be, but LeetCode
  * does not expose one.
  */
-export async function problemByNumber(id: number): Promise<ProblemSummary | null> {
+/**
+ * The whole problem set, from the REST endpoint that has not changed in years.
+ *
+ * `/api/problems/all/` predates the GraphQL API, needs no auth, and returns
+ * every problem with its number, slug, difficulty and acceptance rate in one
+ * response. It is the reliable half of this integration: GraphQL has been
+ * rewritten twice while this has sat still.
+ *
+ * So it backs the two things that must not depend on today's query shape —
+ * finding a problem by its number, and searching when GraphQL declines.
+ * Roughly 3,500 rows, fetched once and kept for the life of the instance,
+ * because the list gains a handful of problems a week.
+ */
+interface Catalogue { at: number; items: ProblemSummary[] }
+let catalogue: Catalogue | null = null;
+const CATALOGUE_TTL_MS = 6 * 3_600_000;
+
+const LEVELS: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Hard" };
+
+async function allProblems(): Promise<ProblemSummary[] | null> {
+  if (catalogue && Date.now() - catalogue.at < CATALOGUE_TTL_MS) return catalogue.items;
+
+  try {
+    const res = await proxyFetch("https://leetcode.com/api/problems/all/", {
+      headers: { "user-agent": "Mozilla/5.0 (compatible; SAGE/0.2)", referer: "https://leetcode.com" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) { lastGqlError = `problem list: HTTP ${res.status}`; return null; }
+
+    const json = (await res.json()) as {
+      stat_status_pairs?: {
+        stat?: {
+          frontend_question_id?: number;
+          question__title?: string;
+          question__title_slug?: string;
+          total_acs?: number;
+          total_submitted?: number;
+        };
+        difficulty?: { level?: number };
+        paid_only?: boolean;
+      }[];
+    };
+
+    const items: ProblemSummary[] = (json.stat_status_pairs ?? [])
+      .map((row) => {
+        const st = row.stat ?? {};
+        const submitted = st.total_submitted ?? 0;
+        return {
+          title: st.question__title ?? "",
+          titleSlug: st.question__title_slug ?? "",
+          difficulty: LEVELS[row.difficulty?.level ?? 0] ?? "Medium",
+          acRate: submitted > 0 ? Math.round(((st.total_acs ?? 0) / submitted) * 1000) / 10 : 0,
+          paidOnly: !!row.paid_only,
+          // This endpoint does not carry tags, and the picker does not show
+          // them — the problem page fetches its own.
+          topics: [],
+          frontendId: String(st.frontend_question_id ?? ""),
+        };
+      })
+      .filter((p) => p.titleSlug && p.frontendId);
+
+    if (items.length === 0) { lastGqlError = "problem list came back empty"; return null; }
+    catalogue = { at: Date.now(), items };
+    return items;
+  } catch (e) {
+    lastGqlError = `problem list: ${(e as Error).message?.slice(0, 160)}`;
+    return null;
+  }
+}
+
+/**
+ * Find a problem by its number.
+ *
+ * Straight lookup in the catalogue. The previous approach paged the GraphQL
+ * list around the id and matched — which assumed the list comes back ordered
+ * by number, and quietly returned nothing when it did not.
+ */
+export async function problemByNumber(id: number): Promise<ProblemSummary | null | "unavailable"> {
+  const all = await allProblems();
+  if (all === null) return "unavailable";
+  return all.find((p) => p.frontendId === String(id)) ?? null;
+}
+
+/**
+ * The old paging lookup.
+ *
+ * Superseded by the catalogue and kept only because it costs one small request
+ * where the catalogue costs a large one — worth trying first if the catalogue
+ * ever becomes the slow path. Not currently called.
+ */
+export async function problemByNumberViaList(id: number): Promise<ProblemSummary | null> {
   const wanted = String(id);
   // The list is ordered by id, so the page holding it is predictable — but
   // premium-only and retired problems make the alignment drift, so the window

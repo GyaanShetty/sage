@@ -1775,3 +1775,24 @@ test("the database bootstrap matches the migrations it is built from", async () 
     );
   }
 });
+
+test("a number lookup tells failure and absence apart", async () => {
+  // The route returned an empty list both when LeetCode was unreachable and
+  // when the number did not exist, so an outage read as "Nothing matched" and
+  // there was nothing to debug from. The sentinel is what keeps them separate,
+  // so the contract is worth pinning even though the network call is not.
+  const src = await import("node:fs").then((fs) =>
+    fs.readFileSync("app/api/leetcode/search/route.ts", "utf8"));
+
+  assert.match(src, /"unavailable"/, "the failure sentinel must reach the route");
+  assert.match(src, /status:\s*502/, "an unreachable list is an error, not an empty result");
+
+  // And the integration must actually be able to produce it.
+  const lc = await import("node:fs").then((fs) =>
+    fs.readFileSync("infrastructure/integrations/leetcode.ts", "utf8"));
+  assert.match(
+    lc,
+    /problemByNumber\([^)]*\):\s*Promise<ProblemSummary \| null \| "unavailable">/,
+    "problemByNumber must distinguish not-found from unreachable",
+  );
+});

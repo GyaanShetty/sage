@@ -24,7 +24,21 @@ export async function GET(req: Request) {
     : undefined;
 
   if (/^\d+$/.test(q)) {
-    const hit = await problemByNumber(Number(q)).catch(() => null);
+    const hit = await problemByNumber(Number(q)).catch(() => "unavailable" as const);
+    // Three outcomes, not two. This used to return an empty list whether the
+    // lookup failed or the number genuinely does not exist, so "Nothing
+    // matched" was shown for an outage — which is how the last round of
+    // debugging learned nothing from the screen.
+    if (hit === "unavailable") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Couldn't reach LeetCode's problem list.",
+          detail: lastLeetcodeError(),
+        },
+        { status: 502 },
+      );
+    }
     return NextResponse.json({ ok: true, data: { problems: hit ? [hit] : [] } });
   }
 

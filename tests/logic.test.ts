@@ -1796,3 +1796,38 @@ test("a number lookup tells failure and absence apart", async () => {
     "problemByNumber must distinguish not-found from unreachable",
   );
 });
+
+test("nothing speaks unless it was asked to", async () => {
+  // SAGE used to talk on its own: a proactive poller that read out market
+  // alerts every few minutes, and a briefing that spoke itself a second after
+  // the app loaded. A voice that interrupts is a voice you mute, and a muted
+  // voice cannot tell you anything — so speech is on request only now.
+  //
+  // This catches the shape that regressed: speech reached from a timer.
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (/\.tsx?$/.test(entry.name)) files.push(p);
+    }
+  };
+  walk("components");
+  walk("features");
+
+  const offenders: string[] = [];
+  for (const file of files) {
+    const src = fs.readFileSync(file, "utf8");
+    const speaks = /speakLowLatency|voice\/speak|synth\.speak|speechSynthesis\.speak/.test(src);
+    if (!speaks) continue;
+    // A timer is how unprompted speech gets scheduled. The voice assistant's
+    // own loop is exempt: it only runs after you enable and address it.
+    if (file.endsWith("features/voice/engine.ts")) continue;
+    if (/set(Timeout|Interval)\s*\(\s*(run|check|speak)/.test(src)) offenders.push(file);
+  }
+
+  assert.deepEqual(offenders, [], "speech must be triggered by the user, not by a timer");
+});

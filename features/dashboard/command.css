@@ -787,7 +787,6 @@
 .mb-synspeak.on { background: var(--live); color: #07080a; }
 
 /* ---- Morning block: article images + video ---- */
-.mb-item-img { display: flex; gap: 14px; align-items: flex-start; }
 .mb-thumb { width: 116px; height: 74px; object-fit: cover; border-radius: 6px; flex: 0 0 116px; background: var(--faint); }
 .mb-itemtext { flex: 1; min-width: 0; }
 .mb-vids { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -985,7 +984,16 @@
 .mb-mailhead { display: block; font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--subtle); margin-bottom: 8px; }
 .mb-mailhead.imp { color: var(--warn); }
 .mb-item-open { border-color: var(--live-dim) !important; }
-.mb-artbtn { display: flex; gap: 14px; align-items: flex-start; width: 100%; text-align: left; background: none; border: none; padding: 0; cursor: pointer; color: inherit; }
+/*
+ * The row is the button's job, and the card around it stays a block.
+ *
+ * The wrapper used to be `display: flex` too, from when it held the thumbnail
+ * and text directly. After the markup moved into this button, that made the
+ * expanded AI summary a second column *beside* the button instead of beneath
+ * it: the title was squeezed to one word per line and the summary painted over
+ * the top of it. Anything added to the card goes under this, not next to it.
+ */
+.mb-artbtn { display: flex; gap: 14px; align-items: flex-start; width: 100%; min-width: 0; text-align: left; background: none; border: none; padding: 0; cursor: pointer; color: inherit; }
 .mb-artcue { color: var(--live); font-family: var(--mono); font-size: 9px; letter-spacing: .5px; text-transform: uppercase; }
 .mb-artsum { padding: 12px 14px 4px; border-top: 1px solid var(--border-glass); margin-top: 11px; }
 .mb-artsum p { font-size: 13px; line-height: 1.6; color: var(--muted); }

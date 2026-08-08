@@ -320,7 +320,7 @@ export function MorningBlock() {
                   const open = openArticle === h.link;
                   const sum = summaries[h.link];
                   return (
-                    <div key={i} className={cn("mb-item", h.image && "mb-item-img", open && "mb-item-open")}>
+                    <div key={i} className={cn("mb-item", open && "mb-item-open")}>
                       <button className="mb-artbtn" onClick={() => summarize(h)}>
                         {h.image && <img src={h.image} alt="" className="mb-thumb" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />}
                         <div className="mb-itemtext">

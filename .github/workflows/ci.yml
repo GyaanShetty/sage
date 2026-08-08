@@ -1,0 +1,29 @@
+name: CI
+
+# Runs on every push and pull request. Deliberately needs NO secrets: the
+# tests are pure logic and the build tolerates a missing configuration, so a
+# contributor's fork gets the same green tick the main repo does. A CI that
+# only passes for the maintainer is not much of a CI.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Lint
+        run: npx eslint .
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npx next build

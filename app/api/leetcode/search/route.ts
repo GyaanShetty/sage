@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { searchProblems, problemByNumber } from "@/infrastructure/integrations/leetcode";
+import { searchProblems, problemByNumber, lastLeetcodeError } from "@/infrastructure/integrations/leetcode";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +36,16 @@ export async function GET(req: Request) {
   // Null means LeetCode did not answer — say so rather than showing an empty
   // list, which reads as "no such problem" and is a different thing entirely.
   if (problems === null) {
+    // Say what LeetCode actually objected to. "Something went wrong" is not
+    // something anyone can act on, and this endpoint cannot be reached from
+    // where it was written — the message is the only diagnosis available.
+    const why = lastLeetcodeError();
     return NextResponse.json(
-      { ok: false, error: "LeetCode didn't answer the search. Their problem-list API may have changed shape again." },
+      {
+        ok: false,
+        error: "LeetCode didn't answer the search — their problem-list API has changed shape again.",
+        detail: why ?? null,
+      },
       { status: 502 },
     );
   }

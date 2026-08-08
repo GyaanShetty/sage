@@ -104,7 +104,12 @@ export function CodeLab({ slug }: { slug?: string }) {
       const j = await fetch(`/api/leetcode/search?${params}`).then((r) => r.json()).catch(() => null);
       setSearching(false);
       if (j?.ok) { setSearchErr(null); setResults(j.data.problems as Found[]); }
-      else { setSearchErr(j?.error ?? "The search didn't come back."); setResults([]); }
+      else {
+        // The detail is what LeetCode said. Ugly, and the only thing that makes
+        // a schema change fixable by whoever reads it.
+        setSearchErr([j?.error ?? "The search didn't come back.", j?.detail].filter(Boolean).join(" — "));
+        setResults([]);
+      }
     }, 320);
     return () => clearTimeout(t);
   }, [query, difficulty, picking]);

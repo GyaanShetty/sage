@@ -12,7 +12,6 @@ import { BootSequence } from "@/components/boot-sequence";
 import { BootBriefing } from "@/components/boot-briefing";
 import { WakeWord } from "@/features/voice/wake-word";
 import { HudLayer } from "@/components/hud-layer";
-import { ProactiveVoice } from "@/components/proactive-voice";
 import { GestureNav } from "@/features/gestures/gesture-nav";
 import { ErrorReporter } from "@/components/error-reporter";
 import { ReminderTicker } from "@/components/reminder-ticker";
@@ -40,7 +39,6 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <WakeWord />
       <AmbientMode />
       <HudLayer />
-      <ProactiveVoice />
       <GestureNav />
       <ErrorReporter />
     </div>

@@ -6,120 +6,23 @@ import { sound } from "@/lib/sound";
 import { speakLowLatency } from "@/lib/speak";
 
 /**
- * Spoken JARVIS-style debrief once per session, just after the boot
- * sequence. Fetches the briefing script, speaks it via neural TTS (browser
- * voice fallback), and shows a live caption. Because browsers block audio
- * without a gesture, if playback is refused we arm it to fire on the first
- * tap and show a subtle prompt.
+ * The spoken briefing — on request only.
  *
- * It also answers `sage:replay-brief` (⌘K → "Play morning brief"). The
- * automatic run claims the day's briefing so only the first device to open
- * SAGE speaks it; a replay deliberately does NOT claim, so you can hear it
- * again as many times as you like — including on a day where the claim was
- * already spent by a tab you had closed, which is exactly how a briefing goes
- * missing without anyone noticing.
+ * This used to run itself: a market debrief spoken aloud a second and a half
+ * after the app loaded, armed to fire on your first tap if the browser blocked
+ * autoplay. Opening SAGE to read one thing and being told about the Nifty is
+ * not assistance, it is an interruption you did not schedule, and a voice that
+ * interrupts is a voice you mute — after which it can tell you nothing at all.
+ *
+ * So nothing here speaks unless asked. It answers `sage:replay-brief`, which
+ * is ⌘K → "Play morning brief" and the play button on the dashboard's brief
+ * block. Given text it reads that instead, which is how an older briefing gets
+ * replayed from the history list.
  */
 export function BootBriefing() {
   const [caption, setCaption] = useState<string | null>(null);
   const [needsTap, setNeedsTap] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const startedRef = useRef(false);
-
-  useEffect(() => {
-    // Guard against double-invoke within a single page load only. The real
-    // once-per-day, cross-device dedup is decided by the server ?claim=1.
-    if (startedRef.current) return;
-
-    let cancelled = false;
-
-    const speakBrowser = (text: string) => {
-      const synth = window.speechSynthesis;
-      if (!synth) return;
-      const u = new SpeechSynthesisUtterance(text);
-      const pick = () => {
-        const vs = synth.getVoices();
-        return (
-          vs.find((v) => /en-GB/i.test(v.lang) && /male|daniel|george|arthur|oliver/i.test(v.name)) ??
-          vs.find((v) => v.name === "Google UK English Male") ??
-          vs.find((v) => /en-GB/i.test(v.lang)) ??
-          vs.find((v) => /^en/i.test(v.lang)) ??
-          null
-        );
-      };
-      const v = pick();
-      if (v) u.voice = v;
-      u.rate = 0.94;
-      u.pitch = 0.78; // deeper
-      u.onend = () => !cancelled && setCaption(null);
-      synth.speak(u);
-    };
-
-    const run = async () => {
-      if (startedRef.current) return;
-      startedRef.current = true;
-      try {
-        const cfg = localStorage.getItem("sage-market-config");
-        const indices = cfg ? (JSON.parse(cfg).indices as string[])?.join(",") : "^NSEI,^BSESN";
-        // claim=1 → only the first device to open SAGE today gets the text.
-        const res = await fetch(`/api/brief/debrief?claim=1&symbols=${encodeURIComponent(indices || "^NSEI,^BSESN")}`);
-        const json = await res.json();
-        const text: string | null = json?.data?.text ?? null;
-        if (!text || cancelled) return; // already played today on another device
-        setCaption(text);
-
-        if (!sound.isOn()) {
-          // Muted: show the caption for a beat, no audio.
-          setTimeout(() => !cancelled && setCaption(null), 9000);
-          return;
-        }
-
-        // Neural TTS first — streamed, low-latency (flash model).
-        let played = false;
-        try {
-          const audio = await speakLowLatency(text, { fast: true, onended: () => setCaption(null) });
-          if (audio && !cancelled) { audioRef.current = audio; played = true; }
-          else if (audio === null && "speechSynthesis" in window) played = true; // browser path handled inside
-        } catch {
-          played = false;
-        }
-        if (!played && !cancelled) {
-          // Try browser synthesis; if that path is also gesture-gated, prompt.
-          try {
-            speakBrowser(text);
-          } catch {
-            setNeedsTap(true);
-          }
-        }
-      } catch {
-        setCaption(null);
-      }
-    };
-
-    // If the browser blocks gesture-free autoplay, fire on the FIRST
-    // interaction of any kind — tap, scroll, or key — so the user never has
-    // to deliberately press anything; simply using the app starts it.
-    const EVENTS = ["pointerdown", "touchstart", "keydown", "wheel", "scroll"] as const;
-    const onInteract = () => {
-      if (audioRef.current && audioRef.current.paused && audioRef.current.src) {
-        audioRef.current.play().catch(() => {});
-      } else if (window.speechSynthesis?.paused) {
-        window.speechSynthesis.resume();
-      }
-      setNeedsTap(false);
-    };
-    EVENTS.forEach((e) => window.addEventListener(e, onInteract, { once: true, passive: true }));
-
-    // Start shortly after boot (short, to stay within any residual activation).
-    const t = setTimeout(run, 1600);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      EVENTS.forEach((e) => window.removeEventListener(e, onInteract));
-      audioRef.current?.pause();
-      window.speechSynthesis?.cancel();
-    };
-  }, []);
 
   /** Speak a brief on demand. With no argument it fetches today's (without
    *  claiming it); given text it reads that instead, which is how an older

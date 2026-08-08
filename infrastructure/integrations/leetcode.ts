@@ -423,24 +423,6 @@ export async function problemByNumber(id: number): Promise<ProblemSummary | null
   return all.find((p) => p.frontendId === String(id)) ?? null;
 }
 
-/**
- * The old paging lookup.
- *
- * Superseded by the catalogue and kept only because it costs one small request
- * where the catalogue costs a large one — worth trying first if the catalogue
- * ever becomes the slow path. Not currently called.
- */
-export async function problemByNumberViaList(id: number): Promise<ProblemSummary | null> {
-  const wanted = String(id);
-  // The list is ordered by id, so the page holding it is predictable — but
-  // premium-only and retired problems make the alignment drift, so the window
-  // is wide and widened once before giving up.
-  for (const [skip, limit] of [[Math.max(0, id - 25), 60], [Math.max(0, id - 120), 250]] as const) {
-    const hit = (await questionPage(limit, skip, {}) ?? []).find((q) => q.frontendQuestionId === wanted);
-    if (hit) return toSummary(hit);
-  }
-  return null;
-}
 
 export interface LeetStats {
   username: string;

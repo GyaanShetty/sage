@@ -88,6 +88,11 @@ Supabase *returns* errors rather than throwing them, so `await db.insert(...)`
 succeeds even when the row was rejected. `tests/logic.test.ts` has a test that
 reads the schema and checks every insert supplies the NOT NULL columns; run it.
 
+**The LeetCode picker is empty or erroring** — their problem-list GraphQL has
+changed shape before. Four query shapes are tried, then `/api/problems/all/` as
+a fallback. The red line on the page carries LeetCode's own error after the
+em-dash; that text is the diagnosis.
+
 **You deleted something you needed** — `core/ops/trash.ts` snapshots the whole
 row before any delete, kept 30 days.
 

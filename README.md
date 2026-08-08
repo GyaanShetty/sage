@@ -87,9 +87,11 @@ feature and says so on the page, rather than crashing.
   borrowing your session cookie — against their terms, and not a thing to build.
 - **Video and audio uploads are stored, not read.** Only text and images reach
   a model.
-- **The LeetCode problem search is unverified** against the live API at the
-  time of writing; if their problem-list endpoint has changed shape again, the
-  picker will say so explicitly rather than showing an empty list.
+- **The LeetCode problem search leans on undocumented endpoints.** Their
+  GraphQL problem list has been rewritten twice; four query shapes are tried,
+  and if all fail it falls back to `/api/problems/all/`, the REST endpoint that
+  has not changed in years. When something does break, the picker names what
+  LeetCode said rather than showing an empty list.
 
 ## Architecture
 
@@ -115,7 +117,7 @@ runbook is [docs/OPERATIONS.md](docs/OPERATIONS.md).
 ## Tests
 
 ```bash
-npm test                 # 117 pure-logic tests, no network
+npm test                 # 119 pure-logic tests, no network
 npx tsc --noEmit
 npx next build
 ```

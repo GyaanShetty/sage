@@ -42,6 +42,8 @@ export function FeynmanView() {
   const [adding, setAdding] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [draft, setDraft] = useState({ title: "", source: "", sourceUrl: "" });
+  /** Separate from `error`, which belongs to whichever concept is open. */
+  const [loadErr, setLoadErr] = useState<string | null>(null);
 
   const recordingRef = useRef(false);
 
@@ -61,8 +63,15 @@ export function FeynmanView() {
     try {
       const res = await fetch("/api/feynman");
       const json = await res.json();
-      if (json.ok) setConcepts(json.data.concepts as Concept[]);
-    } catch { setError("Couldn't reach the list."); }
+      if (json.ok) { setConcepts(json.data.concepts as Concept[]); setLoadErr(null); }
+      // Without this the list stayed null and the page said "Loading…"
+      // forever — a permanent spinner for a request that already came back
+      // and failed.
+      else { setConcepts([]); setLoadErr(json.error ?? "The list came back empty-handed."); }
+    } catch {
+      setConcepts([]);
+      setLoadErr("Couldn't reach the list.");
+    }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -278,7 +287,8 @@ export function FeynmanView() {
         </section>
       )}
 
-      {concepts === null && <p className="fy-empty">Loading…</p>}
+      {concepts === null && !loadErr && <p className="fy-empty">Loading…</p>}
+      {loadErr && <p className="fy-error">{loadErr}</p>}
     </div>
   );
 }

@@ -54,7 +54,10 @@ export function ExamView() {
     try {
       const res = await fetch("/api/exam");
       const json = await res.json();
-      if (!json.ok) return;
+      // A silent return left the page blank and unexplained, which reads as
+      // "you have no exams" rather than "the request failed".
+      if (!json.ok) { setError(json.error ?? "Couldn't load your papers."); return; }
+      setError(null);
       setExams(json.data.exams as Exam[]);
       setQuestions(json.data.questions as Question[]);
       setCountdown(json.data.countdown as Countdown | null);
@@ -135,6 +138,9 @@ export function ExamView() {
           Put the date in and SAGE changes what it does about it: the night shift stops researching
           whatever you last wondered about and starts setting questions off your syllabus instead.
         </p>
+        {/* A load failure has to be visible where you are looking. The only
+            error line used to be at the foot of the page, under the form. */}
+        {error && <p className="ex-error">{error}</p>}
       </header>
 
       {countdown && (

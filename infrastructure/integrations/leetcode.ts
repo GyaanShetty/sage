@@ -2,6 +2,21 @@ import { proxyFetch } from "@/infrastructure/http/fetch";
 
 const GQL = "https://leetcode.com/graphql";
 
+/**
+ * The last thing LeetCode said when a query failed.
+ *
+ * GraphQL answers a malformed query with HTTP 200 and an `errors` array, which
+ * this used to discard entirely — so "unknown field" and "the network is down"
+ * were indistinguishable from the outside, and a schema change could only be
+ * diagnosed by someone who could reach the API themselves. Now the message is
+ * kept so a caller can surface it.
+ */
+let lastGqlError: string | null = null;
+
+export function lastLeetcodeError(): string | null {
+  return lastGqlError;
+}
+
 async function gql<T>(query: string, variables: Record<string, unknown>): Promise<T | null> {
   try {
     const res = await proxyFetch(GQL, {
@@ -14,10 +29,19 @@ async function gql<T>(query: string, variables: Record<string, unknown>): Promis
       body: JSON.stringify({ query, variables }),
       signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { data?: T };
+    if (!res.ok) {
+      lastGqlError = `HTTP ${res.status}`;
+      return null;
+    }
+    const json = (await res.json()) as { data?: T; errors?: { message?: string }[] };
+    if (json.errors?.length) {
+      lastGqlError = json.errors.map((e) => e.message).filter(Boolean).join("; ").slice(0, 300);
+      return null;
+    }
+    lastGqlError = null;
     return json.data ?? null;
-  } catch {
+  } catch (e) {
+    lastGqlError = (e as Error).message?.slice(0, 200) ?? "request failed";
     return null;
   }
 }
@@ -138,26 +162,72 @@ interface RawQuestion {
 
 const FIELDS = `
   questions: data {
-    title titleSlug difficulty acRate paidOnly frontendQuestionId
+    title titleSlug difficulty acRate paidOnly
+    frontendQuestionId: questionFrontendId
     topicTags { name }
   }
 `;
 
 /**
- * LeetCode has renamed this endpoint before.
+ * The problem list, whichever shape LeetCode is serving today.
  *
- * `questionList` is the long-standing name and `problemsetQuestionList` is the
- * newer one; which answers depends on the day. Rather than pick one and have
- * search quietly return nothing the next time they swap, try both — the second
- * costs a round trip only when the first has already failed.
+ * They have rewritten this endpoint more than once and the variants are not
+ * compatible: the field is named differently, the search term moved from
+ * inside `filters` to its own variable, the rows moved from `data` to
+ * `questions`, and the id is `questionFrontendId` in one and
+ * `frontendQuestionId` in another. Picking one and hoping is how the picker
+ * shipped broken.
+ *
+ * So each known shape is tried in turn, newest first, and the first that
+ * answers wins. A wrong guess costs one round trip and returns a GraphQL error
+ * rather than doing damage, which makes this cheap to be wrong about — and the
+ * error is kept, so if all of them fail the message says what LeetCode
+ * actually objected to instead of "something went wrong".
  */
 async function questionPage(
   limit: number,
   skip: number,
   filters: Record<string, unknown>,
 ): Promise<RawQuestion[] | null> {
-  const vars = { categorySlug: "", limit, skip, filters };
+  const { searchKeywords, difficulty, tags } = filters as {
+    searchKeywords?: string; difficulty?: string; tags?: string[];
+  };
+  const errors: string[] = [];
 
+  /**
+   * V2 does not take the old filter object.
+   *
+   * Difficulty became a list and the search term moved out entirely, so
+   * forwarding the legacy shape would fail on a type error even when the
+   * endpoint itself is the right one — the worst kind of near miss. Anything
+   * not understood here is simply left off: a slightly broader result set is
+   * better than no result set.
+   */
+  const v2Filters: Record<string, unknown> = {};
+  if (difficulty) v2Filters.difficultyList = [difficulty];
+  if (tags?.length) v2Filters.topicSlugs = tags;
+
+  // ── shape 1: problemsetQuestionListV2, the current one ───────────────────
+  // Search is its own variable here, and the filter input has a new type name.
+  const v2 = await gql<{ page?: { questions: RawQuestion[] } }>(
+    `query v2($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionFilterInput, $searchKeyword: String) {
+      page: problemsetQuestionListV2(
+        categorySlug: $categorySlug, limit: $limit, skip: $skip,
+        filters: $filters, searchKeyword: $searchKeyword
+      ) {
+        questions {
+          title titleSlug difficulty acRate paidOnly
+          frontendQuestionId: questionFrontendId
+          topicTags { name }
+        }
+      }
+    }`,
+    { categorySlug: "", limit, skip, filters: v2Filters, searchKeyword: searchKeywords ?? "" },
+  );
+  if (Array.isArray(v2?.page?.questions)) return v2.page.questions;
+  if (lastGqlError) errors.push(`v2: ${lastGqlError}`);
+
+  // ── shape 2 and 3: the older list, under either name ─────────────────────
   for (const field of ["problemsetQuestionList", "questionList"] as const) {
     const data = await gql<Record<string, { questions: RawQuestion[] } | undefined>>(
       `query list($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
@@ -165,12 +235,36 @@ async function questionPage(
           ${FIELDS}
         }
       }`,
-      vars,
+      { categorySlug: "", limit, skip, filters },
     );
     // An answered query with an empty list is a real "no matches" and must not
-    // send us on to try the other field name.
+    // send us on to try the next shape.
     if (Array.isArray(data?.page?.questions)) return data.page.questions;
+    if (lastGqlError) errors.push(`${field}: ${lastGqlError}`);
   }
+
+  // ── last resort: V2 with nothing but the search term ─────────────────────
+  // If the filter input is what it objected to, this still answers, and a
+  // slightly unfiltered list beats an empty picker.
+  if (Object.keys(v2Filters).length > 0) {
+    const bare = await gql<{ page?: { questions: RawQuestion[] } }>(
+      `query bare($limit: Int, $skip: Int, $searchKeyword: String) {
+        page: problemsetQuestionListV2(limit: $limit, skip: $skip, searchKeyword: $searchKeyword) {
+          questions {
+            title titleSlug difficulty acRate paidOnly
+            frontendQuestionId: questionFrontendId
+            topicTags { name }
+          }
+        }
+      }`,
+      { limit, skip, searchKeyword: searchKeywords ?? "" },
+    );
+    if (Array.isArray(bare?.page?.questions)) return bare.page.questions;
+    if (lastGqlError) errors.push(`v2-bare: ${lastGqlError}`);
+  }
+
+  // Every shape failed. Keep what each one said — that is the whole diagnosis.
+  lastGqlError = errors.join(" | ").slice(0, 400) || "no response";
 
   // Null, not an empty array. "LeetCode did not answer" and "nothing matched
   // your search" are different facts, and showing the second when the first is

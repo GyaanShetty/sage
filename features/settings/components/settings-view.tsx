@@ -9,6 +9,7 @@ import { APP_NAME } from "@/lib/config";
 import { Preferences } from "./preferences";
 import { Diagnostics } from "./diagnostics";
 import { Vitals } from "./vitals";
+import { Passkeys } from "./passkeys";
 import { CalendarFeeds } from "./calendar-feeds";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
@@ -133,6 +134,8 @@ export function SettingsView({
 
         <motion.div variants={fadeRise}>
           <Vitals />
+
+          <Passkeys />
         </motion.div>
 
         <motion.div variants={fadeRise}>

@@ -53,8 +53,24 @@ self.addEventListener("notificationclick", (e) => {
 self.addEventListener("fetch", (e) => {
   const { request } = e;
   if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+
+  /**
+   * Only our own origin.
+   *
+   * This used to intercept every GET, third-party included — and the offline
+   * fallback below answers a failed request with the dashboard's HTML. So a
+   * Spotify album image that failed to load was served our page instead, and
+   * the browser then parsed that HTML with i.scdn.co as its base and went
+   * asking Spotify for our fonts and stylesheets. Harmless-looking console
+   * noise, an app shell handed out under someone else's origin, and a cache
+   * full of responses that were never ours to give.
+   */
+  if (url.origin !== self.location.origin) return;
+
   // Never cache API calls — always live.
-  if (new URL(request.url).pathname.startsWith("/api/")) return;
+  if (url.pathname.startsWith("/api/")) return;
   e.respondWith(
     fetch(request)
       .then((res) => {

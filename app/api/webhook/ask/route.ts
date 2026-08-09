@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "@/lib/auth";
 import { runVoiceTurn } from "@/core/voice/turn";
 
 export const maxDuration = 60;
@@ -21,7 +22,9 @@ function authed(req: Request, url: URL): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const provided = url.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  return provided === secret;
+  // Constant-time: this route is public by necessity, so a `===` here hands an
+  // attacker the secret's length and, with enough samples, its prefix.
+  return timingSafeEqual(provided ?? "", secret);
 }
 
 async function handle(req: Request, text: string | null): Promise<Response> {

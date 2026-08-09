@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "@/lib/auth";
 import { beat, type Job } from "@/core/ops/heartbeat";
 import { fireDueReminders } from "@/core/reminders/fire";
 import { syncEventReminders } from "@/core/reminders/prep";
@@ -108,7 +109,9 @@ function authorised(req: Request): boolean {
   if (!secret) return true;                 // unset: local dev, gate disabled
   const header = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const query = new URL(req.url).searchParams.get("key");
-  return header === secret || query === secret;
+  // Constant-time, because this endpoint is reachable without a session by
+  // design and `===` on a secret leaks its length and its prefix.
+  return timingSafeEqual(header ?? "", secret) || timingSafeEqual(query ?? "", secret);
 }
 
 export async function GET(req: Request) {

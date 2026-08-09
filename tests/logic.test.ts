@@ -1831,3 +1831,59 @@ test("nothing speaks unless it was asked to", async () => {
 
   assert.deepEqual(offenders, [], "speech must be triggered by the user, not by a timer");
 });
+
+test("the security headers say what they must, and allow what the app needs", async () => {
+  const { SECURITY_HEADERS, CSP } = await import("@/lib/security");
+  const byKey = new Map(SECURITY_HEADERS.map((h) => [h.key, h.value]));
+
+  // Clickjacking: SAGE holds money, mail and health. It must never be framed.
+  assert.match(CSP, /frame-ancestors 'none'/);
+  assert.equal(byKey.get("X-Frame-Options"), "DENY");
+
+  assert.match(CSP, /object-src 'none'/);
+  assert.match(CSP, /base-uri 'self'/);
+  assert.match(CSP, /form-action 'self'/);
+  assert.match(byKey.get("Strict-Transport-Security") ?? "", /max-age=\d{7,}/);
+  assert.equal(byKey.get("X-Content-Type-Options"), "nosniff");
+
+  // A policy that breaks the app gets deleted, and a deleted policy protects
+  // nothing — so the things the app genuinely needs are pinned here too.
+  const perms = byKey.get("Permissions-Policy") ?? "";
+  assert.match(perms, /microphone=\(self\)/, "dictation needs the microphone");
+  assert.match(perms, /publickey-credentials-get=\(self\)/, "passkeys stop working without this");
+  assert.match(CSP, /img-src[^;]*https:/, "article thumbnails come from anywhere");
+  assert.match(CSP, /frame-src[^;]*youtube/, "the morning block embeds video");
+});
+
+test("a state-changing request has to come from SAGE's own pages", async () => {
+  const { sameOrigin, MUTATING } = await import("@/lib/security");
+
+  const req = (headers: Record<string, string>) =>
+    new Request("https://sage.example/api/task", { method: "POST", headers });
+
+  assert.equal(sameOrigin(req({ origin: "https://sage.example", host: "sage.example" })), true);
+  assert.equal(sameOrigin(req({ origin: "https://evil.example", host: "sage.example" })), false);
+
+  // No Origin at all is refused rather than waved through. Browsers always
+  // send it on these methods; something that does not is not a browser.
+  assert.equal(sameOrigin(req({ host: "sage.example" })), false);
+  assert.equal(sameOrigin(req({ origin: "not a url", host: "sage.example" })), false);
+
+  // Reads are untouched — the gate is about changing things.
+  assert.equal(MUTATING.has("GET"), false);
+  assert.equal(MUTATING.has("DELETE"), true);
+});
+
+test("the relying party is not taken from a header when it can be configured", async () => {
+  // The Host header is attacker-controlled. Deriving the passkey's relying
+  // party from it would let someone bind a credential to a hostname of their
+  // choosing, which is the one input this feature must not trust.
+  const src = await import("node:fs").then((fs) =>
+    fs.readFileSync("core/auth/passkeys.ts", "utf8"));
+
+  const fn = src.slice(src.indexOf("export function relyingParty"));
+  const appUrlAt = fn.indexOf("APP_URL");
+  const hostAt = fn.indexOf('headers.get("host")');
+  assert.ok(appUrlAt !== -1 && hostAt !== -1);
+  assert.ok(appUrlAt < hostAt, "APP_URL must be consulted before the Host header");
+});

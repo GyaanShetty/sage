@@ -150,3 +150,9 @@
   /* Still ends visible — "no animation" must not mean "no panel". */
   .lg-panel { animation: none; opacity: 1; transform: none; }
 }
+
+/* Passkey sign-in. Only rendered once one is registered — an unlock button
+   that cannot unlock anything is worse than no button at all. */
+.lg-passkey { display: block; width: 100%; margin-top: 12px; padding: 10px 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 1.6px; color: var(--live); background: transparent; border: 1px solid var(--live-dim); border-radius: 6px; cursor: pointer; transition: background .15s, color .15s; }
+.lg-passkey:hover:not(:disabled) { background: color-mix(in srgb, var(--live) 12%, transparent); }
+.lg-passkey:disabled { opacity: .45; cursor: default; }

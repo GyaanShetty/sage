@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { SECURITY_HEADERS } from "./lib/security";
 
 const nextConfig: NextConfig = {
   /**
@@ -15,6 +16,20 @@ const nextConfig: NextConfig = {
    * relative to its own package at runtime.
    */
   serverExternalPackages: ["pdf-parse", "pdfjs-dist", "jsdom"],
+
+  /**
+   * Applied to every response, including static assets and error pages.
+   *
+   * Set here rather than in middleware so they hold even on paths the
+   * middleware skips — a security header that is missing from exactly the
+   * routes nobody thought about is the usual way this goes wrong.
+   */
+  async headers() {
+    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
+
+  // The server's name and version is free reconnaissance.
+  poweredByHeader: false,
 };
 
 export default nextConfig;

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifyToken } from "@/lib/auth";
+import { MUTATING, sameOrigin } from "@/lib/security";
 
 /**
  * Access gate: when SAGE_PASSWORD is set, every page and API route requires
@@ -10,6 +11,36 @@ export async function middleware(req: NextRequest) {
   if (!password) return NextResponse.next(); // gate disabled (local dev)
 
   const { pathname } = req.nextUrl;
+
+  /**
+   * Machine endpoints, called by things that are not a browser.
+   *
+   * An external scheduler sends no Origin header and holds no cookie, so these
+   * cannot be origin-checked and must not be. Each carries its own secret,
+   * compared in constant time inside the route.
+   */
+  const machine =
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/beat") ||
+    pathname.startsWith("/api/webhook");
+
+  /**
+   * Cross-site request forgery, second lock.
+   *
+   * SameSite=Lax already stops another site's POST from carrying the session
+   * cookie, so this is defence in depth — but Lax is a browser policy, and a
+   * policy is only as good as the browser honouring it. A state-changing
+   * request has to say it came from here.
+   *
+   * Deliberately ahead of the public-path list. Sign-in and passkey enrolment
+   * live under /api/auth, and those are precisely the requests worth
+   * protecting from another site — checking after the allowlist would have
+   * exempted them.
+   */
+  if (!machine && MUTATING.has(req.method) && !sameOrigin(req)) {
+    return NextResponse.json({ ok: false, error: "CROSS_ORIGIN_REFUSED" }, { status: 403 });
+  }
+
   // Public: login, auth, cron, and PWA install assets (manifest, SW, icons).
   if (
     pathname.startsWith("/login") ||

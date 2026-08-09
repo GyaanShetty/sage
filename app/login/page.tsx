@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { startAuthentication } from "@simplewebauthn/browser";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import "./login.css";
 
@@ -81,6 +82,54 @@ export default function LoginPage() {
     inputRef.current?.select();
   };
 
+  /**
+   * Sign in with the device instead of the password.
+   *
+   * Only offered once a passkey exists — the options endpoint 404s otherwise,
+   * and a Face ID button that always fails is worse than no button. The
+   * browser does the hard part: it will only sign for the origin the
+   * credential was registered to, so a lookalike page cannot ask for this.
+   */
+  const [hasPasskey, setHasPasskey] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.PublicKeyCredential) return;
+    fetch("/api/auth/passkey/login")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setHasPasskey(!!j?.ok))
+      .catch(() => undefined);
+  }, []);
+
+  const signInWithDevice = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const optRes = await fetch("/api/auth/passkey/login");
+      const opt = await optRes.json();
+      if (!opt?.ok) { setError(opt?.error ?? "No passkey available."); setBusy(false); return; }
+
+      const assertion = await startAuthentication({ optionsJSON: opt.data });
+
+      const res = await fetch("/api/auth/passkey/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ response: assertion }),
+      });
+      const j = await res.json().catch(() => null);
+      if (res.ok && j?.ok) {
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+      setError(j?.error ?? "That did not verify.");
+    } catch (e) {
+      // A cancelled prompt is not a failure worth shouting about.
+      const msg = (e as Error).name === "NotAllowedError" ? null : (e as Error).message;
+      if (msg) setError(msg.slice(0, 140));
+    }
+    setBusy(false);
+  };
+
   const left = noiseColumn(26, 7);
   const right = noiseColumn(26, 991);
 
@@ -137,6 +186,12 @@ export default function LoginPage() {
             {busy ? "…" : "ENTER"}
           </button>
         </div>
+
+        {hasPasskey && (
+          <button onClick={signInWithDevice} disabled={busy} className="lg-passkey">
+            ⛨ UNLOCK WITH FACE ID / TOUCH ID
+          </button>
+        )}
 
         {error && <p className="lg-err">{error}</p>}
 

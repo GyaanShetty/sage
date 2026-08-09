@@ -1797,13 +1797,11 @@ test("a number lookup tells failure and absence apart", async () => {
   );
 });
 
-test("nothing speaks unless it was asked to", async () => {
-  // SAGE used to talk on its own: a proactive poller that read out market
-  // alerts every few minutes, and a briefing that spoke itself a second after
-  // the app loaded. A voice that interrupts is a voice you mute, and a muted
-  // voice cannot tell you anything — so speech is on request only now.
-  //
-  // This catches the shape that regressed: speech reached from a timer.
+test("the ambient voice is the only thing that may speak on its own", async () => {
+  // The rule changed deliberately, and the test changed with it rather than
+  // being deleted. Ambient alerts are wanted — across every domain, not just
+  // the markets — but interruption is the whole risk, so the guards are the
+  // thing worth pinning: everything else still speaks only when asked.
   const fs = await import("node:fs");
   const path = await import("node:path");
 
@@ -1818,18 +1816,56 @@ test("nothing speaks unless it was asked to", async () => {
   walk("components");
   walk("features");
 
-  const offenders: string[] = [];
+  const timerSpeakers: string[] = [];
   for (const file of files) {
     const src = fs.readFileSync(file, "utf8");
-    const speaks = /speakLowLatency|voice\/speak|synth\.speak|speechSynthesis\.speak/.test(src);
-    if (!speaks) continue;
-    // A timer is how unprompted speech gets scheduled. The voice assistant's
-    // own loop is exempt: it only runs after you enable and address it.
+    if (!/speakLowLatency|voice\/speak|synth\.speak|speechSynthesis\.speak/.test(src)) continue;
+    // The assistant's own loop is exempt: it runs only once enabled and addressed.
     if (file.endsWith("features/voice/engine.ts")) continue;
-    if (/set(Timeout|Interval)\s*\(\s*(run|check|speak)/.test(src)) offenders.push(file);
+    if (/set(Timeout|Interval)\s*\(\s*(run|check|speak)/.test(src)) timerSpeakers.push(file);
   }
 
-  assert.deepEqual(offenders, [], "speech must be triggered by the user, not by a timer");
+  assert.deepEqual(
+    timerSpeakers,
+    ["components/ambient-voice.tsx"],
+    "only the ambient voice may speak unprompted",
+  );
+
+  // And it may only do so under the conditions that keep it bearable.
+  const ambient = fs.readFileSync("components/ambient-voice.tsx", "utf8");
+  assert.match(ambient, /sound\.isOn\(\)/, "muting the app must silence it");
+  assert.match(ambient, /isTyping\(\)/, "it must not talk over you mid-sentence");
+  assert.match(ambient, /document\.hidden/, "a background tab has no business talking");
+  assert.match(ambient, /voiceOpen/, "it must not interrupt a live conversation");
+  assert.match(ambient, /first/, "the backlog on arrival is recorded, not read aloud");
+});
+
+test("what gets said first is what costs most to miss", async () => {
+  const { rankAmbient, nextToSay } = await import("@/core/ambient");
+
+  const items = [
+    { key: "m", urgency: "notice" as const, domain: "market", text: "SOL up 3.2%." },
+    { key: "c", urgency: "now" as const, domain: "calendar", text: "Standup in 10 minutes." },
+    { key: "t", urgency: "soon" as const, domain: "task", text: "Two tasks past their date." },
+  ];
+
+  // A coin moving is information; a meeting starting is a consequence.
+  assert.deepEqual(rankAmbient(items).map((i) => i.key), ["c", "t", "m"]);
+
+  // Mid-morning, the meeting is what gets said.
+  const morning = new Date("2026-08-09T05:00:00Z"); // 10:30 IST
+  assert.equal(nextToSay(items, {}, morning)?.key, "c");
+
+  // Already said today, so it moves on rather than repeating itself.
+  assert.equal(nextToSay(items, { c: "1" }, morning)?.key, "t");
+
+  // Chatter alone, late in the evening: say nothing at all.
+  const late = new Date("2026-08-09T16:30:00Z"); // 22:00 IST
+  assert.equal(nextToSay([items[0]], {}, late), null);
+
+  // And nothing whatsoever in the small hours.
+  const night = new Date("2026-08-09T20:00:00Z"); // 01:30 IST
+  assert.equal(nextToSay(items, {}, night), null);
 });
 
 test("the security headers say what they must, and allow what the app needs", async () => {

@@ -8,6 +8,7 @@ import { Toaster } from "@/components/toaster";
 import { MotionLayer } from "@/components/motion-layer";
 import { AmbientCanvas } from "@/components/ambient-canvas";
 import { AmbientMode } from "@/components/ambient-mode";
+import { AmbientVoice } from "@/components/ambient-voice";
 import { BootSequence } from "@/components/boot-sequence";
 import { BootBriefing } from "@/components/boot-briefing";
 import { WakeWord } from "@/features/voice/wake-word";
@@ -38,6 +39,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <VoiceOverlay />
       <WakeWord />
       <AmbientMode />
+      <AmbientVoice />
       <HudLayer />
       <GestureNav />
       <ErrorReporter />

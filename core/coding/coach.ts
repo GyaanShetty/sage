@@ -37,6 +37,35 @@ const schema = z.object({
   complexity: z.string().describe("Time and space complexity of the approach discussed, e.g. 'O(n) time, O(1) space'. Empty if not yet determined."),
 });
 
+/**
+ * LeetCode's own language slugs, and what to call them in a prompt.
+ *
+ * The slug was being handed to the model verbatim — "Language: golang" — as a
+ * single line in the middle of the user prompt. Models default to Python for
+ * competitive-programming problems, and a label that weak never overcame it,
+ * which is why every solution came back in Python whatever the picker said.
+ */
+const LANGUAGE_NAMES: Record<string, string> = {
+  python3: "Python 3",
+  cpp: "C++",
+  java: "Java",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  golang: "Go",
+  rust: "Rust",
+  c: "C",
+  csharp: "C#",
+  ruby: "Ruby",
+  swift: "Swift",
+  kotlin: "Kotlin",
+  scala: "Scala",
+  php: "PHP",
+};
+
+export function languageName(key: string): string {
+  return LANGUAGE_NAMES[key] ?? key;
+}
+
 const RULES: Record<HelpLevel, string> = {
   nudge:
     "Ask ONE question that gets him unstuck, and stop. Do not name the technique, do not describe the algorithm, do not write code. " +
@@ -68,6 +97,14 @@ export async function coach(input: {
   if (!model) return { error: "No model available right now." };
 
   const level = HELP_LEVELS.includes(input.level) ? input.level : "nudge";
+  const lang = languageName(input.language);
+
+  // Without a statement there is nothing to be accurate against, and the model
+  // would answer from memory — confidently, and often about a different
+  // revision of the problem. Refusing is the honest answer.
+  if (!input.statement.trim()) {
+    return { error: "The problem statement did not load, so I would only be recalling it. Reload the problem." };
+  }
 
   try {
     const { object } = await generateObject({
@@ -78,11 +115,33 @@ export async function coach(input: {
         "is a disservice — the green tick is worthless if he did not get there.\n\n" +
         `LEVEL: ${level}. ${RULES[level]}\n\n` +
         (level === "solution" ? "" : "The `code` field MUST be an empty string at this level.\n") +
+        // Stated here, in the system prompt, and stated as a rule rather than
+        // as a fact. As one line of context it lost every time to the model's
+        // habit of answering LeetCode in Python.
+        `LANGUAGE: write every line of code in ${lang}. This is not a preference — code in any ` +
+        `other language is a wrong answer, however correct the algorithm. Idioms, standard library ` +
+        `and naming conventions should be ${lang}'s own, not a transliteration of Python.\n\n` +
+        /**
+         * Grounding.
+         *
+         * The statement below is fetched from LeetCode. Without this the model
+         * answers from its memory of a problem with the same name, which is
+         * where the wrong constraints and invented examples came from — most
+         * damagingly when the two nearly agree, because then it looks right.
+         */
+        "ACCURACY: the statement below is the problem, and the only source for it. Do not use " +
+        "anything you remember about a problem with this name — recalled constraints, examples or " +
+        "follow-ups are frequently wrong or belong to a different revision. Every constraint, " +
+        "example and edge case you mention must be traceable to the text you were given. If the " +
+        "statement does not say something, say that it does not say, rather than filling it in.\n\n" +
         "Be direct. No praise, no 'great question', no restating the problem back at him.",
       prompt: [
         `Problem: ${input.title}`,
-        `Statement:\n${input.statement.slice(0, 4000)}`,
-        `Language: ${input.language}`,
+        // 4000 characters cut the longer problems mid-constraints, and a model
+        // handed a truncated statement completes it from memory — which is the
+        // very thing the accuracy rule above forbids.
+        `Statement:\n${input.statement.slice(0, 12_000)}`,
+        `Language: ${lang}`,
         input.code.trim() ? `His code so far:\n\`\`\`\n${input.code.slice(0, 6000)}\n\`\`\`` : "He has not written anything yet.",
         input.runOutput ? `Last run output:\n${input.runOutput.slice(0, 1500)}` : "",
       ].filter(Boolean).join("\n\n"),
@@ -96,8 +155,14 @@ export async function coach(input: {
       code: level === "solution" ? object.code : "",
       level,
     };
-  } catch {
-    return { error: "The model couldn't help with that one — try again." };
+  } catch (err) {
+    // Saying why matters here: "try again" is useless advice against a quota
+    // that resets tomorrow, and identical advice to an overloaded model that
+    // clears in seconds.
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/quota|429|RESOURCE_EXHAUSTED/i.test(msg)) return { error: "Out of AI quota for now — it resets, or add another key in Settings." };
+    if (/high demand|overloaded|503|UNAVAILABLE/i.test(msg)) return { error: "The model is busy. Ask again in a moment." };
+    return { error: `The model couldn't help with that one: ${msg.slice(0, 140)}` };
   }
 }
 

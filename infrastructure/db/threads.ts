@@ -49,6 +49,33 @@ export async function getOrCreateLatestThread(): Promise<ThreadRow> {
   return createThread("General");
 }
 
+/**
+ * A clean transcript, without losing the conversation.
+ *
+ * Opening /chat used to resume the most recent thread, so closing the panel
+ * and coming back showed yesterday's scrollback — the visible text never
+ * refreshed. Starting fresh is safe precisely because the transcript is not
+ * where SAGE remembers anything: facts are extracted into the Memory table on
+ * every turn and recalled by relevance, not by thread, so a new thread knows
+ * everything the old one taught it. The old threads are still listed and still
+ * readable; they just stop being the thing you land in.
+ *
+ * An already-empty latest thread is reused rather than replaced, or every page
+ * load would leave another blank thread in the list.
+ */
+export async function startFreshThread(): Promise<ThreadRow> {
+  const threads = await listThreads();
+  const latest = threads[0];
+  if (latest) {
+    const { count } = await db
+      .from("Message")
+      .select("id", { count: "exact", head: true })
+      .eq("threadId", latest.id);
+    if (!count) return latest;
+  }
+  return createThread();
+}
+
 export async function loadThreadMessages(threadId: string): Promise<UIMessage[]> {
   const { data } = await db
     .from("Message")

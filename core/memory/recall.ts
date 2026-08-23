@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
+import { within } from "@/lib/budget";
 
 export interface RecalledMemory {
   id: string;
@@ -45,10 +46,7 @@ const RECALL_DEADLINE_MS = 1200;
 
 /** Whatever recall produced by the deadline, or nothing. Never throws. */
 export async function recallWithin(query: string, limit = 8, ms = RECALL_DEADLINE_MS): Promise<RecalledMemory[]> {
-  return Promise.race([
-    recallMemories(query, limit).catch(() => [] as RecalledMemory[]),
-    new Promise<RecalledMemory[]>((resolve) => setTimeout(() => resolve([]), ms)),
-  ]);
+  return within(recallMemories(query, limit), ms, [] as RecalledMemory[]);
 }
 
 export async function recallMemories(query: string, limit = 8): Promise<RecalledMemory[]> {

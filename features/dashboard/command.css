@@ -548,6 +548,13 @@
 .tt-row:last-child { border-bottom: 0; }
 .tt-check { background: none; border: none; color: var(--subtle); cursor: pointer; padding: 1px; display: flex; margin-top: 1px; }
 .tt-check:hover { color: var(--live); }
+/* Delete stays out of the way until the row is hovered: it sits next to the
+   complete button, and an always-visible destructive control beside a
+   frequently-tapped one is a mis-tap waiting to happen. */
+.tt-del { background: none; border: none; color: transparent; cursor: pointer; padding: 1px; display: flex; margin-top: 1px; flex: none; }
+.tt-row:hover .tt-del { color: var(--subtle); }
+.tt-del:hover { color: var(--alert, #ff6b6b); }
+.tt-del:focus-visible { color: var(--alert, #ff6b6b); outline: 1px solid currentColor; }
 .tt-main { flex: 1; min-width: 0; }
 .tt-title { font-size: 13px; font-weight: 300; }
 .tt-meta { display: flex; align-items: center; gap: 10px; margin-top: 3px; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); }

@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
-import { getTickTickTasks, completeTickTask, updateTickTaskPriority, createTickTask } from "@/infrastructure/integrations/ticktick";
+import { getTickTickTasks, completeTickTask, updateTickTaskPriority, createTickTask, deleteTickTask } from "@/infrastructure/integrations/ticktick";
 
-export const revalidate = 60;
+/**
+ * Never cached.
+ *
+ * This was `revalidate = 60`, which is the whole reason adding a task looked
+ * like it had not synced: the client adds, refetches immediately, and Next
+ * serves the list it cached up to a minute ago — the one without the new task.
+ * The task then appeared out of nowhere on the next poll two minutes later.
+ *
+ * A cache in front of a list the user is actively editing buys a round trip
+ * and costs the thing they just did.
+ */
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const data = await getTickTickTasks();
@@ -34,7 +45,19 @@ export async function POST(req: Request) {
   const { projectId, taskId } = body;
   if (!projectId || !taskId) return NextResponse.json({ ok: false, error: "projectId and taskId required" }, { status: 400 });
   const ok = await completeTickTask(projectId, taskId);
-  return NextResponse.json({ ok: !!ok });
+  // Report the outcome rather than a bare shrug: the band puts the row back
+  // when this is false, and it cannot do that if a failure looks like success.
+  if (!ok) return NextResponse.json({ ok: false, error: "TickTick refused that — it may already be gone." }, { status: 502 });
+  return NextResponse.json({ ok: true });
+}
+
+/** Remove a task entirely, rather than completing it. */
+export async function DELETE(req: Request) {
+  const { projectId, taskId } = (await req.json().catch(() => ({}))) as { projectId?: string; taskId?: string };
+  if (!projectId || !taskId) return NextResponse.json({ ok: false, error: "projectId and taskId required" }, { status: 400 });
+  const ok = await deleteTickTask(projectId, taskId);
+  if (!ok) return NextResponse.json({ ok: false, error: "TickTick wouldn't delete that." }, { status: 502 });
+  return NextResponse.json({ ok: true });
 }
 
 /** Re-classify a task by changing its priority (move it between quadrants). */

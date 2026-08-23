@@ -112,6 +112,26 @@ export async function completeTickTask(projectId: string, taskId: string): Promi
   return res.ok;
 }
 
+/**
+ * Delete a TickTick task outright.
+ *
+ * Completing and deleting are different intentions and the integration only
+ * had the first, so anything created here by mistake could be ticked off but
+ * never removed — and a task deleted in TickTick had no counterpart action in
+ * SAGE at all. Removal has to travel in both directions or the two lists drift,
+ * which is the same hole createTickTask closed for additions.
+ */
+export async function deleteTickTask(projectId: string, taskId: string): Promise<boolean | null> {
+  const t = await token();
+  if (!t) return null;
+  const res = await proxyFetch(`${API}/project/${projectId}/task/${taskId}`, {
+    method: "DELETE",
+    headers: { authorization: `Bearer ${t}` },
+    signal: AbortSignal.timeout(9000),
+  });
+  return res.ok;
+}
+
 /** Change a task's priority — the axis behind the Eisenhower matrix. TickTick
  *  priorities: 0 none, 1 low, 3 medium, 5 high. */
 export async function updateTickTaskPriority(projectId: string, taskId: string, priority: number): Promise<boolean | null> {

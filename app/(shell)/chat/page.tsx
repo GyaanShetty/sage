@@ -3,7 +3,7 @@ import { ChatView } from "@/features/chat/components/chat-view";
 import { ThreadList } from "@/features/chat/components/thread-list";
 import {
   createThread,
-  getOrCreateLatestThread,
+  startFreshThread,
   getThread,
   listThreads,
   loadThreadMessages,
@@ -18,10 +18,11 @@ export default async function ChatPage({
   searchParams: Promise<{ t?: string; ask?: string }>;
 }) {
   const { t, ask } = await searchParams;
-  // Palette "Ask" always lands in a fresh thread
+  // Palette "Ask" always lands in a fresh thread; `?t=` opens a specific past thread; anything else starts clean. See
+  // startFreshThread — the memory is in the Memory table, not the scrollback.
   const thread = ask
     ? await createThread()
-    : ((t ? await getThread(t) : null) ?? (await getOrCreateLatestThread()));
+    : ((t ? await getThread(t) : null) ?? (await startFreshThread()));
   const [threads, initialMessages] = await Promise.all([
     listThreads(),
     loadThreadMessages(thread.id),

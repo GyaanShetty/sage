@@ -2231,3 +2231,48 @@ test("the coach is told to use the statement rather than recall the problem", as
   const budget = Number(src.match(/input\.statement\.slice\(0,\s*([\d_]+)\)/)?.[1].replace(/_/g, ""));
   assert.ok(budget >= 10_000, `statement budget too small to hold a real problem: ${budget}`);
 });
+
+test("opening the chat starts a clean transcript, and memory is elsewhere", async () => {
+  const fs = await import("node:fs");
+  const page = fs.readFileSync("app/(shell)/chat/page.tsx", "utf8");
+  const threads = fs.readFileSync("infrastructure/db/threads.ts", "utf8");
+
+  // Landing on the most recent thread is what made the text never refresh.
+  assert.ok(
+    !/getOrCreateLatestThread/.test(page),
+    "the chat page must not resume the last thread by default",
+  );
+  assert.match(page, /startFreshThread/);
+
+  // Reusing an already-blank thread, so repeated opens do not pile up empties.
+  assert.match(threads, /count: "exact", head: true/);
+
+  // The part that makes a clean transcript safe: recall is by relevance from
+  // the Memory table, not by reading the thread back. If this ever moves,
+  // starting fresh would become real amnesia.
+  const chat = fs.readFileSync("app/api/chat/route.ts", "utf8");
+  assert.match(chat, /recallWithin/, "a fresh thread must still recall past facts");
+  assert.match(chat, /extractMemories/, "and must still write new ones");
+});
+
+test("the TickTick list is never served from a cache", async () => {
+  const fs = await import("node:fs");
+  const route = fs.readFileSync("app/api/ticktick/route.ts", "utf8");
+
+  // This was `revalidate = 60`, and it is the whole reason adding a task
+  // looked like it had not synced: the client adds, refetches at once, and
+  // gets the list Next cached up to a minute ago — the one without it.
+  assert.ok(!/export const revalidate/.test(route), "a list being edited must not be cached");
+  assert.match(route, /export const dynamic = "force-dynamic"/);
+
+  // Removal has to travel both ways, or the two lists drift the way they did
+  // before createTickTask closed the same hole for additions.
+  assert.match(route, /export async function DELETE/);
+
+  const band = fs.readFileSync("features/dashboard/components/ticktick-band.tsx", "utf8");
+  // An optimistic removal that ignores the outcome is a silent lie: the row
+  // cleared, the task came back on the next poll.
+  assert.match(band, /if \(!res\?\.ok\).*load\(\); return;/s);
+  // Coming back to the tab is the strongest signal the list is about to be read.
+  assert.match(band, /visibilitychange/);
+});

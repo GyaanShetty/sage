@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Check, MoveRight } from "lucide-react";
 import { fmt } from "@/lib/config";
 import { sound } from "@/lib/sound";
+import { useLive, notifyDataChanged } from "@/lib/live";
 
 interface TickTask { id: string; title: string; projectId: string; projectName: string; dueDate?: string; priority: number; status: number }
 
@@ -31,7 +32,9 @@ export function EisenhowerBand() {
 
   const load = () =>
     fetch("/api/ticktick").then((r) => r.json()).then((j) => setTasks(j.data)).catch(() => setTasks(null));
-  useEffect(() => { load(); const t = setInterval(load, 120000); return () => clearInterval(t); }, []);
+  // Same list as the Deadlines band; the shared "tasks" notification is what
+  // keeps the two from disagreeing after a tick.
+  useLive(load, { everyMs: 120_000, scopes: ["tasks"] });
 
   const open = (tasks ?? []).filter((t) => t.status !== 2);
 
@@ -43,6 +46,9 @@ export function EisenhowerBand() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ projectId: t.projectId, taskId: t.id }),
     });
+    // Tell the rest of the page, rather than letting each panel discover it
+    // on its own timer.
+    notifyDataChanged("tasks");
   };
 
   const reclassify = async (t: TickTask, priority: number) => {
@@ -53,6 +59,7 @@ export function EisenhowerBand() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ projectId: t.projectId, taskId: t.id, priority }),
     }).catch(() => {});
+    notifyDataChanged("tasks");
   };
 
   return (

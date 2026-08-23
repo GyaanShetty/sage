@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
+import { useLive } from "@/lib/live";
 
 interface Item {
   label: string;
@@ -13,8 +14,7 @@ interface Item {
 export function TickerTape() {
   const [items, setItems] = useState<Item[]>([]);
 
-  useEffect(() => {
-    const load = async () => {
+  const load = useCallback(async () => {
       const out: Item[] = [];
       try {
         const [idx, coins, fx] = await Promise.all([
@@ -43,11 +43,14 @@ export function TickerTape() {
         }
       } catch {}
       if (out.length) setItems(out);
-    };
-    load();
-    const t = setInterval(load, 150000);
-    return () => clearInterval(t);
   }, []);
+
+  /**
+   * The interval stays at 150s because /api/markets is cached for 120s server
+   * side and the upstream feeds are rate limited — asking faster buys nothing.
+   * What was missing is the refresh that costs nothing: looking at the page.
+   */
+  useLive(load, { everyMs: 150_000, scopes: ["markets"] });
 
   if (!items.length) return null;
   // Duplicate the run so the loop is seamless.

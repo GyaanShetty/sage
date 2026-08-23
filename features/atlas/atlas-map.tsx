@@ -219,8 +219,19 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     if (!ready) return;
     const load = () => fetch("/api/atlas/conflicts").then((r) => r.json()).then((j) => setConflictNews(j?.data ?? [])).catch(() => {});
     load();
+    // Fifteen minutes was the slowest timer in the app, and GDELT is cached
+    // for fifteen more on the server — so this could show something half an
+    // hour old with no way to ask for better. The timer stays (the upstream
+    // does not move faster than that), but returning to the tab now refreshes.
     const t = setInterval(load, 900000);
-    return () => clearInterval(t);
+    const onVisible = () => { if (!document.hidden) load(); };
+    window.addEventListener("focus", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("focus", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [ready]);
 
   useEffect(() => {

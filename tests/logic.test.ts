@@ -2127,3 +2127,53 @@ test("the three model failure classes stay distinct", () => {
   assert.equal(isQuotaError(real), false);
   assert.equal(isOverloadedError(real), false);
 });
+
+test("the market does not get to do all the talking", async () => {
+  const { nextToSay, weightedPick } = await import("@/core/ambient");
+  const morning = new Date("2026-08-09T05:00:00Z"); // 10:30 IST
+
+  // The situation as reported: a quiet afternoon where the market and a task
+  // are both merely "notice". Previously the strict sort made this the same
+  // sentence every time; and because prices move every few minutes while
+  // tasks and meetings do not, the market was usually the only thing present.
+  const chatter = [
+    { key: "t", urgency: "notice" as const, domain: "task", text: "Two tasks still due today." },
+    { key: "m", urgency: "notice" as const, domain: "market", text: "SOL up 9.4%." },
+  ];
+
+  // Weighted 10:1 toward the task, so over many draws the market is rare but
+  // not silenced. Deterministic rand, so this asserts the weighting itself.
+  assert.equal(weightedPick(chatter, () => 0.0)?.key, "t");
+  assert.equal(weightedPick(chatter, () => 0.99)?.key, "m");
+
+  let tasks = 0;
+  for (let i = 0; i < 1000; i++) if (nextToSay(chatter, {}, morning, Math.random)?.key === "t") tasks += 1;
+  assert.ok(tasks > 800, `the task should win most draws, got ${tasks}/1000`);
+  assert.ok(tasks < 1000, "but the market should not be silenced entirely");
+});
+
+test("urgency still beats the weighting outright", async () => {
+  const { nextToSay } = await import("@/core/ambient");
+  const morning = new Date("2026-08-09T05:00:00Z");
+
+  const items = [
+    { key: "m", urgency: "notice" as const, domain: "market", text: "SOL up 12%." },
+    { key: "c", urgency: "now" as const, domain: "calendar", text: "Standup in 10 minutes." },
+    { key: "t", urgency: "soon" as const, domain: "task", text: "Two tasks past their date." },
+  ];
+
+  // Randomising across tiers would make the most important announcement a coin
+  // flip. Whatever the roll, the meeting is what gets said.
+  for (const roll of [0, 0.25, 0.5, 0.75, 0.999]) {
+    assert.equal(nextToSay(items, {}, morning, () => roll)?.key, "c");
+  }
+});
+
+test("a routine market move is not worth interrupting for", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("core/ambient/index.ts", "utf8");
+  const threshold = Number(src.match(/MARKET_MIN_MOVE_PCT\s*=\s*Number\([^)]*\?\?\s*(\d+)/)?.[1]);
+  // "SOL up 3.2%" was the complaint: a normal day for a volatile asset,
+  // announced with the same weight as a missed meeting.
+  assert.ok(threshold >= 5, `threshold should exclude routine moves, got ${threshold}`);
+});

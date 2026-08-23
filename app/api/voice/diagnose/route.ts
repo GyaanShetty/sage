@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fishKeys, fishSpeak } from "@/infrastructure/tts/fish";
+import { fishKeys, fishSpeak, lastFishError } from "@/infrastructure/tts/fish";
 import { cartesiaKeys, cartesiaSpeak } from "@/infrastructure/tts/cartesia";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { proxyFetch } from "@/infrastructure/http/fetch";
@@ -73,10 +73,13 @@ export async function GET() {
         .catch((e) => `error: ${String(e).slice(0, 80)}`)
     : "not configured";
 
+  // fishSpeak never throws, so the .catch() below could never fire and every
+  // failure — bad key, no credit, timeout — reported the same "no audio".
+  // lastFishError() is the reason it actually had.
   live.fish = fishKeys().length
     ? await fishSpeak(probe, { fast: true })
         .then(firstBytes)
-        .then((n) => (n > 0 ? `ok — ${n} bytes` : "no audio"))
+        .then((n) => (n > 0 ? `ok — ${n} bytes` : (lastFishError() ?? "no audio")))
         .catch((e) => `error: ${String(e).slice(0, 80)}`)
     : "not configured";
 

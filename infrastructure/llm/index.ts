@@ -56,7 +56,7 @@ const MODEL_IDS: Record<ModelTier, string[]> = {
 const chosen = new Map<ModelTier, string>();
 
 /** A retired or misspelt model id — the fix is another id, not another key. */
-function isModelError(err: unknown): boolean {
+export function isModelError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /no longer available|not found|not supported|unsupported model|404|does not exist|invalid model/i.test(msg);
 }
@@ -171,10 +171,34 @@ function healthyKeys(): string[] {
   return live;
 }
 
-function isQuotaError(err: unknown): boolean {
+export function isQuotaError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /quota|429|RESOURCE_EXHAUSTED|rate.?limit|exceeded your current/i.test(msg);
 }
+
+/**
+ * The model is up, it is just busy.
+ *
+ * "This model is currently experiencing high demand" is Google shedding load —
+ * a 503, not a 429. It matched neither isModelError nor isQuotaError, so the
+ * failover below took the `throw err` branch reserved for real errors and gave
+ * up on the first refusal. The SDK's own retry then repeated the same call, on
+ * the same key, against the same overloaded model three times and surfaced
+ * "Failed after 3 attempts" — which is how the research agent came to fail
+ * every single time while four healthy keys sat unused.
+ *
+ * This is the most retryable failure there is, and it was the only one not
+ * being retried.
+ */
+export function isOverloadedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /high demand|overloaded|503|UNAVAILABLE|temporarily unavailable|try again later|capacity/i.test(msg);
+}
+
+/** How many times one call may ride out an overload before giving up. */
+const OVERLOAD_RETRIES = 4;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * A key that has behaved for an hour is not on its third strike any more.
@@ -266,15 +290,20 @@ function observed(first: string | null, tier: ModelTier): LanguageModel {
 
         const triedKeys = new Set<string>();
 
-        const budget = Math.max(1, googleKeys().length) + ids.length;
+        const budget = Math.max(1, googleKeys().length) + ids.length + OVERLOAD_RETRIES;
+        let overloads = 0;
+        // A retired id is a permanent move and worth remembering; an overload
+        // is a blip, and sticking the tier to an older model because Google
+        // was busy for two seconds would quietly downgrade every later call.
+        let movedForOverload = false;
 
         for (let attempt = 0; attempt < budget; attempt++) {
           triedKeys.add(key);
           try {
             const fn = Reflect.get(impl, prop) as (...a: unknown[]) => Promise<unknown>;
             const out = await fn.apply(impl, args);
-            strikes.delete(key);            // a clean call clears the record
-            chosen.set(tier, ids[idIndex]); // remember what actually works
+            strikes.delete(key);                              // a clean call clears the record
+            if (!movedForOverload) chosen.set(tier, ids[idIndex]); // remember what actually works
             noteCall(tier, true);
             return out;
           } catch (err) {
@@ -286,6 +315,31 @@ function observed(first: string | null, tier: ModelTier): LanguageModel {
             if (isModelError(err)) {
               idIndex += 1;
               if (idIndex >= ids.length) throw err;
+              impl = build(key, tier, ids[idIndex]) as unknown as Record<string, unknown>;
+              continue;
+            }
+
+            /**
+             * Busy, not spent. The key is fine and the model id is fine, so
+             * penalising either would be wrong — sidelining a healthy key for
+             * an hour because Google was briefly loaded is how one blip turns
+             * into an afternoon with no AI at all.
+             *
+             * Wait, then prefer a *different* model id: "this model is
+             * overloaded" is the one failure where another model is the
+             * obviously right answer. When the ids run out, keep retrying the
+             * last one on the backoff until the budget is gone.
+             */
+            if (isOverloadedError(err)) {
+              overloads += 1;
+              if (overloads > OVERLOAD_RETRIES) throw err;
+              // 400ms, 800, 1600, 3200 — with jitter, so several callers
+              // riding out the same blip do not come back in lockstep.
+              await sleep(400 * 2 ** (overloads - 1) * (0.75 + Math.random() * 0.5));
+              if (idIndex + 1 < ids.length) {
+                idIndex += 1;
+                movedForOverload = true;
+              }
               impl = build(key, tier, ids[idIndex]) as unknown as Record<string, unknown>;
               continue;
             }

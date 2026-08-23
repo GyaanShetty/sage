@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "@/lib/auth";
 import { runVoiceTurn } from "@/core/voice/turn";
+import { machineAuth } from "@/lib/security";
 
 export const maxDuration = 60;
 
@@ -18,18 +18,9 @@ export const maxDuration = 60;
  * Response: plain text by default (so a Shortcut can pipe it straight into
  * "Speak Text"); pass &format=json for { ok, data: { text } }.
  */
-function authed(req: Request, url: URL): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const provided = url.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  // Constant-time: this route is public by necessity, so a `===` here hands an
-  // attacker the secret's length and, with enough samples, its prefix.
-  return timingSafeEqual(provided ?? "", secret);
-}
-
 async function handle(req: Request, text: string | null): Promise<Response> {
   const url = new URL(req.url);
-  if (!authed(req, url)) return new NextResponse("unauthorized", { status: 401 });
+  if (!machineAuth(req)) return new NextResponse("unauthorized", { status: 401 });
 
   const q = (text ?? url.searchParams.get("q") ?? url.searchParams.get("text") ?? "").trim();
   if (!q) return new NextResponse("Ask me something, sir.", { status: 400 });

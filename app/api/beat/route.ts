@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { timingSafeEqual } from "@/lib/auth";
 import { beat, type Job } from "@/core/ops/heartbeat";
 import { fireDueReminders } from "@/core/reminders/fire";
 import { syncEventReminders } from "@/core/reminders/prep";
@@ -9,6 +8,7 @@ import { runNotifications } from "@/core/notify/engine";
 import { runBackup, lastBackup } from "@/core/ops/backup";
 import { syncHevy } from "@/core/health/hevy";
 import { runNightShift } from "@/core/night/shift";
+import { machineAuth } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -104,18 +104,8 @@ const JOBS: Job[] = [
  * secret in a URL that only he and the scheduler hold is the lesser evil
  * against not being able to schedule at all.
  */
-function authorised(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true;                 // unset: local dev, gate disabled
-  const header = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  const query = new URL(req.url).searchParams.get("key");
-  // Constant-time, because this endpoint is reachable without a session by
-  // design and `===` on a secret leaks its length and its prefix.
-  return timingSafeEqual(header ?? "", secret) || timingSafeEqual(query ?? "", secret);
-}
-
 export async function GET(req: Request) {
-  if (!authorised(req)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  if (!machineAuth(req)) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const result = await beat(JOBS);
   return NextResponse.json({ ok: true, data: result });

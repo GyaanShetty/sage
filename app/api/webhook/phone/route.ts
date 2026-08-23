@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { drainPhoneActions } from "@/core/phone/queue";
+import { machineAuth } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,24 +16,8 @@ export const dynamic = "force-dynamic";
  * and every nested object is another "Get Dictionary Value" the user has to
  * wire up by hand.
  */
-function authorised(req: Request): boolean {
-  const secret = process.env.SAGE_PHONE_TOKEN ?? process.env.CRON_SECRET;
-  if (!secret) return false; // no token configured → endpoint stays shut
-  const url = new URL(req.url);
-  const supplied =
-    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-    url.searchParams.get("token") ??
-    "";
-  // Length-independent compare is not worth it here: the token is high-entropy
-  // and this is a single-user endpoint, but constant-time costs nothing.
-  if (supplied.length !== secret.length) return false;
-  let diff = 0;
-  for (let i = 0; i < secret.length; i++) diff |= supplied.charCodeAt(i) ^ secret.charCodeAt(i);
-  return diff === 0;
-}
-
 export async function GET(req: Request) {
-  if (!authorised(req)) {
+  if (!machineAuth(req, process.env.SAGE_PHONE_TOKEN ?? process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "UNAUTHORIZED" }, { status: 401 });
   }
   const peek = new URL(req.url).searchParams.get("peek") === "1";

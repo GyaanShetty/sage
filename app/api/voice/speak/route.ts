@@ -1,6 +1,6 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
-import { fishSpeak, fishKeys } from "@/infrastructure/tts/fish";
+import { fishSpeak, fishKeys, lastFishError } from "@/infrastructure/tts/fish";
 import { cartesiaSpeak, cartesiaKeys } from "@/infrastructure/tts/cartesia";
 import { VOICE_DIRECTION } from "@/lib/config";
 import { splitForSpeech } from "@/lib/speech-split";
@@ -18,6 +18,19 @@ export const maxDuration = 60;
  *  below any given provider, so waiting long on a dead one is the worst
  *  possible trade. */
 const PROVIDER_TIMEOUT_MS = 4_000;
+
+/**
+ * The first piece gets longer.
+ *
+ * Four seconds is the right budget for piece nine of a long answer, where the
+ * audio is already playing and a slow rung should yield immediately. It is the
+ * wrong budget for the first call of a cold invocation, which pays for DNS,
+ * TLS and the provider's synthesis start before a single byte arrives — and
+ * failing *that* one does not cost a pause, it costs the entire voice, because
+ * the route refuses rather than degrade to the robot. Waiting a few more
+ * seconds once is a far better trade than losing the voice.
+ */
+const FIRST_PIECE_TIMEOUT_MS = Number(process.env.SAGE_TTS_FIRST_TIMEOUT_MS ?? 10_000);
 
 /** Belt and braces: no single rung may exceed its own budget, whatever it
  *  does internally. Anything that misses simply yields to the next. */
@@ -50,6 +63,9 @@ function elevenKeys(): string[] {
 }
 // Per-key cooldown when a key reports out-of-credits / rate-limit.
 const keyCooldown = new Map<string, number>();
+
+/** Diagnostics name keys by their tail only — never the key itself. */
+const maskKey = (k: string) => (k.length <= 6 ? "***" : `…${k.slice(-4)}`);
 
 /**
  * Neural TTS. Prefers ElevenLabs (richer, truly British) when
@@ -111,13 +127,32 @@ export async function POST(req: Request) {
     });
   };
 
+  /**
+   * Why each rung produced nothing.
+   *
+   * Every provider signals failure by returning null, which says only "not
+   * this one" — so when the whole chain failed, the 503 below could do no
+   * better than guess ("most likely out of credit or a bad key"). That guess
+   * is the entire reason a dead voice took so long to diagnose. These are
+   * masked reasons, never key material.
+   */
+  const reasons: string[] = [];
+
   /** Fish Audio — msgpack API, free-tier model by default. */
-  const tryFish = async (piece: string): Promise<ReadableStream<Uint8Array> | null> =>
-    fishKeys().length ? fishSpeak(piece, { fast }) : null;
+  const tryFish = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
+    if (!fishKeys().length) return null;
+    const out = await fishSpeak(piece, { fast });
+    if (!out) reasons.push(`fish — ${lastFishError() ?? "no audio"}`);
+    return out;
+  };
 
   /** Cartesia Sonic — lowest latency of the neural providers. */
-  const tryCartesia = async (piece: string): Promise<ReadableStream<Uint8Array> | null> =>
-    cartesiaKeys().length ? cartesiaSpeak(piece, { fast }) : null;
+  const tryCartesia = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
+    if (!cartesiaKeys().length) return null;
+    const out = await cartesiaSpeak(piece, { fast });
+    if (!out) reasons.push("cartesia — no audio");
+    return out;
+  };
 
   /** ElevenLabs — rotate across keys, skipping ones that are out of credit. */
   const tryEleven = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
@@ -155,12 +190,15 @@ export async function POST(req: Request) {
       }
 
       if (res.ok && res.body) return res.body as ReadableStream<Uint8Array>;
+      reasons.push(`eleven ${maskKey(key)} — HTTP ${res.status}`);
       // Out of credits / rate-limited → cool this key down; try the next one.
       if (res.status === 401 || res.status === 402 || res.status === 429) {
-        keyCooldown.set(key, Date.now() + 6 * 3600_000); // 6h; credits reset monthly but this avoids hammering
+        // A 429 clears in seconds; only a credit/auth failure earns the long rest.
+        keyCooldown.set(key, Date.now() + (res.status === 429 ? 60_000 : 6 * 3600_000));
       }
-    } catch {
-      // network — try next key
+    } catch (err) {
+      const m = err instanceof Error ? err.message : String(err);
+      reasons.push(`eleven ${maskKey(key)} — ${/abort|timeout/i.test(m) ? "timed out" : m.slice(0, 80)}`);
     }
   }
     return null;
@@ -176,9 +214,9 @@ export async function POST(req: Request) {
   const order = chains[process.env.SAGE_TTS_PRIMARY ?? "eleven"] ?? chains.eleven;
 
   /** First provider that produces audio for one piece of text. */
-  const speakPiece = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
+  const speakPiece = async (piece: string, budgetMs = PROVIDER_TIMEOUT_MS): Promise<ReadableStream<Uint8Array> | null> => {
     for (const attempt of order) {
-      const out = await within(attempt(piece), PROVIDER_TIMEOUT_MS + 1_000);
+      const out = await within(attempt(piece), budgetMs + 1_000);
       if (out) return out;
     }
     if (process.env.SAGE_DISABLE_EDGE !== "1") {
@@ -191,7 +229,7 @@ export async function POST(req: Request) {
   // The first piece decides whether we can speak at all; failing fast here
   // means the refusal below still reaches the user instead of a half-second of
   // audio followed by silence.
-  const firstStream = await speakPiece(chunks[0]);
+  const firstStream = await speakPiece(chunks[0], FIRST_PIECE_TIMEOUT_MS);
   if (firstStream) {
     if (chunks.length === 1) return mp3(firstStream, "neural", nextIndex);
 
@@ -244,7 +282,10 @@ export async function POST(req: Request) {
         ok: false,
         error: configured === 0
           ? "No neural voice is configured. Set CARTESIA_API_KEYS, FISH_AUDIO_API_KEYS or ELEVENLABS_API_KEYS."
-          : "Every configured neural voice failed — most likely out of credit or a bad key.",
+          : "Every configured neural voice failed.",
+        // What each rung actually said, rather than a guess about it. Masked
+        // key tails only — never key material.
+        reasons,
         providersConfigured: configured,
         diagnose: "/api/voice/diagnose",
         silent: true,

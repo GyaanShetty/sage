@@ -12,6 +12,7 @@ import { noRepeatClause } from "@/core/brief/variety";
 import { describeDay, type DayPicture } from "@/core/brief/agenda";
 import { within, deadline } from "@/lib/budget";
 import { machineAuth } from "@/lib/security";
+import { isOverloadedError, isQuotaError, isModelError } from "@/infrastructure/llm";
 
 /**
  * Data-correctness proof.
@@ -2075,4 +2076,54 @@ test("no machine route compares its secret with === or !==", async () => {
       `${r} compares a secret directly — that leaks its prefix through timing`,
     );
   }
+});
+
+// ── Model failure classification ───────────────────────────────────────────
+//
+// The failover in infrastructure/llm decides what to do from which of these
+// three predicates matches. An error matching none of them takes the
+// `throw err` branch meant for genuine application errors — no retry, no key
+// rotation, no model fallback.
+//
+// That is what killed the research agent: Google's load-shedding message
+// matched nothing, so it was treated as fatal on the first refusal.
+
+test("an overloaded model is recognised as transient, not fatal", () => {
+  // The verbatim error the research agent surfaced.
+  const real = new Error(
+    "AI_APICallError: This model is currently experiencing high demand. " +
+      "Spikes in demand are usually temporary. Please try again later.",
+  );
+  assert.equal(isOverloadedError(real), true, "this is the error that was falling through");
+
+  // It must not be mistaken for the other two: a quota error sidelines the key
+  // for up to two hours, and a model error burns through the id list. Neither
+  // is the right response to "busy, try again".
+  assert.equal(isQuotaError(real), false, "an overload must not sideline a healthy key");
+  assert.equal(isModelError(real), false, "an overload must not retire a working model id");
+
+  for (const msg of [
+    "503 Service Unavailable",
+    "The model is overloaded. Please try again later.",
+    "UNAVAILABLE: server is temporarily unavailable",
+  ]) {
+    assert.equal(isOverloadedError(new Error(msg)), true, msg);
+  }
+});
+
+test("the three model failure classes stay distinct", () => {
+  const quota = new Error("429 RESOURCE_EXHAUSTED: You exceeded your current quota");
+  assert.equal(isQuotaError(quota), true);
+  assert.equal(isOverloadedError(quota), false, "a quota refusal must still sideline the key");
+
+  const retired = new Error("models/gemini-2.5-flash is not found or no longer available");
+  assert.equal(isModelError(retired), true);
+  assert.equal(isOverloadedError(retired), false, "a retired id must still advance to the next id");
+
+  // A genuine application error must match nothing, so it reaches the caller
+  // instead of being retried into the ground.
+  const real = new Error("Invalid JSON in tool arguments");
+  assert.equal(isModelError(real), false);
+  assert.equal(isQuotaError(real), false);
+  assert.equal(isOverloadedError(real), false);
 });

@@ -1958,6 +1958,13 @@ test("deadline: a spent budget skips the remaining steps by name", async () => {
   const first = await d.step("hangs", () => new Promise<number>(() => {}), 1000, -1);
   assert.equal(first, -1);
 
+  // The step above is clamped to exactly the budget, so it returns with the
+  // clock sitting on zero and millisecond rounding decides whether the next
+  // step is "past" the deadline. Wait past it so this asserts the skip rule
+  // rather than the resolution of Date.now().
+  await new Promise((r) => setTimeout(r, 25));
+  assert.equal(d.expired(), true);
+
   let ranSecond = false;
   const second = await d.step(
     "housekeeping",
@@ -2176,4 +2183,51 @@ test("a routine market move is not worth interrupting for", async () => {
   // "SOL up 3.2%" was the complaint: a normal day for a volatile asset,
   // announced with the same weight as a missed meeting.
   assert.ok(threshold >= 5, `threshold should exclude routine moves, got ${threshold}`);
+});
+
+// ── LeetCode: the statement is the source of truth ─────────────────────────
+
+test("a LeetCode statement survives the trip out of HTML", async () => {
+  const { flattenStatement } = await import("@/infrastructure/integrations/leetcode");
+
+  // Constraints are exactly where an undecoded entity does the most damage:
+  // the statement still reads like a statement, so nothing looks broken, and
+  // the model quietly supplies the bound it remembers instead.
+  const html =
+    "<p>Given <code>nums<sub>i</sub></code>.</p>" +
+    "<p><strong>Constraints:</strong></p>" +
+    "<ul><li><code>1 &le; n &le; 10<sup>5</sup></code></li>" +
+    "<li><code>-2 &times; 10<sup>4</sup> &le; nums<sub>i</sub> &le; 2 &times; 10<sup>4</sup></code></li></ul>";
+
+  const text = flattenStatement(html);
+  assert.match(text, /1 <= n <= 10\^5/, "&le; must decode, or the bound is lost");
+  assert.ok(!text.includes("&le;"), "no raw entities may survive");
+  assert.ok(!text.includes("&times;"), "no raw entities may survive");
+  assert.match(text, /nums_i/, "nums<sub>i</sub> must stay distinguishable from numsi");
+  assert.ok(!/<[a-z]/i.test(text), "no tags may survive");
+});
+
+test("&amp; is decoded last, so escaped entities are not corrupted", async () => {
+  const { flattenStatement } = await import("@/infrastructure/integrations/leetcode");
+  // A statement showing the literal text "&lt;" arrives as "&amp;lt;".
+  // Decoding &amp; first would turn it into "&lt;" and the next rule would
+  // then turn that into "<" — silently changing what the problem says.
+  assert.equal(flattenStatement("<p>write &amp;lt; here</p>").trim(), "write &lt; here");
+});
+
+test("the coach is told to use the statement rather than recall the problem", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("core/coding/coach.ts", "utf8");
+
+  assert.match(src, /ACCURACY/, "the grounding rule must be in the prompt");
+  assert.match(src, /LANGUAGE: write every line of code in/, "the language must be an instruction, not a label");
+
+  // A missing statement must refuse rather than answer from memory — that is
+  // the case where recall is guaranteed to be the only source.
+  assert.match(src, /if \(!input\.statement\.trim\(\)\)/);
+
+  // Truncation is the other route to recall: a model handed half a statement
+  // completes it.
+  const budget = Number(src.match(/input\.statement\.slice\(0,\s*([\d_]+)\)/)?.[1].replace(/_/g, ""));
+  assert.ok(budget >= 10_000, `statement budget too small to hold a real problem: ${budget}`);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check, ChevronDown, Code2, ExternalLink, Loader2, Play, Save, Search, Sparkles, Upload,
@@ -65,7 +65,20 @@ export function CodeLab({ slug }: { slug?: string }) {
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [lang, setLang] = useState<LangKey>("python3");
-  const [code, setCode] = useState("");
+  /**
+   * One draft per language, rather than one shared string.
+   *
+   * The editor held a single `code` while `touched` was tracked per language,
+   * so switching Python → Go seeded the Go snippet over your Python, and
+   * switching back showed the Go code because Python counted as "touched".
+   * Half an hour of work could vanish by changing the dropdown twice.
+   */
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const code = drafts[lang] ?? "";
+  const setCode = useCallback(
+    (next: string) => setDrafts((d) => ({ ...d, [lang]: next })),
+    [lang],
+  );
   const [stdin, setStdin] = useState("");
   const [run, setRun] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -85,9 +98,6 @@ export function CodeLab({ slug }: { slug?: string }) {
   const [results, setResults] = useState<Found[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState<string | null>(null);
-  // Edited code must survive a language switch, so starter code is only
-  // dropped in when nothing has been written for that language yet.
-  const touched = useRef<Record<string, boolean>>({});
 
   /**
    * Search as he types, but not on every keystroke — a keystroke is not a
@@ -133,11 +143,10 @@ export function CodeLab({ slug }: { slug?: string }) {
   }, [slug]);
   useEffect(() => { void load(); }, [load]);
 
-  // Starter code, when the editor is empty for this language.
+  // Starter code, once per language, and never over an existing draft.
   useEffect(() => {
     if (!problem) return;
-    if (touched.current[lang]) return;
-    setCode(problem.snippets[lang] ?? "");
+    setDrafts((d) => (d[lang] !== undefined ? d : { ...d, [lang]: problem.snippets[lang] ?? "" }));
   }, [problem, lang]);
 
   const execute = async () => {
@@ -329,7 +338,7 @@ export function CodeLab({ slug }: { slug?: string }) {
               <textarea
                 className="cl-editor"
                 value={code}
-                onChange={(e) => { touched.current[lang] = true; setCode(e.target.value); setSaved(false); }}
+                onChange={(e) => { setCode(e.target.value); setSaved(false); }}
                 spellCheck={false}
                 placeholder="Write your solution…"
                 onKeyDown={(e) => {
@@ -397,7 +406,7 @@ export function CodeLab({ slug }: { slug?: string }) {
                       <pre className="cl-solution">{coaching.code}</pre>
                       <button
                         className="cl-btn"
-                        onClick={() => { touched.current[lang] = true; setCode(coaching.code); }}
+                        onClick={() => { setCode(coaching.code); }}
                       >
                         USE THIS
                       </button>

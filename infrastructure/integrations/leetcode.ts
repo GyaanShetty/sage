@@ -91,6 +91,35 @@ export interface Problem {
 }
 
 /**
+ * HTML → text, without losing what the constraints actually say.
+ *
+ * Exported because this is where problem accuracy is won or lost, and a
+ * silent regression here is invisible: every entity left undecoded and every
+ * tag stripped without a marker produces a statement that reads almost right,
+ * and "almost right" is the worst possible input for a model — it fills the
+ * gap from memory of the problem instead of flagging it.
+ */
+export function flattenStatement(html: string): string {
+  return (html ?? "")
+    .replace(/<sup>(\d+)<\/sup>/g, "^$1")      // 10<sup>4</sup> reads as 10^4
+    .replace(/<sub>([^<]*)<\/sub>/g, "_$1")    // nums<sub>i</sub> reads as nums_i
+    .replace(/<\/(p|div|li|pre)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&le;/g, "<=").replace(/&ge;/g, ">=")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&ne;/g, "!=").replace(/&times;/g, "x").replace(/&minus;/g, "-")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    // Numeric entities, whatever they happen to be.
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    // Last: decoding &amp; earlier would corrupt every entity written &amp;lt;
+    .replace(/&amp;/g, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
  * A problem's full statement.
  *
  * Public, no auth — the same query the website uses to render the page. The
@@ -120,15 +149,22 @@ export async function getProblem(titleSlug: string): Promise<Problem | null> {
   const q = data?.question;
   if (!q) return null;
 
-  const statement = (q.content ?? "")
-    .replace(/<sup>(\d+)<\/sup>/g, "^$1")      // 10<sup>4</sup> reads as 10^4
-    .replace(/<\/(p|div|li|pre)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  /**
+   * HTML → text, without losing what the constraints actually say.
+   *
+   * This is where problem accuracy is won or lost. Every entity left undecoded
+   * and every tag stripped without a marker produces a statement that reads
+   * almost right, and "almost right" is the worst possible input for a model:
+   * it fills the gap from memory of the problem instead of flagging it.
+   *
+   * Two that mattered:
+   *   - `&le;` / `&ge;` survived as literal text, so a constraint reading
+   *     `1 &le; n &le; 10^5` reached the model as garbage where the bound was.
+   *   - `<sub>` was stripped bare, turning `nums<sub>i</sub>` into `numsi` and
+   *     `x<sub>1</sub>, x<sub>2</sub>` into `x1, x2` — subtly different
+   *     variables, silently.
+   */
+  const statement = flattenStatement(q.content ?? "");
 
   return {
     title: q.title,

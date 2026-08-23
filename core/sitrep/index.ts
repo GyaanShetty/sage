@@ -1,5 +1,7 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { tzDay } from "@/lib/config";
+// Never let one slow source hold up the readout.
+import { within } from "@/lib/budget";
 
 /**
  * The situation, right now.
@@ -40,14 +42,6 @@ export interface Sitrep {
   lines: SitrepLine[];
   /** Anything actively wrong, hoisted so the UI can lead with it. */
   alerts: SitrepLine[];
-}
-
-/** Never let one slow source hold up the readout. */
-function within<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    p.catch(() => fallback),
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
-  ]);
 }
 
 const BUDGET_MS = 2500;

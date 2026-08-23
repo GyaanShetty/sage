@@ -10,6 +10,7 @@ import { stepStreak, average, correlate } from "@/core/health/store";
 import { startOfTodayUtc, tzHour } from "@/lib/config";
 import { noRepeatClause } from "@/core/brief/variety";
 import { describeDay, type DayPicture } from "@/core/brief/agenda";
+import { within, deadline } from "@/lib/budget";
 
 /**
  * Data-correctness proof.
@@ -1922,4 +1923,78 @@ test("the relying party is not taken from a header when it can be configured", a
   const hostAt = fn.indexOf('headers.get("host")');
   assert.ok(appUrlAt !== -1 && hostAt !== -1);
   assert.ok(appUrlAt < hostAt, "APP_URL must be consulted before the Host header");
+});
+
+// ── Time budgets ───────────────────────────────────────────────────────────
+//
+// These exist because production was hitting the Vercel runtime timeout on
+// /api/cron and /api/reminders/tick. Every step in those routes was wrapped in
+// `.catch()`, which is the trap: it makes a *rejecting* step safe and does
+// nothing whatsoever for a step that simply never settles. The first test is
+// the one that matters — a promise that never resolves must not be able to
+// hold the tick open.
+
+test("within: a promise that never settles resolves to the fallback", async () => {
+  const neverSettles = new Promise<string>(() => {});
+  const started = Date.now();
+  const got = await within(neverSettles, 30, "fallback");
+  assert.equal(got, "fallback");
+  assert.ok(Date.now() - started < 1000, "should have given up at the budget, not waited");
+});
+
+test("within: a rejection is also the fallback, not a throw", async () => {
+  assert.equal(await within(Promise.reject(new Error("upstream down")), 50, 7), 7);
+});
+
+test("within: work that finishes in time returns its real value", async () => {
+  assert.equal(await within(Promise.resolve("real"), 500, "fallback"), "real");
+});
+
+test("deadline: a spent budget skips the remaining steps by name", async () => {
+  const d = deadline(20);
+  // Burn the budget on a step that hangs.
+  const first = await d.step("hangs", () => new Promise<number>(() => {}), 1000, -1);
+  assert.equal(first, -1);
+
+  let ranSecond = false;
+  const second = await d.step(
+    "housekeeping",
+    async () => {
+      ranSecond = true;
+      return 99;
+    },
+    1000,
+    0,
+  );
+
+  // The point of the ordering in /api/cron: when time runs out the tail is
+  // dropped and *named*, rather than the platform killing the function and
+  // leaving no record of how far it got.
+  assert.equal(ranSecond, false, "a step past the deadline must not even start");
+  assert.equal(second, 0);
+  assert.deepEqual(d.skipped, ["housekeeping"]);
+});
+
+test("deadline: a step cannot outlive the budget it is given", async () => {
+  const d = deadline(60);
+  const started = Date.now();
+  await d.step("slow", () => new Promise<null>(() => {}), 10_000, null);
+  assert.ok(Date.now() - started < 1000, "the step budget must be clamped to the time left");
+});
+
+test("the cron tick budgets every step and stops before the platform does", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("app/api/cron/route.ts", "utf8");
+
+  const maxDuration = Number(src.match(/maxDuration\s*=\s*(\d+)/)?.[1]);
+  const budget = Number(src.match(/BUDGET_MS\s*=\s*([\d_]+)/)?.[1].replace(/_/g, ""));
+  assert.ok(maxDuration > 0 && budget > 0);
+  assert.ok(
+    budget < maxDuration * 1000,
+    "the self-imposed budget must end the tick before the platform kills it, " +
+      "otherwise the response that reports what ran never gets sent",
+  );
+
+  // No step may go back to a bare `.catch()`, which is what caused the outage.
+  assert.ok(!/\.catch\(\(\) =>/.test(src), "cron steps must go through deadline.step, not .catch()");
 });

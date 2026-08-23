@@ -2272,7 +2272,51 @@ test("the TickTick list is never served from a cache", async () => {
   const band = fs.readFileSync("features/dashboard/components/ticktick-band.tsx", "utf8");
   // An optimistic removal that ignores the outcome is a silent lie: the row
   // cleared, the task came back on the next poll.
-  assert.match(band, /if \(!res\?\.ok\).*load\(\); return;/s);
-  // Coming back to the tab is the strongest signal the list is about to be read.
-  assert.match(band, /visibilitychange/);
+  assert.match(band, /if \(!res\?\.ok\)[\s\S]*load\(\); return;/);
+
+  // Refresh-on-return now lives in the shared hook rather than in this file.
+  assert.match(band, /useLive\(/);
+  const live = fs.readFileSync("lib/live.ts", "utf8");
+  assert.match(live, /visibilitychange/, "looking at the page must refresh it");
+
+  // The Eisenhower band renders the same TickTick list. Without a shared
+  // notification the two sat on independent timers and disagreed after a tick.
+  const eisen = fs.readFileSync("features/dashboard/components/eisenhower-band.tsx", "utf8");
+  for (const [name, src] of [["deadlines", band], ["matrix", eisen]] as const) {
+    assert.match(src, /useLive\([\s\S]*scopes: \["tasks"\]/, `${name} must listen for task changes`);
+    assert.match(src, /notifyDataChanged\("tasks"\)/, `${name} must announce its own changes`);
+  }
+});
+
+test("no tier ends on a model id known to be retired", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("infrastructure/llm/index.ts", "utf8");
+
+  /**
+   * The 2.0-flash outage was not a failover bug — the failover caught the
+   * model error and advanced exactly as designed. It failed because
+   * gemini-2.0-flash was the LAST id in the list, so advancing ran off the
+   * end. The mechanism only works if there is somewhere left to go.
+   */
+  const RETIRED = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-pro"];
+  for (const dead of RETIRED) {
+    assert.ok(
+      !new RegExp(`"${dead}"`).test(src),
+      `${dead} is retired and must not be in the list — it costs a round trip and cannot be a fallback`,
+    );
+  }
+
+  // Each tier must still lead with a `-latest` alias, which is the only entry
+  // Google repoints on our behalf and therefore the only one that survives a
+  // retirement without a deploy.
+  const smart = src.match(/smart: \[([\s\S]*?)\]/)?.[1] ?? "";
+  const fast = src.match(/fast: \[([\s\S]*?)\]/)?.[1] ?? "";
+  assert.match(smart, /"gemini-flash-latest"/);
+  assert.match(fast, /"gemini-flash-lite-latest"/);
+
+  // And more than one real id per tier, so there is an actual fallback.
+  for (const [tier, body] of [["smart", smart], ["fast", fast]] as const) {
+    const ids = [...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(ids.length >= 2, `${tier} needs a fallback id, has ${ids.length}`);
+  }
 });

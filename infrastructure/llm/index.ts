@@ -27,25 +27,41 @@ export type ModelTier = "fast" | "smart";
  * Google retires model names, and a retired name fails with "no longer
  * available to new users" — which is not a quota problem, so the key failover
  * cannot help and every AI feature in the app dies at once. That is exactly
- * what happened to gemini-2.5-flash.
+ * what happened to gemini-2.5-flash, and then to gemini-2.0-flash.
  *
  * So each tier is a list rather than a name, tried in order, and the `-latest`
  * aliases lead because Google repoints them as models turn over. An id can be
  * pinned with GOOGLE_MODEL_SMART / GOOGLE_MODEL_FAST when a specific version
  * is wanted, without a deploy.
+ *
+ * ── Keep a live id at the end ──────────────────────────────────────────────
+ *
+ * The failover handled the 2.0-flash retirement exactly as designed: it caught
+ * the model error and advanced. It still failed, because 2.0-flash was the
+ * LAST entry, so advancing ran off the end of the list. A list whose tail is a
+ * retired id has no fallback at all — the whole mechanism depends on there
+ * being somewhere left to go. Retired ids are removed here rather than left in
+ * place, since each one also wastes a round trip before the list moves on.
  */
 const MODEL_IDS: Record<ModelTier, string[]> = {
   smart: [
     ...(process.env.GOOGLE_MODEL_SMART ?? "").split(",").map((s) => s.trim()).filter(Boolean),
     "gemini-flash-latest",
+    // Named by Google's own retirement notice for 2.0-flash. Behind the alias
+    // deliberately: if `-latest` already points here, this is never reached,
+    // and if Google moves on again the alias keeps working without a deploy.
+    "gemini-3.6-flash",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
   ],
   fast: [
     ...(process.env.GOOGLE_MODEL_FAST ?? "").split(",").map((s) => s.trim()).filter(Boolean),
     "gemini-flash-lite-latest",
+    // Inferred sibling of gemini-3.6-flash — Google names the lite tier this
+    // way, but unlike the id above it was not confirmed by a retirement
+    // notice. Safe to list regardless: an id that does not exist fails as a
+    // model error and the list simply advances past it.
+    "gemini-3.6-flash-lite",
     "gemini-2.5-flash-lite",
-    "gemini-2.0-flash-lite",
   ],
 };
 

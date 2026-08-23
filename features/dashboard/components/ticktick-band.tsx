@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CheckSquare, ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
 import { ExpandableCell } from "./expandable-cell";
 import { fmt } from "@/lib/config";
 import { sound } from "@/lib/sound";
+import { useLive, notifyDataChanged } from "@/lib/live";
 
 interface TickTask { id: string; title: string; projectId: string; projectName: string; dueDate?: string; priority: number; status: number }
 
@@ -53,28 +54,13 @@ export function TickTickBand() {
 
   const load = () => fetch("/api/ticktick").then((r) => r.json()).then((j) => setTasks(j.data)).catch(() => setTasks(null));
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 120000);
-
-    /**
-     * Refresh on the way back in.
-     *
-     * A two-minute timer is fine for a list nobody is touching, and wrong for
-     * this one: the usual way a task disappears is that it was ticked off in
-     * the TickTick app, and the usual way you find out is by looking at SAGE
-     * immediately afterwards. Returning to the tab is the strongest possible
-     * signal that the list is about to be read.
-     */
-    const onFocus = () => { if (!document.hidden) load(); };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onFocus);
-    return () => {
-      clearInterval(t);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onFocus);
-    };
-  }, []);
+  /**
+   * The timer is the fallback; looking at the panel and changing something are
+   * the real triggers. The Eisenhower band renders this same TickTick list, so
+   * without the shared notification the two sat on independent two-minute
+   * timers and disagreed with each other after every tick.
+   */
+  useLive(load, { everyMs: 120_000, scopes: ["tasks"] });
 
   const complete = async (t: TickTask) => {
     sound.blip();
@@ -91,7 +77,7 @@ export function TickTickBand() {
     // entirely, so a completion TickTick refused still cleared the row and the
     // task silently returned on the next poll two minutes later.
     if (!res?.ok) { setAddErr(res?.error ?? "TickTick didn't take that."); load(); return; }
-    load();
+    notifyDataChanged("tasks");
   };
 
   const remove = async (t: TickTask) => {
@@ -102,7 +88,7 @@ export function TickTickBand() {
       body: JSON.stringify({ projectId: t.projectId, taskId: t.id }),
     }).then((r) => r.json()).catch(() => null);
     if (!res?.ok) setAddErr(res?.error ?? "Couldn't delete that.");
-    load();
+    notifyDataChanged("tasks");
   };
 
   const open = (tasks ?? []).filter((t) => t.status !== 2);
@@ -118,7 +104,7 @@ export function TickTickBand() {
     if (!res?.ok) { setAddErr(res?.error ?? "Couldn't add that."); return; }
     setDraft(""); setDue("");
     sound.blip();
-    load();   // pull it back from TickTick rather than guessing the shape
+    notifyDataChanged("tasks"); // pull it back from TickTick, everywhere at once
   };
 
   const AddBox = (

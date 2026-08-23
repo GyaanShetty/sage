@@ -14,6 +14,7 @@ import { pruneEvents } from "@/core/ops/retention";
 import { fireDueReminders } from "@/core/reminders/fire";
 import { syncEventReminders } from "@/core/reminders/prep";
 import { deadline } from "@/lib/budget";
+import { machineAuth } from "@/lib/security";
 
 export const maxDuration = 300;
 
@@ -43,8 +44,7 @@ const BUDGET_MS = 280_000;
  * entire tail of the chain with no error attributing it to anything.
  */
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!machineAuth(req)) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

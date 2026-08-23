@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { closeHealthDay } from "@/core/health/daily";
 import { syncHevy } from "@/core/health/hevy";
 import { runBackup, lastBackup } from "@/core/ops/backup";
+import { machineAuth } from "@/lib/security";
 
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
@@ -14,8 +15,7 @@ export const dynamic = "force-dynamic";
  * runs at 03:00 UTC and would report on a day barely started.
  */
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!machineAuth(req)) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 

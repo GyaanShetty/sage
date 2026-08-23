@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "./security";
+
 export const SESSION_COOKIE = "sage_session";
 
 /**
@@ -72,13 +74,8 @@ export async function verifyToken(token: string | undefined, password: string): 
   return timingSafeEqual(sig, expected);
 }
 
-/** Constant-time string comparison. */
-export function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+/** Re-exported so the callers that have always imported it from here still can. */
+export { timingSafeEqual };
 
 /** Shared by login and logout so the two cannot drift apart — a clear that
  *  misses a flag silently leaves the cookie in place. */

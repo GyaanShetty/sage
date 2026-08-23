@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
+import { machineAuth } from "@/lib/security";
 
 /**
  * Receiver for iPhone Shortcuts (or anything else) posting daily health data.
@@ -9,10 +10,7 @@ import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supa
  * distanceKm, battery. Unknown keys are stored as-is.
  */
 export async function POST(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  const url = new URL(req.url);
-  const provided = url.searchParams.get("key") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!secret || provided !== secret) {
+  if (!machineAuth(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 

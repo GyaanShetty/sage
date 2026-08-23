@@ -118,3 +118,72 @@ export function sameOrigin(req: Request): boolean {
 
 /** Methods that change something, and therefore have to prove where they came from. */
 export const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Authenticate a caller that is not a browser.
+ *
+ * The crons, the heartbeat and the phone webhooks are all reached by a
+ * scheduler or a shortcut holding a shared secret — no cookie, no Origin, no
+ * session. Seven routes each grew their own version of this check, and they
+ * had drifted apart in two ways that matter:
+ *
+ *  1. Three compared with `!==`. A plain string comparison returns as soon as
+ *     it finds a differing byte, so how long the reject takes tells the caller
+ *     how much of the prefix was right. That is a secret recoverable one
+ *     character at a time.
+ *
+ *  2. They disagreed about an *unset* secret. /api/beat and /api/cron treated
+ *     "no CRON_SECRET" as "gate disabled" and ran for anybody; the ask webhook
+ *     treated it as "stay shut". The permissive reading is the wrong default —
+ *     a deploy that loses the variable silently opens the endpoints rather
+ *     than failing where somebody would notice.
+ *
+ * So: one implementation, constant time, and an unset secret leaves the
+ * endpoint open only when the whole app gate is off, which is local dev.
+ */
+export function machineAuth(req: Request, envSecret?: string | undefined): boolean {
+  const secret = envSecret ?? process.env.CRON_SECRET;
+
+  if (!secret) {
+    // No secret configured. Open only if SAGE_PASSWORD is also unset — the
+    // same signal middleware.ts uses to mean "this is a local dev box".
+    return !process.env.SAGE_PASSWORD;
+  }
+
+  const header = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  // A URL is a worse place for a secret than a header — it lands in logs and
+  // referrers — but iOS Shortcuts and most cron pingers cannot set a header,
+  // so the query form has to stay.
+  let query: string | null = null;
+  try {
+    const params = new URL(req.url).searchParams;
+    // `token` is the phone webhook's existing spelling; keeping both means no
+    // Shortcut anyone has already built has to be re-wired.
+    query = params.get("key") ?? params.get("token");
+  } catch {
+    query = null;
+  }
+
+  // Both are always evaluated: `||` would short-circuit, and the difference
+  // between "rejected after one compare" and "rejected after two" is itself a
+  // signal about which form was closer.
+  const byHeader = timingSafeEqual(header ?? "", secret);
+  const byQuery = timingSafeEqual(query ?? "", secret);
+  return byHeader || byQuery;
+}
+
+/**
+ * Constant-time string comparison.
+ *
+ * Lives here rather than in lib/auth because next.config.ts imports this file
+ * to install the security headers, and it is loaded outside the `@/` alias
+ * resolver — so anything this module imports has to be nothing at all.
+ * lib/auth re-exports it, which keeps every existing caller working.
+ */
+export function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}

@@ -11,6 +11,7 @@ import { startOfTodayUtc, tzHour } from "@/lib/config";
 import { noRepeatClause } from "@/core/brief/variety";
 import { describeDay, type DayPicture } from "@/core/brief/agenda";
 import { within, deadline } from "@/lib/budget";
+import { machineAuth } from "@/lib/security";
 
 /**
  * Data-correctness proof.
@@ -1997,4 +1998,81 @@ test("the cron tick budgets every step and stops before the platform does", asyn
 
   // No step may go back to a bare `.catch()`, which is what caused the outage.
   assert.ok(!/\.catch\(\(\) =>/.test(src), "cron steps must go through deadline.step, not .catch()");
+});
+
+// ── Machine authentication ─────────────────────────────────────────────────
+//
+// Seven routes are reachable without a session because a scheduler or an iOS
+// Shortcut has to reach them. They had each grown their own copy of the secret
+// check, and the copies disagreed about two things worth pinning down.
+
+test("machineAuth: accepts the secret by header or by query", async () => {
+  const secret = "s3cr3t-value";
+  process.env.CRON_SECRET = secret;
+  delete process.env.SAGE_PASSWORD;
+
+  const withHeader = new Request("https://sage.test/api/cron", {
+    headers: { authorization: `Bearer ${secret}` },
+  });
+  assert.equal(machineAuth(withHeader), true);
+
+  // Shortcuts and most free cron pingers cannot set a header.
+  assert.equal(machineAuth(new Request(`https://sage.test/api/beat?key=${secret}`)), true);
+  // The phone webhook's existing spelling, kept so built Shortcuts still work.
+  assert.equal(machineAuth(new Request(`https://sage.test/api/webhook/phone?token=${secret}`)), true);
+
+  assert.equal(machineAuth(new Request("https://sage.test/api/cron?key=wrong")), false);
+  assert.equal(machineAuth(new Request("https://sage.test/api/cron")), false);
+});
+
+test("machineAuth: an unset secret does not open the endpoint in production", async () => {
+  delete process.env.CRON_SECRET;
+
+  // /api/beat and /api/cron used to read "no CRON_SECRET" as "gate disabled"
+  // and run for anybody. A deploy that loses the variable would then silently
+  // expose them rather than failing somewhere visible.
+  process.env.SAGE_PASSWORD = "the app gate is on";
+  assert.equal(machineAuth(new Request("https://sage.test/api/cron")), false);
+
+  // With the whole app gate off, this is a local dev box and it stays open.
+  delete process.env.SAGE_PASSWORD;
+  assert.equal(machineAuth(new Request("https://sage.test/api/cron")), true);
+});
+
+test("machineAuth: a wrong secret takes the same work regardless of prefix", async () => {
+  process.env.CRON_SECRET = "abcdefghijklmnopqrstuvwxyz";
+  delete process.env.SAGE_PASSWORD;
+  // Not a timing measurement — those are far too noisy to assert on. This
+  // pins the property that makes constant time possible: every candidate of
+  // the same length is rejected the same way, whether it shares 0 characters
+  // with the secret or 25 of them.
+  const almost = "abcdefghijklmnopqrstuvwxy?";
+  const nothing = "??????????????????????????";
+  assert.equal(machineAuth(new Request(`https://sage.test/a?key=${almost}`)), false);
+  assert.equal(machineAuth(new Request(`https://sage.test/a?key=${nothing}`)), false);
+  delete process.env.CRON_SECRET;
+});
+
+test("no machine route compares its secret with === or !==", async () => {
+  const fs = await import("node:fs");
+  const routes = [
+    "app/api/cron/route.ts",
+    "app/api/cron/evening/route.ts",
+    "app/api/beat/route.ts",
+    "app/api/webhook/ask/route.ts",
+    "app/api/webhook/health/route.ts",
+    "app/api/webhook/location/route.ts",
+    "app/api/webhook/phone/route.ts",
+  ];
+  for (const r of routes) {
+    const src = fs.readFileSync(r, "utf8");
+    assert.ok(
+      /machineAuth\(/.test(src),
+      `${r} must authenticate through the shared machineAuth, not its own copy`,
+    );
+    assert.ok(
+      !/(!==|===)\s*`?Bearer|provided\s*!==\s*secret/.test(src),
+      `${r} compares a secret directly — that leaks its prefix through timing`,
+    );
+  }
 });

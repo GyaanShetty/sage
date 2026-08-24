@@ -2320,3 +2320,53 @@ test("no tier ends on a model id known to be retired", async () => {
     assert.ok(ids.length >= 2, `${tier} needs a fallback id, has ${ids.length}`);
   }
 });
+
+// ── Nothing interrupts a brief that is already playing ─────────────────────
+
+test("the ambient voice waits for whatever is already speaking", async () => {
+  const fs = await import("node:fs");
+  const ambient = fs.readFileSync("components/ambient-voice.tsx", "utf8");
+
+  /**
+   * The morning brief plays as a chain of parts, and starting any new
+   * utterance abandons the rest of the chain. The ambient poll fires every
+   * four minutes and its guards covered the voice overlay, typing and hidden
+   * tabs — but not "something else is mid-sentence". Press Listen, wait four
+   * minutes, and the brief stopped dead with no error.
+   */
+  assert.match(ambient, /isSpeaking\(\)/, "it must not talk over an utterance in progress");
+
+  // The guards that were already there must survive alongside it.
+  for (const guard of ["voiceOpen", "isTyping()", "document.hidden", "sound.isOn()"]) {
+    assert.ok(ambient.includes(guard), `${guard} guard must remain`);
+  }
+
+  const speak = fs.readFileSync("lib/speak.ts", "utf8");
+  assert.match(speak, /export function isSpeaking/);
+  // Stopping deliberately must release the floor, or one stopped brief would
+  // silence the ambient voice for the length of the lease.
+  assert.match(speak, /export function forgetRest\(\): void \{\s*releaseSpeaking\(\);/);
+});
+
+test("a failed continuation does not end a long answer mid-sentence", async () => {
+  const fs = await import("node:fs");
+  const speak = fs.readFileSync("lib/speak.ts", "utf8");
+
+  // A long brief is several requests back to back. This used to `break` the
+  // moment one failed, which ended the audio silently — a provider blip on
+  // piece three of seven cost the other four.
+  assert.match(speak, /segmentWithRetry/);
+  assert.ok(
+    !/const more = await segment\(Number\(next\)\)\.catch/.test(speak),
+    "continuations must go through the retrying path",
+  );
+
+  // And when the retries are exhausted, finish in the browser voice rather
+  // than stopping: the point of a brief is that you heard all of it.
+  assert.match(speak, /remainderFrom/);
+
+  // Both sides must split identically, or the remainder would be wrong text.
+  const route = fs.readFileSync("app/api/voice/speak/route.ts", "utf8");
+  assert.match(route, /SPEAK_CHUNK_CHARS/);
+  assert.ok(!/splitForSpeech\(clean, \d+\)/.test(route), "the chunk size must be the shared constant");
+});

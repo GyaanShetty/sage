@@ -1,6 +1,6 @@
 "use client";
 
-import { splitIntoParts, handoffLine } from "@/lib/speech-split";
+import { splitIntoParts, handoffLine, splitForSpeech, SPEAK_CHUNK_CHARS } from "@/lib/speech-split";
 
 /**
  * Low-latency neural speech. Streams MP3 from ElevenLabs (flash model) and
@@ -87,6 +87,49 @@ export interface SpeakOpts {
 let session = 0;
 let chainTimer: number | null = null;
 
+/**
+ * Is SAGE saying something right now?
+ *
+ * Starting a new utterance bumps `session`, which is how the auto-continue
+ * chain knows to abandon the rest of the previous one — correct when a person
+ * asks for something new, and destructive when it happens by itself.
+ *
+ * That is exactly what cut the morning brief off mid-sentence: the brief plays
+ * as a chain of parts, the ambient poll fires every four minutes, and its only
+ * guards were the voice *overlay* state and typing. It had no idea an
+ * unrelated part of the app was mid-sentence, so it interrupted, took the
+ * session with it, and the remaining parts were silently dropped.
+ *
+ * Exported so anything that might speak unprompted can check first.
+ */
+let speakingUntil = 0;
+/** Elements already wired for lease bookkeeping — start() can be called twice
+ *  on the same element when the blob fallback takes over. */
+const leased = new WeakSet<HTMLAudioElement>();
+
+export function isSpeaking(): boolean {
+  if (pending) return true;
+  if (typeof window !== "undefined" && window.speechSynthesis?.speaking) return true;
+  return Date.now() < speakingUntil;
+}
+
+/**
+ * Hold the "busy" flag open for a while.
+ *
+ * Audio playback gives no reliable "still going" signal across the streaming
+ * and blob paths, so this is a lease that the player renews as it plays and
+ * that lapses on its own if playback dies. A stale lease costs one skipped
+ * ambient remark; no lease at all costs the end of the brief.
+ */
+export function markSpeaking(ms = 20_000): void {
+  speakingUntil = Math.max(speakingUntil, Date.now() + ms);
+}
+
+/** Playback finished or was stopped — stop claiming the floor. */
+export function releaseSpeaking(): void {
+  speakingUntil = 0;
+}
+
 function stopChain() {
   if (chainTimer !== null) { clearTimeout(chainTimer); chainTimer = null; }
 }
@@ -103,6 +146,7 @@ export function partsRemaining(): number {
 
 /** Drop the rest — a new question makes the old answer's tail irrelevant. */
 export function forgetRest(): void {
+  releaseSpeaking();
   session += 1;
   stopChain();
   pending = null;
@@ -226,6 +270,28 @@ async function speakOne(
       body: JSON.stringify({ text: clean, from }),
     });
 
+  /**
+   * A continuation, retried.
+   *
+   * A long brief is spoken as several requests back to back. The loop below
+   * used to `break` the moment one of them failed, which ended the audio
+   * mid-sentence with no error anywhere — the morning brief simply stopped
+   * talking halfway through. A provider blip on piece three of seven should
+   * cost a pause, not the other four pieces.
+   */
+  const segmentWithRetry = async (from: number): Promise<Response | null> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 250 * attempt));
+      const res = await segment(from).catch(() => null);
+      if (res?.ok && res.body) return res;
+    }
+    return null;
+  };
+
+  /** Whatever is left to say from piece `from` onwards, for the last resort. */
+  const remainderFrom = (from: number): string =>
+    splitForSpeech(clean, SPEAK_CHUNK_CHARS).slice(from).join(" ");
+
   let res: Response;
   try {
     res = await segment(0);
@@ -262,8 +328,18 @@ async function speakOne(
    * code swallowed that rejection, which turned a permissions problem into
    * pure silence with a 200 in the network tab and nothing in the console.
    */
-  const start = (audio: HTMLAudioElement) =>
-    audio.play().then(
+  const start = (audio: HTMLAudioElement) => {
+    // Claim the floor while this element is actually playing, and renew the
+    // lease as it goes so a long brief stays "busy" for its whole length.
+    if (!leased.has(audio)) {
+      leased.add(audio);
+      audio.addEventListener("timeupdate", () => markSpeaking(15_000));
+      audio.addEventListener("ended", releaseSpeaking);
+      audio.addEventListener("pause", releaseSpeaking);
+      audio.addEventListener("error", releaseSpeaking);
+    }
+    markSpeaking();
+    return audio.play().then(
       () => true,
       (err: DOMException) => {
         if (err?.name === "NotAllowedError") {
@@ -273,9 +349,11 @@ async function speakOne(
         } else {
           announce("VOICE PLAYBACK FAILED", `${provider}: ${err?.name ?? "unknown error"}`);
         }
+        releaseSpeaking();
         return false;
       },
     );
+  };
 
   // Progressive streaming path (lowest latency) — MP3 only. When ElevenLabs is
   // out of credits the server returns Gemini WAV, which must go through the blob
@@ -395,8 +473,23 @@ async function speakOne(
               // A long answer arrives as several responses; keep appending
               // into the same buffer so it plays as one unbroken take.
               if (!next) break;
-              const more = await segment(Number(next)).catch(() => null);
-              if (!more?.ok || !more.body) break;
+              const more = await segmentWithRetry(Number(next));
+              if (!more?.body) {
+                /**
+                 * Every retry failed. Finishing in the browser's voice is worse
+                 * than SAGE's, and far better than stopping mid-sentence — the
+                 * point of a brief is that you heard all of it. Silence here is
+                 * the one outcome that loses information.
+                 */
+                const rest = remainderFrom(Number(next));
+                try { if (ms.readyState === "open") ms.endOfStream(); } catch { /* noop */ }
+                if (rest.trim()) {
+                  announce("VOICE INTERRUPTED", "Finishing the rest in the browser voice.");
+                  browserSpeak(rest, opts?.onended);
+                  return;
+                }
+                break;
+              }
               next = more.headers.get("x-sage-next");
               current = more.body.getReader();
               continue;

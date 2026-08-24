@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { sound } from "@/lib/sound";
 import { hudHighlight } from "@/lib/hud";
-import { speakLowLatency } from "@/lib/speak";
+import { speakLowLatency, isSpeaking } from "@/lib/speak";
 
 /**
  * The ambient voice — across everything, not just the markets.
@@ -77,6 +77,19 @@ export function AmbientVoice() {
     const check = async () => {
       if (!armed.current || voiceOpen.current || !sound.isOn()) return;
       if (isTyping() || document.hidden) return;
+
+      /**
+       * Never talk over something already being said.
+       *
+       * `voiceOpen` only covers the voice overlay, so this had no idea when an
+       * unrelated part of the app was mid-sentence — and starting a new
+       * utterance abandons the rest of the previous one. That is what cut the
+       * morning brief off partway through: press Listen, and four minutes
+       * later the ambient poll interrupted and the remaining parts were
+       * silently dropped. Nothing here is urgent enough to interrupt for; it
+       * waits for the next tick.
+       */
+      if (isSpeaking()) return;
 
       try {
         const res = await fetch("/api/ambient");

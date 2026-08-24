@@ -34,7 +34,7 @@ export function EisenhowerBand() {
     fetch("/api/ticktick").then((r) => r.json()).then((j) => setTasks(j.data)).catch(() => setTasks(null));
   // Same list as the Deadlines band; the shared "tasks" notification is what
   // keeps the two from disagreeing after a tick.
-  useLive(load, { everyMs: 120_000, scopes: ["tasks"] });
+  useLive(load, { everyMs: 25_000, scopes: ["tasks"] });
 
   const open = (tasks ?? []).filter((t) => t.status !== 2);
 

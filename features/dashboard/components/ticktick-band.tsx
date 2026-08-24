@@ -55,12 +55,19 @@ export function TickTickBand() {
   const load = () => fetch("/api/ticktick").then((r) => r.json()).then((j) => setTasks(j.data)).catch(() => setTasks(null));
 
   /**
-   * The timer is the fallback; looking at the panel and changing something are
-   * the real triggers. The Eisenhower band renders this same TickTick list, so
-   * without the shared notification the two sat on independent two-minute
-   * timers and disagreed with each other after every tick.
+   * Twenty-five seconds, not two minutes.
+   *
+   * That is affordable now only because a hidden tab polls not at all: the
+   * requests that used to be spent refreshing this list behind a browser
+   * someone had minimised are spent in front of them instead. Fewer requests
+   * overall, and a list that is close to current whenever it is being read.
+   *
+   * The timer is still only the fallback — looking at the panel and changing
+   * something are the real triggers. The Eisenhower band renders this same
+   * TickTick list, so without the shared notification the two sat on
+   * independent timers and disagreed with each other after every tick.
    */
-  useLive(load, { everyMs: 120_000, scopes: ["tasks"] });
+  useLive(load, { everyMs: 25_000, scopes: ["tasks"] });
 
   const complete = async (t: TickTask) => {
     sound.blip();

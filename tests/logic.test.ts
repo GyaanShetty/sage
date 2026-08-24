@@ -2428,3 +2428,49 @@ test("compact density changes spacing without hiding anything", async () => {
   const layout = fs.readFileSync("app/layout.tsx", "utf8");
   assert.match(layout, /sage-density/, "density must be applied inline, ahead of hydration");
 });
+
+// ── A hidden tab costs nothing ─────────────────────────────────────────────
+
+test("polling stops when nobody is looking", async () => {
+  const fs = await import("node:fs");
+  const live = fs.readFileSync("lib/live.ts", "utf8");
+
+  /**
+   * Measured in a real browser: a hidden dashboard was making 32 API calls a
+   * minute, 28 of them the globe's satellite layer refreshing a scene nobody
+   * could see. That is the free tier being spent on nothing.
+   *
+   * It also rules out the obvious "make it instant" answer. An SSE connection
+   * occupies a serverless function for as long as it is held open, so one tab
+   * left open all day is 24 hours of function time per day — far past a free
+   * plan, for an app whose whole premise is costing nothing. Pausing when
+   * hidden and polling faster when visible buys the same feeling and costs
+   * less than before.
+   */
+  assert.match(live, /document\.hidden \? hiddenMs : everyMs/,
+    "the interval must depend on whether the tab is visible");
+  assert.match(live, /hiddenMs/, "there must be a way to opt into polling while hidden");
+
+  // The globe is the expensive one and does not use the hook, so it is gated
+  // at the fetch itself.
+  const globe = fs.readFileSync("features/atlas/hero-globe.tsx", "utf8");
+  assert.match(globe, /whenVisible/, "the globe layers must not fetch while hidden");
+  assert.match(globe, /setInterval\(whenVisible\(loadSats\)/);
+
+  // Reminders are the deliberate exception: they fire things rather than only
+  // showing them, so they slow down instead of stopping.
+  const rem = fs.readFileSync("components/reminder-ticker.tsx", "utf8");
+  assert.match(rem, /hiddenMs:/, "reminder delivery must continue while hidden, just slower");
+});
+
+test("the toaster still shows what arrived while the page was closed", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("components/toaster.tsx", "utf8");
+
+  // Moving the poll out of its effect dropped the line that restored the
+  // seen-marker, which silently marked the whole backlog as read on every
+  // reload instead of showing it. The restore has to run before the first poll.
+  assert.match(src, /seenRef\.current = localStorage\.getItem\(SEEN_KEY\)/);
+  assert.match(src, /firstRef\.current = !seenRef\.current/,
+    "the backlog is suppressed only on a genuinely first run");
+});

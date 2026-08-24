@@ -11,15 +11,21 @@ cold. Ordered by value per unit of work.
 These are the difference between "a dashboard I check" and "a system that is
 running". The plumbing landed with `lib/live.ts`; these build on it.
 
-### 1. Server-sent events instead of polling
-`lib/live.ts` refreshes on a timer, on focus, and on a local change
-notification. The gap left: a change made **elsewhere** — the TickTick app, an
-email arriving, the cron firing — still waits for a timer. One `GET /api/stream`
-holding an SSE connection, with the cron and webhooks publishing to it, replaces
-every remaining poll with a push.
-*Touches:* new `app/api/stream/route.ts`, `lib/live.ts`, the cron.
-*Note:* Vercel Hobby caps a function at 300s, so the client must reconnect —
-`EventSource` does that natively.
+### 1. ~~Server-sent events instead of polling~~ — rejected, and why
+
+Measured before building: a hidden dashboard was making **32 API calls a
+minute**, 28 of them the globe refreshing satellites nobody could see.
+
+SSE would fix staleness and break the budget. A connection occupies a
+serverless function for as long as it is held open, so one tab left open all
+day is 24 hours of function time per day — far past what a free plan includes,
+for an app whose entire premise is that it costs nothing to run.
+
+Done instead: polling pauses entirely while a tab is hidden, and the freed
+budget is spent in the foreground (tasks went from 120s to 25s). Hidden cost
+fell 32 → 3 calls a minute; the app feels *more* live and costs less.
+Changes made outside SAGE still arrive on a timer rather than instantly — that
+is the accepted trade.
 
 ### 2. Optimistic writes everywhere, with rollback
 Ticking a TickTick task is instant because the row is removed locally before the
@@ -95,9 +101,10 @@ against what happened and name the pattern — the useful and uncomfortable half
 `core/decisions` records decisions and asks for a verdict. It does not yet check
 whether the reasoning held up. Scoring past decisions is where the value is.
 
-### 14. Spend forecasting
-`core/finance` tracks against envelopes. Projecting the month's end from the
-current run rate turns a record into a warning.
+### 14. ~~Spend forecasting~~ — already built
+
+`core/finance/budget.ts` already projects month-end from days elapsed
+(`projected`, `projectedTotal`, and the pacing note). Listed here in error.
 
 ### 15. Offline-first
 The service worker exists and caches shell assets. Making the last-known state

@@ -32,6 +32,23 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        {/*
+          Density, applied before the first paint.
+          The preference lives in localStorage, which React cannot read during
+          render without the server and client disagreeing — so setting it in
+          an effect means one frame of the comfortable layout before it snaps
+          to compact. That flash is exactly what a density setting is meant to
+          avoid. Inline, synchronous, and silent if storage is unavailable.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('sage-density')==='compact')" +
+              "document.documentElement.setAttribute('data-density','compact')}catch(e){}",
+          }}
+        />
+      </head>
       <body className={`${disp.variable} ${mono.variable} ${brand.variable} antialiased`}>
         <Providers>{children}</Providers>
         <PwaRegister />

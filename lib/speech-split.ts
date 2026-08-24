@@ -61,6 +61,15 @@ export function splitForSpeech(text: string, limit: number): string[] {
 export const SPOKEN_BUDGET_CHARS = 850;
 
 /**
+ * How much text one /api/voice/speak request synthesises.
+ *
+ * Shared because both sides need it: the route splits by it, and the client
+ * needs the same split to work out what is left when a continuation request
+ * fails partway through a long answer.
+ */
+export const SPEAK_CHUNK_CHARS = 1200;
+
+/**
  * Break a long answer into speakable parts at sentence boundaries.
  *
  * Distinct from splitForSpeech, which chops a single utterance into provider-

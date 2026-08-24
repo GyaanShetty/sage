@@ -3,7 +3,7 @@ import { edgeSpeak } from "@/infrastructure/tts/edge";
 import { fishSpeak, fishKeys, lastFishError } from "@/infrastructure/tts/fish";
 import { cartesiaSpeak, cartesiaKeys } from "@/infrastructure/tts/cartesia";
 import { VOICE_DIRECTION } from "@/lib/config";
-import { splitForSpeech } from "@/lib/speech-split";
+import { splitForSpeech, SPEAK_CHUNK_CHARS } from "@/lib/speech-split";
 
 export const runtime = "nodejs";
 // Deliberately short. A voice request that takes longer than this is useless
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
   // is what made SAGE stop mid-sentence on any long answer; instead the text is
   // split on sentence boundaries and the pieces are spoken in order.
   const clean = text.slice(0, 12_000);
-  const all = splitForSpeech(clean, 1200);
+  const all = splitForSpeech(clean, SPEAK_CHUNK_CHARS);
 
   /**
    * Where this response starts.

@@ -1,4 +1,4 @@
-import { tzHour, tzDay, TZ } from "@/lib/config";
+import { tzHour, tzDay, TZ, endOfTodayUtc } from "@/lib/config";
 
 /**
  * What is worth saying out loud, from everywhere.
@@ -263,13 +263,13 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
        * useful remark is the one that arrives while there is still time to act
        * on it.
        */
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
       const { data: today } = await db
         .from("Task").select("id, title, dueAt")
         .eq("userId", DEFAULT_USER_ID).neq("status", "done").neq("status", "cancelled")
         .gte("dueAt", new Date().toISOString())
-        .lte("dueAt", endOfDay.toISOString())
+        // endOfTodayUtc, not setHours(23,59) — that would be the server's
+        // midnight, which is UTC here and 05:29 IST the next morning.
+        .lte("dueAt", endOfTodayUtc())
         .order("dueAt", { ascending: true }).limit(5);
       if (today?.length) {
         push({

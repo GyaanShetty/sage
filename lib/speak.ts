@@ -335,8 +335,20 @@ async function speakOne(
       leased.add(audio);
       audio.addEventListener("timeupdate", () => markSpeaking(15_000));
       audio.addEventListener("ended", releaseSpeaking);
-      audio.addEventListener("pause", releaseSpeaking);
       audio.addEventListener("error", releaseSpeaking);
+      /**
+       * Deliberately NOT `pause`.
+       *
+       * A long brief plays as chained MediaSource segments, and a buffer
+       * underrun between them fires `pause` mid-utterance without the audio
+       * being over. Releasing there cleared the busy flag, let the ambient poll
+       * decide nothing was speaking, and dropped the rest of the brief — which
+       * is precisely the failure the lease exists to prevent, reintroduced by
+       * the mechanism meant to fix it.
+       *
+       * `ended` and `error` are the only two events that mean genuinely
+       * finished. A stall simply lets the lease lapse on its own.
+       */
     }
     markSpeaking();
     return audio.play().then(

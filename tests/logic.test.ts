@@ -2537,3 +2537,76 @@ test("a repo is never made public by a single mishearing", async () => {
   assert.equal(parsed.visibility, "private", "omitting visibility must mean private");
   assert.equal(parsed.confirmPublic, false);
 });
+
+// ── Three bugs found reviewing this session's own work ─────────────────────
+
+test("end of today is the owner's midnight, not the server's", async () => {
+  const { endOfTodayUtc, startOfTodayUtc } = await import("@/lib/config");
+
+  // The pair must bracket exactly one day.
+  const start = new Date(startOfTodayUtc()).getTime();
+  const end = new Date(endOfTodayUtc()).getTime();
+  assert.equal(end - start, 86_400_000 - 1, "start and end must bracket one whole day");
+
+  /**
+   * `new Date().setHours(23, 59, 59, 999)` is the *server's* midnight, which on
+   * Vercel is UTC — 05:29 the next morning in IST. A "due today" filter built
+   * that way silently swallows several hours of tomorrow. This is the same
+   * class of bug as the toISOString() day keys the codebase already guards
+   * against, and it was reintroduced right next to the helper that prevents it.
+   */
+  const fs = await import("node:fs");
+  // Comments here name the old call while explaining why it went, so strip
+  // them before searching — otherwise the prose fails the test.
+  const ambient = fs.readFileSync("core/ambient/index.ts", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/[^\n]*/g, "");
+  assert.ok(!/setHours\(23,\s*59/.test(ambient), "server-local midnight must not come back");
+  assert.match(ambient, /endOfTodayUtc\(\)/);
+
+  // Every moment of today must sit inside the bracket.
+  for (const h of [0, 6, 12, 23]) {
+    const probe = new Date();
+    probe.setUTCHours(h, 30, 0, 0);
+    const s = new Date(startOfTodayUtc(probe)).getTime();
+    const e = new Date(endOfTodayUtc(probe)).getTime();
+    assert.ok(s <= probe.getTime() && probe.getTime() <= e, `probe at ${h}:30 UTC fell outside its own day`);
+  }
+});
+
+test("a stall does not hand the floor to the ambient voice", async () => {
+  const fs = await import("node:fs");
+  const speak = fs.readFileSync("lib/speak.ts", "utf8");
+
+  /**
+   * A long brief plays as chained MediaSource segments, and a buffer underrun
+   * between them fires `pause` mid-utterance without the audio being over.
+   * Releasing the lease there let the ambient poll conclude nothing was
+   * speaking and drop the rest of the brief — the exact failure the lease was
+   * added to prevent, reintroduced by the mechanism meant to fix it.
+   */
+  assert.ok(
+    !/addEventListener\("pause",\s*releaseSpeaking\)/.test(speak),
+    "`pause` fires on a mid-utterance stall and must not release the lease",
+  );
+  // Only genuinely-finished events may.
+  assert.match(speak, /addEventListener\("ended",\s*releaseSpeaking\)/);
+  assert.match(speak, /addEventListener\("error",\s*releaseSpeaking\)/);
+});
+
+test("a voice failure reason belongs to the call that produced it", async () => {
+  const fs = await import("node:fs");
+  const fish = fs.readFileSync("infrastructure/tts/fish.ts", "utf8");
+  const route = fs.readFileSync("app/api/voice/speak/route.ts", "utf8");
+
+  // lastFishError is a module global. The speak route fires one request per
+  // chunk and diagnose probes alongside them, so reading the global can report
+  // a different attempt's failure — and diagnostics that misattribute are
+  // worse than none, since the entire point was to stop guessing.
+  assert.match(fish, /onFailure\?: \(reason: string\) => void/);
+  assert.match(route, /onFailure: \(why\) =>/);
+  assert.ok(
+    !/lastFishError\(\)/.test(route),
+    "the route must take its own reason, not read the shared global",
+  );
+});

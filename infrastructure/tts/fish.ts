@@ -63,6 +63,17 @@ export interface FishOpts {
   fast?: boolean;
   /** 0.5–2.0; below 1 is slower. */
   speed?: number;
+  /**
+   * Called with the reason when this particular call produces no audio.
+   *
+   * `lastFishError()` is a module-level global, which is fine for a single
+   * probe and wrong under concurrency: the speak route fires a request per
+   * chunk and the diagnose route probes alongside them, so by the time a
+   * caller reads the global it may be describing somebody else's attempt.
+   * Diagnostics that misattribute are worse than none — the whole point was
+   * to stop guessing. A caller that needs its own reason passes this.
+   */
+  onFailure?: (reason: string) => void;
 }
 
 /**
@@ -70,11 +81,14 @@ export interface FishOpts {
  * or every key is exhausted, so the caller can fall through to another provider.
  */
 export async function fishSpeak(text: string, opts: FishOpts = {}): Promise<ReadableStream<Uint8Array> | null> {
-  const keys = fishKeys();
-  if (!keys.length) {
-    lastError = "no FISH_AUDIO_API_KEY / FISH_AUDIO_API_KEYS configured";
+  const fail = (reason: string): null => {
+    lastError = reason;      // for /api/voice/diagnose, which probes alone
+    opts.onFailure?.(reason); // for this caller specifically, race-free
     return null;
-  }
+  };
+
+  const keys = fishKeys();
+  if (!keys.length) return fail("no FISH_AUDIO_API_KEY / FISH_AUDIO_API_KEYS configured");
 
   const payload: Record<string, unknown> = {
     text,
@@ -133,8 +147,9 @@ export async function fishSpeak(text: string, opts: FishOpts = {}): Promise<Read
     }
   }
 
-  lastError = reasons.length
-    ? reasons.join("; ")
-    : `all ${cooling} key(s) cooling down from an earlier failure`;
-  return null;
+  return fail(
+    reasons.length
+      ? reasons.join("; ")
+      : `all ${cooling} key(s) cooling down from an earlier failure`,
+  );
 }

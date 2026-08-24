@@ -86,6 +86,19 @@ export function startOfTodayUtc(d = new Date()): string {
 }
 
 /**
+ * The last instant of today, in the app timezone, as UTC.
+ *
+ * The counterpart to startOfTodayUtc, and it exists because its absence was
+ * quietly reinvented: `new Date().setHours(23, 59, 59, 999)` uses the *server's*
+ * midnight, which on Vercel is UTC. In IST that is 05:29 the next morning, so a
+ * "due today" filter built that way silently includes several hours of tomorrow
+ * and misreports what is actually left of the day.
+ */
+export function endOfTodayUtc(d = new Date()): string {
+  return new Date(new Date(startOfTodayUtc(d)).getTime() + 86_400_000 - 1).toISOString();
+}
+
+/**
  * The calendar day a moment falls on, in the app timezone.
  *
  * `toISOString().slice(0, 10)` is the UTC date, which in IST is the *previous*

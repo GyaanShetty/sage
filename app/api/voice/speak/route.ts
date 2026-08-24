@@ -1,6 +1,6 @@
 import { proxyFetch } from "@/infrastructure/http/fetch";
 import { edgeSpeak } from "@/infrastructure/tts/edge";
-import { fishSpeak, fishKeys, lastFishError } from "@/infrastructure/tts/fish";
+import { fishSpeak, fishKeys } from "@/infrastructure/tts/fish";
 import { cartesiaSpeak, cartesiaKeys } from "@/infrastructure/tts/cartesia";
 import { VOICE_DIRECTION } from "@/lib/config";
 import { splitForSpeech, SPEAK_CHUNK_CHARS } from "@/lib/speech-split";
@@ -141,8 +141,9 @@ export async function POST(req: Request) {
   /** Fish Audio — msgpack API, free-tier model by default. */
   const tryFish = async (piece: string): Promise<ReadableStream<Uint8Array> | null> => {
     if (!fishKeys().length) return null;
-    const out = await fishSpeak(piece, { fast });
-    if (!out) reasons.push(`fish — ${lastFishError() ?? "no audio"}`);
+    // The reason comes back with this call rather than from a shared global,
+    // so parallel chunk requests cannot report each other's failures.
+    const out = await fishSpeak(piece, { fast, onFailure: (why) => reasons.push(`fish — ${why}`) });
     return out;
   };
 

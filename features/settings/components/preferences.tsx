@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Globe, Hand, Mic, Moon, Sparkles } from "lucide-react";
+import { Bell, Globe, Hand, Mic, Moon, Rows3, Sparkles } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useGlobeEnabled } from "@/lib/globe-pref";
+import { useDensity } from "@/lib/density-pref";
 import { disablePush, enablePush, pushEnabled, pushSupported } from "@/features/notifications/push-client";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -44,6 +45,7 @@ export function Preferences() {
   // render agree (avoids a hydration mismatch).
   const [mounted, setMounted] = useState(false);
   const { on: globe, set: setGlobe } = useGlobeEnabled();
+  const { value: densityValue, set: setDensityValue } = useDensity();
 
   useEffect(() => {
     setMounted(true);
@@ -170,6 +172,24 @@ export function Preferences() {
             </p>
           </div>
           <Toggle on={globe} onClick={() => setGlobe(!globe)} />
+        </GlassPanel>
+      )}
+
+      {mounted && (
+        <GlassPanel className="mt-3 flex items-center gap-4 p-5">
+          <Rows3 className="size-5 text-muted" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">Compact layout</p>
+            <p className="text-xs text-subtle">
+              Tightens spacing and shrinks the globe so more fits on screen at once. Worth
+              turning on in a half-width window, where the standard spacing costs you whole
+              panels below the fold. Nothing is hidden — only the room it takes up changes.
+            </p>
+          </div>
+          <Toggle
+            on={densityValue === "compact"}
+            onClick={() => setDensityValue(densityValue === "compact" ? "comfortable" : "compact")}
+          />
         </GlassPanel>
       )}
 

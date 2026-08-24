@@ -500,11 +500,45 @@
 /* below this the globe can no longer share the row — stack everything */
 @media (max-width: 900px) {
   .heart { height: auto; min-height: 0; display: flex; flex-direction: column; gap: 1px; }
-  .heart-globe { position: relative; inset: auto; height: min(88vw, 460px); }
+  /**
+   * The globe has to yield to the window's HEIGHT, not just its width.
+   *
+   * This was min(88vw, 460px) — a width-only cap, so at any width above about
+   * 520px it settled at a flat 460px however short the window was. In a
+   * half-screen window that is the whole fold: the globe sat there at full
+   * size and pushed the sitrep, the brief and every panel below it out of
+   * sight. It is the most decorative thing on the page and it was taking
+   * precedence over all of the useful ones.
+   *
+   * Now it is capped against the viewport height too, so a short window gets a
+   * banner rather than a centrepiece, with a floor so it never degrades into a
+   * sliver of nothing.
+   */
+  .heart-globe {
+    position: relative;
+    inset: auto;
+    height: clamp(200px, min(78vw, 40vh), 430px);
+  }
   .heart-head { position: static; padding: 2px 4px 8px; }
   .heart-side { position: static; width: auto; inset: auto; overflow: visible; }
   .heart-stats { position: static; }
-  .heart .heroglobe-layers { left: 12px; max-width: calc(100% - 24px); bottom: 12px; }
+  /**
+   * One scrolling row, never two.
+   *
+   * Wrapping put a single orphaned chip on a second row — which both looked
+   * broken and stole another 33px of vertical space from the content below.
+   * A row that scrolls sideways keeps every layer reachable at any width.
+   */
+  .heart .heroglobe-layers {
+    left: 12px;
+    max-width: calc(100% - 24px);
+    bottom: 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .heart .heroglobe-layers::-webkit-scrollbar { display: none; }
   .heart .heroglobe-hint { display: none; }
   .hs-v { font-size: 17px; }
 }
@@ -1298,3 +1332,41 @@
 .xs-test { border-left-color: #f59e0b; }
 .xs-test .xs-pill { color: #f59e0b; }
 @media (max-width: 640px) { .xs-focus { display: none; } }
+
+
+/* ══ Narrow windows and density ═══════════════════════════════════════════
+ *
+ * SAGE is designed for a wide window. Half a laptop screen is roughly 720–870
+ * CSS pixels, which used to fall in a gap: too narrow for the desktop layout,
+ * too wide to trigger the mobile rules that cluster at 767px. What follows
+ * closes that gap and adds a density control for people who would rather see
+ * more at once than have it breathe.
+ */
+
+/* ── the floating mic must never sit permanently on top of a control ──────
+ *
+ * It is fixed, so it always overlays whatever is scrolled beneath it — that is
+ * what a floating button is. The bug is at the END of the page, where there is
+ * nothing left to scroll and it parks on top of the last row for good. At 800px
+ * it covered a stat cell outright. A little clearance means the last row can
+ * always be scrolled clear of it.
+ */
+@media (max-width: 900px) {
+  .hud-grid { padding-bottom: 96px; }
+}
+
+/* ── compact density ──────────────────────────────────────────────────────
+ *
+ * Set on <html> so it applies everywhere at once, and expressed only as
+ * spacing and scale — never by hiding things. A density control that removes
+ * features is not a density control, it is a worse version of the app.
+ */
+html[data-density="compact"] .section { padding: 12px 14px; }
+html[data-density="compact"] .cell { padding: 10px 13px; }
+html[data-density="compact"] .heart { margin-bottom: 8px; }
+html[data-density="compact"] .heart-globe { height: clamp(180px, min(60vw, 30vh), 320px); }
+html[data-density="compact"] .sectitle { margin-bottom: 10px; }
+html[data-density="compact"] .heart-side .cell,
+html[data-density="compact"] .heart-side .expandable { padding: 7px 9px; }
+html[data-density="compact"] .counters .ct { padding: 6px 4px; }
+html[data-density="compact"] .bh { margin-bottom: 5px; }

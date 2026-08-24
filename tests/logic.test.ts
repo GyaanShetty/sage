@@ -2370,3 +2370,61 @@ test("a failed continuation does not end a long answer mid-sentence", async () =
   assert.match(route, /SPEAK_CHUNK_CHARS/);
   assert.ok(!/splitForSpeech\(clean, \d+\)/.test(route), "the chunk size must be the shared constant");
 });
+
+// ── Narrow windows ─────────────────────────────────────────────────────────
+
+test("the hero globe yields to the window's height, not just its width", async () => {
+  const fs = await import("node:fs");
+  const raw = fs.readFileSync("features/dashboard/command.css", "utf8");
+  // Comments in this file quote the old rule while explaining why it changed,
+  // so a naive search finds the prose and not the CSS.
+  const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  /**
+   * The stacked globe was capped at `min(88vw, 460px)` — width only. Above
+   * about 520px wide that resolves to a flat 460px however short the window
+   * is, so in a half-screen window the most decorative thing on the page took
+   * the entire fold and pushed the sitrep and the brief out of sight.
+   */
+  // Several `.heart-globe` rules exist (desktop, stacked, compact) and only
+  // some set a height — check every one that does.
+  const heights = [...css.matchAll(/\.heart-globe\s*\{([^}]*)\}/g)]
+    .map((m) => m[1].match(/height:([^;]+);/)?.[1]?.trim())
+    .filter((h): h is string => !!h);
+
+  assert.ok(heights.length >= 1, "the stacked globe must set a height somewhere");
+  for (const h of heights) {
+    assert.ok(/vh/.test(h), `globe height must account for viewport height, got: ${h}`);
+    // A floor, so shrinking never turns it into a sliver.
+    assert.ok(/clamp\(/.test(h), `needs a floor as well as a ceiling, got: ${h}`);
+  }
+  assert.ok(!/min\(\s*88vw\s*,\s*460px\s*\)/.test(css), "the width-only cap must not come back");
+
+  // The layer chips must stay on one row — a wrapped row orphaned a single
+  // chip and cost another 33px of the content below it.
+  assert.match(css, /\.heart \.heroglobe-layers\s*\{[^}]*flex-wrap:\s*nowrap/);
+  assert.match(css, /\.heart \.heroglobe-layers\s*\{[^}]*overflow-x:\s*auto/);
+});
+
+test("compact density changes spacing without hiding anything", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync("features/dashboard/command.css", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const rules = [...css.matchAll(/html\[data-density="compact"\][^{]*\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.ok(rules.length >= 5, `expected several compact rules, found ${rules.length}`);
+
+  // The whole point: a density control that removes features is not a density
+  // control, it is a worse version of the app.
+  for (const body of rules) {
+    assert.ok(
+      !/display:\s*none/.test(body),
+      `compact must not hide anything — found "display: none" in: ${body.trim().slice(0, 60)}`,
+    );
+  }
+
+  // Applied before the first paint, or the page visibly snaps from one layout
+  // to the other on every load.
+  const layout = fs.readFileSync("app/layout.tsx", "utf8");
+  assert.match(layout, /sage-density/, "density must be applied inline, ahead of hydration");
+});

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { sound } from "@/lib/sound";
+import { useLive } from "@/lib/live";
 
 interface Toast {
   id: string;
@@ -79,17 +80,35 @@ export function Toaster() {
   }, []);
 
   // Poll system events; toast anything new since last seen.
+  //
+  // `first` lives in a ref rather than the effect, because the poll no longer
+  // runs inside one: it has to survive being paused while the tab is hidden
+  // and resumed when it comes back, without replaying the whole backlog as
+  // fresh toasts.
+  const firstRef = useRef(true);
+
+  /**
+   * Restore what has already been seen, before the first poll runs.
+   *
+   * Declared above useLive so this effect runs first. Without it seenRef stays
+   * empty across a reload and the very first poll marks the whole backlog as
+   * seen without showing any of it — so anything that arrived while the page
+   * was closed would be silently swallowed. `first` suppresses the backlog
+   * only on a genuinely first run, when there is no marker to compare against.
+   */
   useEffect(() => {
     seenRef.current = localStorage.getItem(SEEN_KEY) ?? "";
-    let first = !seenRef.current;
-    const poll = async () => {
+    firstRef.current = !seenRef.current;
+  }, []);
+
+  const poll = useCallback(async () => {
       try {
         const res = await fetch("/api/events/recent");
         const json = await res.json();
         const events = (json.data ?? []) as SystemEvent[];
         if (!events.length) return;
         const newest = events[0].createdAt;
-        if (!first) {
+        if (!firstRef.current) {
           const fresh = events.filter((e) => e.createdAt > seenRef.current).reverse();
           for (const ev of fresh.slice(-3)) {
             const d = describe(ev);
@@ -100,15 +119,20 @@ export function Toaster() {
             }
           }
         }
-        first = false;
+        firstRef.current = false;
         seenRef.current = newest;
         localStorage.setItem(SEEN_KEY, newest);
       } catch {}
-    };
-    poll();
-    const t = setInterval(poll, 45000);
-    return () => clearInterval(t);
   }, [push]);
+
+  /**
+   * Paused while the tab is hidden.
+   *
+   * Safe because this only *shows* things — a toast nobody can see is worth
+   * nothing, and push notifications are delivered by the server, not by this
+   * poll. Whatever arrived while you were away is toasted on your return.
+   */
+  useLive(poll, { everyMs: 45_000 });
 
   return (
     <div className="toaster">

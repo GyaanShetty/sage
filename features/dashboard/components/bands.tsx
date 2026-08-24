@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { GeoMap } from "./geo-map";
 import { ExpandableCell } from "./expandable-cell";
 import { TZ } from "@/lib/config";
+import { useLive } from "@/lib/live";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -20,15 +21,13 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
   const [sky, setSky] = useState<SkyData | null>(null);
 
   // Pull live sky data (ISS + sun/moon) for the SKY panel.
-  useEffect(() => {
-    const load = () => {
-      const q = geo ? `?lat=${geo.lat}&lon=${geo.lon}` : "";
-      fetch(`/api/sky${q}`).then((r) => r.json()).then((j) => setSky(j.data)).catch(() => {});
-    };
-    load();
-    const t = setInterval(load, 20000);
-    return () => clearInterval(t);
+  const loadSky = useCallback(() => {
+    const q = geo ? `?lat=${geo.lat}&lon=${geo.lon}` : "";
+    fetch(`/api/sky${q}`).then((r) => r.json()).then((j) => setSky(j.data)).catch(() => {});
   }, [geo]);
+  // Twenty seconds is fine in front of someone and pure waste behind a
+  // minimised window; useLive stops it dead while the tab is hidden.
+  useLive(loadSky, { everyMs: 20_000 });
 
   useEffect(() => {
     const fmt = (tz: string) => {

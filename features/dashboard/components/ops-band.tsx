@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GitPullRequest, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ExpandableCell } from "./expandable-cell";
+import { useLive } from "@/lib/live";
 
 interface Repo { name: string; language: string | null; pushed_at: string; private: boolean }
 interface PrItem { title: string; repo: string; number: number; url: string }
@@ -25,11 +26,14 @@ export function OpsBand() {
   useEffect(() => {
     fetch("/api/github").then((r) => r.json()).then((j) => setGh(j.data)).catch(() => setGh(null));
     fetch("/api/github/contributions").then((r) => r.json()).then((j) => setContrib(j.data)).catch(() => {});
-    const pull = () => fetch("/api/spotify").then((r) => r.json()).then((j) => setNow(j.data)).catch(() => setNow(null));
-    pull();
-    const t = setInterval(pull, 15000);
-    return () => clearInterval(t);
   }, []);
+
+  // Fifteen seconds, and only while someone is watching it.
+  const pullNowPlaying = useCallback(
+    () => fetch("/api/spotify").then((r) => r.json()).then((j) => setNow(j.data)).catch(() => setNow(null)),
+    [],
+  );
+  useLive(pullNowPlaying, { everyMs: 15_000 });
 
   const control = async (action: string) => {
     await fetch("/api/spotify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });

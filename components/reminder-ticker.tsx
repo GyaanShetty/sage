@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useLive } from "@/lib/live";
 
 /**
  * Deliver reminders on time while SAGE is open.
@@ -21,6 +22,8 @@ const EVERY_MS = 60_000;
 
 export function ReminderTicker() {
   const running = useRef(false);
+
+  const tickRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,18 +49,24 @@ export function ReminderTicker() {
       }
     };
 
-    void tick();
-    const id = window.setInterval(tick, EVERY_MS);
-    // Coming back to the tab is exactly when a missed reminder is most likely.
-    const onVisible = () => { if (document.visibilityState === "visible") void tick(); };
-    document.addEventListener("visibilitychange", onVisible);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
+    tickRef.current = tick;
+    return () => { cancelled = true; };
   }, []);
+
+  /**
+   * The one poll that keeps going while the tab is hidden.
+   *
+   * Everything else in SAGE pauses when nobody is looking, because refreshing
+   * a panel nobody can see buys nothing. This is different: it does not just
+   * *show* something, it fires due reminders — marking them, mirroring them to
+   * a task, pushing them. A reminder that waits for you to look at the tab is
+   * not a reminder.
+   *
+   * So it slows down rather than stopping: a minute in front of you, three
+   * minutes behind. Coming back also triggers it immediately, which is exactly
+   * when a missed reminder is most likely.
+   */
+  useLive(() => tickRef.current?.(), { everyMs: EVERY_MS, hiddenMs: 3 * EVERY_MS });
 
   return null;
 }

@@ -29,6 +29,20 @@ import { useEffect, useRef } from "react";
  * purpose — Alpha Vantage's free tier is 25 requests a *day*. Refreshing more
  * eagerly there buys nothing but a spent quota, so those routes keep their
  * caches and this hook simply asks more often than it used to.
+ *
+ * ── Why not a push connection ──────────────────────────────────────────────
+ *
+ * The obvious answer to "make it instant" is server-sent events, and it is the
+ * wrong one here. An SSE connection occupies a serverless function for as long
+ * as it is held open, so a single tab left open all day is 24 hours of
+ * function time per day — far past what a free plan includes, for an app whose
+ * entire premise is that it costs nothing to run. Push would trade the thing
+ * this project is for.
+ *
+ * What is affordable is spending the budget where someone is actually looking.
+ * A hidden tab polling every 20 seconds is pure waste; the same requests moved
+ * to the foreground make the app feel live and cost less in total, because a
+ * hidden tab now costs nothing at all.
  */
 
 /** Broadcast that something changed, so every live panel re-reads at once. */
@@ -40,8 +54,19 @@ export function notifyDataChanged(scope?: string): void {
 }
 
 export interface LiveOptions {
-  /** Fallback timer, for things that change without anyone doing anything. */
+  /**
+   * How often to poll **while the tab is visible**. A hidden tab does not
+   * poll at all — see below — so this can be far more frequent than the old
+   * always-on intervals were, for less traffic overall.
+   */
   everyMs?: number;
+  /**
+   * Keep polling while hidden, at this interval. Almost nothing needs this:
+   * a panel nobody is looking at can be refreshed the instant they look back.
+   * Reach for it only when the fetch has a side effect that must keep
+   * happening — delivering a due reminder, say.
+   */
+  hiddenMs?: number;
   /**
    * Which change notifications this panel cares about. Omitted → all of them.
    * A task panel has no reason to re-fetch because a journal entry was saved.
@@ -59,19 +84,38 @@ export interface LiveOptions {
  * re-arming the timer on every render — the bug that pattern usually causes.
  */
 export function useLive(load: () => void | Promise<unknown>, opts: LiveOptions = {}): void {
-  const { everyMs, scopes, onFocus = true } = opts;
+  const { everyMs, hiddenMs, scopes, onFocus = true } = opts;
   const ref = useRef(load);
   ref.current = load;
 
   useEffect(() => {
     const run = () => void ref.current();
+
+    let timer: ReturnType<typeof setInterval> | null = null;
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+
+    /**
+     * Arm the timer for the tab's current state.
+     *
+     * Visible: poll at `everyMs`. Hidden: stop entirely unless the caller
+     * explicitly asked to keep going, because refreshing a panel nobody is
+     * looking at buys nothing and is paid for in someone's free-tier quota.
+     */
+    const arm = () => {
+      stop();
+      const interval = document.hidden ? hiddenMs : everyMs;
+      if (interval) timer = setInterval(run, interval);
+    };
+
     run();
+    arm();
 
-    const timer = everyMs ? setInterval(run, everyMs) : null;
-
-    // Only when actually visible: a background tab firing fetches is the
-    // thing this is meant to avoid, not cause.
-    const onVisible = () => { if (!document.hidden) run(); };
+    // Coming back is the moment the data is about to be read, so it refreshes
+    // immediately rather than waiting out whatever is left of an interval.
+    const onVisible = () => {
+      if (!document.hidden) run();
+      arm();
+    };
 
     const onChanged = (e: Event) => {
       if (!scopes) return run();
@@ -81,18 +125,20 @@ export function useLive(load: () => void | Promise<unknown>, opts: LiveOptions =
 
     if (onFocus) {
       window.addEventListener("focus", onVisible);
-      document.addEventListener("visibilitychange", onVisible);
     }
+    // Always tracked, even with onFocus off: the pause-while-hidden behaviour
+    // is about not wasting quota, not about the refresh-on-return convenience.
+    document.addEventListener("visibilitychange", onVisible);
     window.addEventListener(DATA_CHANGED, onChanged);
 
     return () => {
-      if (timer) clearInterval(timer);
+      stop();
+      document.removeEventListener("visibilitychange", onVisible);
       if (onFocus) {
         window.removeEventListener("focus", onVisible);
-        document.removeEventListener("visibilitychange", onVisible);
       }
       window.removeEventListener(DATA_CHANGED, onChanged);
     };
     // scopes is spread so a caller may pass an inline array literal.
-  }, [everyMs, onFocus, ...(scopes ?? [])]);
+  }, [everyMs, hiddenMs, onFocus, ...(scopes ?? [])]);
 }

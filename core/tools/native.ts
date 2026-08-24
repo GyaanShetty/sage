@@ -7,6 +7,7 @@ import { webSearch } from "@/infrastructure/search/tavily";
 import { proxyFetch } from "@/infrastructure/http/fetch";
 import { createGmailDraft, listUnreadEmails, listUpcomingEvents, searchGmail } from "@/infrastructure/integrations/google";
 import { githubSummary } from "@/infrastructure/integrations/github";
+import { OWNER } from "@/lib/config";
 import { getNowPlaying, spotifyControl, spotifyPlaySearch } from "@/infrastructure/integrations/spotify";
 
 /**
@@ -139,6 +140,109 @@ export const nativeTools = {
       const summary = await githubSummary();
       if (summary === null) return { ok: false, error: "GitHub not configured" };
       return { ok: true, summary };
+    },
+  }),
+
+  create_github_repo: tool({
+    description:
+      "Create a new GitHub repository under the user's account. Use when they ask to start, make, or set up a new repo/project on GitHub. " +
+      "Repositories are created PRIVATE unless the user explicitly says public — never infer that they want it public. " +
+      "If they do ask for public, you must pass confirmPublic: true, and you should say out loud that it will be visible to anyone before doing it.",
+    inputSchema: z.object({
+      name: z
+        .string()
+        .min(1)
+        .max(100)
+        .describe("Repository name as the user said it — spaces and capitals are fine, it gets converted"),
+      description: z.string().max(350).optional(),
+      visibility: z
+        .enum(["private", "public"])
+        .default("private")
+        .describe("Only 'public' if the user explicitly asked for a public repo"),
+      confirmPublic: z
+        .boolean()
+        .default(false)
+        .describe("Must be true to actually create a public repo. Set it only after the user has clearly asked for public."),
+    }),
+    execute: async ({ name, description, visibility, confirmPublic }) => {
+      /**
+       * Spoken names are not repo names.
+       *
+       * "make me a repo called weekend planner" arrives with a space and often
+       * a capital, and GitHub rejects that with a 422 — so without this every
+       * repo created by voice would fail with an error about the name being
+       * taken, which is not what went wrong.
+       */
+      const slug = name
+        .trim()
+        .toLowerCase()
+        .replace(/['’]/g, "")
+        .replace(/[^a-z0-9._-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .replace(/-{2,}/g, "-")
+        .slice(0, 100);
+
+      if (!slug) return { ok: false, error: `"${name}" does not leave anything usable as a repository name.` };
+
+      /**
+       * Public is a one-way door.
+       *
+       * A private repo created by mistake is a tidy-up. A public one has been
+       * announced to the internet and may be indexed or scraped before anyone
+       * notices — and this is a voice interface, where "public" and "a public"
+       * and a half-heard sentence all sound similar. So the model has to ask
+       * for public deliberately, twice: once in `visibility` and once in
+       * `confirmPublic`. Anything less resolves to private, which is the
+       * recoverable mistake.
+       */
+      const wantsPublic = visibility === "public" && confirmPublic === true;
+      if (visibility === "public" && !confirmPublic) {
+        return {
+          ok: false,
+          needsConfirmation: true,
+          error:
+            `Ask ${OWNER} to confirm out loud that "${slug}" should be public and visible to anyone, ` +
+            "then call this again with confirmPublic true. Nothing has been created yet.",
+        };
+      }
+
+      const { createRepo } = await import("@/infrastructure/integrations/github");
+      const result = await createRepo(slug, { priv: !wantsPublic, ...(description ? { description } : {}) });
+
+      if (!result.ok) return { ok: false, error: result.error };
+      return {
+        ok: true,
+        repo: result.repo,
+        visibility: wantsPublic ? "public" : "private",
+        url: `https://github.com/${result.repo}`,
+        // Said back so a misheard name is caught immediately, while it is still
+        // one sentence to fix rather than a repo nobody remembers making.
+        renamedFrom: slug !== name.trim() ? name.trim() : undefined,
+      };
+    },
+  }),
+
+  list_github_repos: tool({
+    description:
+      "List the user's GitHub repositories they can write to, most recently pushed first. " +
+      "Use to check whether something already exists before creating it, or to answer 'what repos do I have'.",
+    inputSchema: z.object({
+      limit: z.number().int().min(1).max(40).default(15),
+    }),
+    execute: async ({ limit }) => {
+      const { listWritableRepos } = await import("@/infrastructure/integrations/github");
+      const repos = await listWritableRepos(limit).catch(() => null);
+      if (!repos) return { ok: false, error: "Couldn't reach GitHub. Check GITHUB_TOKEN in Settings." };
+      return {
+        ok: true,
+        count: repos.length,
+        repos: repos.slice(0, limit).map((r) => ({
+          name: r.full_name,
+          private: r.private,
+          language: r.language,
+          lastPush: r.pushed_at,
+        })),
+      };
     },
   }),
 

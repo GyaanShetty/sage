@@ -2474,3 +2474,66 @@ test("the toaster still shows what arrived while the page was closed", async () 
   assert.match(src, /firstRef\.current = !seenRef\.current/,
     "the backlog is suppressed only on a genuinely first run");
 });
+
+// ── Creating GitHub repos by voice ─────────────────────────────────────────
+
+test("a spoken repo name becomes a valid GitHub name", async () => {
+  const { nativeTools } = await import("@/core/tools/native");
+  const t = nativeTools.create_github_repo as unknown as {
+    execute: (a: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  };
+  assert.ok(t, "the voice must have a repo-creation tool");
+
+  /**
+   * Speech does not produce repo names. "make me a repo called Weekend
+   * Planner" arrives with a space and a capital, and GitHub answers 422 —
+   * which surfaces as "that name may already exist", pointing at entirely the
+   * wrong problem. The slug runs before anything is sent.
+   *
+   * Public is refused without confirmation, so these calls reach the slug and
+   * stop before touching GitHub — which is exactly what makes them testable
+   * with no token and no network.
+   */
+  const slugOf = async (spoken: string) => {
+    const r = await t.execute({ name: spoken, visibility: "public", confirmPublic: false });
+    return String(r.error ?? "").match(/"([^"]+)" should be public/)?.[1] ?? null;
+  };
+
+  assert.equal(await slugOf("Weekend Planner"), "weekend-planner");
+  assert.equal(await slugOf("SAGE  OS  v2"), "sage-os-v2");
+  assert.equal(await slugOf("Gyaan's notes!"), "gyaans-notes");
+  assert.equal(await slugOf("  trailing spaces  "), "trailing-spaces");
+  // Already valid names must pass through untouched.
+  assert.equal(await slugOf("sage-os"), "sage-os");
+
+  // Nothing usable left is a clear refusal, not a mystery 422 from GitHub.
+  const empty = await t.execute({ name: "!!!", visibility: "private", confirmPublic: false });
+  assert.equal(empty.ok, false);
+  assert.match(String(empty.error), /does not leave anything usable/);
+});
+
+test("a repo is never made public by a single mishearing", async () => {
+  const { nativeTools } = await import("@/core/tools/native");
+  const t = nativeTools.create_github_repo as unknown as {
+    execute: (a: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  };
+
+  /**
+   * A private repo made by mistake is a tidy-up. A public one has been
+   * announced to the internet and may be indexed before anyone notices. This
+   * is a voice interface, so "public" is one misheard word away at all times —
+   * hence two separate signals, and private whenever they disagree.
+   */
+  const asked = await t.execute({ name: "secret-thing", visibility: "public", confirmPublic: false });
+  assert.equal(asked.ok, false);
+  assert.equal(asked.needsConfirmation, true, "public must ask before it acts");
+  assert.match(String(asked.error), /Nothing has been created yet/);
+
+  // The schema's own default must be private, so an omitted field is safe.
+  const schema = (nativeTools.create_github_repo as unknown as {
+    inputSchema: { parse: (v: unknown) => { visibility: string; confirmPublic: boolean } };
+  }).inputSchema;
+  const parsed = schema.parse({ name: "x" });
+  assert.equal(parsed.visibility, "private", "omitting visibility must mean private");
+  assert.equal(parsed.confirmPublic, false);
+});

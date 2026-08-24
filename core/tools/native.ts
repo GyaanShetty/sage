@@ -355,6 +355,84 @@ export const nativeTools = {
     },
   }),
 
+  snooze_reminder: tool({
+    description:
+      "Push a reminder to a later time — 'remind me about that tomorrow morning', 'push that to 6pm', 'not now, in an hour'. " +
+      "Works on a reminder that has already gone off as well as one still pending. " +
+      "With no `match`, it takes the one that fired most recently, which is almost always the one being talked about.",
+    inputSchema: z.object({
+      remindAt: z.string().datetime().describe("The new time, ISO 8601. Resolve relative phrases against the user's timezone before calling."),
+      match: z
+        .string()
+        .optional()
+        .describe("Part of the reminder's text, if the user named which one. Omit to snooze the most recently fired."),
+    }),
+    execute: async ({ remindAt, match }) => {
+      const when = new Date(remindAt);
+      if (Number.isNaN(when.getTime())) return { ok: false, error: "That isn't a time I can read." };
+      // A reminder in the past fires on the next tick, which looks like the
+      // snooze did nothing at all.
+      if (when.getTime() <= Date.now()) {
+        return { ok: false, error: "That time has already passed — pick a time in the future." };
+      }
+
+      /**
+       * Which reminder.
+       *
+       * Named: search pending and fired together, because "push that to
+       * tomorrow" almost always follows one going off, and a fired reminder is
+       * exactly the one the user is looking at.
+       *
+       * Unnamed: the most recently fired. Ordering by remindAt rather than by
+       * any notion of "when it fired" is deliberate — fireDueReminders claims
+       * them in remindAt order and stores no fired-at timestamp, so the most
+       * recent remindAt in the past IS the last one to have gone off.
+       */
+      let q = db
+        .from("Reminder")
+        .select("id, text, remindAt, status")
+        .eq("userId", DEFAULT_USER_ID)
+        .in("status", ["pending", "fired"]);
+
+      if (match) q = q.ilike("text", `%${match}%`);
+      else q = q.eq("status", "fired").lte("remindAt", new Date().toISOString());
+
+      const { data, error } = await q.order("remindAt", { ascending: false }).limit(5);
+      if (error) return { ok: false, error: error.message };
+      if (!data?.length) {
+        return {
+          ok: false,
+          error: match
+            ? `Nothing matching "${match}" — try list_reminders to see what there is.`
+            : "Nothing has gone off recently, so there is nothing to push back. Ask which reminder they mean.",
+        };
+      }
+
+      // Ambiguity is reported rather than guessed at: silently moving the
+      // wrong reminder is worse than one clarifying question.
+      if (match && data.length > 1) {
+        return {
+          ok: false,
+          ambiguous: true,
+          candidates: data.map((r) => r.text),
+          error: `"${match}" matches ${data.length} reminders. Ask which one.`,
+        };
+      }
+
+      const target = data[0];
+      const { error: upErr } = await db
+        .from("Reminder")
+        // Back to pending, or the tick that delivers it will skip it — status
+        // is how fireDueReminders claims a reminder, and "fired" means done.
+        .update({ remindAt: when.toISOString(), status: "pending" })
+        .eq("id", target.id)
+        .eq("userId", DEFAULT_USER_ID);
+      if (upErr) return { ok: false, error: upErr.message };
+
+      return { ok: true, text: target.text, remindAt: when.toISOString(), wasAlreadyFired: target.status === "fired" };
+    },
+  }),
+
   knowledge_search: tool({
     description:
       "Search the user's ingested knowledge base (PDFs, articles, docs they saved). Use when a question likely relates to their saved material. Cite source titles in your answer.",

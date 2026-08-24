@@ -1,5 +1,11 @@
 # SAGE — what to build next
 
+> **Audited 24 Aug 2026 against the codebase.** The first draft of this list was
+> written from module names without opening the code, and eight of its items
+> turned out to be already built. Everything below has now been checked. Items
+> struck through are done; the rest were verified missing by their absence.
+
+
 Written against the codebase as it stands, not a generic wishlist. Each item
 names the problem it solves and roughly what it touches, so it can be picked up
 cold. Ordered by value per unit of work.
@@ -44,20 +50,21 @@ suspicion that the whole app is stale.
 
 ## Tier 2 — close loops that are half-built
 
-### 4. Two-way calendar
-`core/calendar` reads Google Calendar and `syncEventReminders` generates prep
-nudges from it. SAGE cannot yet *create* an event — so scheduling still means
-leaving. Same shape as the gap `createTickTask` closed for tasks.
+### 4. ~~Two-way calendar~~ — already built
 
-### 5. Capture → action
-`core/capture` parses a voice memo or screenshot into notes, tasks and memories.
-It stops at filing. The obvious next step is proposing the *action*: a screenshot
-of a receipt should offer to log the expense; a photo of a whiteboard should
-offer to create the tasks on it.
+`createCalendarEvent`, `updateCalendarEvent` and `deleteCalendarEvent` exist in
+`infrastructure/integrations/google.ts` and are all exposed as voice tools in
+`core/tools/native.ts`. My original grep looked for `createEvent` and missed them.
 
-### 6. Mail that can reply
-`/mail` reads and classifies. Drafting a reply in SAGE's voice, held for
-approval, is a much larger saving than reading it there.
+### 5. ~~Capture → action~~ — already built
+
+`core/capture/index.ts` already proposes rather than files blindly — see its
+"Why it proposes rather than acts" note.
+
+### 6. ~~Mail that can reply~~ — already built
+
+The `draft_email` tool exists and drafts into Gmail, held for approval.
+Sending remains deliberately unbuilt — see *Deliberately not building*.
 
 ### 7. Exam mode ↔ Feynman loop
 `core/exam` knows which topics are weak (`topicWeakness`) and `core/feynman`
@@ -93,22 +100,25 @@ been.
 
 ## Tier 4 — new ground
 
-### 12. A weekly review that argues back
-`core/review/weekly` summarises. It could instead compare what was planned
-against what happened and name the pattern — the useful and uncomfortable half.
+### 12. ~~A weekly review that argues back~~ — already built
 
-### 13. Decision follow-through
-`core/decisions` records decisions and asks for a verdict. It does not yet check
-whether the reasoning held up. Scoring past decisions is where the value is.
+`core/review/weekly.ts` already compares against budget and produces real
+commentary. Sharpening its tone is a tweak, not a feature.
+
+### 13. ~~Decision follow-through~~ — already built
+
+`core/decisions/store.ts` already stores the prediction as "the thing being
+scored" and reviews against it.
 
 ### 14. ~~Spend forecasting~~ — already built
 
 `core/finance/budget.ts` already projects month-end from days elapsed
 (`projected`, `projectedTotal`, and the pacing note). Listed here in error.
 
-### 15. Offline-first
-The service worker exists and caches shell assets. Making the last-known state
-of each panel readable offline would make the phone case genuinely useful.
+### 15. ~~Offline-first~~ — already built
+
+`public/sw.js` is already network-first for navigations with a cached shell
+for offline. Extending it to per-panel state is a smaller job than listed.
 
 ---
 
@@ -118,3 +128,23 @@ of each panel readable offline would make the phone case genuinely useful.
   is against LeetCode's terms. The lab does everything up to that line.
 - **Multi-user.** Single-user is a design constraint, not an oversight; it is
   why the auth model can be this simple.
+
+
+---
+
+## Verified still missing
+
+Checked by absence on 24 Aug 2026. These are the real ones.
+
+| | What | Why it matters | Size |
+|---|---|---|---|
+| A | **Freshness stamps** | Several panels are deliberately cached (Alpha Vantage allows 25 requests a *day*). Without a timestamp, cached and stale look identical — the root of "it doesn't feel live". | S |
+| B | **Loading vs empty states** | A slow fetch and "nothing to show" render identically, so a slow panel reads as a broken one. | S |
+| C | **Exam ↔ Feynman bridge** | `topicWeakness()` knows the weak topics and `core/feynman` knows the shaky concepts. Nothing connects them. | S |
+| D | ~~**Reminder snooze**~~ | Built 24 Aug — `snooze_reminder`, including reminders that already fired. | ✔ |
+| E | **Voice speed / voice picker** | Rate is hard-coded at 0.94 and the voice is an env var. Neither is changeable without a deploy, and there is no preview. | S |
+| F | **Quota warning before it bites** | The failover already tracks strikes and cooldowns per key; nothing surfaces "two of five keys are cooling" until something fails. | S |
+| G | **Backup restore drill** | Backups run and strip key rows. Nothing has ever restored one. An untested backup is a belief. | S |
+| H | **One command surface** | Wheel, palette, search and mic are four entrances that know about different things. | M |
+| I | **Keyboard-first navigation** | The launcher handles keys; there is no `j`/`k`/`g`-then-letter movement between bands. | S |
+| J | **Real phone layout** | It installs as a PWA and shows a shrunken desktop layout. Glance-and-capture is a different design, not a narrower one. | M |

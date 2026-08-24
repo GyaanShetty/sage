@@ -2610,3 +2610,43 @@ test("a voice failure reason belongs to the call that produced it", async () => 
     "the route must take its own reason, not read the shared global",
   );
 });
+
+// ── Snoozing a reminder ────────────────────────────────────────────────────
+
+test("a snooze refuses times that would do nothing", async () => {
+  const { nativeTools } = await import("@/core/tools/native");
+  const t = nativeTools.snooze_reminder as unknown as {
+    execute: (a: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  };
+  assert.ok(t, "the voice must be able to push a reminder back");
+
+  // A reminder set in the past fires again on the very next tick, so the
+  // snooze looks like it did nothing. Both of these refuse before touching
+  // the database, which is also why they run with no database.
+  const past = await t.execute({ remindAt: new Date(Date.now() - 60_000).toISOString() });
+  assert.equal(past.ok, false);
+  assert.match(String(past.error), /already passed/);
+
+  const nonsense = await t.execute({ remindAt: "tomorrow-ish" });
+  assert.equal(nonsense.ok, false);
+  assert.match(String(nonsense.error), /isn't a time I can read/);
+});
+
+test("snoozing puts a fired reminder back in the queue", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("core/tools/native.ts", "utf8");
+  const tool = src.slice(src.indexOf("snooze_reminder:"), src.indexOf("knowledge_search:"));
+
+  /**
+   * `status` is how fireDueReminders claims a reminder — it moves pending →
+   * fired and never looks at it again. So a snooze that only changed the time
+   * would set a date that nothing would ever act on: the reminder would sit
+   * there, permanently fired, and never go off again.
+   */
+  assert.match(tool, /status: "pending"/, "a snoozed reminder must return to pending");
+  assert.match(tool, /\.in\("status", \["pending", "fired"\]\)/,
+    "'push that back' usually follows one going off, so fired ones must be findable");
+
+  // Moving the wrong reminder silently is worse than asking which one.
+  assert.match(tool, /ambiguous: true/);
+});

@@ -2675,3 +2675,94 @@ test("browsing the morning brief does not stop it talking", async () => {
   // Leaving the page still stops it, via an unmount-only effect.
   assert.match(src, /useEffect\(\(\) => \(\) => stopSpeak\(\), \[stopSpeak\]\)/);
 });
+
+// ── The disk bridge boundary ───────────────────────────────────────────────
+//
+// This is the one place in SAGE where a mistake exposes files on a real
+// machine, so the gate is tested against an actual directory rather than
+// reasoned about. Everything here runs on a fixture in a temp folder.
+
+test("the disk bridge only serves what was actually shared", async () => {
+  const fs = await import("node:fs/promises");
+  const os = await import("node:os");
+  const path = await import("node:path");
+
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), "sage-bridge-"));
+  const shared = path.join(base, "shared");
+  const secret = path.join(base, "secret");
+  await fs.mkdir(shared, { recursive: true });
+  await fs.mkdir(secret, { recursive: true });
+  await fs.writeFile(path.join(shared, "note.md"), "a shared note");
+  await fs.writeFile(path.join(shared, ".env"), "API_KEY=live-key");
+  await fs.writeFile(path.join(secret, "creds.txt"), "private");
+  // A symlink out of the shared folder: the classic escape.
+  await fs.symlink(secret, path.join(shared, "escape"));
+
+  process.env.SAGE_URL = "http://127.0.0.1:1";
+  process.env.BRIDGE_SECRET = "test";
+  process.env.SAGE_ROOTS = shared;
+  const bridge = await import(`/home/user/SAGE/ops/disk-bridge/bridge.mjs?t=${Date.now()}`);
+
+  // What was shared is readable.
+  const ok = await bridge.run({ op: "read", path: path.join(shared, "note.md") });
+  assert.equal(ok.error, undefined);
+  assert.match(ok.result.text, /a shared note/);
+
+  // A sibling folder is not, even though it sits next to the shared one.
+  const outside = await bridge.run({ op: "read", path: path.join(secret, "creds.txt") });
+  assert.ok(outside.error, "a path outside the allowlist must be refused");
+
+  // ../ traversal resolves before it is compared, so it cannot walk out.
+  const climb = await bridge.run({ op: "read", path: path.join(shared, "..", "secret", "creds.txt") });
+  assert.ok(climb.error, "../ traversal must be refused");
+
+  // Neither can a symlink pointing out — this is why realpath comes first.
+  const link = await bridge.run({ op: "read", path: path.join(shared, "escape", "creds.txt") });
+  assert.ok(link.error, "a symlink out of the allowlist must be refused");
+
+  // .env sits inside the shared folder. You shared the folder for the notes;
+  // you did not mean to hand over your credentials with it.
+  const env = await bridge.run({ op: "read", path: path.join(shared, ".env") });
+  assert.ok(env.error, ".env must be refused even inside a shared folder");
+
+  // And it must not be listed either, or the name alone leaks that it exists.
+  const listed = await bridge.run({ op: "list", path: shared });
+  assert.ok(!listed.result.entries.some((e: { name: string }) => e.name === ".env"));
+
+  await fs.rm(base, { recursive: true, force: true });
+});
+
+test("the disk bridge cannot write, delete or execute", async () => {
+  const fsp = await import("node:fs");
+  const raw = fsp.readFileSync("ops/disk-bridge/bridge.mjs", "utf8");
+  // The file explains at length why it cannot write or execute, so a naive
+  // search finds those words in the prose. Strip comments and match call
+  // shapes, not vocabulary. (This is the third time that trap has bitten in
+  // this file — every source-matching test here now strips first.)
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+  /**
+   * A ceiling, not a first milestone. An app that can execute on your machine
+   * is a different risk category from one that can read some notes, and the
+   * useful half of this needs only the reading — so there must be no code
+   * path for the rest, not merely no tool exposing it.
+   */
+  for (const forbidden of [
+    /\bwriteFile\s*\(/, /\bappendFile\s*\(/, /\bunlink\s*\(/, /\brm\s*\(/, /\brmdir\s*\(/,
+    /\bmkdir\s*\(/, /\brename\s*\(/, /\bexec(File|Sync)?\s*\(/, /\bspawn(Sync)?\s*\(/,
+    /require\(["']child_process["']\)/, /from ["']node:child_process["']/,
+  ]) {
+    assert.ok(!forbidden.test(src), `the bridge must contain no ${forbidden}`);
+  }
+
+  // An unset allowlist must refuse, never default to the whole disk.
+  assert.match(src, /SAGE_ROOTS \(name the folders SAGE may read\)/);
+
+  // Its own secret: sharing CRON_SECRET would mean a leak of the weaker
+  // capability hands over the stronger one.
+  const route = fsp.readFileSync("app/api/bridge/route.ts", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  assert.match(route, /BRIDGE_SECRET/);
+  assert.ok(!/CRON_SECRET/.test(route), "the bridge must not share the cron secret");
+  assert.match(route, /if \(!secret\) return false/, "an unset secret must shut the door, not open it");
+});

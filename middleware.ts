@@ -22,7 +22,9 @@ export async function middleware(req: NextRequest) {
   const machine =
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/api/beat") ||
-    pathname.startsWith("/api/webhook");
+    pathname.startsWith("/api/webhook") ||
+    // The disk bridge daemon: outbound from his Mac, carrying BRIDGE_SECRET.
+    pathname.startsWith("/api/bridge");
 
   /**
    * Cross-site request forgery, second lock.
@@ -51,6 +53,7 @@ export async function middleware(req: NextRequest) {
     // that is the entire point of it.
     pathname.startsWith("/api/beat") ||
     pathname.startsWith("/api/webhook") ||
+    pathname.startsWith("/api/bridge") ||
     // Which build is serving — public so "did my fix ship?" is answerable
     // without being logged in. Reports the commit only, never config.
     pathname === "/api/version" ||

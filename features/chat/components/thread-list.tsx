@@ -25,15 +25,22 @@ export function ThreadList({ threads, activeId }: { threads: ThreadRow[]; active
   };
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border-glass">
+    <aside className="flex w-60 shrink-0 flex-col border-r border-[var(--rule-strong)]">
+      {/* The rail names the column, so the sidebar reads as part of the
+          instrument rather than as an unlabelled list floating at the edge. */}
+      <div className="rail border-b border-[var(--rule)] px-3 py-2.5">
+        <span className="k">SESSIONS</span>
+        <span className="sep" />
+        <span className="v">{threads.length}</span>
+      </div>
       <div className="p-3">
         <button
           onClick={newChat}
           disabled={creating}
-          className="flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-border-glass bg-glass text-sm text-muted transition-colors hover:border-border-glass-strong hover:text-foreground"
+          className="flex h-8 w-full items-center justify-center gap-2 border border-[var(--rule)] font-[family-name:var(--mono)] text-[9px] uppercase tracking-[0.16em] text-subtle transition-colors hover:border-[var(--signal-dim)] hover:text-[var(--signal)]"
         >
-          {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-          New chat
+          {creating ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3" />}
+          NEW SESSION
         </button>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
@@ -47,10 +54,10 @@ export function ThreadList({ threads, activeId }: { threads: ThreadRow[]; active
             <Link
               href={`/chat?t=${thread.id}`}
               className={cn(
-                "block truncate rounded-lg px-3 py-2 text-sm transition-colors",
+                "block truncate border-l-2 px-3 py-1.5 text-[13px] transition-colors",
                 thread.id === activeId
-                  ? "bg-glass-strong text-foreground"
-                  : "text-muted hover:bg-glass hover:text-foreground",
+                  ? "border-[var(--signal)] bg-[var(--signal-faint)] text-foreground"
+                  : "border-transparent text-muted hover:border-[var(--rule-strong)] hover:text-foreground",
               )}
             >
               {thread.title ?? "Untitled"}

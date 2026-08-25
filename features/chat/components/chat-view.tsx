@@ -106,14 +106,21 @@ export function ChatView({
               variants={fadeRise}
               initial="hidden"
               animate="visible"
-              className="flex h-[60vh] flex-col items-center justify-center text-center"
+              className="rt-idle"
             >
-              <div className="size-10 rounded-xl bg-accent/90 shadow-[0_0_28px_var(--accent-glow)]" />
-              <h1 className="mt-6 text-xl font-semibold tracking-tight">
-                What can I do for you?
-              </h1>
-              <p className="mt-1.5 text-sm text-subtle">
-                Ask anything — {APP_NAME} remembers what matters.
+              <div className="rail">
+                <span className="sig">{APP_NAME}</span>
+                <span className="k">RESEARCH TERMINAL</span>
+                <span className="sep" />
+                <span className="v">READY</span>
+              </div>
+              <ul className="rt-caps">
+                <li><span className="sig-dot on" /> AI ENGINE READY</li>
+                <li><span className="sig-dot" /> MEMORY RECALL ARMED</li>
+                <li><span className="sig-dot" /> TOOLS AVAILABLE</li>
+              </ul>
+              <p className="rt-hint">
+                State a query. {APP_NAME} recalls what it already knows about you before it answers.
               </p>
             </motion.div>
           )}
@@ -125,13 +132,16 @@ export function ChatView({
                   key={message.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    "text-[15px] leading-relaxed",
-                    message.role === "user"
-                      ? "ml-auto max-w-[75%] whitespace-pre-wrap rounded-2xl rounded-br-md border border-border-glass bg-glass-strong px-4 py-2.5"
-                      : "max-w-none",
-                  )}
+                  className={cn("rt-turn", message.role === "user" ? "rt-query" : "rt-result")}
                 >
+                  {/* A labelled transcript rather than two people texting:
+                      every turn says what it is and who produced it. */}
+                  <div className="rail">
+                    <span className={message.role === "user" ? "k" : "sig"}>
+                      {message.role === "user" ? "QUERY" : APP_NAME}
+                    </span>
+                    <span className="sep" />
+                  </div>
                   {(() => {
                     const plan = planFromParts(message);
                     return plan ? <PlanChecklist plan={plan} /> : null;
@@ -144,7 +154,7 @@ export function ChatView({
                       return message.role === "assistant" ? (
                         <Markdown key={i}>{part.text}</Markdown>
                       ) : (
-                        <span key={i}>{part.text}</span>
+                        <span key={i} className="whitespace-pre-wrap">{part.text}</span>
                       );
                     }
                     if (part.type.startsWith("tool-")) {
@@ -166,7 +176,9 @@ export function ChatView({
                 </motion.div>
               ))}
             </AnimatePresence>
-            {status === "submitted" && <TypingIndicator />}
+            {(status === "submitted" || status === "streaming") && (
+              <TypingIndicator phase={status === "streaming" ? "streaming" : "submitted"} />
+            )}
           </div>
           <div ref={bottomRef} />
         </div>
@@ -174,7 +186,8 @@ export function ChatView({
 
       <div className="border-t border-border-glass bg-black/60 backdrop-blur-xl">
         <div className="mx-auto max-w-3xl px-6 py-4">
-          <div className="flex items-end gap-2 rounded-xl border border-border-glass bg-glass px-4 py-3 transition-colors focus-within:border-border-glass-strong">
+          <div className="rt-composer">
+            <span className="rt-caret" aria-hidden="true">&gt;</span>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -185,18 +198,16 @@ export function ChatView({
                 }
               }}
               rows={1}
-              placeholder={`Message ${APP_NAME}…`}
-              className="max-h-40 flex-1 resize-none bg-transparent text-[15px] outline-none placeholder:text-subtle"
+              placeholder="STATE QUERY"
+              className="rt-input max-h-40 flex-1 resize-none bg-transparent text-[15px] outline-none"
             />
             {voice.supported && (
               <button
                 onClick={() => (voice.listening ? voice.stop() : (voice.stopSpeaking(), voice.start()))}
                 aria-label={voice.listening ? "Stop listening" : "Speak"}
                 className={cn(
-                  "flex size-8 shrink-0 items-center justify-center rounded-lg transition-all",
-                  voice.listening
-                    ? "bg-red-500/90 text-white shadow-[0_0_16px_rgba(239,68,68,0.4)] animate-pulse"
-                    : "bg-glass-strong text-subtle hover:text-foreground",
+                  "rt-btn",
+                  voice.listening ? "rec" : "",
                 )}
               >
                 <Mic className="size-4" strokeWidth={2} />
@@ -207,10 +218,8 @@ export function ChatView({
               disabled={!input.trim() || busy}
               aria-label="Send"
               className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-lg transition-all",
-                input.trim() && !busy
-                  ? "bg-accent text-white shadow-[0_0_16px_var(--accent-glow)]"
-                  : "bg-glass-strong text-subtle",
+                "rt-btn",
+                input.trim() && !busy ? "armed" : "",
               )}
             >
               <ArrowUp className="size-4" strokeWidth={2} />

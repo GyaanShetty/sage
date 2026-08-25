@@ -21,12 +21,15 @@ export function StatusBar() {
   }, []);
 
   return (
-    <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-border-glass bg-background/85 px-4 pt-[var(--sat)] backdrop-blur-xl md:min-h-[54px] md:gap-4 md:px-6">
+    <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-[var(--rule-strong)] bg-background/90 px-4 pt-[var(--sat)] backdrop-blur-xl md:min-h-[54px] md:gap-4 md:px-6">
       <div className="flex items-center gap-3">
         <SageMark size={22} online />
         <span className="brand-title text-[13px] md:text-[15px]">{APP_NAME}</span>
       </div>
-      <span className="lbl hidden sm:inline">MISSION CONTROL · v0.2</span>
+      <span className="rail hidden sm:flex">
+        <span className="k">MISSION CONTROL</span>
+        <span className="v">v0.2</span>
+      </span>
       <span className="mx-auto" />
       {/* The palette was keyboard-only, which meant it did not exist at all on
           a phone. This is the same command surface, one tap away. */}
@@ -34,7 +37,7 @@ export function StatusBar() {
         onClick={() => setPaletteOpen(true)}
         title="Search and commands"
         aria-label="Search and commands"
-        className="flex items-center gap-1.5 rounded-lg border border-border-glass px-2 py-1 text-subtle transition-colors hover:border-border-glass-strong hover:text-foreground"
+        className="flex items-center gap-1.5 border border-[var(--rule)] px-2 py-1 text-subtle transition-colors hover:border-[var(--signal-dim)] hover:text-[var(--signal)]"
       >
         <Search className="size-[14px]" strokeWidth={1.75} />
         <span className="lbl hidden !opacity-70 sm:inline">⌘K</span>
@@ -46,9 +49,11 @@ export function StatusBar() {
       >
         {soundOn ? <Volume2 className="size-[15px]" strokeWidth={1.75} /> : <VolumeX className="size-[15px]" strokeWidth={1.75} />}
       </button>
+      {/* Amber is reserved for what is genuinely live. This is the one
+          persistent piece of system state on every page. */}
       <span className="flex items-center gap-2">
-        <span className="live-dot size-1.5 animate-pulse rounded-full" />
-        <span className="lbl live !opacity-90">ONLINE</span>
+        <span className="sig-dot on" />
+        <span className="rail"><span className="sig">SYS ONLINE</span></span>
       </span>
       <div className="text-right">
         <div

@@ -245,7 +245,11 @@ export function Wheel() {
       <button
         onClick={() => { sound.swoosh?.(); setOpen(true); }}
         title="Pages"
-        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 rounded-r-xl border border-l-0 border-border-glass bg-[var(--panel-hi)]/90 py-4 pl-1.5 pr-2 text-[var(--live)] backdrop-blur-xl transition-transform hover:translate-x-0.5 md:pl-2 md:pr-2.5"
+        /* Square, hairline, amber on hover — and it no longer sits on top of
+           panel text. It is vertically centred and fixed, so at 1440x900 it
+           landed squarely over the INTELLIGENCE panel's label; the workspace
+           now reserves its width (see .hud-grid padding-left). */
+        className="fixed left-0 top-1/2 z-40 -translate-y-1/2 border border-l-0 border-[var(--rule-strong)] bg-[var(--panel-hi)]/95 py-4 pl-1.5 pr-2 text-[var(--muted)] backdrop-blur-xl transition-colors hover:border-[var(--signal-dim)] hover:text-[var(--signal)] md:pl-2 md:pr-2.5"
       >
         <Orbit className="size-5" strokeWidth={1.6} />
       </button>

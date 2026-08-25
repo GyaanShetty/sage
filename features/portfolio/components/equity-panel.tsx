@@ -65,6 +65,26 @@ export function EquityPanel() {
 
   const up = (h?.periodPct ?? 0) >= 0;
 
+  /**
+   * Hover inspection.
+   *
+   * A line chart you cannot interrogate is a picture of data rather than an
+   * instrument: the shape is legible but no individual day is. The crosshair
+   * snaps to the nearest sample rather than following the pointer freely, so
+   * the readout always names a real observation instead of an interpolation.
+   */
+  const [probe, setProbe] = useState<number | null>(null);
+  const xy = (i: number) => ({
+    x: (i / Math.max(mine.length - 1, 1)) * 100,
+    y: 100 - ((mine[i].value - lo) / (hi - lo)) * 100,
+  });
+  const onProbe = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (mine.length < 2) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const frac = (e.clientX - r.left) / r.width;
+    setProbe(Math.max(0, Math.min(mine.length - 1, Math.round(frac * (mine.length - 1)))));
+  };
+
   return (
     <div className="pp-card">
       <div className="pp-head">
@@ -92,14 +112,62 @@ export function EquityPanel() {
 
       {h && mine.length >= 2 && (
         <>
-          <div className="pp-chartwrap">
+          <div
+            className="pp-chartwrap"
+            onPointerMove={onProbe}
+            onPointerLeave={() => setProbe(null)}
+          >
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pp-chart">
               {[25, 50, 75].map((y) => <line key={y} x1="0" y1={y} x2="100" y2={y} className="pp-grid" />)}
               {bm.length >= 2 && <path d={path(bm)} className="pp-bench" vectorEffect="non-scaling-stroke" />}
               <path d={path(mine)} className={cn("pp-mine", up ? "up" : "dn")} vectorEffect="non-scaling-stroke" />
+
+              {probe !== null && (
+                <line x1={xy(probe).x} y1="0" x2={xy(probe).x} y2="100" className="pp-cross" />
+              )}
+
             </svg>
+
+            {/**
+             * The endpoint marker lives outside the SVG on purpose.
+             *
+             * The chart uses preserveAspectRatio="none" on a 100x100 viewBox
+             * stretched across a wide, short box — which is right for the line
+             * (it fills the space) and fatal for anything meant to be round:
+             * a <circle> inside it comes out as a flat ellipse. Positioning
+             * the dot in HTML keeps it circular at any panel width.
+             *
+             * The latest value is the single most-read number on a time
+             * series, so it gets a mark rather than just the end of a stroke.
+             */}
+            {mine.length >= 2 && (() => {
+              const { x, y } = xy(probe ?? mine.length - 1);
+              return (
+                <span
+                  className={cn("pp-dot", !up && "dn")}
+                  style={{ left: `calc(8px + ${x}% * (100% - 42px) / 100%)`, top: `calc(8px + ${y}% * (100% - 22px) / 100%)` }}
+                  aria-hidden="true"
+                />
+              );
+            })()}
+
+            {probe !== null && mine[probe] && (
+              <span className="pp-readout">
+                {mine[probe].value.toFixed(1)}
+                {/* The day key as stored — already the owner's calendar day,
+                    so it needs no re-derivation through a timezone. */}
+                <span style={{ color: "var(--subtle)", marginLeft: 8 }}>{mine[probe].day}</span>
+              </span>
+            )}
+
             <span className="pp-axis top">{hi.toFixed(0)}</span>
             <span className="pp-axis bottom">{lo.toFixed(0)}</span>
+
+            {/* Two series are never told apart by colour alone. */}
+            <div className="pp-legend">
+              <span><i className={up ? "" : "dn"} /> PORTFOLIO</span>
+              {bm.length >= 2 && <span><i className="bench" /> {h.benchmarkSymbol ?? "BENCHMARK"}</span>}
+            </div>
           </div>
           <div className="pp-stats">
             <div className="pp-stat">

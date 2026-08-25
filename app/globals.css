@@ -543,3 +543,88 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 
 /* Values that are current, not merely present. */
 .sig-value { color: var(--signal); font-variant-numeric: tabular-nums; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESEARCH TERMINAL
+   The conversation surface. Deliberately not a messaging app: no bubbles, no
+   alternating sides, no avatars. A labelled transcript, because what matters
+   is which turn produced what — and because a transcript can carry telemetry
+   that a chat bubble has nowhere to put.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.rt-turn { display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.65; }
+
+/* The query is indented and ruled rather than boxed and floated right —
+   it reads as an entry in a log, which is what it is. */
+.rt-query {
+  border-left: 2px solid var(--rule-strong);
+  padding-left: 14px;
+  color: var(--muted);
+}
+.rt-query .rail .k { color: var(--muted); }
+
+/* The answer gets the full measure and the signal colour on its label only. */
+.rt-result { border-left: 2px solid var(--signal-faint); padding-left: 14px; }
+
+/* ── processing ────────────────────────────────────────────────────────── */
+.rt-processing {
+  border-left: 2px solid var(--signal-dim);
+  padding-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rt-stages { display: flex; flex-direction: column; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.rt-stages li {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em;
+  color: var(--faint);
+  transition: color 0.2s var(--ease);
+}
+.rt-stages li.done { color: var(--subtle); }
+.rt-stages li.on { color: var(--signal); }
+
+/* ── idle ──────────────────────────────────────────────────────────────── */
+.rt-idle {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 18vh 0 0;
+  max-width: 46ch;
+}
+.rt-caps { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.rt-caps li {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em;
+  color: var(--subtle);
+}
+.rt-hint { color: var(--subtle); font-size: 13px; line-height: 1.6; margin: 0; }
+
+/* ── composer ──────────────────────────────────────────────────────────── */
+.rt-composer {
+  display: flex; align-items: flex-end; gap: 10px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  padding: 11px 13px;
+  transition: border-color 0.18s var(--ease);
+}
+.rt-composer:focus-within { border-color: var(--signal-dim); }
+.rt-caret {
+  font-family: var(--mono); font-size: 14px; line-height: 1.5;
+  color: var(--signal); flex: none; user-select: none;
+}
+.rt-input::placeholder {
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; color: var(--faint);
+}
+
+/* Square controls. `armed` and `rec` are states, not decoration: one means
+   there is something to send, the other means the microphone is open. */
+.rt-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex: none;
+  border: 1px solid var(--rule);
+  color: var(--subtle);
+  background: transparent;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.rt-btn:hover { color: var(--foreground); border-color: var(--rule-strong); }
+.rt-btn.armed { color: var(--signal); border-color: var(--signal-dim); }
+.rt-btn.rec { color: var(--danger); border-color: var(--danger); }

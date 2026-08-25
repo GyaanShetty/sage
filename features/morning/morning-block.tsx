@@ -141,9 +141,19 @@ export function MorningBlock() {
       }
       if (!cancel) setLoading(false);
     })();
-    return () => { cancel = true; stopSpeak(); };
+    // Deliberately does NOT stop the speech.
+    //
+    // This cleanup runs on every `active` change, not only on unmount — so
+    // stopping playback here meant pressing Listen and then touching anything
+    // in the brief (Next, or any step in the rail) killed the audio
+    // mid-sentence. Reading along while it talks is the obvious way to use
+    // this, which is why it felt random rather than like a button doing it.
+    //
+    // Speech now ends only when he stops it or the block actually goes away.
+    return () => { cancel = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, synNonce]);
+
 
   const next = () => {
     sound.blip();
@@ -193,6 +203,15 @@ export function MorningBlock() {
     forgetRest();
     setSpeaking(false);
   }, []);
+
+  /**
+   * The only automatic stop: actually leaving.
+   *
+   * Empty deps, so this runs once on unmount and never on a step change —
+   * which is the whole point. Navigating away should not leave SAGE talking to
+   * an empty room; clicking "Next" inside the brief should not silence it.
+   */
+  useEffect(() => () => stopSpeak(), [stopSpeak]);
 
   const synText = (s: Synthesis) =>
     [s.summary, ...s.connections.slice(0, 3), s.watch.length ? `To watch today: ${s.watch[0]}` : ""].filter(Boolean).join(". ");

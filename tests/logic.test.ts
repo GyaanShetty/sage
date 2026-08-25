@@ -2650,3 +2650,28 @@ test("snoozing puts a fired reminder back in the queue", async () => {
   // Moving the wrong reminder silently is worse than asking which one.
   assert.match(tool, /ambiguous: true/);
 });
+
+test("browsing the morning brief does not stop it talking", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("features/morning/morning-block.tsx", "utf8");
+
+  /**
+   * The step-loading effect runs on every `active` change, and its cleanup
+   * used to call stopSpeak(). So pressing Listen and then touching anything in
+   * the brief — Next, or any step in the rail — killed the audio mid-sentence.
+   * Reading along while it talks is the obvious way to use this, which is why
+   * it read as random rather than as a button doing it.
+   *
+   * Two separate reports of "the brief cuts out" were chased into the speech
+   * layer (an ambient interrupt, then a failed continuation). Both were real,
+   * and neither was this. This is the one a person would actually hit.
+   */
+  const stepEffect = src.slice(src.indexOf("if (step.kind === \"digest\")"), src.indexOf("}, [active, synNonce]);"));
+  assert.ok(
+    !/stopSpeak\(\)/.test(stepEffect),
+    "the per-step effect must not stop playback — its cleanup fires on every step change",
+  );
+
+  // Leaving the page still stops it, via an unmount-only effect.
+  assert.match(src, /useEffect\(\(\) => \(\) => stopSpeak\(\), \[stopSpeak\]\)/);
+});

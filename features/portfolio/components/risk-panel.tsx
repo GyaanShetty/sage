@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ShieldAlert, Scale, Loader2, AlertTriangle } from "lucide-react";
+import { ShieldAlert, Scale, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Risk {
   volatility: number | null;
@@ -44,7 +45,7 @@ export function RiskPanel({ reloadKey }: { reloadKey?: number }) {
     <div className="pp-grid2">
       <div className="pp-card">
         <div className="pp-head"><ShieldAlert className="size-3.5" /><h3>RISK</h3><span className="pp-line" /></div>
-        {loading && !risk && <p className="pp-dim"><Loader2 className="inline size-3 animate-spin" /> loading…</p>}
+        {loading && !risk && <Acquiring label="RISK METRICS" />}
         {risk && (
           <>
             <div className="pp-metrics">

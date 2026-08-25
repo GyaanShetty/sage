@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { NarrativePanel, PulsePanel, EventsCorrelationPanel } from "./intel-panels";
 import "@/features/dashboard/command.css";
 import { NumberTicker } from "@/components/number-ticker";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Quote { symbol: string; name: string; price: number; change: number; changePct: number; currency: string; spark: number[] }
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
@@ -200,7 +201,7 @@ export function MarketsView() {
                 <Editor items={cfg.stocks} onChange={(v) => save({ ...cfg, stocks: v })} placeholder="add ticker…" />
               </>
             )}
-            {stocks === null && <p className="lbl">LOADING…</p>}
+            {stocks === null && <Acquiring label="EQUITIES" />}
             {stocks?.map((q) => (
               <div className="mkt" key={q.symbol}>
                 <span className="sym" style={{ width: 92, flex: "0 0 92px" }}>{q.symbol.replace(/\.(NS|BO)$/, "")}</span>
@@ -227,7 +228,7 @@ export function MarketsView() {
                   <Editor items={cfg.crypto} onChange={(v) => save({ ...cfg, crypto: v })} placeholder="add coin id…" />
                 </>
               )}
-              {coins === null && <p className="lbl">LOADING…</p>}
+              {coins === null && <Acquiring label="CRYPTO" />}
               {coins?.map((c) => (
                 <div className="mkt" key={c.symbol}>
                   <span className="sym">{c.symbol}</span>

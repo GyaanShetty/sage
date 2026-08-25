@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Square, Plus, Loader2, Trash2, Check, ChevronDown, Archive, RotateCcw } from "lucide-react";
 import { useVoice } from "@/features/voice/use-voice";
 import "./feynman.css";
+import { Acquiring } from "@/components/ui/acquiring";
 
 /**
  * Explain — the Feynman loop.
@@ -287,7 +288,7 @@ export function FeynmanView() {
         </section>
       )}
 
-      {concepts === null && !loadErr && <p className="fy-empty">Loading…</p>}
+      {concepts === null && !loadErr && <Acquiring label="CONCEPTS" />}
       {loadErr && <p className="fy-error">{loadErr}</p>}
     </div>
   );

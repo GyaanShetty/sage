@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Loader2, Target } from "lucide-react";
+import { AlertTriangle, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Acquiring } from "@/components/ui/acquiring";
 
 /**
  * Where the money came from.
@@ -54,7 +55,7 @@ export function AttributionPanel({ reloadKey }: { reloadKey?: number }) {
         {attr && <span className="pp-tag">{attr.winners}↑ {attr.losers}↓</span>}
       </div>
 
-      {loading && !attr && <p className="pp-dim"><Loader2 className="inline size-3 animate-spin" /> loading…</p>}
+      {loading && !attr && <Acquiring label="ATTRIBUTION" />}
       {attr && rows.length === 0 && <p className="pp-dim">Add priced holdings to see what is driving the book.</p>}
 
       {attr && rows.length > 0 && (

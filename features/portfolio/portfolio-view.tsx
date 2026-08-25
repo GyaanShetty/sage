@@ -14,6 +14,7 @@ import { ShadowPanel } from "./components/shadow-panel";
 import { RiskPanel } from "./components/risk-panel";
 import { TradesPanel } from "./components/trades-panel";
 import { AlertsPanel } from "./components/alerts-panel";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface SymbolHit { symbol: string; name: string; exchange: string; kind: "crypto" | "stock" }
 
@@ -318,7 +319,7 @@ export function PortfolioView() {
       {/* holdings table */}
       <div className="pf-table">
         <div className="pf-throw pf-thead"><span>ASSET</span><span>QTY</span><span>AVG</span><span>PRICE</span><span>24H</span><span>VALUE</span><span>P&amp;L</span><span /></div>
-        {positions === null && <p className="lbl" style={{ padding: 14 }}>LOADING…</p>}
+        {positions === null && <Acquiring label="POSITIONS" className="px-3.5" />}
         {positions?.map((p) => {
           const pu = (p.pnl ?? 0) >= 0;
           return (

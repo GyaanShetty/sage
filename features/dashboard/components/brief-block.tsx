@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play, RotateCcw } from "lucide-react";
 import { fmt } from "@/lib/config";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Brief { id: string; createdAt: string; bucket: string | null; text: string }
 
@@ -57,7 +58,7 @@ export function BriefBlock() {
         {busy ? "READING…" : "PLAY TODAY'S BRIEF"}
       </button>
 
-      {items === null && <p className="brief-dim">Loading…</p>}
+      {items === null && <Acquiring label="BRIEF" />}
       {items?.length === 0 && <p className="brief-dim">No briefings recorded yet. The first one lands tomorrow morning.</p>}
 
       {latest && (

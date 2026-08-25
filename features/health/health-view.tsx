@@ -13,6 +13,7 @@ import { StepsAuto } from "./components/steps-auto";
 import { ProgressPanel } from "./components/progress-panel";
 import { ReadinessPanel } from "./components/readiness-panel";
 import { TZ } from "@/lib/config";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Day {
   day: string;
@@ -115,7 +116,7 @@ export function HealthView() {
       {/* The state of the fetch belongs above the page, not buried under two
           panels that load separately — a failure used to show two working
           panels and no hint that the rest of the page was missing. */}
-      {!d && !loadError && <p className="lbl" style={{ padding: 16 }}>LOADING…</p>}
+      {!d && !loadError && <Acquiring label="BIOMETRICS" className="px-4" />}
       {!d && loadError && (
         <div className="hl-card">
           <p className="hl-empty">{loadError}</p>

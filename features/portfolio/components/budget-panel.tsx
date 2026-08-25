@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, Loader2, Plus, Trash2, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Acquiring } from "@/components/ui/acquiring";
 
 /**
  * The budget: what you meant the money to do, next to what it did.
@@ -144,7 +145,7 @@ export function BudgetPanel({ reloadKey }: { reloadKey?: number }) {
         <button className="bg-navbtn" onClick={() => setMonth((m) => shiftMonth(m, 1))}>›</button>
       </div>
 
-      {loading && !plan && <p className="pp-dim"><Loader2 className="inline size-3 animate-spin" /> loading…</p>}
+      {loading && !plan && <Acquiring label="ENVELOPES" />}
       {err && <p className="bg-err">{err}</p>}
 
       {/* No plan for this month yet */}

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Link2, Loader2, Sparkles, Target } from "lucide-react";
 import { staggerContainer, fadeRise } from "@/lib/motion";
 import "@/features/dashboard/command.css";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Signals {
   days: number;
@@ -104,7 +105,7 @@ export function ReportView() {
 
         {error && <p className="mt-4 border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-300">{error}</p>}
 
-        {reports === null && <p className="mt-10 text-center text-sm text-subtle">Loading…</p>}
+        {reports === null && <Acquiring label="REPORTS" className="mt-8" />}
         {reports?.length === 0 && (
           <p className="mt-16 text-center text-sm text-subtle">
             No reports yet. Run one — it reads tasks, pipeline, spending, health, memory and automations together.

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Dumbbell, Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Summary {
   workouts: number;
@@ -111,7 +112,7 @@ export function TrainingPanel() {
 
         {/* "Loading…" that never resolves is worse than an error: it looks
             like the panel is still working. */}
-        {!data && !failed && <p className="mt-3 text-sm text-subtle">Loading…</p>}
+        {!data && !failed && <Acquiring label="TRAINING" className="mt-2" />}
         {!data && failed && (
           <p className="mt-3 text-sm text-subtle">
             Couldn&apos;t read your training.{" "}

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
+import { Acquiring } from "@/components/ui/acquiring";
 
 const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as const;
 type Stage = (typeof STAGES)[number];
@@ -166,7 +167,7 @@ export function CareerView() {
               {STAGE_META[s].label}<span className="cc-count">{counts[si]}</span>
             </div>
             <div className="cc-cards">
-              {apps === null && <p className="lbl" style={{ padding: "8px 0" }}>LOADING…</p>}
+              {apps === null && <Acquiring label="APPLICATIONS" />}
               {apps?.filter((a) => a.stage === s).map((a) => (
                 <div key={a.id} className="cc-card">
                   <div className="cc-cardtop" onClick={() => open(a)}>

@@ -5,6 +5,7 @@ import { Check, GraduationCap, Loader2, NotebookPen, Plus, Trash2, X } from "luc
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 import { StudyLog } from "./study-log";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Skill {
   id: string; name: string; category: string;
@@ -172,7 +173,7 @@ export function EducationView() {
         </div>
       )}
 
-      {skills === null && <p className="mt-10 text-center text-sm text-subtle">Loading…</p>}
+      {skills === null && <Acquiring label="SKILL TREE" className="mt-8" />}
       {skills?.length === 0 && !adding && (
         <div className="mt-16 text-center text-sm text-subtle">
           <GraduationCap className="mx-auto mb-3 size-6 opacity-40" />

@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { LineChart, Loader2 } from "lucide-react";
+import { LineChart} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Acquiring } from "@/components/ui/acquiring";
 
 interface Point { day: string; value: number }
 interface History {
@@ -101,7 +102,7 @@ export function EquityPanel() {
         </select>
       </div>
 
-      {loading && !h && <p className="pp-dim"><Loader2 className="inline size-3 animate-spin" /> loading…</p>}
+      {loading && !h && <Acquiring label="EQUITY HISTORY" />}
 
       {h && mine.length < 2 && (
         <p className="pp-dim">

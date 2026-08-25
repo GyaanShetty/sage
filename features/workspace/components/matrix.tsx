@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Clock, Loader2, Pin, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Acquiring } from "@/components/ui/acquiring";
 
 type Quadrant = "do" | "schedule" | "delegate" | "drop";
 
@@ -82,7 +83,7 @@ export function EisenhowerMatrix() {
         <span className="tag">{total} OPEN</span>
       </div>
 
-      {grid === null && <p className="text-sm text-subtle">Loading…</p>}
+      {grid === null && <Acquiring label="MATRIX" />}
       {grid && total === 0 && (
         <p className="mb-2 text-sm text-subtle">
           Nothing open. Write one into a quadrant below — or let the grid fill itself from

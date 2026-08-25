@@ -433,6 +433,27 @@ export const nativeTools = {
     },
   }),
 
+  local_files: tool({
+    description:
+      "Read files on the user's own Mac through the disk bridge — list a folder, read a text file, search a folder by filename. " +
+      "Use when they refer to something on their machine ('the notes in my work folder', 'read that spec'). " +
+      "Read-only: there is no way to write, delete or run anything. Only folders they have explicitly shared are reachable; " +
+      "if a path is refused, say so plainly rather than guessing at another path.",
+    inputSchema: z.object({
+      op: z.enum(["list", "read", "stat", "search"]),
+      path: z.string().min(1).describe("Absolute path, or ~ for their home folder"),
+      query: z.string().optional().describe("For 'search': the substring to match against file names"),
+    }),
+    execute: async ({ op, path, query }) => {
+      if (!process.env.BRIDGE_SECRET) {
+        return { ok: false, error: "The disk bridge isn't set up. Set BRIDGE_SECRET and run the daemon in ops/disk-bridge." };
+      }
+      const { ask } = await import("@/core/bridge");
+      const r = await ask(op, path, query);
+      return r.ok ? { ok: true, ...(r.result as object) } : { ok: false, error: r.error };
+    },
+  }),
+
   knowledge_search: tool({
     description:
       "Search the user's ingested knowledge base (PDFs, articles, docs they saved). Use when a question likely relates to their saved material. Cite source titles in your answer.",

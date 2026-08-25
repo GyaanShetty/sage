@@ -43,6 +43,30 @@
   --warn: #d4b106;
   --danger: #e5484d;
 
+  /* ── SIGNAL ────────────────────────────────────────────────────────────
+     Amber, and the only hue in the system.
+
+     The palette was monochrome with meaning carried by luminance alone, which
+     reads as elegant and reads as flat: nothing on screen tells you where to
+     look. One restrained hue, used strictly for what is ACTIVE, LIVE or
+     WARRANTS ATTENTION, does what a whole colour scheme cannot — everything
+     else stays grey, so the amber is never competing with anything.
+
+     Never decorative. If a thing is not live, current, or asking for a
+     decision, it is grey. */
+  --signal: #e8a13a;
+  --signal-dim: rgba(232, 161, 58, 0.45);
+  --signal-faint: rgba(232, 161, 58, 0.12);
+  --signal-glow: rgba(232, 161, 58, 0.55);
+
+  /* ── INSTRUMENT CHROME ─────────────────────────────────────────────────
+     The measurements that make a panel read as instrumentation rather than a
+     card: hairlines, corner ticks, and the width of the telemetry rail. */
+  --rule: rgba(244, 245, 247, 0.09);
+  --rule-strong: rgba(244, 245, 247, 0.2);
+  --tick: 9px;          /* corner marker arm length */
+  --grid-cell: 32px;    /* technical grid pitch */
+
   --ease: cubic-bezier(0.22, 1, 0.36, 1); /* spring-like, no bounce */
   --radius: 0;
   --disp: var(--font-disp), sans-serif;
@@ -64,6 +88,7 @@
   --color-accent: var(--accent);
   --color-live: var(--live);
   --color-warn: var(--warn);
+  --color-signal: var(--signal);
   --font-sans: var(--font-disp);
   --font-mono: var(--font-mono-f);
 }
@@ -135,7 +160,23 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .bh .i { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); }
 .bh .r { margin-left: auto; font-family: var(--mono); font-size: 8.5px; color: var(--subtle); letter-spacing: 1px; }
 
-.hud-grid { background: transparent; }
+/* The workspace sits on the technical grid — the one surface every page
+   shares, so the whole app reads as one instrument rather than a set of
+   pages that happen to be dark. */
+.hud-grid {
+  background-color: transparent;
+  background-image:
+    linear-gradient(to right, rgba(244, 245, 247, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 245, 247, 0.02) 1px, transparent 1px),
+    linear-gradient(to right, rgba(244, 245, 247, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 245, 247, 0.035) 1px, transparent 1px);
+  background-size:
+    var(--grid-cell) var(--grid-cell),
+    var(--grid-cell) var(--grid-cell),
+    calc(var(--grid-cell) * 5) calc(var(--grid-cell) * 5),
+    calc(var(--grid-cell) * 5) calc(var(--grid-cell) * 5);
+  background-attachment: local;
+}
 
 /* ── identity mark ── */
 .sage-mark { color: var(--foreground); transition: filter 0.3s var(--ease); }
@@ -418,3 +459,87 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INSTRUMENT LAYER
+   Reusable chrome that turns a div into a piece of instrumentation. Applied
+   by class so it composes with what is already there rather than replacing
+   any of it — nothing here changes layout or behaviour, only how a panel
+   reads.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── the technical grid ────────────────────────────────────────────────────
+   Two superimposed hairline grids at different pitches, so the surface has a
+   measurable feel without ever competing with content. Deliberately near the
+   threshold of visibility: you should notice it only when looking for it. */
+.grid-field {
+  background-image:
+    linear-gradient(to right, rgba(244, 245, 247, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 245, 247, 0.022) 1px, transparent 1px),
+    linear-gradient(to right, rgba(244, 245, 247, 0.038) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 245, 247, 0.038) 1px, transparent 1px);
+  background-size:
+    var(--grid-cell) var(--grid-cell),
+    var(--grid-cell) var(--grid-cell),
+    calc(var(--grid-cell) * 5) calc(var(--grid-cell) * 5),
+    calc(var(--grid-cell) * 5) calc(var(--grid-cell) * 5);
+}
+
+/* ── corner ticks ──────────────────────────────────────────────────────────
+   Four registration marks instead of a drawn box. A full border says "card";
+   marks at the corners say the panel has been *positioned*, which is the
+   difference the references trade on. Pure decoration in CSS terms, so it is
+   pointer-events: none and never intercepts a click. */
+.instrument { position: relative; }
+.instrument::before,
+.instrument::after {
+  content: "";
+  position: absolute;
+  width: var(--tick);
+  height: var(--tick);
+  pointer-events: none;
+  border-color: var(--rule-strong);
+  border-style: solid;
+  opacity: 0.85;
+}
+.instrument::before { top: 0; left: 0; border-width: 1px 0 0 1px; }
+.instrument::after { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+
+/* ── telemetry rail ────────────────────────────────────────────────────────
+   The small uppercase mono strip that labels a panel and carries its live
+   readout. Tabular numerals so a changing value does not shift the layout —
+   a number that jitters as it updates is the fastest way to look cheap. */
+.rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+  min-height: 14px;
+}
+.rail .k { color: var(--muted); }
+.rail .v { color: var(--foreground); }
+.rail .sig { color: var(--signal); }
+.rail .sep { flex: 1; height: 1px; background: var(--rule); }
+
+/* ── state ─────────────────────────────────────────────────────────────────
+   Amber means live. The pulse is slow and low-contrast on purpose: a fast
+   blink is an alarm, and most of what is "live" here is simply working. */
+.sig-dot {
+  width: 5px; height: 5px; flex: none;
+  background: var(--signal);
+  box-shadow: 0 0 6px var(--signal-glow);
+}
+.sig-dot.idle { background: var(--subtle); box-shadow: none; }
+.sig-dot.alert { background: var(--danger); box-shadow: 0 0 6px rgba(229, 72, 77, 0.6); }
+@keyframes sig-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.sig-dot.on { animation: sig-breathe 2.8s var(--ease) infinite; }
+@media (prefers-reduced-motion: reduce) { .sig-dot.on { animation: none; } }
+
+/* Values that are current, not merely present. */
+.sig-value { color: var(--signal); font-variant-numeric: tabular-nums; }

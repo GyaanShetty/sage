@@ -18,17 +18,78 @@
 .pp-tab.on { color: var(--foreground); background: var(--glass); }
 .pp-select { font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--muted); background: var(--glass); border: 1px solid var(--border-glass); border-radius: 6px; padding: 5px 7px; outline: none; }
 
-/* equity chart */
-.pp-chartwrap { position: relative; height: 150px; border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px 30px 8px 8px; background: rgba(255,255,255,.012); }
+/* ── equity chart, as instrumentation ─────────────────────────────────────
+ *
+ * Square, hairline-framed, and read rather than admired. The grid and axes
+ * are deliberately recessive: they are scaffolding for the line, and a grid
+ * that competes with the data is the most common way a chart stops being
+ * legible.
+ */
+.pp-chartwrap {
+  position: relative;
+  height: 150px;
+  border: 1px solid var(--rule);
+  padding: 8px 34px 14px 8px;
+  background: rgba(255, 255, 255, 0.008);
+}
 .pp-chart { width: 100%; height: 100%; overflow: visible; }
-.pp-grid { stroke: rgba(255,255,255,.06); stroke-width: 1; vector-effect: non-scaling-stroke; }
-.pp-mine { fill: none; stroke-width: 1.8; }
-.pp-mine.up { stroke: var(--live); }
-.pp-mine.dn { stroke: #f87171; }
-.pp-bench { fill: none; stroke: rgba(255,255,255,.3); stroke-width: 1.2; stroke-dasharray: 3 3; }
-.pp-axis { position: absolute; right: 6px; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
+
+/* Scaffolding, not content. */
+.pp-grid { stroke: rgba(255, 255, 255, 0.045); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+/* Thin marks. 1.6px reads as drawn by an instrument; anything heavier reads
+   as a marketing chart. */
+.pp-mine { fill: none; stroke-width: 1.6; }
+.pp-mine.up { stroke: var(--signal); }
+.pp-mine.dn { stroke: var(--danger); }
+
+/* The benchmark is context, so it recedes — and it is dashed as well as
+   dimmer, because two series must never be told apart by colour alone. */
+.pp-bench { fill: none; stroke: rgba(255, 255, 255, 0.26); stroke-width: 1.1; stroke-dasharray: 3 3; }
+
+/* The current value is the one point that matters most on a time series.
+   Drawn in HTML rather than SVG — see the note in equity-panel.tsx: the
+   chart's viewBox is stretched, so a <circle> inside it is an ellipse. */
+.pp-dot {
+  position: absolute;
+  width: 5px; height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  background: var(--signal);
+  box-shadow: 0 0 0 1.5px var(--panel), 0 0 7px var(--signal-glow);
+  pointer-events: none;
+}
+.pp-dot.dn { background: var(--danger); box-shadow: 0 0 0 1.5px var(--panel); }
+
+/* Crosshair, drawn only while inspecting. */
+.pp-cross { stroke: var(--signal-dim); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; pointer-events: none; }
+
+.pp-axis {
+  position: absolute; right: 6px;
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.08em;
+  color: var(--subtle); font-variant-numeric: tabular-nums;
+}
 .pp-axis.top { top: 4px; }
-.pp-axis.bottom { bottom: 4px; }
+.pp-axis.bottom { bottom: 16px; }
+
+/* Direct labels: identity carried by text, not by hue. */
+.pp-legend {
+  position: absolute; left: 8px; bottom: 2px;
+  display: flex; gap: 12px;
+  font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.14em;
+  color: var(--subtle); text-transform: uppercase;
+}
+.pp-legend span { display: flex; align-items: center; gap: 5px; }
+.pp-legend i { width: 10px; height: 0; border-top: 1.6px solid var(--signal); }
+.pp-legend i.dn { border-top-color: var(--danger); }
+.pp-legend i.bench { border-top: 1.1px dashed rgba(255, 255, 255, 0.4); }
+
+/* Readout on hover — the value under the crosshair. */
+.pp-readout {
+  position: absolute; top: 4px; left: 8px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+  color: var(--signal); font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
 
 /* stat strips */
 .pp-stats { display: flex; flex-wrap: wrap; gap: 1px; margin-top: 12px; background: var(--border-glass); border: 1px solid var(--border-glass); border-radius: 8px; overflow: hidden; }

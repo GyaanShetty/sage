@@ -649,3 +649,54 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 @media (prefers-reduced-motion: reduce) {
   .acq-scan i { animation: none; width: 100%; opacity: 0.35; }
 }
+
+/* ── frame rails ───────────────────────────────────────────────────────────
+   The registration strips above and below the workspace. Kept to ~18px and
+   very low contrast: this is a frame, and a frame that draws the eye has
+   stopped being one. */
+.frame-rail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  height: 18px;
+  padding: 0 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--faint);
+  background: var(--background);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+.frame-rail.top { border-bottom: 1px solid var(--rule); }
+.frame-rail.bottom { border-top: 1px solid var(--rule); }
+.fr-mark { color: var(--signal); letter-spacing: 0.28em; }
+.fr-k { color: var(--faint); }
+.fr-v { color: var(--subtle); }
+.fr-sig { color: var(--signal); }
+.fr-rule { flex: 1; height: 1px; background: var(--rule); }
+
+/* ── section frames ────────────────────────────────────────────────────────
+   Every band is a plate with registration marks at its corners and a
+   coordinate on its rule. The number was already there; the frame is what
+   turns it from decoration into a position. */
+.section { position: relative; }
+.section > .sectitle { position: relative; }
+.section > .sectitle::before {
+  content: "";
+  position: absolute;
+  left: -8px; top: 50%;
+  width: 3px; height: 3px;
+  background: var(--signal);
+  transform: translateY(-50%);
+}
+.sectitle .tag {
+  font-family: var(--mono);
+  font-size: 7.5px;
+  letter-spacing: 0.18em;
+  color: var(--faint);
+}

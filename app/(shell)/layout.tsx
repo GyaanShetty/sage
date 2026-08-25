@@ -17,6 +17,7 @@ import { GestureNav } from "@/features/gestures/gesture-nav";
 import { ErrorReporter } from "@/components/error-reporter";
 import { ReminderTicker } from "@/components/reminder-ticker";
 import { VoiceContinue } from "@/components/voice-continue";
+import { FrameRail } from "@/components/frame-rail";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -28,8 +29,13 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <VoiceContinue />
       <StatusBar />
       <TickerTape />
-      <div className="flex min-h-0 flex-1">
+      {/* The workspace sits inside a frame, the way the reference sheets do:
+          thin registration strips top and bottom carrying real state. It is
+          what makes panels read as instrumentation rather than as cards. */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <FrameRail edge="top" />
         <main className="hud-grid flex-1 overflow-y-auto pb-8">{children}</main>
+        <FrameRail edge="bottom" />
       </div>
       <Wheel />
       <Launcher />

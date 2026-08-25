@@ -1423,3 +1423,49 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
 @media (min-width: 901px) {
   .hud-grid { padding-left: 38px; }
 }
+
+/* ══ REMODEL · density pass ═══════════════════════════════════════════════
+ *
+ * Type was the softest thing left on the screen. A 34px light greeting is a
+ * consumer app's masthead; an instrument leads with the readout and keeps the
+ * pleasantry small. Nothing is removed — the greeting still greets — it just
+ * stops outranking the data underneath it.
+ */
+.hh-name {
+  font-size: clamp(15px, 1.35vw, 19px);
+  font-weight: 400;
+  letter-spacing: -0.1px;
+  color: var(--muted);
+}
+.hh-sub { font-size: 7.5px; letter-spacing: 0.22em; }
+
+/* Section headings: the coordinate leads, the word follows, both small. */
+.sectitle h2 {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.sectitle .sn { font-size: 10px; letter-spacing: 0.1em; }
+
+/* Globe controls: square instrument chips, sized to be read at a glance and
+   never to compete with the globe they sit on. */
+.wv-toggle {
+  font-size: 7.5px;
+  letter-spacing: 0.18em;
+  padding: 5px 9px;
+  color: var(--muted);
+  border-color: var(--rule-strong);
+  background: rgba(8, 9, 11, 0.88);
+}
+.wv-toggle:hover { color: var(--signal); border-color: var(--signal-dim); background: rgba(8, 9, 11, 0.95); }
+
+/* Panel headers tighten, and their readout takes the signal colour so the
+   live value is the thing the eye lands on. */
+.bh .t { font-size: 9px; }
+.bh .i { font-size: 6.5px; letter-spacing: 0.18em; }
+
+/* Counters are the densest thing on the dashboard and were sized like body
+   copy. Numbers large, labels small — the ratio is the hierarchy. */
+.counters .cv, .ct .cv { font-size: 22px; font-weight: 300; letter-spacing: -0.5px; }
+.counters .ck, .ct .ck { font-size: 6.5px; letter-spacing: 0.2em; }

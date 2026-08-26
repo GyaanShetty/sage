@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { AIR_CORRIDORS, CONFLICT_ZONES, TRADE_ROUTES, SAT_GROUPS, greatCircle } from "./data";
 import { useLivePosition } from "@/lib/geo-position";
-import { useLive } from "@/lib/live";
+import { useLive, notifyDataChanged } from "@/lib/live";
 import { dueAt, type Place } from "@/core/places/schedule";
 
 type L = typeof import("leaflet");
@@ -47,6 +47,9 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   const { position, state: geoState } = useLivePosition();
   const [places, setPlaces] = useState<Place[]>([]);
   const [route, setRoute] = useState<{ meters: number; seconds: number; name: string } | null>(null);
+  /** A spot he right-clicked, waiting to be named. */
+  const [pending, setPending] = useState<{ lat: number; lon: number } | null>(null);
+  const [placeName, setPlaceName] = useState("");
   const meRef = useRef<LLayer | null>(null);
   const placeRef = useRef<LLayer | null>(null);
   // A polyline is a Layer, not a LayerGroup — the narrower type does not fit.
@@ -61,14 +64,50 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   useEffect(() => {
     let disposed = false;
     (async () => {
-      const L = (await import("leaflet")).default as unknown as L;
-      if (disposed || !elRef.current) return;
+      /**
+       * Wrapped, because an async IIFE that throws does so into the void.
+       *
+       * Everything below runs inside a promise nobody awaits, so any failure —
+       * a bad import, a container with no size, Leaflet objecting to being
+       * initialised twice — became an unhandled rejection and the status text
+       * simply sat on "BOOTING ATLAS…" forever. A map that fails silently is
+       * indistinguishable from a map that is merely slow, which is the worst
+       * possible thing to debug.
+       */
+      try {
+      // Progressive boot states. "BOOTING ATLAS…" for ten seconds tells you
+      // nothing about which of these steps is the slow or broken one.
+      setStatus("LOADING LEAFLET…");
+      const mod = await import("leaflet");
+      setStatus("BUILDING MAP…");
+      // Leaflet's ESM build exposes the API on `default` in some bundlers and
+      // at the top level in others; taking one and hoping is how this ends up
+      // throwing "L.map is not a function" with no clue why.
+      const L = ((mod as unknown as { default?: unknown }).default ?? mod) as unknown as L;
+      if (disposed) return;
+      if (!elRef.current) { setStatus("MAP CONTAINER MISSING"); return; }
       LRef.current = L;
       const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2 }).setView(center ?? [lat, lon], 5);
       mapRef.current = map;
       L.control.zoom({ position: "bottomright" }).addTo(map);
       // Zoom all the way out → hand back to the globe view.
       map.on("zoomend", () => { if (map.getZoom() <= 2 && onZoomOut) onZoomOut(); });
+
+      /**
+       * Right-click to save a spot.
+       *
+       * Registered here, in the init effect, so it binds exactly once — a
+       * separate effect would need its own `ready` guard and a `map.off`
+       * cleanup, and would rebind on every dependency change.
+       *
+       * The prompt is deliberately plain. A place is a name and a point; the
+       * schedule that makes it useful is set afterwards in the panel, where
+       * there is room for two time fields and seven day toggles rather than a
+       * modal on top of a map.
+       */
+      map.on("contextmenu", (e: import("leaflet").LeafletMouseEvent) => {
+        setPending({ lat: e.latlng.lat, lon: e.latlng.lng });
+      });
       /**
        * Street level, at last.
        *
@@ -111,7 +150,11 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
 
       setReady(true);
       setStatus("ATLAS ONLINE");
+      } catch (err) {
+        if (!disposed) setStatus(`MAP FAILED — ${(err as Error)?.message ?? "unknown"}`.slice(0, 80));
+      }
     })();
+
     return () => {
       disposed = true;
       mapRef.current?.remove();
@@ -350,6 +393,23 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, places, Math.round((position?.lat ?? 0) * 500), Math.round((position?.lon ?? 0) * 500)]);
 
+  /** Save the right-clicked spot. */
+  const savePending = async () => {
+    if (!pending || !placeName.trim()) return;
+    const body = { name: placeName.trim(), lat: pending.lat, lon: pending.lon };
+    setPending(null);
+    setPlaceName("");
+    const j = await fetch("/api/places", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    }).then((r) => r.json()).catch(() => null);
+    if (j?.ok) {
+      // The marker effect listens on this scope, so the pin lands now rather
+      // than on the five-minute poll.
+      setPlaces((prev) => [...prev, j.data]);
+      notifyDataChanged("places");
+    }
+  };
+
   /** Centre on him — the control every map has and this one did not. */
   const centreOnMe = () => {
     if (!position || !mapRef.current) return;
@@ -402,6 +462,28 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
             </button>
           ))}
         </div>
+
+        {/* Naming a spot happens in the toolbar, not in a modal over the map —
+            he needs to see where he clicked while he names it. */}
+        {pending && (
+          <div className="rail">
+            <span className="sig">NEW PLACE</span>
+            <span className="v">{pending.lat.toFixed(4)}, {pending.lon.toFixed(4)}</span>
+            <input
+              className="atlas-name"
+              autoFocus
+              value={placeName}
+              placeholder="NAME IT — GYM, HOME, OFFICE"
+              onChange={(e) => setPlaceName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void savePending();
+                if (e.key === "Escape") { setPending(null); setPlaceName(""); }
+              }}
+            />
+            <button className="atlas-chip on" onClick={() => void savePending()} disabled={!placeName.trim()}>SAVE</button>
+            <button className="atlas-chip" onClick={() => { setPending(null); setPlaceName(""); }}>CANCEL</button>
+          </div>
+        )}
 
         {route && (
           <div className="rail">

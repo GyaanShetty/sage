@@ -51,6 +51,33 @@ export async function savePlace(input: Omit<Place, "id" | "at">): Promise<Place 
   return error ? null : place;
 }
 
+/**
+ * Change a place in place.
+ *
+ * Worth having rather than delete-and-recreate: re-saving would mint a new id,
+ * so anything holding a reference to the old one — a drawn route, a pending
+ * announcement — would quietly point at a place that no longer exists. It is
+ * also two writes and a race instead of one write.
+ */
+export async function updatePlace(
+  id: string,
+  patch: Partial<Pick<Place, "name" | "kind" | "schedule">>,
+): Promise<Place | null> {
+  const { data } = await db.from("Event").select("payload").eq("id", id).eq("type", TYPE).maybeSingle();
+  const current = data?.payload as Place | undefined;
+  if (!current) return null;
+
+  const next: Place = {
+    ...current,
+    ...(patch.name !== undefined ? { name: patch.name.trim().slice(0, 80) || current.name } : {}),
+    ...(patch.kind !== undefined ? { kind: patch.kind } : {}),
+    ...(patch.schedule !== undefined ? { schedule: patch.schedule } : {}),
+  };
+
+  const { error } = await db.from("Event").update({ payload: next }).eq("id", id).eq("userId", DEFAULT_USER_ID);
+  return error ? null : next;
+}
+
 export async function deletePlace(id: string): Promise<boolean> {
   const { error } = await db.from("Event").delete().eq("id", id).eq("type", TYPE).eq("userId", DEFAULT_USER_ID);
   return !error;

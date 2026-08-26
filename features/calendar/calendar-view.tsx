@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, Loader2,
   MapPin, Plus, Trash2, X,
@@ -99,10 +99,26 @@ function minutesInto(iso: string): number {
   return h * 60 + m;
 }
 
-/** Rows start here and end at DAY_END — nobody needs 3am on a timetable. */
-const DAY_START = 7 * 60;
-const DAY_END = 23 * 60;
+/**
+ * The whole day, 00:00 to 24:00.
+ *
+ * This used to start at 07:00 and stop at 23:00, on the reasoning that nobody
+ * needs 3am on a timetable. The instinct was right and the implementation was
+ * wrong: anything outside that window was not merely out of view, it was
+ * *unreachable* — a 06:30 flight or a 23:30 call simply did not exist on the
+ * grid, with nothing to indicate something had been hidden.
+ *
+ * The instinct is preserved by scrolling to the working day on mount, so the
+ * default view is unchanged in practice while the early and late hours are
+ * still there when he goes looking.
+ */
+const DAY_START = 0;
+const DAY_END = 24 * 60;
 const PX_PER_MIN = 0.9;
+
+/** Where the grid opens: early enough to catch a dawn start, without making
+ *  him scroll past six empty hours every time. */
+const OPEN_AT_MIN = 6 * 60;
 
 /**
  * Colour by what kind of thing it is, from the title.
@@ -145,6 +161,24 @@ function WeekGrid({
   const nowMinutes = minutesInto(new Date().toISOString());
   const today = todayKey();
 
+  /**
+   * Open on the working day rather than at midnight.
+   *
+   * A full-day grid that starts scrolled to 00:00 shows six hours of nothing,
+   * which is a worse first impression than the clipped grid this replaced.
+   * Scroll to the current hour when it is a sensible one, otherwise to 06:00.
+   */
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const target = nowMinutes > OPEN_AT_MIN ? nowMinutes - 60 : OPEN_AT_MIN;
+    el.scrollTop = Math.max(0, target * PX_PER_MIN);
+    // Once, on mount — re-scrolling as the clock ticks would yank the view
+    // out from under him mid-read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div className="wk">
       <div className="wk-head">
@@ -164,7 +198,8 @@ function WeekGrid({
         })}
       </div>
 
-      <div className="wk-body" style={{ height }}>
+      <div className="wk-body" ref={bodyRef} style={{ height: "min(62vh, 720px)", overflowY: "auto" }}>
+        <div className="wk-canvas" style={{ height, position: "relative" }}>
         <div className="wk-gutter">
           {hours.map((m) => (
             <span key={m} className="wk-hour" style={{ top: (m - DAY_START) * PX_PER_MIN }}>
@@ -189,8 +224,8 @@ function WeekGrid({
               {events.map((e, i) => {
                 const startM = minutesInto(e.start);
                 const endM = e.end ? minutesInto(e.end) : startM + 60;
-                // An event ending past the visible window is clipped rather
-                // than dropped; one starting before it is pinned to the top.
+                // The window is the whole day now, so this only guards the
+                // genuinely odd case of an event crossing midnight.
                 const top = Math.max(0, (startM - DAY_START) * PX_PER_MIN);
                 const raw = (Math.max(endM, startM + 20) - Math.max(startM, DAY_START)) * PX_PER_MIN;
                 const h = Math.min(raw, height - top);
@@ -211,6 +246,7 @@ function WeekGrid({
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );

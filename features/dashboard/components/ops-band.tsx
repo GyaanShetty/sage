@@ -8,7 +8,8 @@ import { useLive } from "@/lib/live";
 interface Repo { name: string; language: string | null; pushed_at: string; private: boolean }
 interface PrItem { title: string; repo: string; number: number; url: string }
 interface Github { login: string | null; repos: Repo[]; openPrs: PrItem[]; reviewRequests: PrItem[] }
-interface Contrib { total: number; weeks: number[][]; max: number }
+interface ContribDay { date: string; count: number; level: number }
+interface Contrib { total: number; weeks: ContribDay[][]; max: number }
 interface Now { playing: boolean; track: string; artist: string; art: string | null; progress: number; duration: number }
 
 function ago(iso: string) {
@@ -72,11 +73,19 @@ export function OpsBand() {
                 <>
                   <p className="lbl" style={{ margin: "10px 0 6px" }}>{contrib.total.toLocaleString()} CONTRIBUTIONS · PAST YEAR</p>
                   <div className="ghgrid">
+                    {/* GitHub's own banding, and the day it belongs to.
+                        Shading used to be computed from his personal maximum,
+                        so one busy afternoon rescaled the whole year and the
+                        grid matched github.com on no day at all. And with the
+                        date dropped, a cell could not say when it was. */}
                     {contrib.weeks.flatMap((w, wi) =>
-                      w.map((c, di) => {
-                        const lvl = c === 0 ? 0 : Math.min(4, Math.ceil((c / contrib.max) * 4));
-                        return <div className={`ghcell${lvl ? ` l${lvl}` : ""}`} key={`${wi}-${di}`} title={`${c} on this day`} />;
-                      }),
+                      w.map((d, di) => (
+                        <div
+                          className={`ghcell${d.level ? ` l${d.level}` : ""}`}
+                          key={d.date ?? `${wi}-${di}`}
+                          title={`${d.count} contribution${d.count === 1 ? "" : "s"} · ${d.date}`}
+                        />
+                      )),
                     )}
                   </div>
                 </>

@@ -198,8 +198,8 @@ export function KnowledgeGraph() {
   }, []);
 
   return (
-    <div className="holo">
-      <div className="holo-hud">
+    <div className="stage">
+      <div className="stage-hud">
         <div className="sectitle" style={{ marginBottom: 4 }}><span className="sn">KG</span><h2>Mind Graph</h2><span className="line" /><span className="tag">MEMORIES · NOTES · KNOWLEDGE</span></div>
         <div className="kg-legend">
           <span><i style={{ background: COLOR.memory }} /> MEMORY</span>
@@ -207,8 +207,8 @@ export function KnowledgeGraph() {
           <span><i style={{ background: COLOR.source }} /> SOURCE</span>
         </div>
       </div>
-      <canvas ref={canvasRef} className="holo-stage" style={{ background: "#08090b", display: "block", width: "100%", height: "100%" }} />
-      {empty && <div className="holo-nomodel">NO MEMORIES YET — TALK TO SAGE AND INGEST KNOWLEDGE TO GROW YOUR GRAPH</div>}
+      <canvas ref={canvasRef} className="stage-stage" style={{ background: "#08090b", display: "block", width: "100%", height: "100%" }} />
+      {empty && <div className="stage-nomodel">NO MEMORIES YET — TALK TO SAGE AND INGEST KNOWLEDGE TO GROW YOUR GRAPH</div>}
       {hover && (
         <div className="kg-tip">
           <div className="kg-kind" style={{ color: COLOR[hover.kind] }}>{hover.kind.toUpperCase()} · {hover.group}</div>

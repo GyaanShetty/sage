@@ -4,13 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Hand } from "lucide-react";
 import { useShellStore } from "@/features/shell/store";
-import { HandController, type HandFrame } from "@/features/forge/hands";
+import { HandController, type HandFrame } from "./hands";
+import { PAGES } from "@/features/shell/components/pages";
 
-// Page order for swipe navigation.
-const ROUTES = [
-  "/dashboard", "/chat", "/markets", "/workspace", "/knowledge",
-  "/lab", "/forge", "/automations", "/memory", "/graph", "/agents", "/settings",
-];
+/**
+ * Page order for swipe navigation, taken from the nav itself.
+ *
+ * This was a hand-written list of twelve paths, which went wrong in both
+ * directions: it named /lab and /forge (now removed), and it omitted /mail,
+ * /calendar, /read and half the app — and `navigate()` no-ops when the current
+ * path is missing, so gestures silently did nothing on those pages. PAGES is
+ * already the single source of truth for navigation; one list cannot drift
+ * from itself.
+ */
+const ROUTES = PAGES.map((p) => p.href);
 
 const FIST_MAX = 1.15;        // closed fist → page-change mode
 const DRAG_GAIN = 1.5;        // page travel relative to hand travel (1 = 1:1)
@@ -191,11 +198,17 @@ export function GestureNav() {
     }
   }, [navigate, closeWheel]);
 
+  /** Latest onFrame, without making the camera depend on it. */
+  const frameRef = useRef(onFrame);
+  frameRef.current = onFrame;
+
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
     setStatus("Loading vision model…");
-    const c = new HandController(onFrame);
+    // The controller gets a stable wrapper that reads the latest handler,
+    // so the camera survives re-renders while still calling current code.
+    const c = new HandController((f) => frameRef.current(f));
     (async () => {
       try {
         await c.start(videoRef.current!);
@@ -208,8 +221,15 @@ export function GestureNav() {
             ? "Camera blocked — allow access to use gestures."
             : "Couldn't start gesture control on this device.",
         );
-        // auto-disable so the toggle reflects reality
-        setGestureNav(false);
+        /**
+         * Deliberately NOT setGestureNav(false).
+         *
+         * Auto-disabling on failure is why this reads as "gesture control does
+         * not work" rather than "gesture control is broken": the switch flips
+         * itself back, so there is nothing left turned on to inspect and the
+         * status message disappears with the component. The error stays on
+         * screen now and the toggle stays where he put it.
+         */
       }
     })();
     return () => {
@@ -218,13 +238,21 @@ export function GestureNav() {
       ctrl.current = null;
       setDir(null);
     };
-  }, [enabled, onFrame, setGestureNav]);
+    // `onFrame` deliberately absent: it is a useCallback over navigate and
+    // closeWheel, so including it tore the camera down and restarted it on
+    // every unrelated re-render. Held in a ref instead — the same fix
+    // lib/live.ts already applies to its load function.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   if (!enabled) return null;
 
   return (
     <div className="gn-wrap">
-      <video ref={videoRef} muted playsInline className="gn-cam" />
+      {/* autoPlay matters: the controller calls video.play(), but without the
+          attribute some browsers never start producing frames, so the hand
+          model waits forever on a stream that is technically "playing". */}
+      <video ref={videoRef} autoPlay muted playsInline className="gn-cam" />
       <div className="gn-chip">
         <Hand className="size-3.5" />
         <span>{status}</span>

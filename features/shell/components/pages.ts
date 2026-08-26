@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
-  FolderKanban, BookOpen, Boxes, Shapes, GraduationCap, Zap, Brain, Network, Bot,
+  FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
   Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, type LucideIcon,
 } from "lucide-react";
@@ -47,12 +47,12 @@ export const PAGES: Item[] = [
   { href: "/graph", label: "Mind Graph", icon: Network, group: "MIND" },
   { href: "/health", label: "Health", icon: Activity, group: "MIND" },
 
-  { href: "/lab", label: "Holo-Lab", icon: Boxes, group: "MAKE" },
-  { href: "/forge", label: "Forge", icon: Shapes, group: "MAKE" },
-  { href: "/settings", label: "Settings", icon: Settings, group: "MAKE" },
+  { href: "/settings", label: "Settings", icon: Settings, group: "MIND" },
 ];
 
-export const GROUP_ORDER = ["NOW", "WORK", "MONEY", "JUDGEMENT", "MIND", "MAKE"] as const;
+// MAKE went with the Holo-Lab and the Forge; Settings moved to MIND rather
+// than leaving a heading over a single item.
+export const GROUP_ORDER = ["NOW", "WORK", "MONEY", "JUDGEMENT", "MIND"] as const;
 
 /** Words people use that are not the page's name. */
 export const ALIASES: Record<string, string> = {

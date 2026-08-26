@@ -3,12 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import { AIR_CORRIDORS, CONFLICT_ZONES, TRADE_ROUTES, SAT_GROUPS, greatCircle } from "./data";
+import { useLivePosition } from "@/lib/geo-position";
+import { useLive } from "@/lib/live";
+import { dueAt, type Place } from "@/core/places/schedule";
 
 type L = typeof import("leaflet");
 type LMap = import("leaflet").Map;
 type LLayer = import("leaflet").LayerGroup;
 
 interface LayerDef { key: string; label: string; icon: string; on: boolean; live?: boolean }
+
+/** How far in the map will go. CARTO serves to 20; anything less is a choice,
+ *  and 12 was the wrong one — see the tile layer below. */
+const MAX_ZOOM = 20;
 
 const HAS_TRAFFIC = !!process.env.NEXT_PUBLIC_TOMTOM_KEY;
 
@@ -36,6 +43,20 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   const [conflictNews, setConflictNews] = useState<{ title: string; source: string; url: string }[]>([]);
   const [ticker, setTicker] = useState(0);
 
+  // ── him, his places, and the way between them ────────────
+  const { position, state: geoState } = useLivePosition();
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [route, setRoute] = useState<{ meters: number; seconds: number; name: string } | null>(null);
+  const meRef = useRef<LLayer | null>(null);
+  const placeRef = useRef<LLayer | null>(null);
+  // A polyline is a Layer, not a LayerGroup — the narrower type does not fit.
+  const routeRef = useRef<import("leaflet").Layer | null>(null);
+
+  useLive(
+    () => fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(j?.data ?? [])).catch(() => {}),
+    { everyMs: 300_000, scopes: ["places"] },
+  );
+
   // ── init map + static layers ─────────────────────────────
   useEffect(() => {
     let disposed = false;
@@ -48,7 +69,20 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
       L.control.zoom({ position: "bottomright" }).addTo(map);
       // Zoom all the way out → hand back to the globe view.
       map.on("zoomend", () => { if (map.getZoom() <= 2 && onZoomOut) onZoomOut(); });
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: 12 }).addTo(map);
+      /**
+       * Street level, at last.
+       *
+       * This was maxZoom: 12 — roughly "a city fits on screen" — which is why
+       * the atlas could never show a building, a junction, or the way to the
+       * gym. CARTO's dark_all actually serves to z20, and the app already
+       * proves it: features/dashboard/components/geo-map.tsx runs the very
+       * same tiles at 19. The cap was arbitrary, not a provider limit.
+       *
+       * minZoom stays at 2 deliberately: the zoomend handler above uses
+       * "zoom <= 2" to hand back to the globe, so lowering it would change
+       * navigation rather than just widen the range.
+       */
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: MAX_ZOOM }).addTo(map);
 
       // group containers
       for (const d of INITIAL) groups.current[d.key] = L.layerGroup();
@@ -169,7 +203,9 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     const g = groups.current.rain;
     let layer: import("leaflet").TileLayer | null = null;
     fetch("/api/atlas/rain").then((r) => r.json()).then((j) => {
-      if (j?.data?.url) { layer = L.tileLayer(j.data.url, { opacity: 0.6, maxZoom: 12 }); layer.addTo(g); }
+      // RainViewer only renders to ~z10; maxNativeZoom lets Leaflet upscale
+      // its last real tile instead of dropping the layer when you zoom past it.
+      if (j?.data?.url) { layer = L.tileLayer(j.data.url, { opacity: 0.6, maxZoom: MAX_ZOOM, maxNativeZoom: 10 }); layer.addTo(g); }
     }).catch(() => {});
     return () => { if (layer) g.removeLayer(layer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +219,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     const key = process.env.NEXT_PUBLIC_TOMTOM_KEY;
     const layer = L.tileLayer(
       `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${key}`,
-      { opacity: 0.7, maxZoom: 12 },
+      { opacity: 0.7, maxZoom: MAX_ZOOM },
     );
     layer.addTo(g);
     return () => { g.removeLayer(layer); };
@@ -240,6 +276,86 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     return () => clearInterval(t);
   }, [conflictNews]);
 
+  /**
+   * His position, drawn as a marker with its accuracy ring.
+   *
+   * The ring is not decoration: a 2km fix and a 5m fix mean very different
+   * things, and a bare dot claims a precision the GPS did not provide.
+   */
+  useEffect(() => {
+    const L = LRef.current, map = mapRef.current;
+    if (!ready || !L || !map || !position) return;
+
+    meRef.current?.remove();
+    const g = L.layerGroup();
+    L.circle([position.lat, position.lon], {
+      radius: Math.max(position.accuracy, 12),
+      color: "#e8a13a", weight: 1, fillColor: "#e8a13a", fillOpacity: 0.07,
+    }).addTo(g);
+    L.circleMarker([position.lat, position.lon], {
+      radius: 4, color: "#0c0d0f", weight: 2, fillColor: "#e8a13a", fillOpacity: 1,
+    }).bindTooltip(`YOU · ±${Math.round(position.accuracy)}m`, { direction: "top" }).addTo(g);
+    g.addTo(map);
+    meRef.current = g;
+  }, [ready, position]);
+
+  /** Saved places — always drawn, never behind a layer toggle. He asked for
+   *  them to be "purely visible", and a place you have to switch on is not. */
+  useEffect(() => {
+    const L = LRef.current, map = mapRef.current;
+    if (!ready || !L || !map) return;
+
+    placeRef.current?.remove();
+    const g = L.layerGroup();
+    for (const p of places) {
+      L.marker([p.lat, p.lon], {
+        icon: L.divIcon({ className: "atlas-place", html: `<i></i><span>${p.name}</span>`, iconSize: [0, 0] }),
+      }).addTo(g);
+    }
+    g.addTo(map);
+    placeRef.current = g;
+  }, [ready, places]);
+
+  /**
+   * The route to wherever he is due to be.
+   *
+   * Drawn only when a place's window is open AND he is not already there —
+   * directions to the gym while standing in the gym are noise.
+   */
+  useEffect(() => {
+    const L = LRef.current, map = mapRef.current;
+    if (!ready || !L || !map || !position) { setRoute(null); return; }
+
+    const target = dueAt(places, new Date(), position);
+    if (!target) { routeRef.current?.remove(); routeRef.current = null; setRoute(null); return; }
+
+    let cancelled = false;
+    const q = new URLSearchParams({
+      fromLat: String(position.lat), fromLon: String(position.lon),
+      toLat: String(target.lat), toLon: String(target.lon), profile: "driving",
+    });
+    fetch(`/api/route?${q}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled || !j?.ok) return;
+        routeRef.current?.remove();
+        const line = L.polyline(j.data.points, { color: "#e8a13a", weight: 3, opacity: 0.85 });
+        line.addTo(map);
+        routeRef.current = line;
+        setRoute({ meters: j.data.meters, seconds: j.data.seconds, name: target.name });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // Recomputed when he moves far enough to matter, not on every GPS tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, places, Math.round((position?.lat ?? 0) * 500), Math.round((position?.lon ?? 0) * 500)]);
+
+  /** Centre on him — the control every map has and this one did not. */
+  const centreOnMe = () => {
+    if (!position || !mapRef.current) return;
+    mapRef.current.setView([position.lat, position.lon], Math.max(mapRef.current.getZoom(), 16), { animate: true });
+  };
+
   // Re-center when the caller hands a new focus point (globe → map).
   useEffect(() => {
     if (!ready || !center || !mapRef.current) return;
@@ -252,8 +368,33 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   return (
     <div className="atlas">
       <div className="atlas-map" ref={elRef} />
-      <div className="atlas-hud">
-        <div className="atlas-title"><span className="live-dot" /> ATLAS · {status}</div>
+      {/**
+        * The toolbar sits ABOVE the map, not on it.
+        *
+        * It used to be `position: absolute` over the tiles, inset far enough
+        * to clear the side rails — which meant the controls covered the thing
+        * they control, and the map had to be tall enough to have room to
+        * spare. Out of the way, the map gets all its space back.
+        */}
+      <div className="atlas-toolbar">
+        <div className="rail">
+          <span className="sig-dot on" />
+          <span className="sig">ATLAS</span>
+          <span className="k">{status}</span>
+          <span className="sep" />
+          {/* Position state, said plainly — "denied" is actionable, a missing
+              dot is not. */}
+          <span className="k">POS</span>
+          <span className={geoState === "live" ? "sig" : "v"}>
+            {geoState === "live" && position ? `±${Math.round(position.accuracy)}M` :
+             geoState === "denied" ? "BLOCKED" :
+             geoState === "locating" ? "ACQUIRING" : "OFF"}
+          </span>
+          {position && (
+            <button className="atlas-chip" onClick={centreOnMe} title="Centre on my position">◎ ME</button>
+          )}
+        </div>
+
         <div className="atlas-layers">
           {layers.map((l) => (
             <button key={l.key} className={`atlas-chip${l.on ? " on" : ""}`} onClick={() => toggle(l.key)}>
@@ -261,7 +402,16 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
             </button>
           ))}
         </div>
-        <div className="atlas-note">HOVER ANY OBJECT TO IDENTIFY · DRAG TO PAN · SCROLL TO ZOOM</div>
+
+        {route && (
+          <div className="rail">
+            <span className="sig">ROUTE</span>
+            <span className="v">{route.name.toUpperCase()}</span>
+            <span className="sep" />
+            <span className="v">{(route.meters / 1000).toFixed(1)} KM</span>
+            <span className="v">{Math.round(route.seconds / 60)} MIN</span>
+          </div>
+        )}
       </div>
       {isOn("conflict") && conflictNews.length > 0 && (
         <a className="atlas-ticker" href={conflictNews[ticker]?.url ?? "#"} target="_blank" rel="noreferrer">

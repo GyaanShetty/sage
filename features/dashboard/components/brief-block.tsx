@@ -24,10 +24,24 @@ export function BriefBlock() {
   const [items, setItems] = useState<Brief[] | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Explicitly today's, or explicitly nothing. `undefined` = not asked yet. */
+  const [today, setToday] = useState<Brief | null | undefined>(undefined);
 
+  /**
+   * Two questions, not one.
+   *
+   * "What is today's briefing" and "what are the recent ones" have different
+   * answers, and collapsing them is what produced the bug: the panel took the
+   * newest row from the archive and labelled it today's, so before the morning
+   * brief existed it confidently showed yesterday's with no date on it.
+   */
   const load = useCallback(async () => {
-    const j = await fetch("/api/brief/history?limit=14").then((r) => r.json()).catch(() => null);
-    setItems(j?.ok ? (j.data as Brief[]) : []);
+    const [all, today] = await Promise.all([
+      fetch("/api/brief/history?limit=14").then((r) => r.json()).catch(() => null),
+      fetch("/api/brief/history?limit=1&day=today").then((r) => r.json()).catch(() => null),
+    ]);
+    setItems(all?.ok ? (all.data as Brief[]) : []);
+    setToday(today?.ok ? ((today.data as Brief[])[0] ?? null) : null);
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -42,8 +56,9 @@ export function BriefBlock() {
     setTimeout(() => { void load(); setBusy(false); }, 4000);
   };
 
-  const latest = items?.[0] ?? null;
-  const rest = items?.slice(1) ?? [];
+  // The archive lists everything, including today's — it is a record, and
+  // hiding the row you just heard would make the list look wrong.
+  const rest = items ?? [];
 
   return (
     <div className="cell brief-cell">
@@ -61,8 +76,20 @@ export function BriefBlock() {
       {items === null && <Acquiring label="BRIEF" />}
       {items?.length === 0 && <p className="brief-dim">No briefings recorded yet. The first one lands tomorrow morning.</p>}
 
-      {latest && (
-        <p className="brief-latest" title={latest.text}>{latest.text}</p>
+      {/* Today's, with its date on it. Saying "nothing yet" is the honest
+          answer before the morning run; showing yesterday's is not. */}
+      {today && (
+        <>
+          <div className="rail">
+            <span className="sig">TODAY</span>
+            <span className="v">{fmt(today.createdAt, { day: "2-digit", month: "short" }).toUpperCase()}</span>
+            <span className="v">{today.bucket?.endsWith("PM") ? "PM" : "AM"}</span>
+          </div>
+          <p className="brief-latest" title={today.text}>{today.text}</p>
+        </>
+      )}
+      {today === null && items && items.length > 0 && (
+        <p className="brief-dim">Nothing recorded today yet — the morning brief lands at 07:00. Recent ones below.</p>
       )}
 
       {rest.length > 0 && (

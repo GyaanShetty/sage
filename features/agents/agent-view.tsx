@@ -90,7 +90,7 @@ export function AgentView() {
       <div className="section" style={{ maxWidth: 820, margin: "0 auto" }}>
         <div className="sectitle"><span className="sn">AGT</span><h2>Research Agent</h2><span className="line" /><span className="tag">PLANS · SEARCHES · REPORTS</span></div>
 
-        <div className="holo-input" style={{ marginBottom: 8 }}>
+        <div className="stage-input" style={{ marginBottom: 8 }}>
           <input value={task} onChange={(e) => setTask(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run(task)} placeholder="Give SAGE a research task…" />
           <button onClick={() => run(task)} disabled={running}>{running ? "WORKING…" : "DISPATCH"}</button>
         </div>

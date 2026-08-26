@@ -597,29 +597,6 @@
 .tt-pri.p5 { color: #e0706a; }
 .tt-pri.p3 { color: #e8a13a; }
 
-/* ── Holo-Lab (3D learn) ── */
-.holo { position: relative; height: calc(100dvh - 78px); overflow: hidden; background: var(--background); }
-/* width/height 100% are required: <canvas> is a replaced element, so inset:0
-   alone leaves it at its intrinsic 300x150 instead of filling the stage. */
-.holo-stage { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
-.holo-hud { position: absolute; left: 22px; right: 22px; top: 18px; z-index: 5; max-width: 640px; }
-.holo-input { display: flex; gap: 8px; }
-.holo-input input { flex: 1; background: rgba(8,9,11,.7); border: 1px solid var(--border-glass); color: var(--foreground); font-family: var(--disp); font-weight: 300; font-size: 15px; padding: 12px 14px; outline: none; backdrop-filter: blur(6px); }
-.holo-input input:focus { border-color: var(--live-dim); box-shadow: 0 0 22px -8px var(--live-glow); }
-.holo-input button { background: var(--live); color: var(--background); border: none; font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px; padding: 0 18px; cursor: pointer; }
-.holo-input button:disabled { opacity: .5; }
-.holo-loading { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--live); }
-.holo-spinner { width: 40px; height: 40px; border: 1px solid var(--border-glass); border-top-color: var(--live); border-radius: 50%; animation: spin 0.9s linear infinite; }
-.holo-overview { position: absolute; left: 22px; bottom: 22px; z-index: 5; max-width: 320px; background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 14px 16px; backdrop-filter: blur(10px); }
-.holo-overview .ho-title { font-weight: 300; font-size: 18px; letter-spacing: .3px; }
-.holo-overview .ho-text { font-size: 12px; line-height: 1.6; color: var(--muted); margin-top: 6px; font-weight: 300; }
-.holo-part { position: absolute; right: 22px; bottom: 22px; z-index: 5; width: min(340px, calc(100% - 44px)); background: rgba(8,9,11,.9); border: 1px solid var(--live-dim); padding: 16px 18px; backdrop-filter: blur(12px); box-shadow: 0 0 30px -10px var(--live-glow); }
-.holo-howto { border-color: var(--border-glass); box-shadow: none; }
-.holo-part .hp-name { font-weight: 400; font-size: 16px; color: var(--live); }
-.holo-part .hp-role { font-size: 13px; line-height: 1.65; color: var(--foreground); margin-top: 8px; font-weight: 300; }
-.holo-part .hp-conn { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); margin-top: 10px; }
-@media (max-width: 767px) { .holo-overview { display: none; } .holo-part { left: 12px; right: 12px; width: auto; bottom: 12px; } }
-
 /* ── sitrep ── */
 .sitrep-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .sitrep-chip { display: flex; align-items: center; gap: 9px; padding: 9px 13px; background: var(--panel); border: 1px solid var(--border-glass); border-left-width: 2px; max-width: 100%; }
@@ -631,16 +608,6 @@
 .sitrep-chip.warn .sc-ic { color: #e8a13a; }
 .sitrep-chip.info { border-left-color: var(--live-dim); }
 .sitrep-chip.info .sc-ic { color: var(--live); }
-
-/* ── Holo-Lab v2 (real 3D model + parts) ── */
-.holo-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.holo-poster { position: absolute; inset: 0; width: 100%; height: 100%; background-size: cover; background-position: center; cursor: pointer; border: 0; filter: brightness(0.62) grayscale(0.25); transition: filter 0.3s var(--ease); }
-.holo-poster:hover { filter: brightness(0.85) grayscale(0); }
-.holo-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; letter-spacing: 3px; color: var(--live); text-shadow: 0 0 16px rgba(0,0,0,.9); }
-.holo-nomodel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--subtle); }
-.holo-parts { position: absolute; right: 22px; top: 130px; bottom: 22px; z-index: 5; width: min(320px, calc(100% - 44px)); background: rgba(8,9,11,.9); border: 1px solid var(--border-glass); backdrop-filter: blur(12px); display: flex; flex-direction: column; }
-.holo-parts .hp-head { font-family: var(--mono); font-size: 8.5px; letter-spacing: 2px; color: var(--subtle); padding: 14px 16px 10px; }
-.holo-parts .hp-scroll { overflow-y: auto; max-height: 42%; padding: 0 8px; }
 .hp-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 8px 8px; background: none; border: 0; border-left: 2px solid transparent; color: var(--muted); cursor: pointer; text-align: left; font-size: 12.5px; }
 .hp-item:hover { color: var(--foreground); background: rgba(255, 255, 255,.05); }
 .hp-item.on { color: var(--live); border-left-color: var(--live); background: rgba(255, 255, 255,.08); }
@@ -649,7 +616,6 @@
 .hp-detail .hp-dname { font-weight: 400; font-size: 15px; color: var(--live); }
 .hp-detail .hp-drole { font-size: 12.5px; line-height: 1.6; color: var(--foreground); margin-top: 8px; font-weight: 300; }
 .hp-detail .hp-dconn { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); margin-top: 10px; }
-@media (max-width: 767px) { .holo-overview { display: none; } .holo-parts { left: 12px; right: 12px; width: auto; top: auto; height: 46%; bottom: 12px; } }
 
 /* ── knowledge / mind graph ── */
 .kg-legend { display: flex; gap: 16px; margin-top: 8px; }
@@ -694,21 +660,7 @@
 .band-handle { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: rgba(255, 255, 255,.08); font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--live); }
 .band-preview { pointer-events: none; max-height: 260px; overflow: hidden; position: relative; opacity: 0.75; }
 .band-preview::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, var(--background)); }
-
-/* ---- Forge (3D holographic sandbox) ---- */
-.fg-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; pointer-events: auto; }
-.fg-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(8,9,11,.6); border: 1px solid var(--border-glass); color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; padding: 7px 10px; cursor: pointer; transition: all .15s; backdrop-filter: blur(6px); }
-.fg-chip:hover { border-color: var(--live-dim); color: var(--foreground); }
-.fg-chip.on { border-color: var(--live); color: var(--live); box-shadow: 0 0 18px -8px var(--live-glow); }
-.fg-swatch { width: 24px; height: 24px; border: 1px solid var(--border-glass); border-radius: 4px; cursor: pointer; padding: 0; }
-.fg-sep { width: 1px; align-self: stretch; background: var(--border-glass); margin: 0 4px; }
-.fg-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--live); pointer-events: auto; }
-.fg-cam { position: absolute; right: 16px; bottom: 44px; width: 168px; height: 126px; object-fit: cover; transform: scaleX(-1); border: 1px solid var(--live-dim); border-radius: 8px; z-index: 6; box-shadow: 0 0 30px -12px var(--live-glow); background: #000; }
-.fg-help { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--subtle); z-index: 5; pointer-events: none; }
 @media (max-width: 768px) {
-  .fg-cam { width: 116px; height: 88px; bottom: 76px; }
-  .fg-chip span { display: none; }
-  .fg-help { font-size: 8px; letter-spacing: 1px; padding: 0 12px; }
 }
 
 /* ---- Eisenhower Matrix (TickTick) ---- */
@@ -1534,3 +1486,23 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
   border-bottom: 1px solid var(--rule);
   background: var(--panel);
 }
+
+/* ── stage ────────────────────────────────────────────────────────────────
+ * What survived the Holo-Lab.
+ *
+ * These five rules were written for the 3D lab and quietly became load-bearing
+ * for the Mind Graph and the Agent page, so deleting the Holo block with the
+ * feature would have broken two screens that have nothing to do with it.
+ * Renamed off the `holo-` prefix so the dependency is visible rather than
+ * accidental.
+ */
+.stage { position: relative; width: 100%; height: 100%; min-height: 420px; background: var(--background); overflow: hidden; }
+.stage-stage { position: absolute; inset: 0; }
+.stage-hud { position: absolute; top: 12px; left: 12px; z-index: 3; display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1.6px; color: var(--subtle); text-transform: uppercase; }
+.stage-nomodel { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px;
+  text-align: center; font-family: var(--mono); font-size: 9px; letter-spacing: 1.4px; color: var(--subtle); }
+.stage-input { display: flex; gap: 6px; align-items: center; }
+.stage-input input { flex: 1; background: var(--panel); border: 1px solid var(--rule); color: var(--foreground);
+  font-family: var(--mono); font-size: 11px; padding: 8px 10px; outline: none; }
+.stage-input input:focus { border-color: var(--signal-dim); }

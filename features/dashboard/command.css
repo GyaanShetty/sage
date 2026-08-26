@@ -1469,3 +1469,68 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
    copy. Numbers large, labels small — the ratio is the hierarchy. */
 .counters .cv, .ct .cv { font-size: 22px; font-weight: 300; letter-spacing: -0.5px; }
 .counters .ck, .ct .ck { font-size: 6.5px; letter-spacing: 0.2em; }
+
+/* ══ ATLAS · toolbar above the map ════════════════════════════════════════
+ *
+ * The controls used to float over the tiles, inset by 306px on each side to
+ * clear the side rails — so they covered the map, and the map had to be tall
+ * enough to afford the space. Hoisted out, both problems go.
+ */
+.atlas { display: flex; flex-direction: column; min-height: 0; }
+.atlas-toolbar {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}
+.atlas-toolbar .atlas-layers {
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.atlas-toolbar .atlas-layers::-webkit-scrollbar { display: none; }
+/* The map takes whatever is left, rather than the toolbar taking from it. */
+.atlas > .leaflet-container,
+.atlas > div:not(.atlas-toolbar):not(.atlas-ticker) { flex: 1; min-height: 0; }
+
+/* ── saved places ─────────────────────────────────────────────────────────
+   Always drawn and always labelled. He asked for them to be "purely
+   visible", and a marker you have to hover to identify is not. */
+.atlas-place { pointer-events: none; }
+.atlas-place i {
+  position: absolute; left: -4px; top: -4px;
+  width: 7px; height: 7px;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 8px var(--signal-glow);
+}
+.atlas-place span {
+  position: absolute; left: 8px; top: -7px;
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.14em;
+  text-transform: uppercase; white-space: nowrap;
+  color: var(--foreground);
+  background: rgba(8, 9, 11, 0.82);
+  padding: 1px 5px;
+  border-left: 1px solid var(--signal-dim);
+}
+
+/* ── worldview: controls above, stage below ───────────────────────────────
+ *
+ * `.wv-layer` has to stay absolute — the globe and the map are stacked and
+ * cross-faded — so the stage is the positioned box they live in, and the
+ * controls sit above it in normal flow.
+ */
+.worldview { display: flex; flex-direction: column; }
+.wv-stage { position: relative; flex: 1; min-height: 0; }
+.wv-controls {
+  position: static;
+  flex: none;
+  justify-content: flex-end;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--panel);
+}

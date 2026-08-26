@@ -69,18 +69,10 @@ export function WorldView({ lat = 18, lon = 78 }: { lat?: number; lon?: number }
 
   return (
     <div className="worldview">
-      {globeMounted && (
-        <div className={`wv-layer${showGlobeLayer ? " on" : ""}`}>
-          <HeroGlobe onZoomIn={toMap} onCenter={(c) => { centerRef.current = [c.lat, c.lng]; }} />
-        </div>
-      )}
-
-      {mapMounted && (
-        <div className={`wv-layer${mode === "map" || !globeOn ? " on" : ""}`} ref={mapWrapRef}>
-          <AtlasMap lat={mapCenter[0]} lon={mapCenter[1]} center={mapCenter} onZoomOut={globeOn ? toGlobe : undefined} />
-        </div>
-      )}
-
+      {/* View controls lead, above the map rather than floating on top of it.
+          They used to be absolutely positioned over the tiles — covering the
+          thing they control, and forcing the map to stay tall enough to have
+          room to spare. */}
       <div className="wv-controls">
         {globeOn && (
           <button className="wv-toggle" onClick={() => (mode === "globe" ? toMap() : toGlobe())}>
@@ -94,6 +86,21 @@ export function WorldView({ lat = 18, lon = 78 }: { lat?: number; lon?: number }
         >
           {globeOn ? "◍ GLOBE ON" : "◍ GLOBE OFF"}
         </button>
+      </div>
+
+      <div className="wv-stage">
+      {globeMounted && (
+        <div className={`wv-layer${showGlobeLayer ? " on" : ""}`}>
+          <HeroGlobe onZoomIn={toMap} onCenter={(c) => { centerRef.current = [c.lat, c.lng]; }} />
+        </div>
+      )}
+
+      {mapMounted && (
+        <div className={`wv-layer${mode === "map" || !globeOn ? " on" : ""}`} ref={mapWrapRef}>
+          <AtlasMap lat={mapCenter[0]} lon={mapCenter[1]} center={mapCenter} onZoomOut={globeOn ? toGlobe : undefined} />
+        </div>
+      )}
+
       </div>
     </div>
   );

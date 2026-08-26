@@ -2766,3 +2766,66 @@ test("the disk bridge cannot write, delete or execute", async () => {
   assert.ok(!/CRON_SECRET/.test(route), "the bridge must not share the cron secret");
   assert.match(route, /if \(!secret\) return false/, "an unset secret must shut the door, not open it");
 });
+
+// ── Places and the route to them ───────────────────────────────────────────
+
+test("gym time means the window is open and he is not already there", async () => {
+  const { dueAt, distanceM, AT_PLACE_M } = await import("@/core/places/schedule");
+
+  // 18:00–20:00 on weekdays. Bengaluru coordinates, since the app's timezone
+  // is IST and this rule reads the clock in that timezone.
+  const gym = {
+    id: "g", name: "Gym", lat: 12.9716, lon: 77.5946, at: "",
+    schedule: { fromMin: 18 * 60, toMin: 20 * 60, days: [1, 2, 3, 4, 5] },
+  };
+  const away = { lat: 12.99, lon: 77.62 };            // ~3km off
+  const atGym = { lat: 12.9717, lon: 77.5947 };       // ~15m off
+
+  // Wednesday 18:30 IST = 13:00 UTC.
+  const during = new Date("2026-08-26T13:00:00Z");
+  assert.equal(dueAt([gym], during, away)?.name, "Gym", "open window, elsewhere → route");
+  assert.equal(dueAt([gym], during, atGym), null, "directions to the gym while at the gym are noise");
+
+  // Same clock time, Sunday — not a gym day.
+  assert.equal(dueAt([gym], new Date("2026-08-30T13:00:00Z"), away), null);
+
+  // Wednesday 09:00 IST = 03:30 UTC — outside the window.
+  assert.equal(dueAt([gym], new Date("2026-08-26T03:30:00Z"), away), null);
+
+  /**
+   * The half-hour offset is the trap.
+   *
+   * The obvious implementation — tzHour(now) * 60 + now.getMinutes() — takes
+   * the hour from the app's timezone and the minutes from the server's, which
+   * agree everywhere with a whole-hour offset and disagree in exactly the
+   * place this app runs. IST is UTC+5:30, so at 12:45 UTC the app is at 18:15
+   * and a naive mix reads 18:45 — enough to open or close a window wrongly.
+   */
+  const edge = new Date("2026-08-26T12:35:00Z"); // 18:05 IST — just inside
+  assert.equal(dueAt([gym], edge, away)?.name, "Gym", "18:05 IST is inside an 18:00 window");
+  const justBefore = new Date("2026-08-26T12:25:00Z"); // 17:55 IST — just outside
+  assert.equal(dueAt([gym], justBefore, away), null, "17:55 IST is outside an 18:00 window");
+
+  // A place with no schedule is a bookmark, not an obligation.
+  assert.equal(dueAt([{ ...gym, schedule: undefined }], during, away), null);
+
+  assert.ok(distanceM(atGym, gym) < AT_PLACE_M);
+  assert.ok(distanceM(away, gym) > AT_PLACE_M);
+});
+
+test("the atlas can reach street level", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("features/atlas/atlas-map.tsx", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+
+  // maxZoom: 12 is roughly "a city fits on screen" — it could never show a
+  // building or a junction. The same CARTO tiles are already run at 19 by
+  // features/dashboard/components/geo-map.tsx, so 12 was a choice, not a limit.
+  const max = Number(src.match(/const MAX_ZOOM = (\d+)/)?.[1]);
+  assert.ok(max >= 18, `atlas must reach street level, got maxZoom ${max}`);
+  assert.ok(!/maxZoom:\s*12/.test(src), "no layer may still be pinned at 12");
+
+  // minZoom stays 2: the zoomend handler uses it to hand back to the globe,
+  // so changing it would alter navigation rather than widen the range.
+  assert.match(src, /minZoom:\s*2/);
+});

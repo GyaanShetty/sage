@@ -89,14 +89,24 @@ export function WorldView({ lat = 18, lon = 78 }: { lat?: number; lon?: number }
       </div>
 
       <div className="wv-stage">
+      {/**
+        * Keys matter here.
+        *
+        * These are two conditional siblings, and the globe is unmounted 520ms
+        * after switching to the map. Without keys React reconciles by
+        * position, so the map's div shifts from index 1 to index 0 and gets
+        * torn down and rebuilt — which lands mid-way through Leaflet's async
+        * init, whose `disposed` guard then returns and leaves the map stuck on
+        * "BOOTING ATLAS…" with nothing thrown and nothing logged.
+        */}
       {globeMounted && (
-        <div className={`wv-layer${showGlobeLayer ? " on" : ""}`}>
+        <div key="globe" className={`wv-layer${showGlobeLayer ? " on" : ""}`}>
           <HeroGlobe onZoomIn={toMap} onCenter={(c) => { centerRef.current = [c.lat, c.lng]; }} />
         </div>
       )}
 
       {mapMounted && (
-        <div className={`wv-layer${mode === "map" || !globeOn ? " on" : ""}`} ref={mapWrapRef}>
+        <div key="map" className={`wv-layer${mode === "map" || !globeOn ? " on" : ""}`} ref={mapWrapRef}>
           <AtlasMap lat={mapCenter[0]} lon={mapCenter[1]} center={mapCenter} onZoomOut={globeOn ? toGlobe : undefined} />
         </div>
       )}

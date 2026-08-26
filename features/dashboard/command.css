@@ -1506,3 +1506,46 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
 .stage-input input { flex: 1; background: var(--panel); border: 1px solid var(--rule); color: var(--foreground);
   font-family: var(--mono); font-size: 11px; padding: 8px 10px; outline: none; }
 .stage-input input:focus { border-color: var(--signal-dim); }
+
+/* The name field for a newly right-clicked spot. Sits in the toolbar so the
+   map — and the pin he just placed — stay visible while he types. */
+.atlas-name {
+  flex: 1;
+  min-width: 120px;
+  max-width: 280px;
+  background: var(--panel-hi);
+  border: 1px solid var(--signal-dim);
+  color: var(--foreground);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 7px;
+  outline: none;
+}
+.atlas-name::placeholder { color: var(--faint); }
+
+/* ── places panel ─────────────────────────────────────────────────────────
+   The schedule editor. Two clock fields and seven day toggles is more than
+   fits over a map, which is why creating a place happens on the Atlas and
+   scheduling it happens here. */
+.pl-when {
+  background: none; border: 0; padding: 2px 0; cursor: pointer;
+  font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.16em;
+  color: var(--subtle); text-transform: uppercase; text-align: left;
+}
+.pl-when:hover { color: var(--signal); }
+.pl-edit { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.pl-edit input[type="time"] {
+  background: var(--panel-hi); border: 1px solid var(--rule); color: var(--foreground);
+  font-family: var(--mono); font-size: 9px; padding: 2px 4px; outline: none;
+}
+.pl-edit input[type="time"]:focus { border-color: var(--signal-dim); }
+.pl-edit > span { color: var(--faint); font-size: 9px; }
+.pl-days { display: flex; gap: 2px; }
+.pl-days button {
+  width: 16px; height: 16px;
+  background: transparent; border: 1px solid var(--rule); color: var(--subtle);
+  font-family: var(--mono); font-size: 7px; cursor: pointer; padding: 0;
+}
+.pl-days button.on { border-color: var(--signal-dim); color: var(--signal); background: var(--signal-faint); }

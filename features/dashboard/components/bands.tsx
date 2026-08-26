@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GeoMap } from "./geo-map";
+import { PlacesPanel } from "./places-panel";
 import { ExpandableCell } from "./expandable-cell";
 import { TZ } from "@/lib/config";
 import { useLive } from "@/lib/live";
@@ -66,9 +66,16 @@ export function WorldBand({ geo }: { geo?: { lat: number; lon: number } }) {
             <div className="skyrow"><span className="skk">ISS ALT</span><span className="skv">{sky?.iss ? `${Math.round(sky.iss.alt)} km · ${Math.round(sky.iss.vel).toLocaleString()} km/h` : "—"}</span></div>
           </div>
         </div>
-        <div style={{ gridColumn: "1 / -1", display: "grid" }}>
-          <GeoMap lat={geo?.lat} lon={geo?.lon} />
-        </div>
+        {/**
+          * Places, where the second map used to be.
+          *
+          * GeoMap was a whole separate Leaflet instance whose only advantages
+          * over the Atlas were geolocation and routing — both of which the
+          * Atlas now has, at street zoom, with saved places on top. Two maps
+          * on one page was a duplicate to maintain and a second WebGL-adjacent
+          * cost to pay; this panel is the half that had nowhere else to live.
+          */}
+        <PlacesPanel />
       </div>
     </section>
   );

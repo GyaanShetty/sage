@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { attribution, riskAdjusted, maxDrawdown, dailyReturns, rebalance, riskMetrics } from "@/core/portfolio/analytics";
 import { parseHevyCsv, summariseWorkout } from "@/infrastructure/integrations/hevy";
@@ -2828,4 +2829,55 @@ test("the atlas can reach street level", async () => {
   // minZoom stays 2: the zoomend handler uses it to hand back to the globe,
   // so changing it would alter navigation rather than widen the range.
   assert.match(src, /minZoom:\s*2/);
+});
+
+/**
+ * The Atlas toolbar must not be painted underneath the map.
+ *
+ * This is the bug that shipped invisibly: `.atlas` was turned into a flex
+ * column with the toolbar as a row and the map given `flex: 1`, but the map
+ * was left `position: absolute; inset: 0` from a rule a thousand lines
+ * earlier — and flex sizing does nothing to an out-of-flow box. The map
+ * covered the whole panel and its z-index painted it over every control:
+ * the position readout, the centre-on-me button, the layer chips, the
+ * place-naming field and the route summary. Nothing threw, nothing logged,
+ * and a screenshot looked fine, because the map itself rendered perfectly.
+ *
+ * A CSS assertion rather than a browser one: the failure is a property on a
+ * single selector, and this costs nothing to run on every commit.
+ */
+test("atlas map is an in-flow flex child, not an overlay", () => {
+  const css = readFileSync(new URL("../features/dashboard/command.css", import.meta.url), "utf8")
+    // Strip comments first. Matching against a file's own prose is how a
+    // source-matching test passes while the code it describes is broken.
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const rule = (sel: string) =>
+    [...css.matchAll(new RegExp(`(?:^|[},])\\s*${sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`, "g"))]
+      .map((m) => m[1]).join(";");
+
+  const map = rule(".atlas-map");
+  assert.ok(map, ".atlas-map rule is missing");
+  assert.doesNotMatch(map, /position:\s*absolute/, ".atlas-map must stay in flow or it covers the toolbar");
+  assert.match(map, /flex:\s*1/, ".atlas-map must take the leftover row");
+
+  // The toolbar is rendered after the map in the JSX, so it needs an explicit
+  // order to sit above it — "above the map, not on it" was the ask.
+  assert.match(rule(".atlas-toolbar"), /order:\s*-1/, "toolbar must come first in the column");
+  assert.match(rule(".atlas"), /flex-direction:\s*column/, ".atlas must be the flex column the two rows assume");
+});
+
+/**
+ * CARTO began demanding an API key and stamped "API KEY REQUIRED" across every
+ * tile. The basemap has to stay keyless — this whole system runs on free
+ * tiers — so nothing may reintroduce a keyed provider without noticing.
+ */
+test("basemap is keyless", () => {
+  const src = readFileSync(new URL("../features/atlas/atlas-map.tsx", import.meta.url), "utf8")
+    // Block comments only: a naive `//` strip would eat the tile URL this
+    // test exists to assert, and the assertion would then fail on the very
+    // code that satisfies it.
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(src, /cartocdn/, "CARTO now requires an API key");
+  assert.match(src, /tile\.openstreetmap\.org/, "basemap should be OSM standard raster");
 });

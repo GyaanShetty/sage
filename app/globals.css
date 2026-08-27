@@ -415,8 +415,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 @media (min-width: 768px) {
   :root[data-voice-open="1"] main.hud-grid { padding-right: 424px; }
   :root[data-voice-open="1"] .heart-side.right { right: 424px; }
-  :root[data-voice-open="1"] .heart .heroglobe-hint,
-  :root[data-voice-open="1"] .heart .atlas-hud { right: 736px; }
+  :root[data-voice-open="1"] .heart .heroglobe-hint { right: 736px; }
 }
 /* On phones the panel is a bottom sheet, so give back vertical room instead. */
 @media (max-width: 767px) {

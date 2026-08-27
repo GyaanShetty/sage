@@ -254,10 +254,7 @@
   /* the greeting line already carries weather/events/open — drop the
      overlapping vitals column on phones for a clean hero */
   .vitrow { display: none; }
-  /* globe/map controls move below the vitals so nothing overlaps */
-  .wv-controls { top: auto; bottom: 52px; right: 12px; }
   .heroglobe-layers { max-width: calc(100% - 24px); bottom: 10px; }
-  .atlas-hud { top: auto; bottom: 8px; }
   .atlas-layers { max-width: calc(100vw - 24px); }
 
   .cell { padding: 14px 13px; }
@@ -381,7 +378,20 @@
 
 /* ── ATLAS intelligence map ── */
 .atlas { position: relative; width: 100%; height: 520px; border: 1px solid var(--border-glass); background: #08090b; overflow: hidden; }
-.atlas-map { position: absolute; inset: 0; z-index: 1; }
+/* IN FLOW, not over the toolbar.
+   This was `position: absolute; inset: 0; z-index: 1`, which is why every
+   Atlas control was invisible: `.atlas` became a flex column with the toolbar
+   as its first row, and the map was given `flex: 1` further down — but flex
+   sizing does nothing to an out-of-flow box, so the map still covered the
+   whole panel and its z-index painted it over the controls. Nothing threw;
+   the toolbar was simply behind the tiles. */
+.atlas-map { position: relative; flex: 1; min-height: 0; z-index: 0; }
+
+/* OpenStreetMap ships a light basemap and this interface is near-black, so the
+   tiles are inverted to dark here rather than paid for elsewhere. Scoped to
+   the tile pane deliberately: on the container it would also invert our own
+   amber markers, the place labels and the route line. */
+.atlas-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.86) contrast(1.06) saturate(0.72); }
 .atlas-map .leaflet-container { background: #08090b; font-family: var(--mono); }
 .atlas-map .leaflet-tooltip { background: rgba(8,9,11,.95); border: 1px solid var(--live-dim); color: var(--foreground); font-family: var(--mono); font-size: 9px; letter-spacing: .5px; box-shadow: 0 0 14px var(--live-glow); }
 .atlas-map .leaflet-tooltip::before { display: none; }
@@ -390,9 +400,6 @@
 .atlas-sat { color: var(--foreground); font-size: 9px; line-height: 10px; text-align: center; opacity: .8; }
 .atlas-sat.iss { color: var(--live); font-size: 12px; text-shadow: 0 0 8px var(--live-glow); }
 
-.atlas-hud { position: absolute; left: 14px; top: 14px; z-index: 500; max-width: calc(100% - 28px); }
-.atlas-title { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--live); display: flex; align-items: center; gap: 7px; margin-bottom: 10px; }
-.atlas-title .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--live); box-shadow: 0 0 6px var(--live-glow); }
 .atlas-layers { display: flex; flex-wrap: wrap; gap: 6px; }
 .atlas-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); background: rgba(8,9,11,.82); border: 1px solid var(--border-glass); padding: 5px 9px; cursor: pointer; backdrop-filter: blur(6px); transition: 0.18s var(--ease); }
 .atlas-chip:hover { color: var(--foreground); border-color: var(--subtle); }
@@ -400,8 +407,7 @@
 .atlas-chip .ac-ic { font-size: 10px; }
 .atlas-chip .ac-live { width: 4px; height: 4px; border-radius: 50%; background: var(--subtle); }
 .atlas-chip.on .ac-live { background: var(--live); box-shadow: 0 0 5px var(--live-glow); animation: dotRipple 2s ease-out infinite; }
-.atlas-note { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); margin-top: 8px; opacity: .7; }
-@media (max-width: 767px) { .atlas { height: 400px; } .atlas-note { display: none; } }
+@media (max-width: 767px) { .atlas { height: 400px; } }
 
 /* ── expandable cell (magnify affordance on every panel) ── */
 .xcell { position: relative; }
@@ -1003,8 +1009,6 @@
 
 /* Map view's HUD sat at top-left, exactly under the greeting. Inside the
    heart it moves to the bottom, clear of the greeting and the side rails. */
-.heart .atlas-hud { top: auto; bottom: 84px; left: 306px; max-width: calc(100% - 620px); }
-.heart .atlas-note { display: none; }
 .heart .atlas { height: 100%; border: 0; }
 .heart .atlas-ticker { bottom: 62px; }
 
@@ -1065,10 +1069,8 @@
 
 @media (max-width: 1180px) {
   .heart-side { width: 264px; }
-  .heart .atlas-hud { left: 278px; max-width: calc(100% - 566px); }
 }
 @media (max-width: 900px) {
-  .heart .atlas-hud { left: 12px; bottom: 12px; max-width: calc(100% - 24px); }
   .heart-side { width: auto; }
 }
 
@@ -1430,6 +1432,11 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
  */
 .atlas { display: flex; flex-direction: column; min-height: 0; }
 .atlas-toolbar {
+  /* First row of the column. The JSX renders the map before the toolbar (the
+     map is the thing, the chrome is the frame), and "put it above the map, not
+     on it" means above — so the order is set here rather than by shuffling the
+     DOM out of reading order. */
+  order: -1;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -1524,6 +1531,14 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
   outline: none;
 }
 .atlas-name::placeholder { color: var(--faint); }
+
+/* Tile credit, required by the OSM usage policy now that Leaflet's own
+   attribution control is off. */
+.atlas-attr { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.14em; color: var(--faint); text-decoration: none; }
+.atlas-attr:hover { color: var(--muted); }
+
+/* Right-click is not a discoverable gesture, so it is said out loud. */
+.atlas-hint { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.16em; color: var(--faint); }
 
 /* ── places panel ─────────────────────────────────────────────────────────
    The schedule editor. Two clock fields and seven day toggles is more than

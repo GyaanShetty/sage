@@ -13,9 +13,10 @@ type LLayer = import("leaflet").LayerGroup;
 
 interface LayerDef { key: string; label: string; icon: string; on: boolean; live?: boolean }
 
-/** How far in the map will go. CARTO serves to 20; anything less is a choice,
- *  and 12 was the wrong one — see the tile layer below. */
-const MAX_ZOOM = 20;
+/** How far in the map will go. OpenStreetMap's standard raster serves to 19 —
+ *  building level. The old cap of 12 was roughly "a city fits on screen", which
+ *  is why the atlas could never show a junction or the way to the gym. */
+const MAX_ZOOM = 19;
 
 const HAS_TRAFFIC = !!process.env.NEXT_PUBLIC_TOMTOM_KEY;
 
@@ -51,6 +52,10 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   const [pending, setPending] = useState<{ lat: number; lon: number } | null>(null);
   const [placeName, setPlaceName] = useState("");
   const meRef = useRef<LLayer | null>(null);
+  /** Whether the map has already jumped to him once. A ref, not state:
+   *  watchPosition fires continuously, and re-centring on every tick would
+   *  yank the map out from under him the moment he panned anywhere. */
+  const centredRef = useRef(false);
   const placeRef = useRef<LLayer | null>(null);
   // A polyline is a Layer, not a LayerGroup — the narrower type does not fit.
   const routeRef = useRef<import("leaflet").Layer | null>(null);
@@ -109,19 +114,22 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
         setPending({ lat: e.latlng.lat, lon: e.latlng.lng });
       });
       /**
-       * Street level, at last.
+       * The basemap.
        *
-       * This was maxZoom: 12 — roughly "a city fits on screen" — which is why
-       * the atlas could never show a building, a junction, or the way to the
-       * gym. CARTO's dark_all actually serves to z20, and the app already
-       * proves it: features/dashboard/components/geo-map.tsx runs the very
-       * same tiles at 19. The cap was arbitrary, not a provider limit.
+       * This was CARTO's dark_all, which was keyless when it was written and is
+       * not any more — it now stamps "API KEY REQUIRED" across every tile. So:
+       * OpenStreetMap's standard raster, which is keyless, serves to z19, and is
+       * already the tile source that OSRM and Nominatim are drawn against.
+       *
+       * OSM standard is light and this interface is near-black; the tiles are
+       * inverted to dark in CSS (`.atlas-map .leaflet-tile-pane`) rather than by
+       * paying another provider for a dark style.
        *
        * minZoom stays at 2 deliberately: the zoomend handler above uses
        * "zoom <= 2" to hand back to the globe, so lowering it would change
        * navigation rather than just widen the range.
        */
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { subdomains: "abcd", maxZoom: MAX_ZOOM }).addTo(map);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: MAX_ZOOM }).addTo(map);
 
       // group containers
       for (const d of INITIAL) groups.current[d.key] = L.layerGroup();
@@ -248,7 +256,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     fetch("/api/atlas/rain").then((r) => r.json()).then((j) => {
       // RainViewer only renders to ~z10; maxNativeZoom lets Leaflet upscale
       // its last real tile instead of dropping the layer when you zoom past it.
-      if (j?.data?.url) { layer = L.tileLayer(j.data.url, { opacity: 0.6, maxZoom: MAX_ZOOM, maxNativeZoom: 10 }); layer.addTo(g); }
+      if (j?.data?.url) { layer = L.tileLayer(j.data.url, { opacity: 0.6, maxZoom: MAX_ZOOM, maxNativeZoom: 10, pane: "overlayPane" }); layer.addTo(g); }
     }).catch(() => {});
     return () => { if (layer) g.removeLayer(layer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -262,7 +270,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     const key = process.env.NEXT_PUBLIC_TOMTOM_KEY;
     const layer = L.tileLayer(
       `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${key}`,
-      { opacity: 0.7, maxZoom: MAX_ZOOM },
+      { opacity: 0.7, maxZoom: MAX_ZOOM, pane: "overlayPane" },
     );
     layer.addTo(g);
     return () => { g.removeLayer(layer); };
@@ -340,6 +348,12 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     }).bindTooltip(`YOU · ±${Math.round(position.accuracy)}m`, { direction: "top" }).addTo(g);
     g.addTo(map);
     meRef.current = g;
+
+    // "Zoom in to my location and ping it" — on the first fix only.
+    if (!centredRef.current) {
+      centredRef.current = true;
+      map.setView([position.lat, position.lon], 16, { animate: true });
+    }
   }, [ready, position]);
 
   /** Saved places — always drawn, never behind a layer toggle. He asked for
@@ -418,7 +432,9 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
 
   // Re-center when the caller hands a new focus point (globe → map).
   useEffect(() => {
-    if (!ready || !center || !mapRef.current) return;
+    // Once he has been located, his position wins over the handoff point —
+    // otherwise the globe's centre drags the map back off him.
+    if (!ready || !center || !mapRef.current || centredRef.current) return;
     mapRef.current.setView(center, Math.max(4, mapRef.current.getZoom()), { animate: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, center?.[0], center?.[1]]);
@@ -442,6 +458,10 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
           <span className="sig">ATLAS</span>
           <span className="k">{status}</span>
           <span className="sep" />
+          {/* Leaflet's own attribution control is off, and the OSM tile policy
+              requires credit — so it lives in the chrome instead. */}
+          <a className="atlas-attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OSM</a>
+          <span className="sep" />
           {/* Position state, said plainly — "denied" is actionable, a missing
               dot is not. */}
           <span className="k">POS</span>
@@ -454,6 +474,10 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
             <button className="atlas-chip" onClick={centreOnMe} title="Centre on my position">◎ ME</button>
           )}
         </div>
+
+        {!pending && (
+          <span className="atlas-hint">RIGHT-CLICK THE MAP TO SAVE A PLACE · SET ITS HOURS IN 05 WORLD</span>
+        )}
 
         <div className="atlas-layers">
           {layers.map((l) => (

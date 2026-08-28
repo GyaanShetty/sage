@@ -53,6 +53,24 @@ const REACH = 0.12;
 /** Two clicks closer together than this are one intent. */
 const CLICK_COOLDOWN = 650;
 
+/**
+ * Dwell, the second way to click.
+ *
+ * A pinch is a fine-motor act: it works well close to the camera and misses
+ * more the further away you are, and it is exactly the movement a shaky or
+ * tired hand fails at. Holding still over a target is the accessible route to
+ * the same outcome, and the filling ring makes the wait legible rather than
+ * feeling like a lag.
+ */
+const DWELL_MS = 900;
+/** How far the cursor may drift and still count as held still, in px. */
+const DWELL_SLOP = 26;
+
+/** Point near the top or bottom edge and the page moves, so a long panel is
+ *  reachable without dropping the pose. */
+const EDGE_BAND = 0.16;
+const EDGE_SPEED = 13;
+
 /* ── Sliding the wheel ──────────────────────────────────────────────────────
  * Two motions have now been tried and discarded. Wrist roll ran out of range
  * in under a right angle. Pinch-and-circle worked on paper but asks the hand
@@ -94,6 +112,15 @@ export function GestureNav() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const ctrl = useRef<HandController | null>(null);
   const [status, setStatus] = useState<string>("");
+  /**
+   * What the tracker is doing, as distinct from what went wrong.
+   *
+   * "loading", "no hand in frame" and "camera blocked" all used to present as
+   * nothing happening, which makes an working system indistinguishable from a
+   * broken one — and is most of why this feature read as dead.
+   */
+  const [track, setTrack] = useState<"loading" | "searching" | "tracking" | "failed">("loading");
+  const [legend, setLegend] = useState(false);
   const [dir, setDir] = useState<"up" | "down" | null>(null);
 
   const dragY = useRef<number | null>(null);   // last palmY while pinched
@@ -114,10 +141,13 @@ export function GestureNav() {
   const cursorAt = useRef<{ x: number; y: number } | null>(null);
   const hovered = useRef<Element | null>(null);
   const lastClick = useRef(0);
+  const dwell = useRef<{ x: number; y: number; since: number } | null>(null);
   const [pointing, setPointing] = useState(false);
   /** The frame loop cannot read `pointing` — it closes over a stale value —
    *  so the ref is the truth and the state exists only to render. */
   const pointingRef = useRef(false);
+  /** The frame loop cannot read `track` either. */
+  const trackRef = useRef<"loading" | "searching" | "tracking" | "failed">("loading");
 
   /** True once a pose has been held long enough and is off cooldown. */
   const held = (pose: string, active: boolean, now: number): boolean => {
@@ -152,6 +182,7 @@ export function GestureNav() {
 
   const onFrame = useCallback((f: HandFrame | null) => {
     if (!f) {
+      if (trackRef.current === "tracking") { trackRef.current = "searching"; setTrack("searching"); }
       setDir(null); dragY.current = null; fistAnchor.current = null;
       poseSince.current = null;
       if (pointingRef.current) {
@@ -160,6 +191,7 @@ export function GestureNav() {
         hovered.current?.classList.remove("gn-hover");
         hovered.current = null;
         cursorAt.current = null;
+        dwell.current = null;
       }
       // Tracking drops out constantly — a blink of lost hand must not dismiss
       // the wheel; only ✊ does. The slide re-anchors, though, so a reappearing
@@ -167,6 +199,7 @@ export function GestureNav() {
       resetSlide();
       return;
     }
+    if (trackRef.current !== "tracking") { trackRef.current = "tracking"; setTrack("tracking"); }
     const now = performance.now();
 
     // ---- 🤙 SHAKA → raise the wheel ----
@@ -248,17 +281,53 @@ export function GestureNav() {
         hovered.current = target;
       }
 
-      // Pinch from the pointing pose = press.
+      /* Edge scroll. Pointing at something below the fold is otherwise a
+         dead end: you cannot reach it, and dropping the pose to scroll loses
+         the cursor. Nearer the edge scrolls faster, so a small movement is
+         a nudge and a committed one travels. */
+      const fy = y / window.innerHeight;
+      if (fy < EDGE_BAND || fy > 1 - EDGE_BAND) {
+        const past = fy < EDGE_BAND ? (EDGE_BAND - fy) / EDGE_BAND : (fy - (1 - EDGE_BAND)) / EDGE_BAND;
+        const el = scroller() ?? (document.scrollingElement as HTMLElement);
+        el?.scrollBy({ top: (fy < EDGE_BAND ? -1 : 1) * past * EDGE_SPEED });
+      }
+
+      const fire = (el: HTMLElement | null) => {
+        const press = el?.closest("button, a, input, select, textarea, [role='button']") as HTMLElement | null;
+        if (!press) return false;
+        // A real click, not a synthetic event React might ignore: focus first
+        // so a field is actually typed into, then click.
+        press.focus?.();
+        press.click();
+        window.dispatchEvent(new CustomEvent("sage:gesture-click"));
+        return true;
+      };
+
+      // Pinch from the pointing pose = press, immediately.
       if (f.pinch && now - lastClick.current > CLICK_COOLDOWN) {
         lastClick.current = now;
-        const hit = document.elementFromPoint(x, y) as HTMLElement | null;
-        const press = hit?.closest("button, a, input, select, textarea, [role='button']") as HTMLElement | null;
-        if (press) {
-          // A real click, not a synthetic event React might ignore: focus
-          // first so a field is actually typed into, then click.
-          press.focus?.();
-          press.click();
-          window.dispatchEvent(new CustomEvent("sage:gesture-click"));
+        dwell.current = null;
+        fire(document.elementFromPoint(x, y) as HTMLElement | null);
+        if (cursorRef.current) cursorRef.current.style.setProperty("--dwell", "0");
+        return;
+      }
+
+      /* Dwell. The anchor resets whenever the cursor leaves the slop circle,
+         so drifting across the screen never accumulates toward a click — only
+         deliberately holding still does. */
+      if (!f.pinch) {
+        const d = dwell.current;
+        if (!d || Math.hypot(x - d.x, y - d.y) > DWELL_SLOP) {
+          dwell.current = { x, y, since: now };
+        } else {
+          const held = (now - d.since) / DWELL_MS;
+          if (cursorRef.current) cursorRef.current.style.setProperty("--dwell", String(Math.min(held, 1)));
+          if (held >= 1 && now - lastClick.current > CLICK_COOLDOWN) {
+            lastClick.current = now;
+            dwell.current = null;
+            fire(document.elementFromPoint(x, y) as HTMLElement | null);
+            if (cursorRef.current) cursorRef.current.style.setProperty("--dwell", "0");
+          }
         }
       }
       return;
@@ -269,6 +338,7 @@ export function GestureNav() {
       hovered.current?.classList.remove("gn-hover");
       hovered.current = null;
       cursorAt.current = null;
+      dwell.current = null;
     }
 
     // ---- PINCH → grab & drag the page (touchscreen-style) ----
@@ -308,7 +378,9 @@ export function GestureNav() {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    setStatus("Loading vision model…");
+    trackRef.current = "loading";
+    setTrack("loading");
+    setStatus("");
     // The controller gets a stable wrapper that reads the latest handler,
     // so the camera survives re-renders while still calling current code.
     const c = new HandController((f) => frameRef.current(f));
@@ -317,12 +389,16 @@ export function GestureNav() {
         await c.start(videoRef.current!);
         if (cancelled) { c.stop(); return; }
         ctrl.current = c;
-        setStatus("☝ point · pinch to press · 🤙 wheel · ✊ dismiss");
+        trackRef.current = "searching";
+        setTrack("searching");
+        setStatus("");
       } catch (err) {
+        trackRef.current = "failed";
+        setTrack("failed");
         setStatus(
           /denied|NotAllowed/i.test(String(err))
-            ? "Camera blocked — allow access to use gestures."
-            : "Couldn't start gesture control on this device.",
+            ? "Camera blocked — allow access in your browser's site settings."
+            : `Couldn't start gesture control: ${String((err as Error)?.message ?? err).slice(0, 90)}`,
         );
         /**
          * Deliberately NOT setGestureNav(false).
@@ -356,10 +432,42 @@ export function GestureNav() {
           attribute some browsers never start producing frames, so the hand
           model waits forever on a stream that is technically "playing". */}
       <video ref={videoRef} autoPlay muted playsInline className="gn-cam" />
-      <div className="gn-chip">
+      <div className={`gn-chip ${track}`}>
         <Hand className="size-3.5" />
-        <span>{status}</span>
+        <span>
+          {track === "loading" ? "LOADING VISION MODEL…"
+            : track === "searching" ? "NO HAND IN FRAME"
+            : track === "tracking" ? (pointing ? "POINTING" : "TRACKING")
+            : "FAILED"}
+        </span>
+        <button className="gn-help" onClick={() => setLegend((v) => !v)} title="Gesture reference">?</button>
       </div>
+      {status && <div className="gn-err">{status}</div>}
+
+      {/* The gestures are unguessable and lived only in a status string that
+          scrolled away. A reference you can open is the difference between a
+          control surface and a party trick. */}
+      {legend && (
+        <div className="gn-legend">
+          {[
+            ["☝", "Point", "Move the cursor"],
+            ["☝ + pinch", "Press", "Click what is under it"],
+            ["☝ hold still", "Dwell", "Clicks after a moment"],
+            ["☝ near an edge", "Scroll", "Reach below the fold"],
+            ["🤙", "Wheel", "Raise the page selector"],
+            ["slide", "Turn", "Move the dial while it is up"],
+            ["👌", "Open", "Go to the selected page"],
+            ["✊", "Dismiss", "Close the wheel"],
+            ["pinch + move", "Drag", "Scroll the page"],
+          ].map(([g, k, d]) => (
+            <div className="gl-row" key={k}>
+              <span className="gl-g">{g}</span>
+              <span className="gl-k">{k}</span>
+              <span className="gl-d">{d}</span>
+            </div>
+          ))}
+        </div>
+      )}
       {dir && <div className={`gn-arrow ${dir}`}>{dir === "up" ? "▲" : "▼"}</div>}
       {/* The hand cursor. Always mounted while gestures are on so the frame
           loop can move it without waiting on a React commit; hidden until a

@@ -3054,3 +3054,50 @@ test("the week canvas carries the day grid", () => {
   assert.match(canvas, /grid-template-columns:[^;]*repeat\(7/, "the canvas lays out the seven days");
   assert.doesNotMatch(body, /grid-template-columns/, ".wk-body must not also define the tracks");
 });
+
+/**
+ * The Eisenhower rule is shared; the scales that feed it are not.
+ *
+ * SAGE has two matrices over two different task lists — the dashboard band on
+ * live TickTick tasks, the workspace on the local Task table — and their
+ * priority scales are inverted: TickTick counts up (5 high), the local table
+ * counts down (0 urgent). Handing one straight to the other's classifier files
+ * every important task under "Eliminate" and every trivial one under "Do
+ * first". So the shared rule takes booleans only, normalised by whichever
+ * caller knows its own scale.
+ */
+test("quadrants come from urgency and importance, not priority alone", async () => {
+  const { classifyQuadrant, isUrgent, hoursUntil, URGENT_HOURS } = await import("@/core/tasks/quadrant");
+
+  assert.equal(classifyQuadrant({ urgent: true, important: true }), "do");
+  assert.equal(classifyQuadrant({ urgent: false, important: true }), "schedule");
+  assert.equal(classifyQuadrant({ urgent: true, important: false }), "delegate");
+  assert.equal(classifyQuadrant({ urgent: false, important: false }), "drop");
+
+  const now = Date.parse("2026-08-28T00:00:00Z");
+  const inHours = (h: number) => new Date(now + h * 3_600_000).toISOString();
+
+  // Overdue is the most urgent thing there is — a negative figure must not
+  // fall outside the window and read as "not urgent".
+  assert.ok(isUrgent(hoursUntil(inHours(-72), now)), "overdue is urgent");
+  assert.ok(isUrgent(hoursUntil(inHours(1), now)), "due in an hour is urgent");
+  assert.ok(!isUrgent(hoursUntil(inHours(URGENT_HOURS + 1), now)), "next week is not");
+  assert.ok(!isUrgent(hoursUntil(null, now)), "no deadline is not urgent");
+
+  /**
+   * The complaint that started this: a task due in an hour at priority 0 sat
+   * in "Eliminate", because the band classified on priority alone and no
+   * deadline could move anything.
+   */
+  const dueSoonUnimportant = classifyQuadrant({
+    urgent: isUrgent(hoursUntil(inHours(1), now)),
+    important: 0 >= 3, // TickTick scale, applied by the caller
+  });
+  assert.equal(dueSoonUnimportant, "delegate", "an imminent deadline must leave the drop quadrant");
+
+  // The band must actually use the due date, not just import the helper.
+  const band = readFileSync(new URL("../features/dashboard/components/eisenhower-band.tsx", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(band, /isUrgent\(hoursUntil\(t\.dueDate\)\)/, "urgency comes from the due date");
+  assert.match(band, /t\.priority >= 3/, "importance uses TickTick's scale, high-is-big");
+});

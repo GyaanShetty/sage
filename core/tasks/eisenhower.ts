@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { getTaskMeta, type TaskMeta } from "./meta";
+import { classifyQuadrant, isUrgent, URGENT_HOURS as SHARED_URGENT_HOURS } from "./quadrant";
 
 /**
  * The Eisenhower matrix, derived rather than declared.
@@ -43,7 +44,7 @@ export interface MatrixTask {
 
 /** Inside this many hours counts as urgent. Two days is the point at which a
  *  deadline starts dictating today's order rather than next week's. */
-const URGENT_HOURS = 48;
+const URGENT_HOURS = SHARED_URGENT_HOURS;
 /** Priority 0 (urgent) and 1 (high) are the important half of the scale. */
 const IMPORTANT_MAX_PRIORITY = 1;
 
@@ -57,7 +58,10 @@ export function classify(
 
   // Overdue is the most urgent thing there is, and a negative number would
   // otherwise fall outside the window and read as "not urgent".
-  const urgent = hoursToDue !== null && hoursToDue <= URGENT_HOURS;
+  const urgent = isUrgent(hoursToDue);
+  // Local Task priorities run the other way from TickTick's: 0 is urgent here,
+  // 5 is high there. Normalising happens at each caller for exactly that
+  // reason — the shared rule never sees a raw priority.
   const important = task.priority <= IMPORTANT_MAX_PRIORITY;
 
   const override = meta?.quadrant;
@@ -65,11 +69,7 @@ export function classify(
     return { quadrant: override, urgent, important, hoursToDue, pinned: true };
   }
 
-  const quadrant: Quadrant =
-    urgent && important ? "do"
-    : important ? "schedule"
-    : urgent ? "delegate"
-    : "drop";
+  const quadrant: Quadrant = classifyQuadrant({ urgent, important });
 
   return { quadrant, urgent, important, hoursToDue, pinned: false };
 }

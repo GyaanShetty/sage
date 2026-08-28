@@ -12,6 +12,9 @@ import { ScheduleManager } from "./schedule-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
 import { ChronoTile, FieldTile, CosmosTile, PlayingTile, WireTile } from "./tiles";
 import { CommuteTile } from "./commute-tile";
+import {
+  SignalsTile, AgentLogTile, GithubTile, BioTile, PortfolioTile, MemoryTile, ExamTile, SystemTile,
+} from "./page-tiles";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
 import { BriefBlock } from "./brief-block";
@@ -322,6 +325,21 @@ export function CommandView({
             <FieldTile n={7} />
             <CommuteTile n={8} />
             <PlayingTile n={19} />
+          </div>
+          {/* One pane per page: the glanceable half of each screen, with the
+              screen itself a click away on the title. Everything here rides a
+              route that already exists. */}
+          <div className="tiles c4">
+            <SignalsTile n={2} />
+            <AgentLogTile n={14} />
+            <BioTile n={26} />
+            <PortfolioTile n={20} />
+          </div>
+          <div className="tiles c4">
+            <GithubTile n={27} />
+            <MemoryTile n={11} />
+            <ExamTile n={24} />
+            <SystemTile n={31} />
           </div>
           <div className="tiles c2">
             <WireTile n={15} />

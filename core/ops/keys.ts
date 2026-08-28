@@ -28,8 +28,16 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
 const TYPE = "ops.apikeys";
 
-/** Providers whose keys can be managed this way. */
-export const PROVIDERS = ["google", "tavily", "hevy", "alphavantage"] as const;
+/**
+ * Providers whose keys can be managed this way.
+ *
+ * Microsoft is two entries rather than one because its OAuth app has both a
+ * client id and a client secret, and only the secret is truly sensitive. They
+ * are stored the same way regardless — the id is not a secret, but keeping the
+ * pair together is what makes "paste these two and Outlook works" a single
+ * action instead of one field here and one environment variable there.
+ */
+export const PROVIDERS = ["google", "tavily", "hevy", "alphavantage", "outlook_id", "outlook_secret", "fmp"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 interface StoredKey {

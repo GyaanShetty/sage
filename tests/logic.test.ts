@@ -2965,3 +2965,89 @@ test("the pointing gesture is matched before the scroll drag", () => {
   const rule = css.match(/\.gn-cursor\s*\{([^}]*)\}/)?.[1] ?? "";
   assert.match(rule, /pointer-events:\s*none/, "elementFromPoint must see through the cursor");
 });
+
+// ── Calendar: events that overlap must sit beside each other ───────────────
+
+test("overlapping events are laid out side by side", async () => {
+  const { layoutSpans } = await import("@/features/calendar/layout");
+
+  // Nothing overlapping: everything takes the full width.
+  const apart = layoutSpans([{ start: 60, end: 120 }, { start: 180, end: 240 }]);
+  assert.deepEqual(apart.map((p) => p.width), [1, 1]);
+  assert.deepEqual(apart.map((p) => p.left), [0, 0]);
+
+  // Two at once: half each, side by side.
+  const pair = layoutSpans([{ start: 60, end: 120 }, { start: 90, end: 150 }]);
+  assert.deepEqual(pair.map((p) => p.width), [0.5, 0.5]);
+  assert.deepEqual(pair.map((p) => p.left).sort(), [0, 0.5]);
+
+  // Touching but not overlapping — one ends exactly as the next begins. This
+  // is the common case of back-to-back classes and must NOT split the width.
+  const touching = layoutSpans([{ start: 60, end: 120 }, { start: 120, end: 180 }]);
+  assert.deepEqual(touching.map((p) => p.width), [1, 1]);
+
+  /**
+   * The transitive chain, which is the case a naive implementation gets wrong.
+   *
+   * A overlaps B, B overlaps C, but A and C never touch. Grouping by *mutual*
+   * overlap would treat A and C as unrelated and give each the full width,
+   * drawing B across both. They must be one cluster.
+   *
+   * Within that cluster A and C still share a column, because they genuinely
+   * do not overlap — which is the point of packing rather than simply counting
+   * the cluster. Two columns, not three: wider events, same correctness.
+   */
+  const chain = layoutSpans([
+    { start: 0, end: 60 },    // A
+    { start: 50, end: 110 },  // B
+    { start: 100, end: 160 }, // C
+  ]);
+  assert.deepEqual(chain.map((p) => p.width), [0.5, 0.5, 0.5], "one cluster, halved");
+  assert.equal(chain[0].left, chain[2].left, "A and C do not overlap, so they share a column");
+  assert.notEqual(chain[1].left, chain[0].left, "B must not sit on top of either");
+
+  // A long event spanning several short ones: the long one takes the first
+  // column, the short ones stack in the second and reuse it as each ends.
+  const spanning = layoutSpans([
+    { start: 0, end: 240 },   // all morning
+    { start: 30, end: 60 },
+    { start: 90, end: 120 },
+  ]);
+  assert.equal(spanning[0].left, 0, "the long event leads");
+  assert.deepEqual(spanning.map((p) => p.width), [0.5, 0.5, 0.5]);
+  assert.equal(spanning[1].left, 0.5);
+  assert.equal(spanning[2].left, 0.5, "the second short event reuses the freed column");
+
+  // Fully nested, and identical times.
+  assert.deepEqual(layoutSpans([{ start: 0, end: 120 }, { start: 30, end: 45 }]).map((p) => p.width), [0.5, 0.5]);
+  assert.deepEqual(layoutSpans([{ start: 0, end: 60 }, { start: 0, end: 60 }]).map((p) => p.width), [0.5, 0.5]);
+
+  // Results come back in input order, so callers can zip them against their
+  // own array — returning them sorted would silently mismatch every event.
+  const shuffled = layoutSpans([{ start: 300, end: 360 }, { start: 0, end: 60 }]);
+  assert.deepEqual(shuffled.map((p) => p.index), [0, 1]);
+
+  assert.deepEqual(layoutSpans([]), []);
+});
+
+/**
+ * The week grid must live on the canvas, not its scroll parent.
+ *
+ * When the calendar was changed to show all 24 hours the columns were wrapped
+ * in a new `.wk-canvas` inside `.wk-body` — but the grid was left on the
+ * parent. `.wk-body` then had exactly one child, so the canvas was placed in
+ * the 44px gutter track and the hour labels plus all seven day columns were
+ * crammed inside it. The calendar still rendered, just entirely wrong, which
+ * is why nothing caught it.
+ */
+test("the week canvas carries the day grid", () => {
+  const css = readFileSync(new URL("../features/calendar/calendar.css", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const body = css.match(/\.wk-body\s*\{([^}]*)\}/)?.[1] ?? "";
+  const canvas = css.match(/\.wk-canvas\s*\{([^}]*)\}/)?.[1] ?? "";
+
+  assert.ok(canvas, ".wk-canvas rule is missing");
+  assert.match(canvas, /grid-template-columns:[^;]*repeat\(7/, "the canvas lays out the seven days");
+  assert.doesNotMatch(body, /grid-template-columns/, ".wk-body must not also define the tracks");
+});

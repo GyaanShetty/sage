@@ -5,6 +5,7 @@ import {
   AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Clock, Loader2,
   MapPin, Plus, Trash2, X,
 } from "lucide-react";
+import { layoutSpans } from "./layout";
 import { cn } from "@/lib/utils";
 import "./calendar.css";
 import { TZ } from "@/lib/config";
@@ -210,6 +211,12 @@ function WeekGrid({
 
         {days.map((key) => {
           const events = (byDay.get(key) ?? []).filter((e) => !e.allDay);
+          // Side by side rather than stacked. A minimum length keeps a
+          // zero-duration event from collapsing and vanishing from its cluster.
+          const placed = layoutSpans(events.map((e) => {
+            const s0 = minutesInto(e.start);
+            return { start: s0, end: Math.max(e.end ? minutesInto(e.end) : s0 + 60, s0 + 20) };
+          }));
           return (
             <div key={key} className={cn("wk-col", key === selected && "sel")} onClick={() => onSelectDay(key)}>
               {hours.map((m) => (
@@ -235,7 +242,11 @@ function WeekGrid({
                   <div
                     key={e.id ?? i}
                     className={cn("wk-ev", toneOf(e.summary, e.feed))}
-                    style={{ top, height: h }}
+                    style={{
+                      top, height: h,
+                      left: `calc(${(placed[i]?.left ?? 0) * 100}% + 2px)`,
+                      width: `calc(${(placed[i]?.width ?? 1) * 100}% - 4px)`,
+                    }}
                     title={`${e.summary} · ${timeOf(e.start)}`}
                   >
                     <b>{e.summary}</b>

@@ -2390,11 +2390,14 @@ test("the hero gives the map a bounded row and never overlays it", async () => {
    * the Atlas toolbar, so the map's own controls were in the DOM, styled, and
    * unreachable. Rows cannot do that: nothing overlaps, so nothing can hide.
    */
-  const hero = css.match(/\.deck\s*\{([^}]*)\}/)?.[1] ?? "";
+  // Anchored to the start of a line: density overrides are written as
+  // `html[data-density="compact"] .deck { … }` and an unanchored match finds
+  // whichever comes first in the file, not the base rule being asserted.
+  const hero = css.match(/^\.deck\s*\{([^}]*)\}/m)?.[1] ?? "";
   assert.match(hero, /flex-direction:\s*column/, "the hero must stack in rows");
   assert.doesNotMatch(hero, /position:\s*absolute/, "the hero must not be an overlay stage again");
 
-  const map = css.match(/\.deck-map\s*\{([^}]*)\}/)?.[1] ?? "";
+  const map = css.match(/^\.deck-map\s*\{([^}]*)\}/m)?.[1] ?? "";
   assert.ok(map, ".deck-map rule is missing");
   assert.match(map, /vh/, "the map row must yield to viewport height, not take a fixed slab");
   assert.match(map, /min-height/, "and needs a floor so it never becomes a sliver");

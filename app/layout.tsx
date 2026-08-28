@@ -44,7 +44,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(localStorage.getItem('sage-density')==='compact')" +
+              // Compact unless explicitly opted out of — the same default as
+              // lib/density-pref. If these two ever disagree the page renders
+              // one frame at the wrong density and snaps, which is precisely
+              // what doing this inline is meant to prevent.
+              "try{if(localStorage.getItem('sage-density')!=='comfortable')" +
               "document.documentElement.setAttribute('data-density','compact')}catch(e){}",
           }}
         />

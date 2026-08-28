@@ -18,6 +18,8 @@ import { ErrorReporter } from "@/components/error-reporter";
 import { ReminderTicker } from "@/components/reminder-ticker";
 import { VoiceContinue } from "@/components/voice-continue";
 import { FrameRail } from "@/components/frame-rail";
+import { DeskStrip } from "@/features/shell/components/desk-strip";
+import { FnRail } from "@/features/shell/components/fn-rail";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -28,6 +30,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <ReminderTicker />
       <VoiceContinue />
       <StatusBar />
+      <DeskStrip />
       <TickerTape />
       {/* The workspace sits inside a frame, the way the reference sheets do:
           thin registration strips top and bottom carrying real state. It is
@@ -36,6 +39,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
         <FrameRail edge="top" />
         <main className="hud-grid flex-1 overflow-y-auto pb-8">{children}</main>
         <FrameRail edge="bottom" />
+        <FnRail />
       </div>
       <Wheel />
       <Launcher />

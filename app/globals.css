@@ -808,3 +808,58 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 @media (max-width: 1100px) { .tiles.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .tiles.c3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .tiles.c2, .tiles.c3, .tiles.c4 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── desk strip · the figures along the top ──
+   Boxed cells, big tabular value over a small caps key. The hairline between
+   cells is the strip's own background showing through a 1px gap. */
+.desk-strip {
+  display: flex; justify-content: flex-end; gap: 1px;
+  background: var(--rule); border-bottom: 1px solid var(--rule-strong);
+  overflow-x: auto; scrollbar-width: none;
+}
+.desk-strip::-webkit-scrollbar { display: none; }
+.desk-cell {
+  display: flex; flex-direction: column; gap: 1px; justify-content: center;
+  padding: 5px 14px; background: var(--background); min-width: 88px; flex: none;
+}
+.desk-cell.wide { min-width: 124px; }
+.desk-v {
+  font-family: var(--mono); font-size: 17px; font-weight: 300; line-height: 1.05;
+  font-variant-numeric: tabular-nums; color: var(--foreground);
+}
+.desk-v.clock { font-size: 21px; letter-spacing: -0.5px; }
+.desk-v.signal { color: var(--signal); }
+.desk-v.up { color: var(--up); }
+.desk-v.down { color: var(--down); }
+.desk-k {
+  font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--subtle); white-space: nowrap;
+}
+@media (max-width: 640px) { .desk-cell { min-width: 70px; padding: 4px 9px; } .desk-v { font-size: 14px; } }
+
+/* ── function-key rail ──
+   Fixed destinations, real keys. Amber badge, white label. */
+.fn-rail {
+  display: flex; gap: 1px; flex: none;
+  background: var(--rule); border-top: 1px solid var(--rule-strong);
+  overflow-x: auto; scrollbar-width: none;
+  padding-bottom: var(--sab);
+}
+.fn-rail::-webkit-scrollbar { display: none; }
+.fn-key {
+  display: flex; align-items: center; gap: 7px; flex: 1 0 auto;
+  padding: 5px 12px; background: var(--background); border: 0; cursor: pointer;
+  transition: background 0.15s var(--ease);
+}
+.fn-key:hover { background: var(--panel-hi); }
+.fn-key.on { background: var(--signal-faint); }
+.fn-n {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.1em;
+  color: var(--background); background: var(--signal); padding: 1px 4px; flex: none;
+}
+.fn-l {
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--muted); white-space: nowrap;
+}
+.fn-key.on .fn-l { color: var(--foreground); }
+@media (max-width: 640px) { .fn-l { display: none; } .fn-key { padding: 6px 10px; } }

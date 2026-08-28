@@ -2374,37 +2374,34 @@ test("a failed continuation does not end a long answer mid-sentence", async () =
 
 // ── Narrow windows ─────────────────────────────────────────────────────────
 
-test("the hero globe yields to the window's height, not just its width", async () => {
+test("the hero gives the map a bounded row and never overlays it", async () => {
   const fs = await import("node:fs");
   const raw = fs.readFileSync("features/dashboard/command.css", "utf8");
-  // Comments in this file quote the old rule while explaining why it changed,
-  // so a naive search finds the prose and not the CSS.
+  // Comments in this file quote the old rules while explaining why they
+  // changed, so a naive search finds the prose and not the CSS.
   const css = raw.replace(/\/\*[\s\S]*?\*\//g, "");
 
   /**
-   * The stacked globe was capped at `min(88vw, 460px)` — width only. Above
-   * about 520px wide that resolves to a flat 460px however short the window
-   * is, so in a half-screen window the most decorative thing on the page took
-   * the entire fold and pushed the sitrep and the brief out of sight.
+   * The 3D globe is retired and the hero is no longer an overlay stage.
+   *
+   * It used to position the map at inset:0 and float two glass columns on top
+   * of it — which works for a sphere with empty corners and fails completely
+   * for a map, because a map uses every pixel it is given. The columns covered
+   * the Atlas toolbar, so the map's own controls were in the DOM, styled, and
+   * unreachable. Rows cannot do that: nothing overlaps, so nothing can hide.
    */
-  // Several `.heart-globe` rules exist (desktop, stacked, compact) and only
-  // some set a height — check every one that does.
-  const heights = [...css.matchAll(/\.heart-globe\s*\{([^}]*)\}/g)]
-    .map((m) => m[1].match(/height:([^;]+);/)?.[1]?.trim())
-    .filter((h): h is string => !!h);
+  const hero = css.match(/\.deck\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.match(hero, /flex-direction:\s*column/, "the hero must stack in rows");
+  assert.doesNotMatch(hero, /position:\s*absolute/, "the hero must not be an overlay stage again");
 
-  assert.ok(heights.length >= 1, "the stacked globe must set a height somewhere");
-  for (const h of heights) {
-    assert.ok(/vh/.test(h), `globe height must account for viewport height, got: ${h}`);
-    // A floor, so shrinking never turns it into a sliver.
-    assert.ok(/clamp\(/.test(h), `needs a floor as well as a ceiling, got: ${h}`);
-  }
-  assert.ok(!/min\(\s*88vw\s*,\s*460px\s*\)/.test(css), "the width-only cap must not come back");
+  const map = css.match(/\.deck-map\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.ok(map, ".deck-map rule is missing");
+  assert.match(map, /vh/, "the map row must yield to viewport height, not take a fixed slab");
+  assert.match(map, /min-height/, "and needs a floor so it never becomes a sliver");
 
-  // The layer chips must stay on one row — a wrapped row orphaned a single
-  // chip and cost another 33px of the content below it.
-  assert.match(css, /\.heart \.heroglobe-layers\s*\{[^}]*flex-wrap:\s*nowrap/);
-  assert.match(css, /\.heart \.heroglobe-layers\s*\{[^}]*overflow-x:\s*auto/);
+  // The retired globe must not creep back in through a stylesheet.
+  assert.doesNotMatch(css, /\.heart-globe\s*\{/, "the globe is retired");
+  assert.doesNotMatch(css, /\.heart-side\.(left|right)\s*\{/, "the floating columns are retired");
 });
 
 test("compact density changes spacing without hiding anything", async () => {
@@ -2452,11 +2449,16 @@ test("polling stops when nobody is looking", async () => {
     "the interval must depend on whether the tab is visible");
   assert.match(live, /hiddenMs/, "there must be a way to opt into polling while hidden");
 
-  // The globe is the expensive one and does not use the hook, so it is gated
-  // at the fetch itself.
-  const globe = fs.readFileSync("features/atlas/hero-globe.tsx", "utf8");
-  assert.match(globe, /whenVisible/, "the globe layers must not fetch while hidden");
-  assert.match(globe, /setInterval\(whenVisible\(loadSats\)/);
+  // The globe used to be the expensive one — a WebGL scene re-polling
+  // satellites every five seconds behind a hidden tab. It is now retired
+  // outright rather than gated, which is the stronger version of the same
+  // fix, so the assertion is that it is gone and its dependencies with it.
+  assert.ok(!fs.existsSync("features/atlas/hero-globe.tsx"), "the globe is retired");
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+  for (const dead of ["globe.gl", "three", "@types/three"]) {
+    assert.ok(!(dead in deps), `${dead} was only there for the globe`);
+  }
 
   // Reminders are the deliberate exception: they fire things rather than only
   // showing them, so they slow down instead of stopping.

@@ -699,3 +699,112 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   letter-spacing: 0.18em;
   color: var(--faint);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TERMINAL
+   ══════════════════════════════════════════════════════════════════════════
+   Black and white, with subtle colour. Amber is the only hue that means
+   "active"; green and red mean direction and nothing else. Every value that
+   carries one of those colours also carries a sign or a word, so the screen
+   is still readable to someone who cannot separate the two.
+
+   Tiled panes divided by hairlines, packed to the edges. No radius, no
+   shadow, no translucency — those belong to the floating-card idiom this
+   replaces. */
+:root {
+  --up: #4fb477;
+  --down: #d4585c;
+  --mark: #6f7178;          /* default instrument grey */
+  --pane-hd: rgba(232, 161, 58, 0.055);
+}
+
+/* ── pane ── */
+.pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); }
+.pane-hd {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 3px 8px; background: var(--pane-hd); border-bottom: 1px solid var(--rule);
+}
+.pane-t {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--signal);
+}
+.pane-n { color: var(--signal-dim); }
+.pane-s {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--subtle); white-space: nowrap;
+}
+.pane-s.live { color: var(--signal); }
+.pane-body { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
+.pane-body::-webkit-scrollbar { display: none; }
+
+/* ── figures and rows ── */
+.tstat { display: flex; flex-direction: column; gap: 1px; padding: 5px 9px; min-width: 0; }
+.tstat-v { font-family: var(--mono); font-size: 19px; font-weight: 300; line-height: 1.05;
+  font-variant-numeric: tabular-nums; color: var(--foreground); }
+.tstat-v.up { color: var(--up); } .tstat-v.down { color: var(--down); } .tstat-v.signal { color: var(--signal); }
+.tstat-k { font-family: var(--mono); font-size: 7px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--subtle); }
+
+.trow { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 2px 8px; min-height: 19px; border-bottom: 1px solid var(--rule); }
+.trow:last-child { border-bottom: 0; }
+.trow-k { font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trow-v { font-family: var(--mono); font-size: 9.5px; font-variant-numeric: tabular-nums;
+  color: var(--foreground); white-space: nowrap; }
+.trow-v.up { color: var(--up); } .trow-v.down { color: var(--down); }
+.trow-v.signal { color: var(--signal); } .trow-v.muted { color: var(--subtle); }
+
+/* ── instruments ── */
+.inst { display: block; width: 100%; }
+.inst-empty { font-family: var(--mono); font-size: 8px; letter-spacing: 0.2em;
+  color: var(--faint); padding: 10px 8px; }
+
+.inst-rows { display: flex; flex-direction: column; }
+.inst-row { display: grid; grid-template-columns: 62px 1fr 42px 26px; align-items: center;
+  gap: 7px; padding: 1px 8px; min-height: 17px; }
+.ir-k { font-family: var(--mono); font-size: 8px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ir-bar { position: relative; height: 4px; background: var(--rule); overflow: hidden; }
+.ir-bar i { position: absolute; inset: 0 auto 0 0; display: block; }
+.ir-v { font-family: var(--mono); font-size: 8.5px; text-align: right;
+  font-variant-numeric: tabular-nums; color: var(--foreground); }
+.ir-s { font-family: var(--mono); font-size: 7.5px; text-align: right; letter-spacing: 0.1em; color: var(--subtle); }
+.ir-s.warm { color: var(--signal); } .ir-s.hot { color: var(--down); }
+
+.inst-ring { display: flex; align-items: center; gap: 7px; padding: 6px 9px; min-width: 0; }
+.ir-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ir-txt b { font-family: var(--mono); font-size: 12px; font-weight: 400;
+  font-variant-numeric: tabular-nums; color: var(--foreground); }
+.ir-txt span { font-family: var(--mono); font-size: 7px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--subtle); }
+
+.inst-seg { display: flex; align-items: center; gap: 2px; padding: 4px 8px; }
+.inst-seg i { display: block; height: 11px; }
+.seg-trail { margin-left: 7px; font-family: var(--mono); font-size: 7.5px;
+  letter-spacing: 0.14em; color: var(--subtle); white-space: nowrap; }
+
+.inst-matrix { display: grid; gap: 2px; padding: 7px 8px; }
+.inst-matrix i { display: block; aspect-ratio: 1; }
+
+.inst-prog { padding: 4px 8px; }
+.ip-bar { position: relative; display: block; height: 5px; background: var(--rule); overflow: hidden; }
+.ip-bar i { position: absolute; inset: 0 auto 0 0; display: block; background: var(--signal); }
+.ip-ends { display: flex; justify-content: space-between; margin-top: 3px;
+  font-family: var(--mono); font-size: 7px; letter-spacing: 0.14em; color: var(--subtle); }
+
+.delta { font-family: var(--mono); font-size: 9px; font-variant-numeric: tabular-nums; }
+.delta.up { color: var(--up); } .delta.down { color: var(--down); }
+
+/* ── the tiled field ──
+   Panes butt against each other and the hairline between them is the grid's
+   own background showing through a 1px gap. One rule, no per-pane borders to
+   double up at every seam. */
+.tiles { display: grid; gap: 1px; background: var(--rule); }
+.tiles.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tiles.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tiles.c4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .tiles.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .tiles.c3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .tiles.c2, .tiles.c3, .tiles.c4 { grid-template-columns: minmax(0, 1fr); } }

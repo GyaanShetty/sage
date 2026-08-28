@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Globe, Hand, Mic, Moon, Rows3, Sparkles } from "lucide-react";
+import { Bell, Hand, Mic, Moon, Rows3, Sparkles } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { useGlobeEnabled } from "@/lib/globe-pref";
 import { useDensity } from "@/lib/density-pref";
 import { disablePush, enablePush, pushEnabled, pushSupported } from "@/features/notifications/push-client";
 
@@ -44,7 +43,6 @@ export function Preferences() {
   // Client-only capability check — gate behind mount so SSR and first client
   // render agree (avoids a hydration mismatch).
   const [mounted, setMounted] = useState(false);
-  const { on: globe, set: setGlobe } = useGlobeEnabled();
   const { value: densityValue, set: setDensityValue } = useDensity();
 
   useEffect(() => {
@@ -161,27 +159,11 @@ export function Preferences() {
 
       {mounted && (
         <GlassPanel className="mt-3 flex items-center gap-4 p-5">
-          <Globe className="size-5 text-muted" />
-          <div className="flex-1">
-            <p className="text-sm font-medium">3D globe</p>
-            <p className="text-xs text-subtle">
-              The centrepiece on Home. It is the most expensive thing SAGE draws — a live
-              WebGL scene that polls satellites every few seconds — and the usual cause of
-              the app feeling sluggish. Turned off, the flat map takes over and nothing is
-              rendered at all.
-            </p>
-          </div>
-          <Toggle on={globe} onClick={() => setGlobe(!globe)} />
-        </GlassPanel>
-      )}
-
-      {mounted && (
-        <GlassPanel className="mt-3 flex items-center gap-4 p-5">
           <Rows3 className="size-5 text-muted" />
           <div className="flex-1">
             <p className="text-sm font-medium">Compact layout</p>
             <p className="text-xs text-subtle">
-              Tightens spacing and shrinks the globe so more fits on screen at once. Worth
+              Tightens spacing and type so more fits on screen at once. Worth
               turning on in a half-width window, where the standard spacing costs you whole
               panels below the fold. Nothing is hidden — only the room it takes up changes.
             </p>

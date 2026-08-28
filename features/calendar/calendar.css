@@ -97,7 +97,14 @@
 .wk-day.today .wk-num { color: var(--live); }
 .wk-day.today .wk-dow { color: var(--live); opacity: .8; }
 
-.wk-body { position: relative; display: grid; grid-template-columns: 44px repeat(7, 1fr); overflow-y: auto; }
+/* The scroll container. Deliberately NOT a grid: it holds one child, the
+   canvas, and when the grid lived here that child was placed in the 44px
+   gutter track — so the hour labels and all seven day columns rendered inside
+   a 44px strip. The calendar still drew, just entirely wrong, which is why
+   nothing caught it. */
+.wk-body { position: relative; overflow-y: auto; }
+/* The canvas is what actually lays out the week. */
+.wk-canvas { display: grid; grid-template-columns: 44px repeat(7, 1fr); }
 .wk-gutter { position: relative; }
 .wk-hour {
   position: absolute; right: 6px; transform: translateY(-50%);
@@ -112,8 +119,14 @@
   width: 5px; height: 5px; border-radius: 50%; background: var(--live);
 }
 
+/* left/width come from the collision layout — every concurrent event used to
+   take the full column and they stacked into an unreadable pile. */
 .wk-ev {
-  position: absolute; left: 2px; right: 2px; z-index: 2;
+  position: absolute; z-index: 2;
+  /* Explicit, not inherited from a reset: left/width are computed shares of
+     the column, and padding added on top of them would push each event into
+     its neighbour — reintroducing the overlap this layout exists to remove. */
+  box-sizing: border-box;
   display: flex; flex-direction: column; gap: 1px; overflow: hidden;
   border-radius: 4px; padding: 3px 5px;
   border-left: 2px solid var(--border-glass-strong);
@@ -134,7 +147,7 @@
 .wk-ev.plain { border-left-color: var(--border-glass-strong); }
 
 @media (max-width: 780px) {
-  .wk-body { grid-template-columns: 34px repeat(7, 1fr); }
+  .wk-canvas { grid-template-columns: 34px repeat(7, 1fr); }
   .wk-head { grid-template-columns: 34px repeat(7, 1fr); }
   .wk-ev b { font-size: 8.5px; }
   .wk-ev i { display: none; }

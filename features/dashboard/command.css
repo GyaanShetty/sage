@@ -1234,14 +1234,49 @@
  * spacing and scale — never by hiding things. A density control that removes
  * features is not a density control, it is a worse version of the app.
  */
-html[data-density="compact"] .section { padding: 12px 14px; }
-html[data-density="compact"] .cell { padding: 10px 13px; }
-html[data-density="compact"] .heart { margin-bottom: 8px; }
-html[data-density="compact"] .sectitle { margin-bottom: 10px; }
-html[data-density="compact"] .heart-side .cell,
-html[data-density="compact"] .heart-side .expandable { padding: 7px 9px; }
-html[data-density="compact"] .counters .ct { padding: 6px 4px; }
-html[data-density="compact"] .bh { margin-bottom: 5px; }
+/* ── COMPACT · the shipped default ────────────────────────────────────────
+ *
+ * This is a terminal. The measure of it is how much is legible at once, and
+ * the previous compact mode was a mild trim of a spacious layout rather than a
+ * dense one — panels still ran off the fold on a laptop.
+ *
+ * Nothing is hidden. A density control that removes features is not a density
+ * control, it is a worse version of the app; every rule below moves space, not
+ * content.
+ */
+html[data-density="compact"] .section { padding: 6px 8px; }
+html[data-density="compact"] .cell { padding: 6px 8px; }
+html[data-density="compact"] .grid { gap: 1px; }
+html[data-density="compact"] .sectitle h2 { font-size: 12px; }
+html[data-density="compact"] .deck { margin-bottom: 6px; }
+html[data-density="compact"] .deck-head { padding: 5px 8px; }
+html[data-density="compact"] .deck-col .cell,
+html[data-density="compact"] .deck-col .expandable { padding: 5px 7px; }
+/* The map leads the deck, but at 72vh it pushed every panel below the fold —
+   the opposite of what a dense layout is for. */
+html[data-density="compact"] .deck-map { height: min(52vh, 560px); min-height: 320px; }
+/* Panes and their instruments. */
+html[data-density="compact"] .pane-hd { padding: 2px 6px; }
+html[data-density="compact"] .pane-t { font-size: 9px; }
+html[data-density="compact"] .trow { min-height: 16px; padding: 1px 6px; }
+html[data-density="compact"] .trow-k { font-size: 8px; }
+html[data-density="compact"] .trow-v { font-size: 8.5px; }
+html[data-density="compact"] .tstat { padding: 3px 7px; }
+html[data-density="compact"] .tstat-v { font-size: 16px; }
+html[data-density="compact"] .inst-row { min-height: 15px; }
+html[data-density="compact"] .desk-cell { padding: 3px 10px; min-width: 74px; }
+html[data-density="compact"] .desk-v { font-size: 14px; }
+html[data-density="compact"] .desk-v.clock { font-size: 17px; }
+html[data-density="compact"] .fn-key { padding: 3px 10px; }
+html[data-density="compact"] .chrono-time { padding: 4px 7px 0; }
+html[data-density="compact"] .ct-hm { font-size: 26px; }
+html[data-density="compact"] .wire-row { padding: 3px 6px; }
+html[data-density="compact"] .wire-t { font-size: 10px; -webkit-line-clamp: 1; }
+html[data-density="compact"] .cosmos { padding: 6px; gap: 8px; }
+html[data-density="compact"] .cosmos-p { -webkit-line-clamp: 3; font-size: 10px; }
+html[data-density="compact"] .sectitle { margin-bottom: 5px; }
+html[data-density="compact"] .counters .ct { padding: 4px 3px; }
+html[data-density="compact"] .bh { margin-bottom: 3px; }
 
 
 /* ══ REMODEL · instrument chrome on the existing panel system ═════════════

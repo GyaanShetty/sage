@@ -25,11 +25,15 @@ const EVENT = "sage:density-pref";
 const ATTR = "data-density";
 
 export function density(): Density {
-  if (typeof window === "undefined") return "comfortable";
+  // Compact is the shipped default. This is a terminal: the point is how much
+  // is on screen at once, and the comfortable spacing was costing whole panels
+  // below the fold. "comfortable" remains one toggle away and still hides
+  // nothing — only the room things take up changes.
+  if (typeof window === "undefined") return "compact";
   try {
-    return window.localStorage.getItem(KEY) === "compact" ? "compact" : "comfortable";
+    return window.localStorage.getItem(KEY) === "comfortable" ? "comfortable" : "compact";
   } catch {
-    return "comfortable";
+    return "compact";
   }
 }
 

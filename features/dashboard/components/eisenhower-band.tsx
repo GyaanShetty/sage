@@ -5,6 +5,7 @@ import { Check, MoveRight } from "lucide-react";
 import { fmt } from "@/lib/config";
 import { sound } from "@/lib/sound";
 import { useLive, notifyDataChanged } from "@/lib/live";
+import { classifyQuadrant, hoursUntil, isUrgent, type Quadrant } from "@/core/tasks/quadrant";
 
 interface TickTask { id: string; title: string; projectId: string; projectName: string; dueDate?: string; priority: number; status: number }
 
@@ -16,11 +17,26 @@ const QUADRANTS = [
   { key: "q4", roman: "IV", label: "Not Urgent & Unimportant", sub: "Eliminate", priority: 0, color: "#54c98a" },
 ] as const;
 
-function quadrantOf(priority: number): number {
-  if (priority >= 5) return 0;
-  if (priority >= 3) return 1;
-  if (priority >= 1) return 2;
-  return 3;
+const ORDER: Quadrant[] = ["do", "schedule", "delegate", "drop"];
+
+/**
+ * Which quadrant a TickTick task belongs in.
+ *
+ * This used to be priority alone, which made the matrix a re-labelled priority
+ * list: a task due in an hour at priority 0 sat in "Eliminate", and no
+ * deadline could ever move anything. Urgency is now what it means everywhere
+ * else — how close the due date is — and priority carries importance only.
+ *
+ * The mapping is TickTick's scale (5 high, 0 none), applied here rather than
+ * in the shared rule, because the local Task table runs the opposite way and
+ * feeding one scale into the other inverts the entire matrix.
+ */
+function quadrantOf(t: { priority: number; dueDate?: string }): number {
+  const q = classifyQuadrant({
+    urgent: isUrgent(hoursUntil(t.dueDate)),
+    important: t.priority >= 3,
+  });
+  return ORDER.indexOf(q);
 }
 
 /** 09 · MATRIX — the TickTick Eisenhower Matrix, live. Tasks fall into four
@@ -77,7 +93,7 @@ export function EisenhowerBand() {
       ) : (
         <div className="eh-grid">
           {QUADRANTS.map((q, qi) => {
-            const items = open.filter((t) => quadrantOf(t.priority) === qi);
+            const items = open.filter((t) => quadrantOf(t) === qi);
             return (
               <div className="eh-quad" key={q.key} style={{ ["--qc" as string]: q.color }}>
                 <div className="eh-head">

@@ -10,6 +10,7 @@ import { TaskManager } from "./task-manager";
 import { ExpandableCell } from "./expandable-cell";
 import { ScheduleManager } from "./schedule-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
+import { ChronoTile, FieldTile, CosmosTile, PlayingTile, WireTile } from "./tiles";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
 import { BriefBlock } from "./brief-block";
@@ -309,6 +310,17 @@ export function CommandView({
           <div className="deck-map">
             <AtlasMap lat={12.9352} lon={77.6245} />
           </div>
+
+          {/* The instrument band. Every tile here is a re-presentation of data
+              SAGE already produces — the density comes from showing what is
+              known, tightly, not from fetching more. */}
+          <div className="tiles c4">
+            <ChronoTile n={4} />
+            <FieldTile n={7} />
+            <PlayingTile n={19} />
+            <WireTile n={15} />
+          </div>
+          <CosmosTile n={30} />
         </div>
 
         <div className="cell ask">

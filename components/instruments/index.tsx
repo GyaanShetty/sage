@@ -21,7 +21,6 @@
  */
 
 const SIGNAL = "var(--signal)";
-const UP = "var(--up)";
 const DOWN = "var(--down)";
 const MARK = "var(--mark)";
 const GRID = "var(--rule)";

@@ -3101,3 +3101,36 @@ test("quadrants come from urgency and importance, not priority alone", async () 
   assert.match(band, /isUrgent\(hoursUntil\(t\.dueDate\)\)/, "urgency comes from the due date");
   assert.match(band, /t\.priority >= 3/, "importance uses TickTick's scale, high-is-big");
 });
+
+/**
+ * Every gesture needs a second route, and every state needs a name.
+ *
+ * A pinch is a fine-motor act: it works close to the camera and misses further
+ * away, and it is exactly what a tired or unsteady hand fails at. Dwell is the
+ * same outcome by a different means, which is what makes this a control
+ * surface rather than a demo.
+ *
+ * The states matter as much. "Still loading", "no hand in frame" and "camera
+ * blocked" previously all presented as nothing happening — so a working
+ * tracker and a broken one looked identical, which is most of why this feature
+ * read as dead for so long.
+ */
+test("gesture control has a fallback click and legible states", () => {
+  const src = readFileSync(new URL("../features/gestures/gesture-nav.tsx", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+  assert.match(code, /DWELL_MS/, "dwell is the accessible second route to a click");
+  assert.match(code, /DWELL_SLOP/, "drifting must not accumulate toward a click");
+  assert.match(code, /EDGE_BAND/, "pointing below the fold must be reachable");
+
+  for (const state of ["loading", "searching", "tracking", "failed"]) {
+    assert.match(code, new RegExp(`"${state}"`), `tracking state '${state}' must be distinguishable`);
+  }
+
+  // The real error is shown rather than swallowed into a generic message.
+  assert.match(code, /err as Error/, "surface what actually failed");
+
+  // And the toggle must never turn itself off on failure: that leaves nothing
+  // switched on to inspect and the message disappears with the component.
+  assert.doesNotMatch(code, /setGestureNav\(false\)/, "failure must not flip the switch back");
+});

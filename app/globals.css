@@ -913,3 +913,29 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .wire-row:hover .wire-t { color: var(--foreground); }
 .cm-t { font-weight: 400; color: var(--signal); margin-left: 6px; }
+
+/* ── hand cursor ──
+   Pointing at the interface, not just navigating it. `pointer-events: none`
+   is load-bearing: elementFromPoint must find what is underneath, and a
+   cursor that hits itself would make every click land on the cursor. */
+.gn-cursor {
+  position: fixed; left: 0; top: 0; z-index: 9000;
+  width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  border: 1px solid var(--signal); border-radius: 50%;
+  pointer-events: none; opacity: 0; will-change: transform;
+  transition: opacity 0.16s var(--ease), background 0.1s linear, width 0.1s, height 0.1s;
+}
+.gn-cursor.on { opacity: 1; }
+.gn-cursor::after {
+  content: ""; position: absolute; inset: 8px;
+  background: var(--signal); border-radius: 50%;
+}
+/* Armed — the thumb has come in and a press is about to land. */
+.gn-cursor[data-armed="1"] {
+  width: 14px; height: 14px; margin: -7px 0 0 -7px;
+  background: var(--signal-faint);
+  box-shadow: 0 0 0 3px var(--signal-faint), 0 0 14px var(--signal-glow);
+}
+/* What the cursor is over. Outline rather than a border so nothing reflows
+   under the pointer — a target that moves as you aim at it is unusable. */
+.gn-hover { outline: 1px solid var(--signal); outline-offset: -1px; }

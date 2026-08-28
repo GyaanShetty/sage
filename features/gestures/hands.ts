@@ -55,11 +55,29 @@ export class HandController {
     this.video = video;
     const { HandLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
     const vision = await FilesetResolver.forVisionTasks(WASM);
-    this.landmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: { modelAssetPath: MODEL, delegate: "GPU" },
-      runningMode: "VIDEO",
-      numHands: 1,
-    });
+    /**
+     * GPU first, CPU if that fails.
+     *
+     * The GPU delegate needs a WebGL context the browser is willing to give a
+     * background task, and on some machines — headless GPUs, Safari with
+     * hardware acceleration off, a laptop already running a WebGL page — it
+     * throws at creation. Falling back costs frame rate and keeps the feature
+     * working, which is the right trade for a control surface.
+     */
+    const opts = { modelAssetPath: MODEL };
+    try {
+      this.landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { ...opts, delegate: "GPU" },
+        runningMode: "VIDEO",
+        numHands: 1,
+      });
+    } catch {
+      this.landmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: { ...opts, delegate: "CPU" },
+        runningMode: "VIDEO",
+        numHands: 1,
+      });
+    }
 
     this.stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: 640, height: 480 },

@@ -2911,3 +2911,57 @@ test("every managed key provider is reachable and named in settings", async () =
   assert.ok(PROVIDERS.includes("outlook_id" as never), "outlook client id slot");
   assert.ok(PROVIDERS.includes("outlook_secret" as never), "outlook client secret slot");
 });
+
+/**
+ * Hand tracking must be allowed to load at all.
+ *
+ * Gesture control read as "does nothing" for a long time, and the cause was
+ * not in the gesture code: script-src permitted no external origin, so
+ * MediaPipe's vision WASM runtime — fetched from a CDN the moment the feature
+ * is switched on — was blocked outright. A blocked script is not an exception,
+ * it is an absence, so nothing threw, nothing logged, and the camera light
+ * came on to power a detector that had never loaded.
+ *
+ * The worker grant is the same class of failure one step later: MediaPipe
+ * builds its detector in a worker created from a blob, and with no worker-src
+ * that falls back to default-src 'self', which blob: does not satisfy.
+ */
+test("the CSP permits the hand tracker to load", async () => {
+  const { CSP } = await import("@/lib/security");
+
+  const scriptSrc = CSP.match(/script-src ([^;]*)/)?.[1] ?? "";
+  assert.match(scriptSrc, /https:\/\/cdn\.jsdelivr\.net/, "MediaPipe's WASM runtime is a script from jsdelivr");
+  assert.match(scriptSrc, /'wasm-unsafe-eval'/, "compiling the WASM needs an explicit grant");
+
+  assert.match(CSP, /worker-src[^;]*blob:/, "the detector runs in a blob worker");
+
+  // The grant must stay narrow: allowing scripts from anywhere would give
+  // back the injection route the whole policy exists to close.
+  assert.doesNotMatch(scriptSrc, /(^|\s)https:(\s|$)/, "script-src must not open to all of https");
+  assert.doesNotMatch(scriptSrc, /\*/, "no wildcard script origins");
+});
+
+/**
+ * Pointing must be tested before dragging.
+ *
+ * Both gestures involve a pinch. The pointing hand is the more specific — it
+ * requires the other three fingers folded — so if the drag branch is reached
+ * first it swallows every click and the interface becomes unpressable while
+ * looking like it is tracking perfectly.
+ */
+test("the pointing gesture is matched before the scroll drag", () => {
+  const src = readFileSync(new URL("../features/gestures/gesture-nav.tsx", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+  const point = src.indexOf("const onlyIndex");
+  const drag = src.indexOf("if (f.pinch) {");
+  assert.ok(point > 0, "the pointing branch must exist");
+  assert.ok(drag > 0, "the drag branch must exist");
+  assert.ok(point < drag, "pointing must be tested before the pinch-drag");
+
+  // The cursor must never be its own hit target.
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = css.match(/\.gn-cursor\s*\{([^}]*)\}/)?.[1] ?? "";
+  assert.match(rule, /pointer-events:\s*none/, "elementFromPoint must see through the cursor");
+});

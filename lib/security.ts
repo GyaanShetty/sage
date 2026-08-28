@@ -18,7 +18,15 @@ export const CSP = [
   // needs eval for its chunk loader in some paths. 'unsafe-inline' here is not
   // ideal; what it still buys is that no script from another origin can run,
   // which is the injection route that matters.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  //
+  // jsdelivr is here for exactly one thing: MediaPipe's vision WASM runtime,
+  // which hand tracking loads as a script at the moment it is switched on.
+  // Without it the CSP blocked the load and gesture control simply did
+  // nothing — no error the user could see, because a blocked script is not an
+  // exception, it is an absence. 'wasm-unsafe-eval' is the modern spelling for
+  // compiling that WASM; 'unsafe-eval' already implies it in most browsers but
+  // not all, and the explicit grant is the one that is actually specified.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
   "style-src 'self' 'unsafe-inline'",
 
   // Article thumbnails, map tiles and avatars come from wherever the source
@@ -31,6 +39,10 @@ export const CSP = [
   // The browser talks to this origin and to Supabase; everything else is
   // called server-side, where CSP does not apply.
   "connect-src 'self' https: wss:",
+
+  // MediaPipe runs its detector in a worker it creates from a blob. Without
+  // this it falls back to default-src 'self', which blob: does not satisfy.
+  "worker-src 'self' blob:",
 
   // Embedded players only.
   "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://open.spotify.com",

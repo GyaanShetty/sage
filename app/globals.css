@@ -863,3 +863,52 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 }
 .fn-key.on .fn-l { color: var(--foreground); }
 @media (max-width: 640px) { .fn-l { display: none; } .fn-key { padding: 6px 10px; } }
+
+/* ── tiles ── */
+.tile-wait { font-family: var(--mono); font-size: 8px; letter-spacing: 0.22em;
+  color: var(--faint); padding: 12px 9px; }
+.tile-cap { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.22em;
+  color: var(--subtle); padding: 6px 8px 2px; }
+
+/* chrono */
+.chrono-time { display: flex; align-items: baseline; gap: 5px; padding: 7px 9px 1px; }
+.ct-hm { font-family: var(--mono); font-size: 34px; font-weight: 200; line-height: 1;
+  letter-spacing: -1.5px; font-variant-numeric: tabular-nums; color: var(--foreground); }
+.ct-ss { font-family: var(--mono); font-size: 14px; font-weight: 300;
+  font-variant-numeric: tabular-nums; color: var(--subtle); }
+.chrono-date { font-family: var(--mono); font-size: 8px; letter-spacing: 0.18em;
+  color: var(--muted); padding: 0 9px 6px; }
+.chrono-figs { display: flex; gap: 1px; background: var(--rule); margin-top: 5px; }
+.chrono-figs span { flex: 1; display: flex; flex-direction: column; gap: 1px;
+  padding: 5px 9px; background: var(--panel); }
+.chrono-figs b { font-family: var(--mono); font-size: 15px; font-weight: 300;
+  font-variant-numeric: tabular-nums; color: var(--foreground); }
+.chrono-figs i { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.2em;
+  font-style: normal; color: var(--subtle); }
+
+/* cosmos */
+.cosmos { display: flex; gap: 10px; padding: 8px; align-items: flex-start; }
+.cosmos-img { width: 132px; height: 92px; object-fit: cover; flex: none; border: 1px solid var(--rule); }
+.cosmos-txt { min-width: 0; }
+.cosmos-t { font-size: 13px; font-weight: 400; line-height: 1.25; margin-bottom: 4px; }
+.cosmos-p { font-size: 10.5px; line-height: 1.5; color: var(--muted); margin: 0;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 640px) { .cosmos { flex-direction: column; } .cosmos-img { width: 100%; height: 120px; } }
+
+/* now playing */
+.np { display: flex; gap: 9px; align-items: center; padding: 8px; min-width: 0; }
+.np-art { flex: none; border: 1px solid var(--rule); }
+.np-txt { min-width: 0; }
+.np-t { font-size: 12px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-a { font-family: var(--mono); font-size: 7.5px; letter-spacing: 0.16em;
+  color: var(--subtle); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* wire */
+.wire-row { display: flex; gap: 8px; padding: 4px 8px; text-decoration: none;
+  border-bottom: 1px solid var(--rule); align-items: baseline; }
+.wire-row:last-child { border-bottom: 0; }
+.wire-row:hover { background: var(--panel-hi); }
+.wire-n { font-family: var(--mono); font-size: 7.5px; color: var(--signal-dim); flex: none; }
+.wire-t { font-size: 11px; line-height: 1.35; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.wire-row:hover .wire-t { color: var(--foreground); }

@@ -9,7 +9,15 @@ export interface Weather {
   wind: number;
   place: string;
   aqi?: number | null;
+  humidity?: number | null;
+  pressure?: number | null;
+  /** The next twelve hours, for the forecast strip. */
+  hourly?: { temp: number[]; code: number[] };
 }
+
+/** Where to look. Omitted means the env location, which is what every
+ *  existing caller wants and gets without changing a line. */
+export interface At { lat: number; lon: number; place?: string }
 
 const WMO: Record<number, string> = {
   0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
@@ -18,13 +26,23 @@ const WMO: Record<number, string> = {
   80: "Rain showers", 81: "Showers", 82: "Violent showers", 95: "Thunderstorm", 96: "Storm w/ hail",
 };
 
-/** Current + today's range from Open-Meteo. Location via env, defaults to Bengaluru. */
-export async function getWeather(): Promise<Weather | null> {
-  const lat = process.env.SAGE_LAT ?? "12.9716";
-  const lon = process.env.SAGE_LON ?? "77.5946";
-  const place = process.env.SAGE_PLACE ?? "Bengaluru";
+/**
+ * Current conditions, today's range, and the next twelve hours.
+ *
+ * `at` is optional and trailing, so all six existing zero-argument callers are
+ * untouched. It carries `place` as well as coordinates deliberately: the label
+ * is passed straight through to the result, so coordinates without one would
+ * report the weather at the map centre while still calling it "Bengaluru" —
+ * a wrong answer that looks exactly like a right one.
+ *
+ * Open-Meteo is keyless and unmetered, so the hourly block costs nothing.
+ */
+export async function getWeather(at?: At): Promise<Weather | null> {
+  const lat = String(at?.lat ?? process.env.SAGE_LAT ?? "12.9716");
+  const lon = String(at?.lon ?? process.env.SAGE_LON ?? "77.5946");
+  const place = at ? (at.place ?? "MAP CENTRE") : (process.env.SAGE_PLACE ?? "Bengaluru");
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,surface_pressure&daily=temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weather_code&forecast_hours=12&timezone=auto`;
     const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi`;
     const [res, aqiRes] = await Promise.all([
       proxyFetch(url, { signal: AbortSignal.timeout(8000) }),
@@ -37,8 +55,9 @@ export async function getWeather(): Promise<Weather | null> {
       aqi = typeof aj.current?.us_aqi === "number" ? Math.round(aj.current.us_aqi) : null;
     }
     const j = (await res.json()) as {
-      current: { temperature_2m: number; weather_code: number; wind_speed_10m: number };
+      current: { temperature_2m: number; weather_code: number; wind_speed_10m: number; relative_humidity_2m?: number; surface_pressure?: number };
       daily: { temperature_2m_max: number[]; temperature_2m_min: number[] };
+      hourly?: { temperature_2m?: number[]; weather_code?: number[] };
     };
     return {
       temp: Math.round(j.current.temperature_2m),
@@ -49,6 +68,11 @@ export async function getWeather(): Promise<Weather | null> {
       wind: Math.round(j.current.wind_speed_10m),
       place,
       aqi,
+      humidity: j.current.relative_humidity_2m ?? null,
+      pressure: j.current.surface_pressure != null ? Math.round(j.current.surface_pressure) : null,
+      hourly: j.hourly?.temperature_2m?.length
+        ? { temp: j.hourly.temperature_2m.map((t) => Math.round(t)), code: j.hourly.weather_code ?? [] }
+        : undefined,
     };
   } catch {
     return null;

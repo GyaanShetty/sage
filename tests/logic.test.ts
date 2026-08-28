@@ -2883,3 +2883,31 @@ test("basemap is keyless", () => {
   assert.doesNotMatch(src, /cartocdn/, "CARTO now requires an API key");
   assert.match(src, /tile\.openstreetmap\.org/, "basemap should be OSM standard raster");
 });
+
+/**
+ * The key store and its only UI must agree.
+ *
+ * These two lists were maintained by hand in two files, and had already
+ * drifted: a provider added to the store was unreachable from the only screen
+ * that can write to the store, so the key could not actually be added. The
+ * select is now driven by the API, and this asserts the labels keep up — an
+ * unlabelled provider renders its raw slug, which is survivable but ugly, and
+ * ugly on purpose so it gets noticed.
+ */
+test("every managed key provider is reachable and named in settings", async () => {
+  const { PROVIDERS } = await import("@/core/ops/keys");
+  const ui = readFileSync(new URL("../features/settings/components/vitals.tsx", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // The select must not go back to a hardcoded list.
+  assert.match(ui, /providers\.map\(/, "the provider select must be driven by the API");
+
+  const labels = ui.slice(ui.indexOf("PROVIDER_LABELS"), ui.indexOf("function ManagedKeys"));
+  for (const p of PROVIDERS) {
+    assert.match(labels, new RegExp(`\\b${p}\\b`), `${p} needs a human-readable label`);
+  }
+
+  // Outlook needs both halves or the OAuth app cannot be configured at all.
+  assert.ok(PROVIDERS.includes("outlook_id" as never), "outlook client id slot");
+  assert.ok(PROVIDERS.includes("outlook_secret" as never), "outlook client secret slot");
+});

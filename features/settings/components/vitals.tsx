@@ -203,9 +203,22 @@ interface ManagedKey { id: string; provider: string; tail: string; label: string
  * Keys are never readable back — only their last four. A page that could show
  * you a key would turn one leaked session into a leaked Google account.
  */
+/** Human names for the provider slots. Anything unlisted shows its raw key,
+ *  which is ugly on purpose — it is a prompt to name it here. */
+const PROVIDER_LABELS: Record<string, string> = {
+  google: "Gemini",
+  tavily: "Tavily",
+  hevy: "Hevy",
+  alphavantage: "Alpha Vantage",
+  fmp: "Financial Modeling Prep",
+  outlook_id: "Outlook — client ID",
+  outlook_secret: "Outlook — client secret",
+};
+
 function ManagedKeys({ onChanged }: { onChanged: () => void }) {
   const [keys, setKeys] = useState<ManagedKey[] | null>(null);
   const [available, setAvailable] = useState(true);
+  const [providers, setProviders] = useState<string[]>(["google"]);
   const [value, setValue] = useState("");
   const [provider, setProvider] = useState("google");
   const [busy, setBusy] = useState(false);
@@ -214,7 +227,11 @@ function ManagedKeys({ onChanged }: { onChanged: () => void }) {
 
   const load = useCallback(async () => {
     const j = await fetch("/api/keys").then((r) => r.json()).catch(() => null);
-    if (j?.ok) { setKeys(j.data.keys); setAvailable(j.data.storageAvailable); }
+    if (j?.ok) {
+      setKeys(j.data.keys);
+      setAvailable(j.data.storageAvailable);
+      if (Array.isArray(j.data.providers) && j.data.providers.length) setProviders(j.data.providers);
+    }
   }, []);
   useEffect(() => { if (open) void load(); }, [open, load]);
 
@@ -256,14 +273,16 @@ function ManagedKeys({ onChanged }: { onChanged: () => void }) {
           )}
 
           <div className="flex flex-wrap gap-2">
+            {/* Driven by the API rather than typed out here. The two lists
+                had already drifted apart once — a provider added to the store
+                was unreachable from the only UI that can reach the store. */}
             <select
               value={provider} onChange={(e) => setProvider(e.target.value)}
               className="border border-border-glass bg-glass px-2 py-1.5 text-[12px] text-foreground outline-none"
             >
-              <option value="google">Gemini</option>
-              <option value="tavily">Tavily</option>
-              <option value="hevy">Hevy</option>
-              <option value="alphavantage">Alpha Vantage</option>
+              {providers.map((p) => (
+                <option key={p} value={p}>{PROVIDER_LABELS[p] ?? p}</option>
+              ))}
             </select>
             <input
               type="password" value={value} onChange={(e) => setValue(e.target.value)}

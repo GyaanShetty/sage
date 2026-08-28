@@ -47,6 +47,7 @@ function startWatch(): void {
     (p) => {
       latest = { lat: p.coords.latitude, lon: p.coords.longitude, accuracy: p.coords.accuracy, at: Date.now() };
       state = "live";
+      publish(latest);
       notify();
     },
     (err) => {
@@ -66,6 +67,30 @@ function startWatch(): void {
  * Nothing is requested until a component actually asks — mounting the app must
  * not throw a permission prompt at him before he has done anything.
  */
+/**
+ * Publish the browser's fix to the same store the phone writes to.
+ *
+ * Two sources of truth that can disagree is worse than one that is sometimes
+ * old, so the browser posts through the same webhook rather than keeping a
+ * parallel notion of where he is. Throttled hard — watchPosition fires
+ * constantly and this is a database write, not a render.
+ */
+let lastPublished = 0;
+const PUBLISH_EVERY_MS = 120_000;
+
+function publish(p: Position): void {
+  const now = Date.now();
+  if (now - lastPublished < PUBLISH_EVERY_MS) return;
+  lastPublished = now;
+  // Best effort and deliberately unawaited: a failed publish must never
+  // affect the live position the UI is drawing from.
+  void fetch("/api/webhook/location/self", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ lat: p.lat, lon: p.lon, event: "browser", accuracy: p.accuracy }),
+  }).catch(() => {});
+}
+
 export function useLivePosition(enabled = true): { position: Position | null; state: GeoState } {
   const [, force] = useState(0);
 

@@ -9,6 +9,7 @@ import { createGmailDraft, listUnreadEmails, listUpcomingEvents, searchGmail } f
 import { githubSummary } from "@/infrastructure/integrations/github";
 import { OWNER } from "@/lib/config";
 import { getNowPlaying, spotifyControl, spotifyPlaySearch } from "@/infrastructure/integrations/spotify";
+import { whereIs, describeWhere } from "@/core/location";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -242,6 +243,43 @@ export const nativeTools = {
           language: r.language,
           lastPush: r.pushed_at,
         })),
+      };
+    },
+  }),
+
+  /**
+   * Where he is, and what that means for what is next.
+   *
+   * SAGE could reason about his calendar and his tasks but had no idea where
+   * he was standing, so "how long until I should leave" and "am I at the gym"
+   * were unanswerable. The fix is always reported with its age: an assistant
+   * that states a six-hour-old position as current will confidently tell him
+   * to leave for somewhere he is already sitting.
+   */
+  where_am_i: tool({
+    description:
+      "Where the user is right now: their last known position, the saved place they are at or nearest to, " +
+      "and how old that reading is. Use for anything location-dependent — 'where am I', 'am I at the gym', " +
+      "'how far is home', or before advising on travel or leaving times. Always repeat the staleness if the " +
+      "reading is old rather than presenting it as current.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const w = await whereIs();
+      if (!w.fix) {
+        return {
+          ok: false,
+          error: "No recent location fix. Location comes from the phone's arrive/leave automation or an open SAGE tab.",
+        };
+      }
+      return {
+        ok: true,
+        summary: describeWhere(w),
+        at: w.at?.name ?? null,
+        nearest: w.nearest ? { name: w.nearest.place.name, km: +(w.nearest.meters / 1000).toFixed(2) } : null,
+        lat: +w.fix.lat.toFixed(5),
+        lon: +w.fix.lon.toFixed(5),
+        minutesOld: Math.round(w.fix.ageMin),
+        stale: w.stale,
       };
     },
   }),

@@ -31,6 +31,28 @@ const POSE_HOLD_MS = 260;
 /** Ignore a re-trigger of the same pose for this long. */
 const POSE_COOLDOWN = 800;
 
+/* ── Pointing at things ─────────────────────────────────────────────────────
+ * Navigation was only ever half of it: being able to reach a page but not
+ * press anything on it is a remote control with no buttons.
+ *
+ * The pose is an index-finger point — index out, the other three folded —
+ * which is unambiguous against every gesture already in use, and is what a
+ * hand does naturally when aiming at something.
+ *
+ * Clicking is a pinch *from* that pose: the thumb comes to the index while
+ * middle, ring and pinky stay folded. The existing scroll-drag is also a
+ * pinch, so the two are separated by those three fingers rather than by
+ * timing — a mode you can see on your own hand beats a mode you have to
+ * remember.
+ */
+/** Fingertip travel is jittery at 30fps; this smooths it without lag you can feel. */
+const CURSOR_SMOOTH = 0.35;
+/** The pointer only moves inside this margin of the viewport, since the hand
+ *  cannot comfortably reach the very edge of the camera frame. */
+const REACH = 0.12;
+/** Two clicks closer together than this are one intent. */
+const CLICK_COOLDOWN = 650;
+
 /* ── Sliding the wheel ──────────────────────────────────────────────────────
  * Two motions have now been tried and discarded. Wrist roll ran out of range
  * in under a right angle. Pinch-and-circle worked on paper but asks the hand
@@ -85,6 +107,18 @@ export function GestureNav() {
   const poseSince = useRef<{ pose: string; at: number } | null>(null);
   const lastPose = useRef(0);
 
+  /** The hand cursor. A ref and a direct transform, not state: this updates
+   *  every video frame and a re-render per frame would cost more than the
+   *  tracking does. */
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const cursorAt = useRef<{ x: number; y: number } | null>(null);
+  const hovered = useRef<Element | null>(null);
+  const lastClick = useRef(0);
+  const [pointing, setPointing] = useState(false);
+  /** The frame loop cannot read `pointing` — it closes over a stale value —
+   *  so the ref is the truth and the state exists only to render. */
+  const pointingRef = useRef(false);
+
   /** True once a pose has been held long enough and is off cooldown. */
   const held = (pose: string, active: boolean, now: number): boolean => {
     if (!active) {
@@ -120,6 +154,13 @@ export function GestureNav() {
     if (!f) {
       setDir(null); dragY.current = null; fistAnchor.current = null;
       poseSince.current = null;
+      if (pointingRef.current) {
+        pointingRef.current = false;
+        setPointing(false);
+        hovered.current?.classList.remove("gn-hover");
+        hovered.current = null;
+        cursorAt.current = null;
+      }
       // Tracking drops out constantly — a blink of lost hand must not dismiss
       // the wheel; only ✊ does. The slide re-anchors, though, so a reappearing
       // hand does not jump the dial by the distance it was not seen moving.
@@ -168,6 +209,68 @@ export function GestureNav() {
       return; // the wheel owns the hand while it is up
     }
 
+    /* ---- ☝ POINT → move a cursor, pinch to press ----
+     *
+     * Runs before the scroll-drag branch deliberately: both involve a pinch,
+     * and the pointing hand is the more specific of the two, so it has to be
+     * tested first or the drag would swallow every click.
+     */
+    const onlyIndex = f.fingers[1] && !f.fingers[2] && !f.fingers[3] && !f.fingers[4];
+    if (onlyIndex) {
+      fistAnchor.current = null;
+      dragY.current = null;
+
+      // Map the comfortable middle of the camera frame onto the whole
+      // viewport, so the corners are reachable without stretching.
+      const span = 1 - REACH * 2;
+      const tx = Math.min(1, Math.max(0, (f.x - REACH) / span)) * window.innerWidth;
+      const ty = Math.min(1, Math.max(0, (f.y - REACH) / span)) * window.innerHeight;
+
+      const prev = cursorAt.current;
+      const x = prev ? prev.x + (tx - prev.x) * CURSOR_SMOOTH : tx;
+      const y = prev ? prev.y + (ty - prev.y) * CURSOR_SMOOTH : ty;
+      cursorAt.current = { x, y };
+      if (cursorRef.current) {
+        cursorRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        cursorRef.current.dataset.armed = f.pinch ? "1" : "0";
+      }
+      if (!pointingRef.current) { pointingRef.current = true; setPointing(true); }
+
+      // Hover whatever is under it, so there is feedback before committing.
+      // The cursor itself is pointer-events:none, so it never hits itself.
+      const el = document.elementFromPoint(x, y);
+      if (el !== hovered.current) {
+        hovered.current?.classList.remove("gn-hover");
+        const target = (el as HTMLElement | null)?.closest(
+          "button, a, input, select, textarea, [role='button'], .cell, .pane, .expandable",
+        ) ?? null;
+        target?.classList.add("gn-hover");
+        hovered.current = target;
+      }
+
+      // Pinch from the pointing pose = press.
+      if (f.pinch && now - lastClick.current > CLICK_COOLDOWN) {
+        lastClick.current = now;
+        const hit = document.elementFromPoint(x, y) as HTMLElement | null;
+        const press = hit?.closest("button, a, input, select, textarea, [role='button']") as HTMLElement | null;
+        if (press) {
+          // A real click, not a synthetic event React might ignore: focus
+          // first so a field is actually typed into, then click.
+          press.focus?.();
+          press.click();
+          window.dispatchEvent(new CustomEvent("sage:gesture-click"));
+        }
+      }
+      return;
+    }
+    if (pointingRef.current) {
+      pointingRef.current = false;
+      setPointing(false);
+      hovered.current?.classList.remove("gn-hover");
+      hovered.current = null;
+      cursorAt.current = null;
+    }
+
     // ---- PINCH → grab & drag the page (touchscreen-style) ----
     if (f.pinch) {
       fistAnchor.current = null;
@@ -214,7 +317,7 @@ export function GestureNav() {
         await c.start(videoRef.current!);
         if (cancelled) { c.stop(); return; }
         ctrl.current = c;
-        setStatus("🤙 wheel · slide to turn · 👌 open · ✊ dismiss");
+        setStatus("☝ point · pinch to press · 🤙 wheel · ✊ dismiss");
       } catch (err) {
         setStatus(
           /denied|NotAllowed/i.test(String(err))
@@ -258,6 +361,10 @@ export function GestureNav() {
         <span>{status}</span>
       </div>
       {dir && <div className={`gn-arrow ${dir}`}>{dir === "up" ? "▲" : "▼"}</div>}
+      {/* The hand cursor. Always mounted while gestures are on so the frame
+          loop can move it without waiting on a React commit; hidden until a
+          pointing hand is actually seen. */}
+      <div ref={cursorRef} className={`gn-cursor${pointing ? " on" : ""}`} data-armed="0" />
     </div>
   );
 }

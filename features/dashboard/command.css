@@ -455,11 +455,8 @@
 /* ── The heart: an uncontained globe with everything floating around it ──
    No frame, no card. The globe fills the band and the panels sit over its
    edges, so the sphere itself stays clear. */
-.heart { position: relative; height: min(84vh, 940px); min-height: 560px; margin: 0 0 14px; }
-.heart-globe { position: absolute; inset: 0; z-index: 0; }
 
 /* greeting floats top-left, clear of the sphere */
-.heart-head { position: absolute; top: 4px; left: 6px; z-index: 3; display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
 .hh-name { font-size: clamp(22px, 2.6vw, 34px); font-weight: 300; letter-spacing: -0.4px; line-height: 1.1; }
 .hh-sub { font-family: var(--mono); font-size: 8px; letter-spacing: 2.4px; color: var(--subtle); text-transform: uppercase; }
 .hh-sub { display: inline-flex; align-items: center; gap: 7px; }
@@ -467,30 +464,14 @@
 @keyframes heartPulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
 /* side panels hover over the globe's edges */
-.heart-side {
-  position: absolute; top: 66px; bottom: 78px; width: 292px; z-index: 2;
-  display: flex; flex-direction: column; gap: 1px;
-  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
-}
-.heart-side::-webkit-scrollbar { display: none; }
 /* A scrolling column must not compress its children. Flex items shrink by
    default, and .brief-cell carries min-height: 0, so once the column had more
    content than height the Debrief card was squeezed shorter than its own text
    — which then spilled out and overlapped the Intelligence card below it.
    The column already scrolls; let it. */
-.heart-side > * { flex-shrink: 0; }
-.heart-side.left { left: 0; }
-.heart-side.right { right: 0; }
 /* frosted so the globe reads through without washing out the text */
-.heart-side .cell, .heart-side .expandable {
-  background: rgba(8, 9, 11, .62);
-  backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
-  border: 1px solid var(--border-glass);
-}
 
 /* readouts along the bottom, floating rather than boxed */
-.heart-stats { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; gap: 1px; background: var(--border-glass); border-top: 1px solid var(--border-glass); }
-.hs-stat { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; background: rgba(8, 9, 11, .72); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px); }
 .hs-v { font-size: 20px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
 .hs-k { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1.6px; color: var(--subtle); text-transform: uppercase; }
 
@@ -520,11 +501,6 @@
    * banner rather than a centrepiece, with a floor so it never degrades into a
    * sliver of nothing.
    */
-  .heart-globe {
-    position: relative;
-    inset: auto;
-    height: clamp(200px, min(78vw, 40vh), 430px);
-  }
   .heart-head { position: static; padding: 2px 4px 8px; }
   .heart-side { position: static; width: auto; inset: auto; overflow: visible; }
   .heart-stats { position: static; }
@@ -1013,63 +989,6 @@
 .heart .atlas-ticker { bottom: 62px; }
 
 /* wider rails, tighter inside */
-.heart-side { width: 312px; top: 58px; bottom: 74px; gap: 1px; }
-.heart-side .cell,
-.heart-side .expandable { padding: 9px 11px; }
-
-/* block headers shrink */
-.heart-side .bh { margin-bottom: 7px; }
-.heart-side .bh .t { font-size: 10px; letter-spacing: .4px; }
-.heart-side .bh .i,
-.heart-side .bh .r { font-size: 7px; letter-spacing: 1.2px; }
-
-/* counters: 4-up instead of 2x2, smaller numerals */
-.heart-side .counters { grid-template-columns: repeat(4, 1fr) !important; gap: 1px; }
-.heart-side .counters .ct { padding: 7px 4px; }
-.heart-side .counters .cv { font-size: 17px; }
-.heart-side .counters .ck { font-size: 6.5px; letter-spacing: .8px; }
-
-/* notes + agenda rows condense */
-.heart-side .notein input { height: 28px; font-size: 11px; }
-.heart-side .notein button { height: 28px; font-size: 8px; padding: 0 9px; }
-.heart-side .note { padding: 5px 0; }
-.heart-side .ntx { font-size: 11px; }
-.heart-side .nt2 { font-size: 7.5px; }
-.heart-side .ag { padding: 5px 0; }
-.heart-side .ag .tm { font-size: 7.5px; }
-.heart-side .ag .en2 { font-size: 11px; }
-.heart-side .ag .el2 { font-size: 6.5px; }
-
-/* gita is the biggest block — cap it so the rail holds more */
-.heart-side .gita .dev { font-size: 12px; line-height: 1.55; }
-.heart-side .gita .tr { font-size: 9px; }
-.heart-side .gita .en { font-size: 11px; line-height: 1.5; }
-.heart-side .gita .src { font-size: 7px; }
-.heart-side .nxt { font-size: 7.5px; padding: 3px 6px; }
-
-/* calendar grid tightens */
-.heart-side .cal { gap: 1px; }
-.heart-side .cal .dh { font-size: 6.5px; }
-.heart-side .cal .d { font-size: 9px; padding: 3px 0; }
-
-/* sitrep, relocated into the rail */
-.sitrep-cell .sitrep-row.compact { flex-direction: column; gap: 4px; }
-.sitrep-cell .sitrep-row.compact .sitrep-chip { padding: 6px 9px; gap: 7px; width: 100%; }
-.sitrep-cell .sitrep-row.compact .sc-tx { font-size: 10.5px; line-height: 1.4; }
-.sitrep-cell .sitrep-row.compact .sc-ic { font-size: 10px; }
-
-/* greeting steps back so the globe reads as the hero */
-.hh-name { font-size: clamp(17px, 1.9vw, 25px); }
-.hh-sub { font-size: 7px; letter-spacing: 2px; }
-
-/* readout strip: more cells, smaller */
-.hs-stat { padding: 7px 11px; }
-.hs-v { font-size: 16px; }
-.hs-k { font-size: 6.5px; letter-spacing: 1.4px; }
-
-@media (max-width: 1180px) {
-  .heart-side { width: 264px; }
-}
 @media (max-width: 900px) {
   .heart-side { width: auto; }
 }
@@ -1318,7 +1237,6 @@
 html[data-density="compact"] .section { padding: 12px 14px; }
 html[data-density="compact"] .cell { padding: 10px 13px; }
 html[data-density="compact"] .heart { margin-bottom: 8px; }
-html[data-density="compact"] .heart-globe { height: clamp(180px, min(60vw, 30vh), 320px); }
 html[data-density="compact"] .sectitle { margin-bottom: 10px; }
 html[data-density="compact"] .heart-side .cell,
 html[data-density="compact"] .heart-side .expandable { padding: 7px 9px; }
@@ -1564,3 +1482,50 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
   font-family: var(--mono); font-size: 7px; cursor: pointer; padding: 0;
 }
 .pl-days button.on { border-color: var(--signal-dim); color: var(--signal); background: var(--signal-faint); }
+
+/* ══ HERO · tiled rows, not an overlay stage ══════════════════════════════
+ *
+ * `.heart` positioned the map at inset:0 and floated two glass columns on top
+ * of it at z-index 2. For a globe that reads beautifully: a sphere in the
+ * middle, panels over the empty corners. For a map it is simply broken — a map
+ * is rectangular and uses every pixel it is given, so the columns covered the
+ * thing they sat on, the Atlas toolbar included. The controls were in the DOM,
+ * styled, and unreachable.
+ *
+ * Rows instead. Nothing overlaps anything, so nothing can hide anything.
+ */
+.deck { display: flex; flex-direction: column; gap: 1px; background: var(--rule); margin: 0 0 14px; }
+
+.deck-head {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 9px 12px; background: var(--panel);
+}
+.deck-head .hh-name { font-size: clamp(17px, 1.9vw, 24px); font-weight: 300; letter-spacing: -0.3px; line-height: 1.1; }
+.deck-figs { display: flex; margin-left: auto; gap: 1px; background: var(--rule); }
+.deck-figs .hs-stat {
+  display: flex; flex-direction: column; gap: 1px; padding: 4px 12px;
+  background: var(--panel); min-width: 74px;
+}
+.deck-figs .hs-v { font-family: var(--mono); font-size: 17px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.deck-figs .hs-k { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.2em; color: var(--subtle); text-transform: uppercase; }
+
+/* Two dense columns of the existing panels. They keep their own components —
+   only the box around them changed. */
+.deck-band { align-items: start; }
+.deck-col { display: flex; flex-direction: column; gap: 1px; background: var(--rule); min-width: 0; }
+.deck-col > * { flex: none; }
+
+/* Solid, not frosted. The blur and translucency were the floating-card idiom;
+   a terminal pane is opaque and butts against its neighbour. */
+.deck-col .cell,
+.deck-col .expandable {
+  background: var(--panel);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 0;
+  padding: 8px 10px;
+}
+
+/* The map: full width, its own row, nothing on top of it. */
+.deck-map { background: var(--panel); height: min(56vh, 620px); min-height: 380px; display: flex; }
+.deck-map .atlas { height: 100%; border: 0; flex: 1; min-width: 0; }
+@media (max-width: 640px) { .deck-map { height: 52vh; min-height: 300px; } }

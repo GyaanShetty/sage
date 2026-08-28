@@ -9,7 +9,7 @@ import { ExpandModal } from "@/components/expand-modal";
 import { TaskManager } from "./task-manager";
 import { ExpandableCell } from "./expandable-cell";
 import { ScheduleManager } from "./schedule-manager";
-import { WorldView } from "@/features/atlas/world-view";
+import { AtlasMap } from "@/features/atlas/atlas-map";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
 import { BriefBlock } from "./brief-block";
@@ -194,23 +194,39 @@ export function CommandView({
       {/* ================= 01 HOME ================= */}
       <section className="section" id="home">
         <div className="sectitle"><span className="sn">01</span><h2>Home</h2><span className="line" /><span className="tag">ASSISTANT · NOTES · GITA · AGENDA</span></div>
-        {/* The globe is the heart: full-bleed and uncontained. Panels float
-            at the edges, readouts sit beneath it. */}
-        <div className="heart">
-          <div className="heart-globe">
-            <WorldView lat={18} lon={78} />
-          </div>
+        {/* The hero, tiled.
 
-          <div className="heart-head">
+            This was an overlay stage: the map at inset:0 with glass columns
+            floating on top of it at z-index 2. That works for a globe — a
+            sphere in the middle, panels over the empty corners — and fails
+            completely for a map, which is rectangular and uses every pixel.
+            The panels covered the thing they sat on, including the Atlas
+            toolbar, so the map's own controls were unreachable.
+
+            Now it is rows: chrome, a band of panes, the map full-width on its
+            own row, then the rest. Nothing overlaps anything. */}
+        <div className="deck">
+          <div className="deck-head">
             <span className="hh-name">{greet}, {userName}</span>
             <span className="hh-sub">
               <i className="hh-dot" />
               {weather ? `${weather.place} ${weather.temp}° · ${weather.label}` : "SAGE"} · ONLINE
             </span>
+            <span className="deck-figs">
+            {weather && (
+              <div className="hs-stat"><span className="hs-v num">{weather.temp}°</span><span className="hs-k">{weather.high}°/{weather.low}°{typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}</span></div>
+            )}
+            <div className="hs-stat"><span className="hs-v num">{open}</span><span className="hs-k">Open</span></div>
+            <div className="hs-stat"><span className="hs-v num">{todays.length}</span><span className="hs-k">Events</span></div>
+            {typeof steps === "number" && steps > 0 && (
+              <div className="hs-stat"><span className="hs-v num"><NumberTicker value={steps} /></span><span className="hs-k">Steps</span></div>
+            )}
+            </span>
           </div>
 
-          <aside className="heart-side left">
-            <SitrepBand compact />
+          <div className="tiles c2 deck-band">
+            <div className="deck-col">
+<SitrepBand compact />
             <BriefBlock />
               <ExpandableCell title="Intelligence" tag="MEMORY CORE">
                 <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
@@ -240,10 +256,9 @@ export function CommandView({
                   </div>
                 ))}
               </ExpandableCell>
-          </aside>
-
-          <aside className="heart-side right">
-            <NextAction />
+            </div>
+            <div className="deck-col">
+<NextAction />
               <ExpandableCell title="Bhagavad Gita" tag="श्लोक" className="gita">
                 <div className="bh"><span className="t">Gita</span><span className="i">श्लोक</span></div>
                 <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
@@ -287,17 +302,12 @@ export function CommandView({
                 {events !== null && events.length === 0 && <p className="lbl">NO UPCOMING EVENTS</p>}
                 {events === null && <p className="lbl">CONNECT GOOGLE IN SETTINGS</p>}
               </ExpandableCell>
-          </aside>
+            </div>
+          </div>
 
-          <div className="heart-stats">
-            {weather && (
-              <div className="hs-stat"><span className="hs-v num">{weather.temp}°</span><span className="hs-k">{weather.high}°/{weather.low}°{typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}</span></div>
-            )}
-            <div className="hs-stat"><span className="hs-v num">{open}</span><span className="hs-k">Open</span></div>
-            <div className="hs-stat"><span className="hs-v num">{todays.length}</span><span className="hs-k">Events</span></div>
-            {typeof steps === "number" && steps > 0 && (
-              <div className="hs-stat"><span className="hs-v num"><NumberTicker value={steps} /></span><span className="hs-k">Steps</span></div>
-            )}
+          {/* Full width, its own row, nothing on top of it. */}
+          <div className="deck-map">
+            <AtlasMap lat={12.9352} lon={77.6245} />
           </div>
         </div>
 

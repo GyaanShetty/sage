@@ -11,6 +11,7 @@ import { ExpandableCell } from "./expandable-cell";
 import { ScheduleManager } from "./schedule-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
 import { ChronoTile, FieldTile, CosmosTile, PlayingTile, WireTile } from "./tiles";
+import { CommuteTile } from "./commute-tile";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
 import { BriefBlock } from "./brief-block";
@@ -225,6 +226,13 @@ export function CommandView({
             </span>
           </div>
 
+          {/* The map leads. It is the thing he actually looks at, and it gets
+              the room to prove it — full width, its own row, above everything
+              else so nothing can crowd or cover it. */}
+          <div className="deck-map">
+            <AtlasMap lat={12.9352} lon={77.6245} />
+          </div>
+
           <div className="tiles c2 deck-band">
             <div className="deck-col">
 <SitrepBand compact />
@@ -306,21 +314,19 @@ export function CommandView({
             </div>
           </div>
 
-          {/* Full width, its own row, nothing on top of it. */}
-          <div className="deck-map">
-            <AtlasMap lat={12.9352} lon={77.6245} />
-          </div>
-
           {/* The instrument band. Every tile here is a re-presentation of data
               SAGE already produces — the density comes from showing what is
               known, tightly, not from fetching more. */}
           <div className="tiles c4">
             <ChronoTile n={4} />
             <FieldTile n={7} />
+            <CommuteTile n={8} />
             <PlayingTile n={19} />
-            <WireTile n={15} />
           </div>
-          <CosmosTile n={30} />
+          <div className="tiles c2">
+            <WireTile n={15} />
+            <CosmosTile n={30} />
+          </div>
         </div>
 
         <div className="cell ask">

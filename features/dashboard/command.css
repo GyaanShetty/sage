@@ -1526,6 +1526,22 @@ html[data-density="compact"] .bh { margin-bottom: 5px; }
 }
 
 /* The map: full width, its own row, nothing on top of it. */
-.deck-map { background: var(--panel); height: min(56vh, 620px); min-height: 380px; display: flex; }
+.deck-map { background: var(--panel); height: min(72vh, 860px); min-height: 420px; display: flex; }
 .deck-map .atlas { height: 100%; border: 0; flex: 1; min-width: 0; }
-@media (max-width: 640px) { .deck-map { height: 52vh; min-height: 300px; } }
+@media (max-width: 640px) { .deck-map { height: 60vh; min-height: 320px; } }
+
+/* ── atlas: find a place ── */
+.atlas-find { flex-wrap: wrap; }
+.atlas-hits { display: flex; flex-direction: column; border: 1px solid var(--rule); background: var(--panel); max-height: 168px; overflow-y: auto; }
+.atlas-hit { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; background: none;
+  border: 0; border-bottom: 1px solid var(--rule); cursor: pointer; text-align: left; }
+.atlas-hit:last-child { border-bottom: 0; }
+.atlas-hit:hover { background: var(--signal-faint); }
+.ah-n { font-family: var(--mono); font-size: 7.5px; color: var(--signal-dim); flex: none; }
+.ah-t { font-family: var(--mono); font-size: 9px; color: var(--muted); line-height: 1.35;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atlas-hit:hover .ah-t { color: var(--foreground); }
+/* the place he has asked to be routed to */
+.atlas-place.on i { background: var(--foreground); box-shadow: 0 0 0 2px var(--panel), 0 0 10px var(--live-glow); }
+.atlas-place.on span { color: var(--foreground); border-left-color: var(--foreground); }
+.atlas-place { cursor: pointer; }

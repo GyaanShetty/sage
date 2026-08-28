@@ -51,6 +51,12 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   /** A spot he right-clicked, waiting to be named. */
   const [pending, setPending] = useState<{ lat: number; lon: number } | null>(null);
   const [placeName, setPlaceName] = useState("");
+  /** Find-a-place. Nominatim, debounced, biased to the current centre. */
+  const [query, setQuery] = useState("");
+  const [hits, setHits] = useState<{ name: string; lat: number; lon: number }[]>([]);
+  const [seeking, setSeeking] = useState(false);
+  /** A place he asked to be routed to, overriding the scheduled one. */
+  const [pinned, setPinned] = useState<Place | null>(null);
   const meRef = useRef<LLayer | null>(null);
   /** Whether the map has already jumped to him once. A ref, not state:
    *  watchPosition fires continuously, and re-centring on every tick would
@@ -64,6 +70,31 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     () => fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(j?.data ?? [])).catch(() => {}),
     { everyMs: 300_000, scopes: ["places"] },
   );
+
+  /**
+   * Search, debounced.
+   *
+   * Nominatim asks for at most a request a second, and typing produces far
+   * more than that — so the query settles for 400ms before anything is sent,
+   * and an in-flight search is abandoned when a newer one starts rather than
+   * being allowed to land out of order over a fresher result.
+   */
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3) { setHits([]); setSeeking(false); return; }
+    setSeeking(true);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      const c = mapRef.current?.getCenter();
+      const near = c ? `&lat=${c.lat}&lon=${c.lng}` : "";
+      fetch(`/api/geocode?q=${encodeURIComponent(q)}${near}`, { signal: ctrl.signal })
+        .then((r) => r.json())
+        .then((j) => setHits(j?.data ?? []))
+        .catch(() => {})
+        .finally(() => setSeeking(false));
+    }, 400);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [query]);
 
   // ── init map + static layers ─────────────────────────────
   useEffect(() => {
@@ -366,12 +397,21 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     const g = L.layerGroup();
     for (const p of places) {
       L.marker([p.lat, p.lon], {
-        icon: L.divIcon({ className: "atlas-place", html: `<i></i><span>${p.name}</span>`, iconSize: [0, 0] }),
-      }).addTo(g);
+        icon: L.divIcon({
+          className: `atlas-place${pinned?.id === p.id ? " on" : ""}`,
+          html: `<i></i><span>${p.name}</span>`, iconSize: [0, 0],
+        }),
+        // The label is the click target, so it needs to accept clicks even
+        // though the marker class as a whole does not.
+        interactive: true,
+      })
+        .on("click", () => setPinned((cur) => (cur?.id === p.id ? null : p)))
+        .bindTooltip(`ROUTE TO ${p.name.toUpperCase()}`, { direction: "top" })
+        .addTo(g);
     }
     g.addTo(map);
     placeRef.current = g;
-  }, [ready, places]);
+  }, [ready, places, pinned]);
 
   /**
    * The route to wherever he is due to be.
@@ -383,7 +423,9 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     const L = LRef.current, map = mapRef.current;
     if (!ready || !L || !map || !position) { setRoute(null); return; }
 
-    const target = dueAt(places, new Date(), position);
+    // An explicit ask wins over the schedule. Asking for directions and being
+    // given directions somewhere else is the worst possible answer.
+    const target = pinned ?? dueAt(places, new Date(), position);
     if (!target) { routeRef.current?.remove(); routeRef.current = null; setRoute(null); return; }
 
     let cancelled = false;
@@ -405,7 +447,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     return () => { cancelled = true; };
     // Recomputed when he moves far enough to matter, not on every GPS tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, places, Math.round((position?.lat ?? 0) * 500), Math.round((position?.lon ?? 0) * 500)]);
+  }, [ready, places, pinned, Math.round((position?.lat ?? 0) * 500), Math.round((position?.lon ?? 0) * 500)]);
 
   /** Save the right-clicked spot. */
   const savePending = async () => {
@@ -475,8 +517,44 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
           )}
         </div>
 
+        {/* Find a place. Right-click adds where you already are; this is the
+            other half — getting somewhere you have not found yet. */}
         {!pending && (
-          <span className="atlas-hint">RIGHT-CLICK THE MAP TO SAVE A PLACE · SET ITS HOURS IN 05 WORLD</span>
+          <div className="rail atlas-find">
+            <span className="k">FIND</span>
+            <input
+              className="atlas-name"
+              value={query}
+              placeholder="SEARCH A PLACE, ADDRESS OR LANDMARK"
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Escape") { setQuery(""); setHits([]); } }}
+            />
+            {seeking && <span className="k">…</span>}
+            {query && <button className="atlas-chip" onClick={() => { setQuery(""); setHits([]); }}>CLEAR</button>}
+            {!query && <span className="atlas-hint">OR RIGHT-CLICK THE MAP TO SAVE A SPOT</span>}
+          </div>
+        )}
+
+        {hits.length > 0 && (
+          <div className="atlas-hits">
+            {hits.map((h, i) => (
+              <button
+                key={i}
+                className="atlas-hit"
+                onClick={() => {
+                  mapRef.current?.setView([h.lat, h.lon], 16, { animate: true });
+                  // Offer it for saving, rather than saving it silently — a
+                  // search result is a look, not a commitment.
+                  setPending({ lat: h.lat, lon: h.lon });
+                  setPlaceName(h.name.split(",")[0] ?? "");
+                  setQuery(""); setHits([]);
+                }}
+              >
+                <span className="ah-n">{String(i + 1).padStart(2, "0")}</span>
+                <span className="ah-t">{h.name}</span>
+              </button>
+            ))}
+          </div>
         )}
 
         <div className="atlas-layers">
@@ -516,6 +594,10 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
             <span className="sep" />
             <span className="v">{(route.meters / 1000).toFixed(1)} KM</span>
             <span className="v">{Math.round(route.seconds / 60)} MIN</span>
+            {/* Say which kind of route this is. A schedule-driven one appears
+                on its own and should not look like something he asked for. */}
+            <span className="k">{pinned ? "REQUESTED" : "SCHEDULED"}</span>
+            {pinned && <button className="atlas-chip" onClick={() => setPinned(null)}>CLEAR</button>}
           </div>
         )}
       </div>

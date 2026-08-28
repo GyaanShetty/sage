@@ -21,7 +21,11 @@ const RETENTION_DAYS: Record<string, number> = {
   "notify.sent": 14,          // "already pushed today" markers
   "debrief.played": 14,       // "already spoke today" claim
   "anticipate.warned": 14,
-  "location.update": 7,       // highest volume by far, lowest value
+  // Was 7. Still the highest-volume type, but no longer the lowest value:
+  // whereIs() reads these, and the ambient and brief layers reason about
+  // where he has been. Thirty days is enough for "you are usually at the gym
+  // by now" without keeping a year of movement history around.
+  "location.update": 30,
   "search": 30,
 
   // Generated content: cheap to regenerate, and stale within weeks.

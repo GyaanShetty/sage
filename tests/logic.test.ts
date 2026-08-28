@@ -3134,3 +3134,48 @@ test("gesture control has a fallback click and legible states", () => {
   // switched on to inspect and the message disappears with the component.
   assert.doesNotMatch(code, /setGestureNav\(false\)/, "failure must not flip the switch back");
 });
+
+/**
+ * Location must be reported with its age.
+ *
+ * The webhook has been storing arrive/leave events from the phone since it was
+ * written and nothing ever read them — retention deleted them after a week.
+ * Now that they drive answers, the thing that matters is staleness: an
+ * assistant that states a six-hour-old position as current will confidently
+ * tell him to leave for somewhere he is already sitting. A stale fix is not a
+ * wrong fix; a stale fix presented as current is.
+ */
+test("a location answer always carries how old it is", async () => {
+  const { describeWhere, STALE_AFTER_MIN } = await import("@/core/location");
+  const place = { id: "p1", name: "Gym", lat: 12.9, lon: 77.6 } as never;
+
+  assert.match(describeWhere({ fix: null, at: null, nearest: null, stale: true }), /don't know/i);
+
+  const fresh = describeWhere({
+    fix: { lat: 12.9, lon: 77.6, at: new Date().toISOString(), ageMin: 4 },
+    at: place, nearest: { place, meters: 20 }, stale: false,
+  });
+  assert.match(fresh, /At Gym/);
+  assert.match(fresh, /4 minutes ago/, "even a fresh answer states its age");
+
+  const old = describeWhere({
+    fix: { lat: 12.9, lon: 77.6, at: new Date().toISOString(), ageMin: 360 },
+    at: place, nearest: { place, meters: 20 }, stale: true,
+  });
+  assert.match(old, /Last seen/, "a stale fix must not read as a current one");
+  assert.match(old, /6 hours ago/);
+
+  assert.ok(STALE_AFTER_MIN > 0 && STALE_AFTER_MIN < 24 * 60);
+
+  // Retention must not delete the history the feature depends on.
+  const ret = readFileSync(new URL("../core/ops/retention.ts", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const days = Number(ret.match(/"location\.update":\s*(\d+)/)?.[1] ?? 0);
+  assert.ok(days >= 30, `location history must outlive a week, got ${days}`);
+
+  // The browser publishes through a same-origin route, never the machine one:
+  // reusing the shared-secret webhook would ship that secret in client JS.
+  const self = readFileSync(new URL("../app/api/webhook/location/self/route.ts", import.meta.url), "utf8");
+  assert.match(self, /sameOrigin/, "browser publishing is same-origin gated");
+  assert.doesNotMatch(self, /machineAuth/, "no machine secret in a browser-facing route");
+});

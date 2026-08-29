@@ -29,22 +29,58 @@ function Go({ href, children }: { href: string; children: React.ReactNode }) {
 }
 
 /* ── SIGNALS · /sitrep ────────────────────────────────────────────────── */
+interface SitLine { key: string; label: string; value: string; detail?: string; level: string; tier?: string }
+
+const TIERS: { key: string; label: string }[] = [
+  { key: "now", label: "NOW" },
+  { key: "today", label: "TODAY" },
+  { key: "drift", label: "DRIFT" },
+  { key: "system", label: "SYSTEM" },
+];
+
 export function SignalsTile({ n }: { n?: number }) {
-  const [alerts, setAlerts] = useState<{ level: string; icon: string; text: string }[] | null>(null);
+  const [lines, setLines] = useState<SitLine[] | null>(null);
+
+  /**
+   * Reads /api/sitrep/live, which is the structured build over seven
+   * producers. The band used to read /api/sitrep — a flat, older list — so the
+   * dashboard and the sitrep page were two different answers to the same
+   * question, and only one of them had tiers.
+   */
   useLive(
-    () => fetch("/api/sitrep").then((r) => r.json()).then((j) => setAlerts(j?.data?.alerts ?? [])).catch(() => setAlerts([])),
-    { everyMs: 60_000, scopes: ["tasks", "events"] },
+    () => fetch("/api/sitrep/live").then((r) => r.json())
+      .then((j) => setLines(j?.data?.sitrep?.lines ?? [])).catch(() => setLines([])),
+    { everyMs: 45_000, scopes: ["tasks", "events"] },
   );
+
+  const alerting = (lines ?? []).filter((l) => l.level === "alert").length;
+
   return (
-    <Pane n={n} title="Signals" status={<Go href="/sitrep">{alerts ? `${pad(alerts.length)} OPEN` : "…"}</Go>} live={!!alerts?.length}>
-      {!alerts && <div className="tile-wait">ACQUIRING…</div>}
-      {alerts?.length === 0 && <div className="tile-wait">ALL QUIET</div>}
-      {alerts?.slice(0, 6).map((a, i) => (
-        <div className={`sig-row ${a.level}`} key={i}>
-          <span className="sg-i">{a.icon}</span>
-          <span className="sg-t">{a.text}</span>
-        </div>
-      ))}
+    <Pane
+      n={n}
+      title="Signals"
+      status={<Go href="/sitrep">{lines ? (alerting ? `${pad(alerting)} ALERT` : "NOMINAL") : "…"}</Go>}
+      live={!!lines?.length}
+    >
+      {!lines && <div className="tile-wait">ACQUIRING…</div>}
+      {lines?.length === 0 && <div className="tile-wait">NO SIGNAL</div>}
+      {TIERS.map(({ key, label }) => {
+        // An alert is promoted to NOW whatever produced it, so a tier can be
+        // empty on a quiet day. An empty heading is noise; skip it.
+        const rows = (lines ?? []).filter((l) => (l.tier ?? "today") === key);
+        if (!rows.length) return null;
+        return (
+          <div key={key}>
+            <div className="sig-tier">{label}</div>
+            {rows.map((l) => (
+              <div className={`sig-row ${l.level}`} key={l.key}>
+                <span className="sg-k">{l.label}</span>
+                <span className="sg-v">{l.value}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </Pane>
   );
 }

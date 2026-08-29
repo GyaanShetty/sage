@@ -3330,3 +3330,34 @@ test("the code editor indents like an editor", async () => {
   assert.equal(onCloseBracket({ value: "foo(a", start: 5, end: 5 }, ")"), null);
   assert.equal(onCloseBracket({ value: "x = [\n", start: 6, end: 6 }, "]"), null);
 });
+
+/**
+ * The sitrep has four layers, and the dashboard reads the same source as the
+ * page.
+ *
+ * There were two implementations: the band read /api/sitrep (a flat, older
+ * list) while the page read /api/sitrep/live (structured, seven producers). So
+ * the same question had two answers and only one of them had tiers.
+ *
+ * "Everything that might matter" in one flat list is not a status board — it
+ * is a pile you have to read in full to learn anything.
+ */
+test("sitrep lines are tiered, and alerts are promoted to NOW", async () => {
+  const { tierOf } = await import("@/core/sitrep");
+
+  assert.equal(tierOf("agenda"), "now");
+  assert.equal(tierOf("tasks"), "today");
+  assert.equal(tierOf("health"), "drift", "drift is what you only see over time");
+  assert.equal(tierOf("system"), "system", "SAGE's own health is not a fact about his life");
+  assert.equal(tierOf("something-new"), "today", "an unmapped producer still lands somewhere");
+
+  const src = readFileSync(new URL("../core/sitrep/index.ts", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(src, /alerts:.*tier: "now"/s, "anything actively wrong is NOW whatever produced it");
+
+  // The tile must read the structured route, not the flat one.
+  const tile = readFileSync(new URL("../features/dashboard/components/page-tiles.tsx", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(tile, /\/api\/sitrep\/live/, "one source for the band and the page");
+  assert.match(tile, /data\?\.sitrep\?\.lines/, "and it must read that route's actual shape");
+});

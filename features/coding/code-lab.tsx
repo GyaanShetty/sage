@@ -8,6 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 import "./code-lab.css";
+import { onTab, onShiftTab, onEnter, onCloseBracket, type EditState } from "./indent";
 
 /**
  * Solve the problem here, submit it there.
@@ -342,15 +343,30 @@ export function CodeLab({ slug }: { slug?: string }) {
                 spellCheck={false}
                 placeholder="Write your solution…"
                 onKeyDown={(e) => {
-                  // Tab inserts indentation instead of leaving the editor —
-                  // the default focus behaviour is useless in a code box.
-                  if (e.key !== "Tab") return;
-                  e.preventDefault();
+                  /* Editor behaviour, not textarea behaviour.
+                   *
+                   * Tab moves a whole selected block instead of replacing it —
+                   * the plain-textarea default silently deletes the code you
+                   * had highlighted. Enter carries the indentation, which in
+                   * Python is not a convenience but the syntax. */
                   const el = e.currentTarget;
-                  const { selectionStart: a, selectionEnd: b } = el;
-                  const next = `${code.slice(0, a)}    ${code.slice(b)}`;
-                  setCode(next);
-                  requestAnimationFrame(() => { el.selectionStart = el.selectionEnd = a + 4; });
+                  const s = { value: code, start: el.selectionStart, end: el.selectionEnd };
+                  let next: EditState | null = null;
+
+                  if (e.key === "Tab") next = e.shiftKey ? onShiftTab(s) : onTab(s);
+                  else if (e.key === "Enter") next = onEnter(s);
+                  else if (/^[}\])]$/.test(e.key)) next = onCloseBracket(s, e.key);
+
+                  if (!next) return;
+                  e.preventDefault();
+                  setCode(next.value);
+                  setSaved(false);
+                  // After React commits, not before — setting selection against
+                  // the old value puts the caret in the wrong place.
+                  requestAnimationFrame(() => {
+                    el.selectionStart = next.start;
+                    el.selectionEnd = next.end;
+                  });
                 }}
               />
 

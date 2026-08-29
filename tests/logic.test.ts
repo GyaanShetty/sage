@@ -3288,3 +3288,45 @@ test("the brief leads with career deadlines, and says nothing when there are non
     "deadlines come before the unread count",
   );
 });
+
+/**
+ * Editor indentation.
+ *
+ * These are all off-by-one bugs on the caret, and every one of them presents
+ * as "the editor is broken" rather than as an indentation rule — which is why
+ * they are pure functions with tests rather than inline handlers.
+ */
+test("the code editor indents like an editor", async () => {
+  const { onTab, onShiftTab, onEnter, onCloseBracket } = await import("@/features/coding/indent");
+
+  // Tab with no selection inserts a level at the caret.
+  assert.deepEqual(onTab({ value: "ab", start: 1, end: 1 }), { value: "a    b", start: 5, end: 5 });
+
+  /**
+   * The one that matters: a plain textarea replaces the selection with a tab
+   * character, silently destroying the code that was highlighted.
+   */
+  const block = "def f():\nx = 1\ny = 2";
+  const indented = onTab({ value: block, start: 9, end: 20 });
+  assert.equal(indented.value, "def f():\n    x = 1\n    y = 2");
+
+  // Outdent removes up to one level, never more than a line has.
+  assert.equal(onShiftTab({ value: "    x = 1", start: 9, end: 9 }).value, "x = 1");
+  assert.equal(onShiftTab({ value: "  x = 1", start: 7, end: 7 }).value, "x = 1", "two spaces lose two, not four");
+  assert.equal(onShiftTab({ value: "x = 1", start: 5, end: 5 }).value, "x = 1", "no indent, nothing eaten");
+  // And the caret never ends up behind the start of its own line.
+  assert.ok(onShiftTab({ value: "x = 1", start: 0, end: 0 }).start >= 0);
+
+  // Enter carries the indentation — in Python this is the syntax, not a style.
+  assert.equal(onEnter({ value: "    x = 1", start: 9, end: 9 }).value, "    x = 1\n    ");
+  // And adds a level after a line that opens a block.
+  assert.equal(onEnter({ value: "def f():", start: 8, end: 8 }).value, "def f():\n    ");
+  assert.equal(onEnter({ value: "    if x:", start: 9, end: 9 }).value, "    if x:\n        ");
+
+  // A closing bracket alone on a line pulls back to where the block opened.
+  assert.equal(onCloseBracket({ value: "x = [\n    1,\n    ", start: 17, end: 17 }, "}")!.value,
+    "x = [\n    1,\n}");
+  // But not when there is code before it, and not at the left margin already.
+  assert.equal(onCloseBracket({ value: "foo(a", start: 5, end: 5 }, ")"), null);
+  assert.equal(onCloseBracket({ value: "x = [\n", start: 6, end: 6 }, "]"), null);
+});

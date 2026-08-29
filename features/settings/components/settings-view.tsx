@@ -11,6 +11,7 @@ import { Diagnostics } from "./diagnostics";
 import { Vitals } from "./vitals";
 import { Passkeys } from "./passkeys";
 import { CalendarFeeds } from "./calendar-feeds";
+import { OutlookCard } from "./outlook-card";
 
 function ConnectedBadge({ provider, onDone }: { provider: string; onDone: () => void }) {
   const disconnect = async () => {
@@ -84,6 +85,7 @@ export function SettingsView({
               <span className="text-xs text-subtle">Set GOOGLE_OAUTH_CLIENT_ID/SECRET to enable</span>
             )}
           </GlassPanel>
+          <OutlookCard />
 
           <GlassPanel className="mt-3 flex items-center gap-4 p-5">
             <Music className="size-5 text-muted" />

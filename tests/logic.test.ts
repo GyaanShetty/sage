@@ -3179,3 +3179,88 @@ test("a location answer always carries how old it is", async () => {
   assert.match(self, /sameOrigin/, "browser publishing is same-origin gated");
   assert.doesNotMatch(self, /machineAuth/, "no machine secret in a browser-facing route");
 });
+
+// ── Outlook: opportunities are extracted, never invented ───────────────────
+
+test("internship mail is classified from what it actually says", async () => {
+  const { classify, findOpportunities, findDeadline, extractLinks } = await import("@/core/career/inbox");
+
+  const mail = (over: Partial<Parameters<typeof classify>[0]>) => ({
+    id: "1", subject: "", from: "x@y.com", body: "", receivedAt: "2026-08-28T09:00:00Z", ...over,
+  });
+
+  /**
+   * The point of doing this with rules: a model asked "what is the deadline"
+   * answers even when there is none, and a hallucinated deadline in a career
+   * tracker is worse than no tracker — a wrong answer that looks exactly like
+   * a right one, and it will be believed.
+   */
+  assert.equal(findDeadline("Applications are open. Come to our webinar on 3 March 2026."), null,
+    "a date with no deadline word is not a deadline");
+  assert.equal(findDeadline("Apply by 15 March 2026 to be considered."), "2026-03-15");
+  assert.equal(findDeadline("Last date: March 15, 2026"), "2026-03-15");
+  assert.equal(findDeadline("deadline 2026-03-15"), "2026-03-15");
+  assert.equal(findDeadline("Deadline is soon — check the portal."), null,
+    "an unparseable date yields nothing rather than a guess");
+
+  // Somewhere you apply ranks above somewhere you read about applying.
+  const links = extractLinks("See https://blog.example.com/news and apply at https://forms.gle/abc123.");
+  assert.match(links[0], /forms\.gle/, "the apply link comes first");
+  assert.equal(links.length, 2);
+
+  // A real invitation.
+  const interview = classify(mail({
+    subject: "Interview invitation — Summer Analyst internship",
+    body: "Please book a slot at https://lever.co/acme/apply. Submit by 15 March 2026.",
+  }))!;
+  assert.ok(interview.kinds.includes("interview"));
+  assert.ok(interview.kinds.includes("internship"));
+  assert.equal(interview.deadline, "2026-03-15");
+  assert.ok(interview.score > 0.8, `strong signal, got ${interview.score}`);
+
+  // Bulk mail that merely mentions the word must not sit alongside it.
+  const spam = classify(mail({
+    subject: "Weekly newsletter: internship trends in 2026",
+    body: "Read more on our blog. To unsubscribe click here.",
+  }));
+  assert.ok(!spam || spam.score < 0.45, `marketing must score low, got ${spam?.score}`);
+
+  // Nothing at all is nothing, not a low-confidence something.
+  assert.equal(classify(mail({ subject: "Lunch?", body: "Free at 1?" })), null);
+
+  // Ordering: a dated deadline outranks a higher-scoring undated one.
+  const ranked = findOpportunities([
+    mail({ id: "a", subject: "Interview invitation for internship", body: "https://lever.co/x" }),
+    mail({ id: "b", subject: "Internship application form", body: "Apply by 1 March 2026 https://forms.gle/z" }),
+  ]);
+  assert.equal(ranked[0].id, "b", "a real deadline leads regardless of score");
+});
+
+/**
+ * The redirect URI is registered in Azure and must match byte for byte.
+ *
+ * It deliberately breaks the /api/integrations/<name>/callback convention the
+ * Google integration uses, because that is the URI already registered. Moving
+ * it to match the convention would fail every sign-in with AADSTS50011 — an
+ * error naming nothing useful, so it would read as a code bug.
+ */
+test("outlook keeps the registered redirect path and asks for a refresh token", () => {
+  const src = readFileSync(new URL("../infrastructure/integrations/outlook.ts", import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+  assert.match(src, /\/api\/outlook\/callback/, "must match the URI registered in Azure");
+  assert.match(src, /offline_access/, "without it the connection dies after an hour");
+  assert.match(src, /Mail\.Read/);
+
+  // Credentials: the store he pasted into wins over an environment variable,
+  // or pasting a replacement would not replace anything.
+  const creds = src.slice(src.indexOf("export async function outlookCreds"));
+  assert.match(creds, /keysFor\("outlook_id"\)/);
+  assert.ok(
+    creds.indexOf("ids[ids.length - 1]") < creds.indexOf("process.env.OUTLOOK_CLIENT_ID"),
+    "the key store must be consulted before the environment",
+  );
+
+  // Microsoft rotates refresh tokens; keeping the old one works until it does not.
+  assert.match(src, /refreshed\.refresh_token \? \{ refreshToken/, "store the rotated refresh token");
+});

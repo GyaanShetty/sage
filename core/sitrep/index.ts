@@ -25,6 +25,34 @@ import { within } from "@/lib/budget";
 
 export type Level = "ok" | "watch" | "alert";
 
+/**
+ * Four layers, because "everything that might matter" in one flat list is not
+ * a status board — it is a pile you have to read in full to learn anything.
+ *
+ *  NOW    · happening or imminent; act on it in the next hour.
+ *  TODAY  · the shape of the day: what is booked, owed, and budgeted.
+ *  DRIFT  · departures from his own baselines. Nothing here is an emergency,
+ *           and that is the point — drift is what you only see over time.
+ *  SYSTEM · SAGE's own health. Separate because a broken feed is not a fact
+ *           about his life, and mixing the two makes both harder to trust.
+ */
+export type Tier = "now" | "today" | "drift" | "system";
+
+/** Which layer each producer belongs to. */
+const TIER_OF: Record<string, Tier> = {
+  agenda: "now",
+  tasks: "today",
+  budget: "today",
+  markets: "today",
+  mail: "today",
+  health: "drift",
+  system: "system",
+};
+
+export function tierOf(key: string): Tier {
+  return TIER_OF[key] ?? "today";
+}
+
 export interface SitrepLine {
   key: string;
   label: string;
@@ -32,6 +60,7 @@ export interface SitrepLine {
   detail?: string;
   level: Level;
   href?: string;
+  tier?: Tier;
 }
 
 export interface Sitrep {
@@ -60,14 +89,17 @@ export async function buildSitrep(): Promise<Sitrep> {
   ]);
 
   const lines = [agenda?.line, tasks, health, budget, markets, mail, system]
-    .filter((l): l is SitrepLine => !!l);
+    .filter((l): l is SitrepLine => !!l)
+    .map((l) => ({ ...l, tier: l.tier ?? tierOf(l.key) }));
 
   return {
     at: now.toISOString(),
     nextEventAt: agenda?.at ?? null,
     nextEventTitle: agenda?.title ?? null,
     lines,
-    alerts: lines.filter((l) => l.level === "alert"),
+    // Anything actively wrong is NOW whatever produced it — a breached budget
+    // stops being a fact about the month and becomes a thing to deal with.
+    alerts: lines.filter((l) => l.level === "alert").map((l) => ({ ...l, tier: "now" as Tier })),
   };
 }
 

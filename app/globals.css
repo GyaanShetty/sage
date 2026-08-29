@@ -1014,3 +1014,13 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .ag-day { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.22em;
   color: var(--signal); padding: 5px 0 2px; border-top: 1px solid var(--rule); margin-top: 3px; }
 .ag-day:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+/* Sitrep tiers. */
+.sig-tier { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.24em; color: var(--signal);
+  padding: 4px 8px 2px; border-top: 1px solid var(--rule); }
+.sig-tier:first-child { border-top: 0; }
+.sig-row .sg-k { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--subtle); flex: none; }
+.sig-row .sg-v { font-size: 10.5px; color: var(--muted); margin-left: auto; text-align: right;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sig-row.alert .sg-v { color: var(--down); }
+.sig-row.watch .sg-v { color: var(--signal); }

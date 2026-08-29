@@ -6,6 +6,8 @@ import { getWeather } from "@/infrastructure/weather";
 import { trainingSummary } from "@/core/health/hevy";
 import { getPositions } from "@/core/portfolio/store";
 import { TZ } from "@/lib/config";
+import { listOutlookMail } from "@/infrastructure/integrations/outlook";
+import { findOpportunities } from "@/core/career/inbox";
 
 /**
  * The shape of the day, assembled once.
@@ -66,6 +68,9 @@ export interface DayPicture {
 
   /** The rest of his world */
   unread: { from: string; subject: string }[];
+  /** Internship mail, forms and interviews found in Outlook, soonest deadline
+   *  first. Empty when Outlook is not connected. */
+  opportunities: { subject: string; from: string; deadline: string | null; kinds: string[] }[];
   markets: { symbol: string; change24h: number | null }[];
   portfolio: { value: number; pnl: number; movers: { symbol: string; change24h: number | null }[] } | null;
   weather: { label: string; temp: number; high: number; low: number; place: string; aqi?: number | null } | null;
@@ -122,9 +127,12 @@ export async function buildDayPicture(): Promise<DayPicture> {
   const dayEnd = endOfToday(TZ);
   const { weekday, date, dow } = fmtParts(TZ);
 
-  const [rawEvents, emails, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }, budget] = await Promise.all([
+  const [rawEvents, emails, opportunities, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }, budget] = await Promise.all([
     upcomingEvents(10).catch(() => null),
     listUnreadEmails(6).catch(() => null),
+    // Outlook is optional: not connected returns null and the brief simply
+    // does not mention it, rather than failing to generate.
+    listOutlookMail(40).then((m) => (m ? findOpportunities(m) : [])).catch(() => []),
     getMarkets().catch(() => null),
     getWeather().catch(() => null),
     trainingSummary(30).catch(() => null),
@@ -243,6 +251,9 @@ export async function buildDayPicture(): Promise<DayPicture> {
     overdue, dueToday, headline,
     openCount: tasks.length,
     unread: (emails ?? []).map((e) => ({ from: e.from, subject: e.subject })),
+    opportunities: opportunities.map((o) => ({
+      subject: o.subject, from: o.from, deadline: o.deadline, kinds: o.kinds,
+    })),
     markets: (markets ?? []).slice(0, 6).map((c) => ({ symbol: c.symbol, change24h: c.change24h })),
     portfolio,
     weather: weather
@@ -350,6 +361,21 @@ export function describeDay(d: DayPicture): string {
     if (d.headline) lines.push(`  Lead with this one: "${d.headline.title}".`);
   }
 
+  /* Deadlines lead the email section. An application that closes today is the
+     single most time-critical thing a morning brief can carry, and burying it
+     under an unread count defeats the purpose of reading one. */
+  if (d.opportunities.length) {
+    const dated = d.opportunities.filter((o) => o.deadline);
+    if (dated.length) {
+      lines.push(
+        `DEADLINES: ${dated.slice(0, 3).map((o) => `"${o.subject}" closes ${o.deadline}`).join("; ")}`,
+      );
+    }
+    const undated = d.opportunities.filter((o) => !o.deadline).slice(0, 2);
+    if (undated.length) {
+      lines.push(`CAREER MAIL: ${undated.map((o) => `${o.from} — "${o.subject}"`).join("; ")}`);
+    }
+  }
   if (d.unread.length) {
     lines.push(`EMAIL: ${d.unread.length} unread — ${d.unread.slice(0, 3).map((e) => `${e.from} on "${e.subject}"`).join("; ")}`);
   }

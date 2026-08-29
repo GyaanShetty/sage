@@ -1010,3 +1010,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .gl-k { font-family: var(--mono); font-size: 8px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--signal); }
 .gl-d { font-size: 9.5px; color: var(--muted); }
+/* Day separators in the agenda. */
+.ag-day { font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.22em;
+  color: var(--signal); padding: 5px 0 2px; border-top: 1px solid var(--rule); margin-top: 3px; }
+.ag-day:first-child { border-top: 0; margin-top: 0; padding-top: 0; }

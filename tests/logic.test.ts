@@ -332,7 +332,7 @@ const emptyDay: DayPicture = {
   now: new Date().toISOString(), weekday: "Monday", date: "3 August", weekend: false,
   events: [], next: null, committedMin: 0, load: "clear", longestGapMin: null, lastEventEndsAt: null,
   tasks: [], overdue: [], dueToday: [], headline: null, openCount: 0,
-  unread: [], markets: [], portfolio: null, weather: null, reminders: [], goals: [], budget: null, training: null,
+  unread: [], opportunities: [], markets: [], portfolio: null, weather: null, reminders: [], goals: [], budget: null, training: null,
 };
 
 test("describeDay states an empty day plainly instead of inventing work", () => {
@@ -3263,4 +3263,28 @@ test("outlook keeps the registered redirect path and asks for a refresh token", 
 
   // Microsoft rotates refresh tokens; keeping the old one works until it does not.
   assert.match(src, /refreshed\.refresh_token \? \{ refreshToken/, "store the rotated refresh token");
+});
+
+/**
+ * An application that closes today is the most time-critical thing a morning
+ * brief can carry. Burying it under an unread count defeats the point of
+ * reading one, so deadlines lead the email section.
+ */
+test("the brief leads with career deadlines, and says nothing when there are none", () => {
+  assert.ok(!describeDay(emptyDay).includes("DEADLINE"), "no deadlines, no deadline line");
+
+  const withOpps = describeDay({
+    ...emptyDay,
+    unread: [{ from: "someone", subject: "hello" }],
+    opportunities: [
+      { subject: "Summer Analyst application", from: "Acme", deadline: "2026-03-01", kinds: ["internship", "deadline"] },
+      { subject: "Interview slot", from: "Beta Corp", deadline: null, kinds: ["interview"] },
+    ],
+  });
+  assert.match(withOpps, /DEADLINES:.*closes 2026-03-01/);
+  assert.match(withOpps, /CAREER MAIL:.*Beta Corp/, "undated ones still get a mention, separately");
+  assert.ok(
+    withOpps.indexOf("DEADLINES") < withOpps.indexOf("EMAIL:"),
+    "deadlines come before the unread count",
+  );
 });

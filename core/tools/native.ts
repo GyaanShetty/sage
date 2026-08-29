@@ -10,6 +10,8 @@ import { githubSummary } from "@/infrastructure/integrations/github";
 import { OWNER } from "@/lib/config";
 import { getNowPlaying, spotifyControl, spotifyPlaySearch } from "@/infrastructure/integrations/spotify";
 import { whereIs, describeWhere } from "@/core/location";
+import { listOutlookMail } from "@/infrastructure/integrations/outlook";
+import { findOpportunities } from "@/core/career/inbox";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -256,6 +258,35 @@ export const nativeTools = {
    * that states a six-hour-old position as current will confidently tell him
    * to leave for somewhere he is already sitting.
    */
+  /**
+   * Opportunities sitting in the Outlook inbox.
+   *
+   * Every field here is extracted from the message, never generated about it —
+   * a hallucinated deadline in a career tracker is a wrong answer that looks
+   * exactly like a right one, and it will be acted on.
+   */
+  career_mail: tool({
+    description:
+      "Internship mail, application forms, interview invitations and deadlines found in the user's Outlook " +
+      "inbox. Use for 'any internship emails', 'what deadlines do I have', 'did anyone reply about the " +
+      "application'. Deadlines are quoted from the message; if one is null the message did not state a date.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const mail = await listOutlookMail(40);
+      if (!mail) return { ok: false, error: "Outlook is not connected (Settings → Outlook → Connect)." };
+      const opportunities = findOpportunities(mail);
+      if (!opportunities.length) return { ok: true, count: 0, note: "Nothing that looks like an opportunity in the recent inbox." };
+      return {
+        ok: true,
+        count: opportunities.length,
+        items: opportunities.slice(0, 10).map((o) => ({
+          subject: o.subject, from: o.from, kinds: o.kinds,
+          deadline: o.deadline, links: o.links, receivedAt: o.receivedAt,
+        })),
+      };
+    },
+  }),
+
   where_am_i: tool({
     description:
       "Where the user is right now: their last known position, the saved place they are at or nearest to, " +

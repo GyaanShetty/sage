@@ -297,20 +297,38 @@ export function CommandView({
                   vanished entirely — the same bug that hid Notes. */}
               <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: "1 0 auto" }} hud="agenda" expanded={<ScheduleManager events={events} />}>
                 <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
-                {(events ?? []).slice(0, 4).map((e, i) => {
-                  const d = new Date(e.start);
-                  const isNext = i === 0;
-                  return (
-                    <div className={`ag${isNext ? " now" : ""}`} key={i}>
-                      <span className="tm">
-                        {fmt(d, { weekday: "short" }).toUpperCase()}{" "}
-                        {e.allDay ? "ALL DAY" : fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}
-                      </span>
-                      <span className="mk2"><i /></span>
-                      <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
-                    </div>
-                  );
-                })}
+                {/* Grouped by day. A flat list ran Thursday straight into
+                    Friday with nothing between them, so "what is left today"
+                    could only be worked out by reading every weekday label. */}
+                {(() => {
+                  const rows = (events ?? []).slice(0, 6);
+                  const dayKey = (d: Date) => fmt(d, { year: "numeric", month: "2-digit", day: "2-digit" });
+                  const todayKey = dayKey(new Date());
+                  const tomorrowKey = dayKey(new Date(Date.now() + 864e5));
+                  let last: string | null = null;
+                  return rows.map((e, i) => {
+                    const d = new Date(e.start);
+                    const key = dayKey(d);
+                    const head = key === last ? null
+                      : key === todayKey ? "TODAY"
+                      : key === tomorrowKey ? "TOMORROW"
+                      : fmt(d, { weekday: "long" }).toUpperCase();
+                    last = key;
+                    const isNext = i === 0;
+                    return (
+                      <div key={i}>
+                        {head && <div className="ag-day">{head}</div>}
+                        <div className={`ag${isNext ? " now" : ""}`}>
+                          <span className="tm">
+                            {e.allDay ? "ALL DAY" : fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}
+                          </span>
+                          <span className="mk2"><i /></span>
+                          <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
                 {events !== null && events.length === 0 && <p className="lbl">NO UPCOMING EVENTS</p>}
                 {events === null && <p className="lbl">CONNECT GOOGLE IN SETTINGS</p>}
               </ExpandableCell>

@@ -12,7 +12,7 @@ import { TileGuard } from "@/components/tile-guard";
 import { AgentLogTile, GithubTile, BioTile, SystemTile } from "./page-tiles";
 import {
   MarketsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, FeedsTile,
-  ClocksTile, SkyTile, CommandsTile,
+  ClocksTile, SkyTile, CommandsTile, CodeTile, PushTile, CareerTile, InboxTile,
 } from "./wall-tiles";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
@@ -278,6 +278,8 @@ export function CommandView({
         </Pane>
         <TileGuard name="GITHUB"><GithubTile n={13} /></TileGuard>
         <TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard>
+        <TileGuard name="CODE"><CodeTile n={24} /></TileGuard>
+        <TileGuard name="PUSH"><PushTile n={25} /></TileGuard>
       </div>
 
       {/* ── ROW 4 ─────────────────────────────────────────────────────────
@@ -319,6 +321,8 @@ export function CommandView({
             ))}
           </div>
         </Pane>
+        <TileGuard name="CAREER"><CareerTile n={26} /></TileGuard>
+        <TileGuard name="INBOX"><InboxTile n={27} /></TileGuard>
         <TileGuard name="COMMANDS"><CommandsTile n={22} /></TileGuard>
         <TileGuard name="SYSTEM"><SystemTile n={23} /></TileGuard>
       </div>

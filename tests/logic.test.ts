@@ -3423,3 +3423,22 @@ test("the wall only claims the viewport above the fallback breakpoint", async ()
   assert.equal(/height:\s*calc\(100dvh/.test(css.slice(0, at)), false, "viewport height set outside the breakpoint");
   assert.match(css.slice(at), /height:\s*calc\(100dvh/);
 });
+
+test("every container-relative size in the wall is clamped", async () => {
+  /**
+   * An unclamped `cqh` is what produces 3px text on a busy pane. The floor in
+   * each clamp is the legibility guarantee the whole fit-to-panel approach
+   * rests on, so an unclamped one is a silent regression.
+   */
+  const fs = await import("node:fs/promises");
+  const css = (await fs.readFile("features/dashboard/wall.css", "utf8"))
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // Every declaration that mentions cqh must also mention clamp(.
+  const bad = css
+    .split(/[;{}]/)
+    .map((d) => d.trim())
+    .filter((d) => /\dcqh\b/.test(d) && !/clamp\(/.test(d));
+
+  assert.deepEqual(bad, [], "unclamped container units");
+});

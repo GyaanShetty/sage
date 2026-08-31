@@ -13,6 +13,7 @@
  */
 
 import type { ReactNode } from "react";
+import { Brackets, Hazard } from "@/components/chrome";
 
 export interface PaneProps {
   /** Screen number, shown as `NN)`. Stable per pane — it is an address. */
@@ -25,14 +26,27 @@ export interface PaneProps {
   className?: string;
   /** Drop the header entirely — for a pane that is pure instrument. */
   bare?: boolean;
+  /**
+   * Corner brackets. Off by default: a screen where every pane is bracketed
+   * reads as noise, so this marks the few that are worth looking at first.
+   */
+  frame?: boolean;
+  /**
+   * A real alert state, which draws the hazard rule. Not a style — passing
+   * this when nothing is wrong is what makes the stripe stop meaning
+   * anything.
+   */
+  alert?: "signal" | "danger";
   children: ReactNode;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function Pane({ n, title, status, live, className, bare, children }: PaneProps) {
+export function Pane({ n, title, status, live, className, bare, frame, alert, children }: PaneProps) {
   return (
     <section className={`pane${className ? ` ${className}` : ""}`}>
+      {alert && <Hazard tone={alert} />}
+      {frame && <Brackets tone={alert ?? "rule"} />}
       {!bare && (
         <header className="pane-hd">
           <span className="pane-t">

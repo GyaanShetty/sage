@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { asArray } from "@/lib/as-array";
+import { Hazard } from "@/components/chrome";
 
 interface Alert { level: "info" | "warn" | "high"; icon: string; text: string }
 
@@ -44,10 +45,16 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
 
   if (!alerts || alerts.length === 0) return null;
 
+  /* The hazard rule appears only when something is actually at the high tier.
+     A stripe that is always on is wallpaper, and wallpaper is not a warning. */
+  const worst = alerts.some((a) => a.level === "high") ? "danger"
+    : alerts.some((a) => a.level === "warn") ? "signal" : null;
+
   // Compact form lives inside the dashboard rail, where vertical space is tight.
   if (compact) {
     return (
       <div className="cell sitrep-cell">
+        {worst && <Hazard tone={worst} />}
         <div className="bh"><span className="t">Sitrep</span><span className="i">SIT</span><span className="r">{at}</span></div>
         <div className="sitrep-row compact">
           {alerts.map((a, i) => (
@@ -64,6 +71,7 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
   return (
     <section className="section" id="sitrep" style={{ paddingBottom: 0 }}>
       <div className="sectitle"><span className="sn">00</span><h2>Sitrep</h2><span className="line" /><span className="tag">{at} IST · WHAT NEEDS YOU</span></div>
+      {worst && <Hazard tone={worst} />}
       <div className="sitrep-row">
         {alerts.map((a, i) => (
           <div className={`sitrep-chip ${a.level}`} key={i}>

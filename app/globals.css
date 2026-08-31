@@ -1024,3 +1024,70 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sig-row.alert .sg-v { color: var(--down); }
 .sig-row.watch .sg-v { color: var(--signal); }
+
+/* ── HUD CHROME ───────────────────────────────────────────────────────────
+   Corner brackets, hazard stripes, reticles, arcs and registration strips.
+   Every value comes from a token already defined above; the references are
+   amber/red on black, which is the palette that exists. */
+
+.pane { position: relative; }
+
+/* Brackets — four L marks, arm length from the existing --tick token. */
+.brk { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.brk i { position: absolute; width: var(--tick); height: var(--tick); }
+.brk-rule i { border-color: var(--rule-strong); }
+.brk-signal i { border-color: var(--signal-dim); }
+.brk-danger i { border-color: var(--danger); }
+.brk .brk-tl { top: 0; left: 0; border-top: 1px solid; border-left: 1px solid; }
+.brk .brk-tr { top: 0; right: 0; border-top: 1px solid; border-right: 1px solid; }
+.brk .brk-bl { bottom: 0; left: 0; border-bottom: 1px solid; border-left: 1px solid; }
+.brk .brk-br { bottom: 0; right: 0; border-bottom: 1px solid; border-right: 1px solid; }
+
+/* Hazard — a 3px caution rule across the top of a pane in a real alert
+   state. Deliberately thin: it should register at the edge of vision, not
+   compete with the numbers it is warning about. */
+.hzd { position: absolute; top: 0; left: 0; right: 0; height: 3px; z-index: 2; pointer-events: none; }
+.hzd-signal { background: repeating-linear-gradient(45deg, var(--signal-dim) 0 4px, transparent 4px 8px); }
+.hzd-danger { background: repeating-linear-gradient(45deg, var(--danger) 0 4px, transparent 4px 8px); opacity: .7; }
+
+/* Registration marks. */
+.xhair { color: var(--rule-strong); flex: none; }
+.ret { pointer-events: none; }
+.ret-signal { color: var(--signal); }
+.ret-live { color: var(--live); }
+
+/* Arc — a ring reading a real fraction. */
+.arcw { position: relative; flex: none; }
+.arcw svg { width: 100%; height: 100%; display: block; }
+.arc-bg { stroke: var(--rule); }
+.arc-signal .arc-fg { stroke: var(--signal); }
+.arc-live .arc-fg { stroke: var(--live); }
+.arc-danger .arc-fg { stroke: var(--danger); }
+.arc-l {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .5px; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Serial — barcode + fields, all derived from real strings. */
+.serial {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px;
+  color: var(--subtle); text-transform: uppercase; padding: 5px 0;
+}
+.serial-bc { display: flex; align-items: flex-end; gap: 1px; height: 11px; flex: none; }
+.serial-bc i { display: block; height: 100%; background: var(--muted); }
+.serial-c { color: var(--muted); }
+.serial-f b { font-weight: 400; color: var(--faint); margin-right: 5px; }
+
+/* Map framing: brackets sit above the tiles, crosshairs at the four corners. */
+.deck-map { position: relative; }
+.deck-map .brk { z-index: 500; }   /* above Leaflet's own panes */
+.deck-map-marks { position: absolute; inset: 6px; z-index: 500; pointer-events: none; }
+.deck-map-marks .xhair { position: absolute; color: var(--signal-dim); }
+.deck-map-marks .xhair:nth-child(1) { top: 0; left: 0; }
+.deck-map-marks .xhair:nth-child(2) { top: 0; right: 0; }
+.deck-map-marks .xhair:nth-child(3) { bottom: 0; left: 0; }
+.deck-map-marks .xhair:nth-child(4) { bottom: 0; right: 0; }
+.sitrep-cell { position: relative; }
+#sitrep { position: relative; }

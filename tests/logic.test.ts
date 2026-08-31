@@ -3361,3 +3361,32 @@ test("sitrep lines are tiered, and alerts are promoted to NOW", async () => {
   assert.match(tile, /\/api\/sitrep\/live/, "one source for the band and the page");
   assert.match(tile, /data\?\.sitrep\?\.lines/, "and it must read that route's actual shape");
 });
+
+/* ── HUD chrome ─────────────────────────────────────────────────────────── */
+
+test("chrome primitives use design tokens, never hardcoded colour", async () => {
+  const fs = await import("node:fs/promises");
+  const src = await fs.readFile("components/chrome.tsx", "utf8");
+  // Strip block comments only. A naive `//` strip eats the `//` in a URL and
+  // has produced a false pass here before.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.equal(/#[0-9a-fA-F]{3,8}\b/.test(code), false, "hardcoded hex in chrome.tsx");
+  assert.equal(/\brgba?\(/.test(code), false, "literal rgb() in chrome.tsx");
+});
+
+test("Serial's barcode is a function of its code, not of the render", async () => {
+  // Two renders of the same string must give the same bars, and different
+  // strings must differ — otherwise it is a random pattern wearing a barcode's
+  // clothes, and it visibly flickers on every re-render.
+  const bars = (code: string) => {
+    let h = 2166136261;
+    for (let i = 0; i < code.length; i++) { h ^= code.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return Array.from({ length: 24 }, (_, i) => {
+      h = Math.imul(h ^ (h >>> 13), 16777619);
+      return 1 + ((h >>> (i % 8)) & 3);
+    });
+  };
+  assert.deepEqual(bars("a163d3a"), bars("a163d3a"));
+  assert.notDeepEqual(bars("a163d3a"), bars("7381f5a"));
+  assert.ok(bars("x").every((w) => w >= 1 && w <= 4));
+});

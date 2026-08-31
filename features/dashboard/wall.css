@@ -317,10 +317,11 @@
    Row 1 was taking a third of the screen for a map while rows 3 and 4 were
    the ones being clipped. The map is still the largest single pane. */
 @media (min-width: 1400px) {
-  .wall-r1 { flex: 1.7; }
-  .wall-r2 { flex: 1.5; }
-  .wall-r3 { flex: 1.55; }
-  .wall-r4 { flex: 1.85; }
+  .wall-r1 { flex: 1.6; }
+  .wall-r2 { flex: 1.35; }
+  .wall-r3 { flex: 1.35; }
+  .wall-r4 { flex: 1.6; }
+  .wall-r5 { flex: 1.1; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* 24 code · 25 push · 27 inbox — two-line rows, title over metadata. */

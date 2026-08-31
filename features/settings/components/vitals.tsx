@@ -213,6 +213,7 @@ const PROVIDER_LABELS: Record<string, string> = {
   fmp: "Financial Modeling Prep",
   outlook_id: "Outlook — client ID",
   outlook_secret: "Outlook — client secret",
+  outlook_tenant: "Outlook — directory (tenant) ID",
 };
 
 function ManagedKeys({ onChanged }: { onChanged: () => void }) {

@@ -24,6 +24,8 @@ interface Status {
   connected: boolean;
   identity: string | null;
   redirectUri: string;
+  clientId: string | null;
+  tenant: string;
 }
 
 export function OutlookCard() {
@@ -78,8 +80,27 @@ export function OutlookCard() {
               : "Reads your mail (read-only) so internship links, forms and deadlines stop getting lost."}
         </p>
         {s && !s.connected && !missing && (
-          <p className="mt-1 font-mono text-[10px] text-subtle">
-            Redirect URI must be registered in Azure: {s.redirectUri}
+          <div className="mt-1 space-y-0.5 font-mono text-[10px] text-subtle">
+            <p>Redirect URI, must be registered in Azure: {s.redirectUri}</p>
+            <p>Client ID being sent: {s.clientId ?? "—"}</p>
+            <p>Directory being signed into: {s.tenant}</p>
+          </div>
+        )}
+        {/*
+          AADSTS700016 is the confusing one. It reads as "your client ID is
+          wrong" and usually is not: it means the request went to a directory
+          the app is not registered in. Since SAGE signs in against `common`
+          by default, Microsoft picks the tenant the browser is already in —
+          and if the app registration lives elsewhere, it is not found there.
+          Both values above are printed so the comparison against Azure's
+          Overview page takes seconds.
+        */}
+        {s && !s.connected && !missing && s.tenant === "common" && (
+          <p className="mt-1 text-[11px] text-subtle">
+            Seeing <span className="font-mono">AADSTS700016</span>? The app isn’t in the directory
+            you signed into. Copy the <b>Directory (tenant) ID</b> from the app registration’s
+            Overview page into the <span className="font-mono">outlook_tenant</span> slot below,
+            and check the Client ID above matches its <b>Application (client) ID</b> exactly.
           </p>
         )}
         {note && <p className="mt-1 text-[11px] text-muted">{note}</p>}

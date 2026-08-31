@@ -14,9 +14,29 @@ import { appUrl } from "./google";
  * there is no migration and the generic disconnect route already works.
  */
 
-const AUTHORIZE = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
-const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const GRAPH = "https://graph.microsoft.com/v1.0";
+
+/**
+ * Which directory to sign in against.
+ *
+ * `common` lets Microsoft pick, which resolves to the tenant the browser is
+ * already signed into. That is right until the app registration lives
+ * somewhere else — and then sign-in fails with AADSTS700016, "application with
+ * identifier X was not found in the directory Y", which reads like a bad
+ * client ID and is usually not one. Y in that message is the tenant the
+ * request was sent to; the app is registered in a different one.
+ *
+ * So the tenant is configurable. Paste the Directory (tenant) ID from the
+ * app registration's Overview page into the `outlook_tenant` slot and the
+ * request goes to that directory instead of being guessed.
+ */
+export async function outlookTenant(): Promise<string> {
+  const t = await keysFor("outlook_tenant").catch(() => [] as string[]);
+  return (t[t.length - 1] ?? process.env.OUTLOOK_TENANT_ID ?? "common").trim();
+}
+
+const authority = (tenant: string, leaf: "authorize" | "token") =>
+  `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/${leaf}`;
 
 /**
  * `offline_access` is the one that matters.
@@ -61,14 +81,21 @@ export async function outlookCreds(): Promise<OutlookCreds | null> {
 }
 
 /** Which half is missing, so settings can say so instead of "not connected". */
-export async function credsStatus(): Promise<{ hasId: boolean; hasSecret: boolean }> {
+export async function credsStatus(): Promise<{
+  hasId: boolean; hasSecret: boolean; clientId: string | null; tenant: string;
+}> {
   const [ids, secrets] = await Promise.all([
     keysFor("outlook_id").catch(() => [] as string[]),
     keysFor("outlook_secret").catch(() => [] as string[]),
   ]);
+  const id = ids[ids.length - 1] ?? process.env.OUTLOOK_CLIENT_ID ?? null;
   return {
     hasId: ids.length > 0 || !!process.env.OUTLOOK_CLIENT_ID,
     hasSecret: secrets.length > 0 || !!process.env.OUTLOOK_CLIENT_SECRET,
+    // The client ID is not a secret — it is in every authorize URL — and
+    // showing it is the fastest way to catch the paste that went wrong.
+    clientId: id,
+    tenant: await outlookTenant(),
   };
 }
 
@@ -85,7 +112,7 @@ export async function outlookAuthUrl(): Promise<string | null> {
     // re-consents rather than silently reusing the old, narrower grant.
     prompt: "consent",
   });
-  return `${AUTHORIZE}?${params}`;
+  return `${authority(await outlookTenant(), "authorize")}?${params}`;
 }
 
 interface TokenResponse { access_token: string; refresh_token?: string; expires_in: number }
@@ -93,7 +120,7 @@ interface TokenResponse { access_token: string; refresh_token?: string; expires_
 export async function exchangeOutlookCode(code: string): Promise<TokenResponse> {
   const creds = await outlookCreds();
   if (!creds) throw new Error("Outlook client ID and secret are not set.");
-  const res = await proxyFetch(TOKEN_URL, {
+  const res = await proxyFetch(authority(await outlookTenant(), "token"), {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -143,7 +170,7 @@ export async function getOutlookAccessToken(): Promise<string | null> {
   const creds = await outlookCreds();
   if (!creds) return data.accessToken as string;
 
-  const res = await proxyFetch(TOKEN_URL, {
+  const res = await proxyFetch(authority(await outlookTenant(), "token"), {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({

@@ -51,8 +51,17 @@
 
   .wall-r1 { flex: 2.1; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.25fr) minmax(0, 0.7fr) minmax(0, 1.1fr); }
   .wall-r2 { flex: 1.55; grid-template-columns: repeat(2, minmax(0, 0.62fr)) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 0.72fr); }
-  .wall-r3 { flex: 1.5; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.15fr); }
-  .wall-r4 { flex: 1.5; grid-template-columns: repeat(9, minmax(0, 1fr)); }
+  .wall-r3 { flex: 1.5; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.15fr) minmax(0, 0.95fr) minmax(0, 1.05fr) minmax(0, 0.95fr) minmax(0, 0.95fr); }
+  /* Row 4's panes do not want equal shares: a month grid is seven columns
+     wide whatever you do to it, and a verse needs measure. Clocks and Sky are
+     three glyphs each and can give the width up. */
+  .wall-r4 {
+    flex: 1.5;
+    grid-template-columns:
+      minmax(0, 1fr) minmax(0, 0.85fr) minmax(0, 1.05fr) minmax(0, 1.05fr)
+      minmax(0, 1.15fr) minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 0.9fr)
+      minmax(0, 1.05fr) minmax(0, 1.05fr) minmax(0, 0.85fr);
+  }
 
   .wall-map { grid-column: auto; height: auto; min-height: 0; }
 }
@@ -80,7 +89,7 @@
 .hz-v { font-family: var(--mono); font-size: 12px; color: var(--foreground); font-variant-numeric: tabular-nums; }
 
 /* 07 activity histogram */
-.acts { display: flex; align-items: flex-end; gap: 4px; height: 100%; min-height: 90px; padding-top: 6px; }
+.acts { display: flex; align-items: flex-end; gap: 4px; height: 100%; min-height: 54px; padding-top: 6px; }
 .act { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; min-width: 0; }
 .act-n { font-family: var(--mono); font-size: 8.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .act-b { width: 100%; background: var(--signal-faint); border-top: 1px solid var(--signal); min-height: 1px; }
@@ -174,3 +183,169 @@
 .wall-cell > .section, .wall-cell > section { padding: 0; }
 .wall-cell .sectitle { padding: 6px 9px 4px; margin: 0; }
 .wall-cell .grid { border: 0; }
+
+/* ── FIT TO PANEL ─────────────────────────────────────────────────────────
+   Type that follows its pane's height.
+
+   Every size in the app is a hardcoded pixel value, tuned back when a pane
+   was whatever height its content wanted. On a fixed-height wall the pane
+   height is the independent variable and the type has to follow it — which is
+   why the first build fit the screen while the content did not fit the panes:
+   Eisenhower lost two quadrants, Deadlines lost its last item mid-sentence.
+
+   `container-type: size` makes each pane a query container, so `cqh` is a
+   percentage of *that pane's* height. A pane in a tall track gets larger
+   text; one in a short track gets smaller. No JavaScript, no measuring pass,
+   no layout thrash.
+
+   Every one is wrapped in clamp(). The floor is the legibility guarantee —
+   an unclamped container unit is what produces 3px text on a busy pane — and
+   the ceiling stops a sparse pane from ballooning its two rows to fill the
+   space. A list long enough to defeat the floor still scrolls inside its own
+   pane, which is the honest outcome.
+
+   Scoped to `.wall`. These class names are used on every other screen, where
+   panes size to their content and cqh means nothing there. */
+@media (min-width: 1400px) {
+  .wall .pane:not(.wall-map) { container-type: size; }
+
+  /* The body is a column so a pane's instrument can take the leftover height
+     instead of asking for a fixed number of pixels it may not have. */
+  .wall .pane-body { display: flex; flex-direction: column; }
+  /* Flex children default to `min-height: auto` here for the same reason the
+     tracks did — without this a pane's body reports its content height and
+     the internal scroller never engages. */
+  .wall .pane-body > * { min-height: 0; }
+
+  /* Header */
+  .wall .pane-t { font-size: clamp(7px, 4.4cqh, 10px); }
+  .wall .pane-s { font-size: clamp(6px, 3.6cqh, 8px); }
+
+  /* Rows — the padding scales with the text. Shrinking type inside fixed
+     padding gives the space back to the gaps, which is the opposite of the
+     point. */
+  .wall .trow { padding: clamp(1px, 0.8cqh, 3px) 8px; min-height: 0; }
+  .wall .trow-k { font-size: clamp(6.5px, 3.4cqh, 9px); }
+  .wall .trow-v { font-size: clamp(7px, 3.6cqh, 9.5px); }
+
+  /* Figures */
+  .wall .tstat { padding: clamp(2px, 1.6cqh, 6px) 8px; }
+  .wall .tstat-v { font-size: clamp(11px, 9cqh, 19px); }
+  .wall .tstat-k { font-size: clamp(5.5px, 2.8cqh, 7px); }
+
+  .wall .tile-cap { font-size: clamp(5.5px, 2.6cqh, 6.5px); }
+  /* 12px of padding is most of a short pane; the message is the content. */
+  .wall .tile-wait { font-size: clamp(6.5px, 3.2cqh, 8px); padding: clamp(3px, 4cqh, 12px) 9px; }
+
+  /* Wall-native panes */
+  .wall .mk-cell { padding: clamp(3px, 2cqh, 7px) 9px; }
+  .wall .mk-h { font-size: clamp(6px, 3cqh, 8px); }
+  .wall .mk-p { font-size: clamp(9px, 5.5cqh, 13px); }
+  .wall .mk-c { font-size: clamp(6.5px, 3.4cqh, 9px); }
+  .wall .km > * { padding: clamp(3px, 3cqh, 9px) 6px; }
+  .wall .hz { padding: clamp(1px, 1.4cqh, 5px) 0; }
+  .wall .hz-k { font-size: clamp(6px, 3cqh, 8px); }
+  .wall .hz-v { font-size: clamp(8px, 4.6cqh, 12px); }
+  .wall .act-n { font-size: clamp(6px, 4cqh, 8.5px); }
+  .wall .act-k { font-size: clamp(5.5px, 3.4cqh, 7.5px); }
+  .wall .vid { padding: clamp(2px, 1.6cqh, 6px) 0; }
+  .wall .vid-th { flex-basis: clamp(52px, 22cqh, 88px); height: clamp(30px, 13cqh, 50px); }
+  .wall .vid-t { font-size: clamp(8px, 4.4cqh, 11.5px); }
+  .wall .vid-c { font-size: clamp(6px, 3cqh, 8px); }
+  .wall .clk svg { width: clamp(30px, 26cqh, 52px); height: clamp(30px, 26cqh, 52px); }
+  .wall .clk-t { font-size: clamp(8px, 7cqh, 12px); }
+  .wall .clk-k { font-size: clamp(6px, 4.6cqh, 8px); }
+  .wall .clk-d { font-size: clamp(5.5px, 4cqh, 7.5px); }
+  .wall .moon { width: clamp(26px, 24cqh, 46px); height: clamp(26px, 24cqh, 46px); }
+  .wall .moon-n { font-size: clamp(8px, 6.5cqh, 12.5px); }
+  .wall .moon-i { font-size: clamp(6px, 4cqh, 8px); }
+  .wall .cref { padding: clamp(1px, 1.8cqh, 5px) 0; }
+  .wall .cref-c { font-size: clamp(7px, 5cqh, 10px); }
+  .wall .cref-d { font-size: clamp(5.5px, 3.8cqh, 7.5px); }
+
+  /* Directives — a long title used to wrap to three lines and eat the pane. */
+  .wall .task { padding: clamp(2px, 1.8cqh, 6px) 8px; gap: 8px; }
+  .wall .task .box { width: 9px; height: 9px; flex-basis: 9px; }
+  .wall .task .tx {
+    font-size: clamp(8px, 4.4cqh, 12px); line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .wall .rank { font-size: clamp(6px, 3.4cqh, 9px); white-space: nowrap; }
+
+  /* Gita — the verse is genuinely long, so it scales and then scrolls. */
+  .wall .gita .dev { font-size: clamp(9px, 6cqh, 15px); line-height: 1.6; }
+  .wall .gita .tr { font-size: clamp(6px, 3.4cqh, 9px); margin-top: 4px; line-height: 1.5; }
+  .wall .gita .en { font-size: clamp(8px, 4.6cqh, 12.5px); line-height: 1.45; margin-top: 5px; }
+
+  /* Fixed-size instruments scale too. These were the last three panes whose
+     content still exceeded its box, and none of them was text: a histogram
+     with a 90px floor, a 88px focus ring, and the map. A fixed pixel height
+     inside a pane that sizes to the viewport is the same bug as fixed type. */
+  .wall .acts { min-height: 0; height: auto; flex: 1; padding-top: 3px; }
+  /* The histogram wants the room more than the timer does: seven bars read as
+     a shape, and a shape needs height; a 25:00 readout does not. */
+  .wall-stack > *:first-child { flex: 1.25; }
+  .wall-stack > *:last-child { flex: 0.75; }
+  .wall .act-b { min-height: 1px; }
+  .wall .fring { gap: clamp(6px, 6cqh, 16px); }
+  .wall .fring svg { width: clamp(26px, 38cqh, 88px); height: clamp(26px, 38cqh, 88px); flex-basis: clamp(26px, 38cqh, 88px); }
+  .wall .fring .ft2 { font-size: clamp(11px, 14cqh, 26px); }
+  .wall .fring .fk { font-size: clamp(6px, 4.5cqh, 9px); }
+
+  /* Eisenhower keeps its own chrome; it is a band, not a Pane, so it gets no
+     container of its own. Its quadrants carry a 130px floor tuned for a
+     full-width band — four of those need 260px and the row has half that, so
+     two quadrants were simply cut off. */
+  .wall-cell .sectitle { padding: 4px 8px 2px; }
+  .wall-cell .sectitle h2 { font-size: 11px; }
+  .wall-cell .eh-quad { padding: 5px 8px; min-height: 0; }
+  .wall-cell .eh-label { font-size: 9px; }
+  .wall-cell .eh-count { font-size: 8px; }
+  .wall-cell .eh-list { gap: 0; }
+  .wall-cell .eh-empty { font-size: 8px; padding: 2px 0; }
+  .wall-cell .eh-task { padding: 3px 0; gap: 6px; }
+  .wall-cell .eh-title { font-size: 10px; line-height: 1.25;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* 21 — the month grid, sized to its column rather than to the page. */
+  .wall .cal .dh { padding: 2px 0; font-size: clamp(5px, 2.4cqh, 7.5px); }
+  .wall .cal .d { aspect-ratio: auto; padding: clamp(1px, 1cqh, 4px) 2px; font-size: clamp(5.5px, 2.8cqh, 8.5px); }
+  .wall .cal .d .ev { width: 3px; height: 3px; bottom: 2px; left: 3px; }
+}
+
+/* ── ROW BALANCE ──────────────────────────────────────────────────────────
+   Row 1 was taking a third of the screen for a map while rows 3 and 4 were
+   the ones being clipped. The map is still the largest single pane. */
+@media (min-width: 1400px) {
+  .wall-r1 { flex: 1.7; }
+  .wall-r2 { flex: 1.5; }
+  .wall-r3 { flex: 1.55; }
+  .wall-r4 { flex: 1.85; }
+}
+
+/* 24 code · 25 push · 27 inbox — two-line rows, title over metadata. */
+.cd-daily { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; text-decoration: none; border-bottom: 1px solid var(--rule); }
+.cd-daily:hover .cd-t { color: var(--signal); }
+.cd-t { font-size: 12px; line-height: 1.3; color: var(--foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.psh { display: flex; flex-direction: column; gap: 1px; padding: 4px 8px; text-decoration: none; border-bottom: 1px solid var(--rule); }
+.psh:last-child { border-bottom: 0; }
+.psh:hover .psh-t { color: var(--signal); }
+.psh-t { font-size: 11px; line-height: 1.25; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.psh-m { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); text-transform: uppercase; }
+
+@media (min-width: 1400px) {
+  .wall .cd-daily, .wall .psh { padding: clamp(2px, 1.6cqh, 6px) 8px; }
+  .wall .cd-t { font-size: clamp(8px, 5cqh, 12px); }
+  .wall .psh-t { font-size: clamp(7.5px, 4.4cqh, 11px); }
+  .wall .psh-m { font-size: clamp(5.5px, 3cqh, 7.5px); }
+}
+
+/* The atlas is the one pane whose child measures itself. Leaflet reads its
+   container's height on init and keeps that size, so the container has to be
+   pinned to the pane rather than allowed to size to content — otherwise the
+   map is taller than its box and its bottom edge is simply cut off. */
+.wall-map > .pane-body { display: flex; }
+.wall-map .atlas { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.wall-map .atlas-map { flex: 1; min-height: 0; }
+.wall-map .atlas-toolbar { flex: none; }

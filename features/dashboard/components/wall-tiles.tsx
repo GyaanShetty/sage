@@ -27,8 +27,19 @@ function Go({ href, children }: { href: string; children: React.ReactNode }) {
    Crypto with sparklines, then equities, then FX. Three endpoints that were
    already being fetched by the markets page. */
 interface Coin { symbol: string; price: number; change24h: number; spark?: number[] }
-interface Quote { symbol: string; name?: string; price: number; changePct: number; currency?: string }
+interface Quote { symbol: string; name?: string; price: number; changePct?: number; currency?: string }
 interface Fx { pair: string; rate: number; changePct?: number }
+
+/**
+ * A missing percentage renders as an em dash, not as NaN.
+ *
+ * /api/stocks does not always carry changePct, and `Math.abs(undefined)` is
+ * NaN — which is how "RELIANCE ₹1,284 ▽NaN%" got onto the screen. A gauge that
+ * prints NaN is worse than one that prints nothing: it looks like a reading.
+ */
+const pct = (v?: number) =>
+  Number.isFinite(v) ? `${v! >= 0 ? "▲" : "▽"}${Math.abs(v!).toFixed(1)}%` : "—";
+const pctClass = (v?: number) => (Number.isFinite(v) ? (v! >= 0 ? "up" : "down") : "");
 
 const money = (v: number, cur = "$") =>
   `${cur}${v >= 1000 ? Math.round(v).toLocaleString("en-IN") : v.toFixed(2)}`;
@@ -66,7 +77,7 @@ export function MarketsTile({ n }: { n?: number }) {
             <Row
               key={s.symbol}
               k={s.name?.slice(0, 18) ?? s.symbol}
-              v={<>{money(s.price, s.currency === "INR" ? "₹" : "$")} <b className={s.changePct >= 0 ? "up" : "down"}>{s.changePct >= 0 ? "▲" : "▽"}{Math.abs(s.changePct).toFixed(1)}%</b></>}
+              v={<>{money(s.price, s.currency === "INR" ? "₹" : "$")} <b className={pctClass(s.changePct)}>{pct(s.changePct)}</b></>}
             />
           ))}
         </>
@@ -198,7 +209,9 @@ export function ActivityTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="System Activity" status="EVENTS / DAY">
       {rows.length === 0 && <div className="tile-wait">NO ACTIVITY RECORDED</div>}
-      <div className="acts">
+      {/* An empty histogram is not a small histogram — it is an empty box with
+          a minimum height, holding space it has nothing to put in. */}
+      {rows.length > 0 && <div className="acts">
         {rows.map((d) => (
           <div className="act" key={d.day}>
             <span className="act-n">{d.count}</span>
@@ -206,7 +219,7 @@ export function ActivityTile({ n }: { n?: number }) {
             <span className="act-k">{label(d.day)}</span>
           </div>
         ))}
-      </div>
+      </div>}
     </Pane>
   );
 }
@@ -407,3 +420,173 @@ export function CommandsTile({ n }: { n?: number }) {
 }
 
 export { BarStrip };
+
+/* ── 24 CODE ──────────────────────────────────────────────────────────────
+   The daily LeetCode problem and where he stands.
+
+   Functional rather than decorative: the title is a link straight into the
+   problem, and the split by difficulty is the number that actually tells you
+   whether the practice is going anywhere — "1,284 solved" does not. */
+interface LeetDaily { date: string; link: string; title: string; difficulty: string }
+interface LeetStats {
+  username: string; ranking: number | null;
+  solved: { all: number; easy: number; medium: number; hard: number };
+  streak: number; todaySolved: number;
+}
+
+export function CodeTile({ n }: { n?: number }) {
+  const [d, setD] = useState<{ daily: LeetDaily | null; stats: LeetStats | null } | null>(null);
+
+  useLive(
+    () => fetch("/api/leetcode").then((r) => r.json()).then((j) => setD(j?.data ?? null)).catch(() => setD(null)),
+    { everyMs: 1_800_000 },
+  );
+
+  const s = d?.stats;
+  const solvedToday = (s?.todaySolved ?? 0) > 0;
+
+  return (
+    <Pane
+      n={n}
+      title="Code"
+      status={<Go href="/code">{s ? `${s.streak}D STREAK` : "LEETCODE"}</Go>}
+      live={solvedToday}
+    >
+      {!d && <div className="tile-wait">ACQUIRING…</div>}
+      {d?.daily && (
+        <a className="cd-daily" href={d.daily.link} target="_blank" rel="noreferrer">
+          <span className="tile-cap">DAILY · {d.daily.difficulty.toUpperCase()}</span>
+          <span className="cd-t">{d.daily.title}</span>
+        </a>
+      )}
+      {s && (
+        <>
+          <Row k="Solved" v={String(s.solved.all)} tone="signal" />
+          <Row k="Easy / Med / Hard" v={`${s.solved.easy} · ${s.solved.medium} · ${s.solved.hard}`} />
+          {s.ranking != null && <Row k="Rank" v={s.ranking.toLocaleString("en-IN")} tone="muted" />}
+          <Row k="Today" v={solvedToday ? `${s.todaySolved} DONE` : "NOT YET"} tone={solvedToday ? "up" : "down"} />
+        </>
+      )}
+      {d && !s && <div className="tile-wait">SET A LEETCODE USERNAME IN SETTINGS</div>}
+    </Pane>
+  );
+}
+
+/* ── 25 PUSH ──────────────────────────────────────────────────────────────
+   What went to GitHub, and where it landed.
+
+   Each row links to the file on GitHub. A push log you cannot click is a
+   diary; one you can is a way back into the work. */
+interface PushRecord { repo: string; path: string; url: string; language: string; title: string; at: string }
+
+export function PushTile({ n }: { n?: number }) {
+  const [d, setD] = useState<{ pushes: PushRecord[]; prefs: { repo: string; folder: string; language: string } | null; login: string | null } | null>(null);
+
+  useLive(
+    () => fetch("/api/push").then((r) => r.json()).then((j) => setD(j?.data ?? null)).catch(() => setD(null)),
+    { everyMs: 300_000 },
+  );
+
+  const pushes = asArray<PushRecord>(d?.pushes);
+  const when = (iso: string) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "2-digit", month: "short" }).format(new Date(iso)).toUpperCase();
+
+  return (
+    <Pane
+      n={n}
+      title="Push"
+      status={<Go href="/push">{d?.prefs?.repo ?? (d?.login ? "NO REPO SET" : "GITHUB")}</Go>}
+      live={pushes.length > 0}
+    >
+      {!d && <div className="tile-wait">ACQUIRING…</div>}
+      {d && pushes.length === 0 && <div className="tile-wait">NOTHING PUSHED YET</div>}
+      {pushes.slice(0, 6).map((p, i) => (
+        <a className="psh" key={i} href={p.url} target="_blank" rel="noreferrer">
+          <span className="psh-t">{p.title || p.path}</span>
+          <span className="psh-m">{p.language.toUpperCase()} · {when(p.at)}</span>
+        </a>
+      ))}
+    </Pane>
+  );
+}
+
+/* ── 26 CAREER ────────────────────────────────────────────────────────────
+   Applications by stage. The count per stage is the whole point: five
+   applications sitting in "applied" and none in "interview" is a different
+   situation from the reverse, and a flat total hides that. */
+interface Application { id: string; company: string; role?: string; status?: string; deadline?: string | null }
+
+const STAGES = ["applied", "screening", "interview", "offer"];
+
+export function CareerTile({ n }: { n?: number }) {
+  const [apps, setApps] = useState<Application[] | null>(null);
+
+  useLive(
+    () => fetch("/api/career").then((r) => r.json())
+      .then((j) => setApps(asArray<Application>(j?.data))).catch(() => setApps([])),
+    { everyMs: 600_000, scopes: ["career"] },
+  );
+
+  const rows = apps ?? [];
+  const byStage = STAGES.map((st) => ({
+    stage: st,
+    count: rows.filter((a) => (a.status ?? "applied").toLowerCase() === st).length,
+  }));
+
+  // Only deadlines still ahead — a passed deadline is history, not a warning.
+  const next = rows
+    .filter((a) => a.deadline && Date.parse(a.deadline) > Date.now())
+    .sort((a, b) => Date.parse(a.deadline!) - Date.parse(b.deadline!))[0];
+
+  return (
+    <Pane n={n} title="Career" status={<Go href="/career">{rows.length ? `${rows.length} OPEN` : "—"}</Go>} live={rows.length > 0}>
+      {!apps && <div className="tile-wait">ACQUIRING…</div>}
+      {apps?.length === 0 && <div className="tile-wait">NO APPLICATIONS TRACKED</div>}
+      {rows.length > 0 && (
+        <>
+          <div className="km" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+            {byStage.map((b) => <Stat key={b.stage} v={pad(b.count)} k={b.stage} tone={b.count > 0 ? "signal" : undefined} />)}
+          </div>
+          {next && (
+            <Row
+              k={`${next.company} deadline`}
+              v={new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "2-digit", month: "short" })
+                .format(new Date(next.deadline!)).toUpperCase()}
+              tone="down"
+            />
+          )}
+        </>
+      )}
+    </Pane>
+  );
+}
+
+/* ── 27 INBOX ─────────────────────────────────────────────────────────────
+   Unread mail, sender first. Who it is from decides whether you open it; the
+   subject only matters once you have decided. */
+interface MailMsg { id: string; subject: string; from?: string; fromName?: string; unread?: boolean }
+
+export function InboxTile({ n }: { n?: number }) {
+  const [msgs, setMsgs] = useState<MailMsg[] | null>(null);
+
+  useLive(
+    () => fetch("/api/mail?box=unread").then((r) => r.json())
+      .then((j) => setMsgs(asArray<MailMsg>(j?.data?.messages))).catch(() => setMsgs([])),
+    { everyMs: 300_000 },
+  );
+
+  const rows = msgs ?? [];
+
+  return (
+    <Pane n={n} title="Inbox" status={<Go href="/mail">{rows.length ? `${rows.length} UNREAD` : "CLEAR"}</Go>} live={rows.length > 0}>
+      {!msgs && <div className="tile-wait">ACQUIRING…</div>}
+      {msgs?.length === 0 && <div className="tile-wait">INBOX CLEAR</div>}
+      {rows.slice(0, 6).map((m) => (
+        <div className="psh" key={m.id}>
+          <span className="psh-t">{m.subject || "(no subject)"}</span>
+          <span className="psh-m">{(m.fromName || m.from || "").toUpperCase()}</span>
+        </div>
+      ))}
+    </Pane>
+  );
+}

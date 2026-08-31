@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { asArray } from "@/lib/as-array";
 
 interface Alert { level: "info" | "warn" | "high"; icon: string; text: string }
 
@@ -24,7 +25,7 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
     const load = () =>
       fetch("/api/sitrep")
         .then((r) => r.json())
-        .then((j) => { setAlerts(j.data ?? []); setAt(j.at ?? ""); })
+        .then((j) => { setAlerts(asArray(j.data)); setAt(j.at ?? ""); })
         .catch(() => setAlerts([]));
 
     const start = () => { if (!timer) timer = setInterval(load, 30_000); };

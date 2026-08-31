@@ -5,6 +5,7 @@ import { getNews } from "@/infrastructure/news";
 import { getMarkets } from "@/infrastructure/markets";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { TZ } from "@/lib/config";
+import { asArray } from "@/lib/as-array";
 
 export const maxDuration = 45;
 
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
   const cookie = req.headers.get("cookie") ?? "";
   const [indices, sectors, coins, news] = await Promise.all([
     fetch(`${origin}/api/market/quotes?symbols=^NSEI,^BSESN,^GSPC,^IXIC`, { headers: { cookie } })
-      .then((r) => r.json()).then((j) => j.data ?? []).catch(() => []),
+      .then((r) => r.json()).then((j) => asArray(j.data)).catch(() => []),
     fetch(`${origin}/api/market/sectors`, { headers: { cookie } })
       .then((r) => r.json()).then((j) => j.data).catch(() => null),
     getMarkets().catch(() => []),

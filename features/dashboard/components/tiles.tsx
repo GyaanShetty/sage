@@ -6,6 +6,7 @@ import { Pane, Row } from "@/components/pane";
 import { BarStrip, Progress, Delta } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { TZ } from "@/lib/config";
+import { asArray } from "@/lib/as-array";
 
 /**
  * Terminal tiles.
@@ -193,7 +194,7 @@ export function WireTile({ n, source = "hindu" }: { n?: number; source?: string 
 
   useLive(
     () => fetch(`/api/feeds?source=${source}`).then((r) => r.json())
-      .then((j) => setItems(j?.data?.items ?? [])).catch(() => setItems([])),
+      .then((j) => setItems(asArray(j?.data?.items))).catch(() => setItems([])),
     { everyMs: 900_000 },
   );
 

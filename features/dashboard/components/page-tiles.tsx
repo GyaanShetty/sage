@@ -6,6 +6,7 @@ import { Pane, Row } from "@/components/pane";
 import { BarStrip, BarRows, Ring, Matrix, Progress, Delta } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { TZ } from "@/lib/config";
+import { asArray } from "@/lib/as-array";
 
 /**
  * A pane for every page.
@@ -49,7 +50,7 @@ export function SignalsTile({ n }: { n?: number }) {
    */
   useLive(
     () => fetch("/api/sitrep/live").then((r) => r.json())
-      .then((j) => setLines(j?.data?.sitrep?.lines ?? [])).catch(() => setLines([])),
+      .then((j) => setLines(asArray<SitLine>(j?.data?.sitrep?.lines))).catch(() => setLines([])),
     { everyMs: 45_000, scopes: ["tasks", "events"] },
   );
 
@@ -89,7 +90,7 @@ export function SignalsTile({ n }: { n?: number }) {
 export function AgentLogTile({ n }: { n?: number }) {
   const [runs, setRuns] = useState<{ id: string; kind: string; input: string; status: string; createdAt: string }[] | null>(null);
   useLive(
-    () => fetch("/api/agent/runs?limit=12").then((r) => r.json()).then((j) => setRuns(j?.data ?? [])).catch(() => setRuns([])),
+    () => fetch("/api/agent/runs?limit=12").then((r) => r.json()).then((j) => setRuns(asArray(j?.data))).catch(() => setRuns([])),
     { everyMs: 120_000, scopes: ["agent"] },
   );
   return (
@@ -113,7 +114,7 @@ export function GithubTile({ n }: { n?: number }) {
   const [days, setDays] = useState<{ date: string; count: number; level: number }[] | null>(null);
   useLive(
     () => fetch("/api/github/contributions").then((r) => r.json())
-      .then((j) => setDays(j?.data?.days ?? j?.data ?? [])).catch(() => setDays([])),
+      .then((j) => setDays(asArray(j?.data?.days, j?.data))).catch(() => setDays([])),
     { everyMs: 900_000 },
   );
   const recent = (days ?? []).slice(-182);
@@ -156,7 +157,7 @@ export function BioTile({ n }: { n?: number }) {
           {typeof v.recovery === "number" && (
             <Ring pct={v.recovery / 100} value={`${Math.round(v.recovery)}%`} label="RECOVERY" />
           )}
-          {v.load?.length ? <BarStrip data={v.load} height={26} /> : null}
+          {asArray<number>(v.load).length ? <BarStrip data={asArray<number>(v.load)} height={26} /> : null}
         </>
       )}
     </Pane>
@@ -183,8 +184,8 @@ export function PortfolioTile({ n }: { n?: number }) {
           {typeof p.changePct === "number" && (
             <Row k="Today" v={<Delta pct={p.changePct} />} />
           )}
-          {p.curve?.length ? <BarStrip data={p.curve} height={30} /> : null}
-          {p.holdings?.slice(0, 5).map((h) => (
+          {asArray<number>(p.curve).length ? <BarStrip data={asArray<number>(p.curve)} height={30} /> : null}
+          {asArray<{ symbol: string; value: number }>(p.holdings).slice(0, 5).map((h) => (
             <Row key={h.symbol} k={h.symbol} v={`₹${Math.round(h.value).toLocaleString("en-IN")}`} />
           ))}
         </>
@@ -198,7 +199,7 @@ export function MemoryTile({ n }: { n?: number }) {
   const [m, setM] = useState<{ total?: number; recent?: { text: string; createdAt: string }[] } | null>(null);
   useLive(
     () => fetch("/api/memory?limit=6").then((r) => r.json())
-      .then((j) => setM({ total: j?.data?.total, recent: j?.data?.items ?? j?.data ?? [] })).catch(() => {}),
+      .then((j) => setM({ total: j?.data?.total, recent: asArray(j?.data?.items, j?.data) })).catch(() => {}),
     { everyMs: 300_000, scopes: ["memory"] },
   );
   return (
@@ -219,7 +220,7 @@ export function MemoryTile({ n }: { n?: number }) {
 export function ExamTile({ n }: { n?: number }) {
   const [ex, setEx] = useState<{ name: string; date: string }[] | null>(null);
   useLive(
-    () => fetch("/api/exam").then((r) => r.json()).then((j) => setEx(j?.data?.exams ?? j?.data ?? [])).catch(() => setEx([])),
+    () => fetch("/api/exam").then((r) => r.json()).then((j) => setEx(asArray(j?.data?.exams, j?.data))).catch(() => setEx([])),
     { everyMs: 3_600_000 },
   );
   const daysTo = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);

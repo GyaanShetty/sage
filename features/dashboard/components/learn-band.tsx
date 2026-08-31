@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ExpandableCell } from "./expandable-cell";
+import { asArray } from "@/lib/as-array";
 
 interface Card {
   q: string;
@@ -22,7 +23,7 @@ export function LearnBand() {
   useEffect(() => {
     fetch("/api/flashcards")
       .then((r) => r.json())
-      .then((j) => setCards(j?.data ?? []))
+      .then((j) => setCards(asArray(j?.data)))
       .catch(() => setCards([]));
   }, []);
 

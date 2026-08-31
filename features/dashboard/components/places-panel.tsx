@@ -5,6 +5,7 @@ import { MapPin, Trash2 } from "lucide-react";
 import { sound } from "@/lib/sound";
 import { useLive, notifyDataChanged } from "@/lib/live";
 import type { Place } from "@/core/places/schedule";
+import { asArray } from "@/lib/as-array";
 
 const DAYS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 
@@ -36,7 +37,7 @@ export function PlacesPanel() {
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
   const load = () =>
-    fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(j?.data ?? [])).catch(() => setPlaces([]));
+    fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(asArray(j?.data))).catch(() => setPlaces([]));
   useLive(load, { everyMs: 300_000, scopes: ["places"] });
 
   const beginEdit = (p: Place) => {

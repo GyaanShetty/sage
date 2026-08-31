@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { asArray } from "@/lib/as-array";
 
 export const revalidate = 1800;
 
@@ -13,7 +14,7 @@ export async function GET() {
     const j = (await res.json()) as {
       data?: { value: string; value_classification: string; timestamp: string }[];
     };
-    const rows = (j.data ?? []).map((d) => ({
+    const rows = asArray<{ value: string; value_classification: string; timestamp: string }>(j.data).map((d) => ({
       value: Number(d.value),
       label: d.value_classification,
       at: new Date(Number(d.timestamp) * 1000).toISOString().slice(0, 10),

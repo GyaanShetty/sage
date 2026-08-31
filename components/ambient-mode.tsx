@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME, TZ } from "@/lib/config";
+import { asArray } from "@/lib/as-array";
 
 const IDLE_MS = 90_000; // 90s of no interaction → ambient mode
 const ACTIVITY = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
@@ -110,7 +111,7 @@ export function AmbientMode() {
     fetch("/api/sitrep")
       .then((r) => r.json())
       .then((j) => {
-        if (!cancelled) setAlerts((j?.data?.alerts ?? j?.data ?? []) as Alert[]);
+        if (!cancelled) setAlerts((j?.data?.alerts ?? asArray(j?.data)) as Alert[]);
       })
       .catch(() => {});
     const rot = setInterval(() => setIdx((i) => i + 1), 6000);

@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useLive } from "@/lib/live";
+import { asArray } from "@/lib/as-array";
 
 interface Item {
   label: string;
@@ -22,21 +23,21 @@ export function TickerTape() {
           fetch("/api/markets").then((r) => r.json()).catch(() => null),
           fetch("/api/fx").then((r) => r.json()).catch(() => null),
         ]);
-        for (const q of idx?.data ?? []) {
+        for (const q of asArray<{ name: string; currency: string; price: number; changePct: number }>(idx?.data)) {
           out.push({
             label: (q.name as string).replace("S&P BSE SENSEX", "SENSEX").toUpperCase(),
             value: `${q.currency === "INR" ? "₹" : "$"}${q.price >= 1000 ? Math.round(q.price).toLocaleString("en-IN") : q.price.toFixed(2)} ${q.changePct >= 0 ? "▲" : "▽"}${Math.abs(q.changePct).toFixed(2)}%`,
             up: q.changePct >= 0,
           });
         }
-        for (const c of coins?.data ?? []) {
+        for (const c of asArray<{ symbol: string; price: number; change24h: number }>(coins?.data)) {
           out.push({
             label: c.symbol,
             value: `$${c.price >= 1000 ? Math.round(c.price).toLocaleString() : c.price.toFixed(2)} ${c.change24h >= 0 ? "▲" : "▽"}${Math.abs(c.change24h).toFixed(1)}%`,
             up: c.change24h >= 0,
           });
         }
-        for (const f of fx?.data ?? []) {
+        for (const f of asArray<{ pair: string; rate: number }>(fx?.data)) {
           if (f.pair === "USD/INR" || f.pair === "EUR/INR") {
             out.push({ label: f.pair, value: `₹${f.rate.toFixed(2)}`, up: null });
           }

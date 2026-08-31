@@ -6,6 +6,7 @@ import { AIR_CORRIDORS, CONFLICT_ZONES, TRADE_ROUTES, SAT_GROUPS, greatCircle } 
 import { useLivePosition } from "@/lib/geo-position";
 import { useLive, notifyDataChanged } from "@/lib/live";
 import { dueAt, type Place } from "@/core/places/schedule";
+import { asArray } from "@/lib/as-array";
 
 type L = typeof import("leaflet");
 type LMap = import("leaflet").Map;
@@ -67,7 +68,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   const routeRef = useRef<import("leaflet").Layer | null>(null);
 
   useLive(
-    () => fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(j?.data ?? [])).catch(() => {}),
+    () => fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(asArray<Place>(j?.data))).catch(() => {}),
     { everyMs: 300_000, scopes: ["places"] },
   );
 
@@ -89,7 +90,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
       const near = c ? `&lat=${c.lat}&lon=${c.lng}` : "";
       fetch(`/api/geocode?q=${encodeURIComponent(q)}${near}`, { signal: ctrl.signal })
         .then((r) => r.json())
-        .then((j) => setHits(j?.data ?? []))
+        .then((j) => setHits(asArray(j?.data)))
         .catch(() => {})
         .finally(() => setSeeking(false));
     }, 400);
@@ -256,7 +257,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
       for (const grp of SAT_GROUPS) {
         try {
           const j = await fetch(`/api/atlas/satellites?group=${grp}`).then((r) => r.json());
-          for (const s of j?.data ?? []) all.push(s);
+          for (const s of asArray<{ name: string; lat: number; lon: number; alt: number }>(j?.data)) all.push(s);
         } catch {}
       }
       for (const s of all) {
@@ -319,7 +320,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
       try {
         const j = await fetch("/api/atlas/seismic").then((r) => r.json());
         g.clearLayers();
-        for (const q of j?.data ?? []) {
+        for (const q of asArray<{ lat: number; lon: number; mag: number; place: string; time: string }>(j?.data)) {
           L.circleMarker([q.lat, q.lon], { radius: 2 + q.mag * 1.6, color: "#e8a13a", weight: 1, fillColor: "#e8a13a", fillOpacity: 0.15 })
             .bindTooltip(`◈ M${q.mag.toFixed(1)} · ${q.place} · ${new Date(q.time).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })} IST`, { sticky: true })
             .addTo(g);
@@ -335,7 +336,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   // ── live conflict headlines (GDELT) for the HUD ticker ────
   useEffect(() => {
     if (!ready) return;
-    const load = () => fetch("/api/atlas/conflicts").then((r) => r.json()).then((j) => setConflictNews(j?.data ?? [])).catch(() => {});
+    const load = () => fetch("/api/atlas/conflicts").then((r) => r.json()).then((j) => setConflictNews(asArray(j?.data))).catch(() => {});
     load();
     // Fifteen minutes was the slowest timer in the app, and GDELT is cached
     // for fifteen more on the server — so this could show something half an

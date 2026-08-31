@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { sound } from "@/lib/sound";
 import { useLive } from "@/lib/live";
+import { asArray } from "@/lib/as-array";
 
 interface Toast {
   id: string;
@@ -105,7 +106,7 @@ export function Toaster() {
       try {
         const res = await fetch("/api/events/recent");
         const json = await res.json();
-        const events = (json.data ?? []) as SystemEvent[];
+        const events = asArray<SystemEvent>(json.data);
         if (!events.length) return;
         const newest = events[0].createdAt;
         if (!firstRef.current) {

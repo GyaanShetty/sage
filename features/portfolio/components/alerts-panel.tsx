@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BellRing, Plus, Trash2, FlaskConical, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { asArray } from "@/lib/as-array";
 
 interface Alert {
   id: string; symbol: string; kind: string; condition: string;
@@ -29,7 +30,7 @@ export function AlertsPanel() {
 
   const load = useCallback(async () => {
     const j = await fetch("/api/portfolio/alerts").then((r) => r.json()).catch(() => null);
-    setAlerts(j?.data ?? []);
+    setAlerts(asArray(j?.data));
   }, []);
   useEffect(() => { load(); }, [load]);
 

@@ -5,6 +5,7 @@ import { NarrativePanel, PulsePanel, EventsCorrelationPanel } from "./intel-pane
 import "@/features/dashboard/command.css";
 import { NumberTicker } from "@/components/number-ticker";
 import { Acquiring } from "@/components/ui/acquiring";
+import { asArray } from "@/lib/as-array";
 
 interface Quote { symbol: string; name: string; price: number; change: number; changePct: number; currency: string; spark: number[] }
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
@@ -108,12 +109,12 @@ export function MarketsView() {
 
   const refresh = useCallback((c: Config) => {
     fetch(`/api/market/quotes?symbols=${encodeURIComponent(c.indices.join(","))}`)
-      .then((r) => r.json()).then((j) => setIndices(j.data ?? [])).catch(() => setIndices([]));
+      .then((r) => r.json()).then((j) => setIndices(asArray(j.data))).catch(() => setIndices([]));
     fetch(`/api/market/quotes?symbols=${encodeURIComponent(c.stocks.join(","))}`)
-      .then((r) => r.json()).then((j) => setStocks(j.data ?? [])).catch(() => setStocks([]));
+      .then((r) => r.json()).then((j) => setStocks(asArray(j.data))).catch(() => setStocks([]));
     fetch(`/api/markets?ids=${encodeURIComponent(c.crypto.join(","))}`)
-      .then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => setCoins([]));
-    fetch("/api/fx").then((r) => r.json()).then((j) => setFx(j.data ?? [])).catch(() => setFx([]));
+      .then((r) => r.json()).then((j) => setCoins(asArray(j.data))).catch(() => setCoins([]));
+    fetch("/api/fx").then((r) => r.json()).then((j) => setFx(asArray(j.data))).catch(() => setFx([]));
   }, []);
 
   useEffect(() => {

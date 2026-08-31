@@ -590,3 +590,80 @@ export function InboxTile({ n }: { n?: number }) {
     </Pane>
   );
 }
+
+/* ── 31 REVIEW ────────────────────────────────────────────────────────────
+   Flashcards due today.
+
+   Due count first and total second, because "12 due" is the number that
+   decides whether you sit down; "340 cards" never has. The pane links into
+   the review screen, which is where the work actually happens. */
+export function ReviewTile({ n }: { n?: number }) {
+  const [d, setD] = useState<{ cards: { id: string; front: string }[]; total: number } | null>(null);
+
+  useLive(
+    () => fetch("/api/review").then((r) => r.json())
+      .then((j) => setD({ cards: asArray(j?.data?.cards), total: Number(j?.data?.total ?? 0) })).catch(() => setD(null)),
+    { everyMs: 600_000 },
+  );
+
+  const due = d?.cards.length ?? 0;
+
+  return (
+    <Pane n={n} title="Review" status={<Go href="/review">{d ? `${d.total} CARDS` : "…"}</Go>} live={due > 0}>
+      {!d && <div className="tile-wait">ACQUIRING…</div>}
+      {d && (
+        <>
+          <div className="tstat">
+            <span className={`tstat-v${due > 0 ? " signal" : ""}`}>{pad(due)}</span>
+            <span className="tstat-k">DUE TODAY</span>
+          </div>
+          {due === 0 && <div className="tile-wait">NOTHING DUE — CLEAR</div>}
+          {d.cards.slice(0, 4).map((c) => (
+            <div className="psh" key={c.id}><span className="psh-t">{c.front}</span></div>
+          ))}
+        </>
+      )}
+    </Pane>
+  );
+}
+
+/* ── 32 GRAPH ─────────────────────────────────────────────────────────────
+   How much SAGE actually holds, and how connected it is.
+
+   Nodes alone say how much went in; edges say whether any of it is joined to
+   anything else. A store of ten thousand disconnected facts is a pile, and
+   the ratio is what tells the two apart. */
+interface GNode { id: string; kind: string }
+
+export function GraphTile({ n }: { n?: number }) {
+  const [g, setG] = useState<{ nodes: GNode[]; edges: unknown[] } | null>(null);
+
+  useLive(
+    () => fetch("/api/graph").then((r) => r.json())
+      .then((j) => setG({ nodes: asArray<GNode>(j?.data?.nodes), edges: asArray(j?.data?.edges) })).catch(() => setG(null)),
+    { everyMs: 900_000, scopes: ["memory"] },
+  );
+
+  const kinds = ["memory", "note", "source"];
+  const counts = kinds.map((k) => (g?.nodes ?? []).filter((x) => x.kind === k).length);
+  const links = g?.edges.length ?? 0;
+  // Average edges per node — one decimal, because the difference between 0.4
+  // and 1.2 is the whole signal and rounding to integers erases it.
+  const density = g && g.nodes.length ? (links / g.nodes.length).toFixed(1) : "—";
+
+  return (
+    <Pane n={n} title="Graph" status={<Go href="/graph">{g ? `${g.nodes.length} NODES` : "…"}</Go>} live={!!g?.nodes.length}>
+      {!g && <div className="tile-wait">ACQUIRING…</div>}
+      {g?.nodes.length === 0 && <div className="tile-wait">GRAPH EMPTY</div>}
+      {!!g?.nodes.length && (
+        <>
+          <div className="km">
+            {kinds.map((k, i) => <Stat key={k} v={pad(counts[i])} k={k} />)}
+          </div>
+          <Row k="Links" v={String(links)} tone="signal" />
+          <Row k="Links per node" v={density} tone="muted" />
+        </>
+      )}
+    </Pane>
+  );
+}

@@ -15,6 +15,7 @@ import { RiskPanel } from "./components/risk-panel";
 import { TradesPanel } from "./components/trades-panel";
 import { AlertsPanel } from "./components/alerts-panel";
 import { Acquiring } from "@/components/ui/acquiring";
+import { asArray } from "@/lib/as-array";
 
 interface SymbolHit { symbol: string; name: string; exchange: string; kind: "crypto" | "stock" }
 
@@ -77,7 +78,7 @@ export function PortfolioView() {
     const j = await fetch("/api/portfolio").then((r) => r.json()).catch(() => null);
     setPositions(j?.data?.positions ?? []);
     setTotals(j?.data?.totals ?? null);
-    fetch("/api/portfolio/news").then((r) => r.json()).then((n) => setNews(n?.data ?? [])).catch(() => {});
+    fetch("/api/portfolio/news").then((r) => r.json()).then((n) => setNews(asArray(n?.data))).catch(() => {});
   }, []);
   // Bumped whenever expenses change, so the budget beside them re-reads
   // rather than showing figures from before the entry that was just added.
@@ -158,7 +159,7 @@ export function PortfolioView() {
     setSearching(true);
     searchTimer.current = setTimeout(async () => {
       const j = await fetch(`/api/market/search?q=${encodeURIComponent(v.trim())}`).then((r) => r.json()).catch(() => null);
-      setHits(j?.data ?? []);
+      setHits(asArray(j?.data));
       setSearching(false);
     }, 250);
   };

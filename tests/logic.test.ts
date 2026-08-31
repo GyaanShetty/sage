@@ -3353,7 +3353,7 @@ test("sitrep lines are tiered, and alerts are promoted to NOW", async () => {
 
   const src = readFileSync(new URL("../core/sitrep/index.ts", import.meta.url), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.match(src, /alerts:.*tier: "now"/s, "anything actively wrong is NOW whatever produced it");
+  assert.match(src, /alerts:[\s\S]*tier: "now"/, "anything actively wrong is NOW whatever produced it");
 
   // The tile must read the structured route, not the flat one.
   const tile = readFileSync(new URL("../features/dashboard/components/page-tiles.tsx", import.meta.url), "utf8")

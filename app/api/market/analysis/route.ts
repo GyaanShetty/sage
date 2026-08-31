@@ -5,6 +5,7 @@ import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { getMarkets } from "@/infrastructure/markets";
 import { getNews } from "@/infrastructure/news";
 import { TZ, tzHour, OWNER } from "@/lib/config";
+import { asArray } from "@/lib/as-array";
 
 export const maxDuration = 60;
 

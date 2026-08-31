@@ -12,6 +12,7 @@ import { ScheduleManager } from "./schedule-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
 import { ChronoTile, FieldTile, CosmosTile, PlayingTile, WireTile } from "./tiles";
 import { CommuteTile } from "./commute-tile";
+import { TileGuard } from "@/components/tile-guard";
 import {
   SignalsTile, AgentLogTile, GithubTile, BioTile, PortfolioTile, MemoryTile, ExamTile, SystemTile,
 } from "./page-tiles";
@@ -339,29 +340,29 @@ export function CommandView({
               SAGE already produces — the density comes from showing what is
               known, tightly, not from fetching more. */}
           <div className="tiles c4">
-            <ChronoTile n={4} />
-            <FieldTile n={7} />
-            <CommuteTile n={8} />
-            <PlayingTile n={19} />
+            <TileGuard name="CHRONO"><ChronoTile n={4} /></TileGuard>
+            <TileGuard name="FIELD"><FieldTile n={7} /></TileGuard>
+            <TileGuard name="COMMUTE"><CommuteTile n={8} /></TileGuard>
+            <TileGuard name="PLAYING"><PlayingTile n={19} /></TileGuard>
           </div>
           {/* One pane per page: the glanceable half of each screen, with the
               screen itself a click away on the title. Everything here rides a
               route that already exists. */}
           <div className="tiles c4">
-            <SignalsTile n={2} />
-            <AgentLogTile n={14} />
-            <BioTile n={26} />
-            <PortfolioTile n={20} />
+            <TileGuard name="SIGNALS"><SignalsTile n={2} /></TileGuard>
+            <TileGuard name="AGENTLOG"><AgentLogTile n={14} /></TileGuard>
+            <TileGuard name="BIO"><BioTile n={26} /></TileGuard>
+            <TileGuard name="PORTFOLIO"><PortfolioTile n={20} /></TileGuard>
           </div>
           <div className="tiles c4">
-            <GithubTile n={27} />
-            <MemoryTile n={11} />
-            <ExamTile n={24} />
-            <SystemTile n={31} />
+            <TileGuard name="GITHUB"><GithubTile n={27} /></TileGuard>
+            <TileGuard name="MEMORY"><MemoryTile n={11} /></TileGuard>
+            <TileGuard name="EXAM"><ExamTile n={24} /></TileGuard>
+            <TileGuard name="SYSTEM"><SystemTile n={31} /></TileGuard>
           </div>
           <div className="tiles c2">
-            <WireTile n={15} />
-            <CosmosTile n={30} />
+            <TileGuard name="WIRE"><WireTile n={15} /></TileGuard>
+            <TileGuard name="COSMOS"><CosmosTile n={30} /></TileGuard>
           </div>
         </div>
 

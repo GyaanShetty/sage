@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
+import { asArray } from "@/lib/as-array";
 
 export const dynamic = "force-dynamic";
 

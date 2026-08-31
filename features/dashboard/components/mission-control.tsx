@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ExpandableCell } from "./expandable-cell";
+import { asArray } from "@/lib/as-array";
 
 interface Coin { symbol: string; name: string; price: number; change24h: number; spark: number[] }
 interface Headline { source: string; title: string; link: string; published: number }
@@ -36,13 +37,13 @@ export function MissionControl() {
   const [apod, setApod] = useState<Apod | null>(null);
 
   useEffect(() => {
-    fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => setCoins([]));
-    fetch("/api/news").then((r) => r.json()).then((j) => setNews(j.data ?? [])).catch(() => setNews([]));
-    fetch("/api/stocks").then((r) => r.json()).then((j) => setStocks(j.data ?? [])).catch(() => setStocks([]));
-    fetch("/api/fx").then((r) => r.json()).then((j) => setFx(j.data ?? [])).catch(() => setFx([]));
+    fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(asArray(j.data))).catch(() => setCoins([]));
+    fetch("/api/news").then((r) => r.json()).then((j) => setNews(asArray(j.data))).catch(() => setNews([]));
+    fetch("/api/stocks").then((r) => r.json()).then((j) => setStocks(asArray(j.data))).catch(() => setStocks([]));
+    fetch("/api/fx").then((r) => r.json()).then((j) => setFx(asArray(j.data))).catch(() => setFx([]));
     fetch("/api/cosmos").then((r) => r.json()).then((j) => setApod(j.data ?? null)).catch(() => {});
     const t = setInterval(() => {
-      fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(j.data ?? [])).catch(() => {});
+      fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(asArray(j.data))).catch(() => {});
     }, 120000);
     return () => clearInterval(t);
   }, []);

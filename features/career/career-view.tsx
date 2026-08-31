@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 import { Acquiring } from "@/components/ui/acquiring";
+import { asArray } from "@/lib/as-array";
 
 const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as const;
 type Stage = (typeof STAGES)[number];
@@ -44,7 +45,7 @@ export function CareerView() {
 
   const load = useCallback(async () => {
     const j = await fetch("/api/career").then((r) => r.json()).catch(() => null);
-    setApps(j?.data ?? []);
+    setApps(asArray(j?.data));
     setFunnel(j?.funnel ?? null);
     setInsights(Object.fromEntries(((j?.insights ?? []) as Insight[]).map((i) => [i.id, i])));
   }, []);

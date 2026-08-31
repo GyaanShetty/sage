@@ -5,6 +5,7 @@ import { Pane } from "@/components/pane";
 import { useLivePosition } from "@/lib/geo-position";
 import { useLive } from "@/lib/live";
 import { distanceM, type Place } from "@/core/places/schedule";
+import { asArray } from "@/lib/as-array";
 
 /**
  * How far everything is, right now.
@@ -34,7 +35,7 @@ export function CommuteTile({ n }: { n?: number }) {
   const [legs, setLegs] = useState<Leg[] | null>(null);
 
   useLive(
-    () => fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(j?.data ?? [])).catch(() => {}),
+    () => fetch("/api/places").then((r) => r.json()).then((j) => setPlaces(asArray<Place>(j?.data))).catch(() => {}),
     { everyMs: 300_000, scopes: ["places"] },
   );
 

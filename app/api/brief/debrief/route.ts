@@ -6,6 +6,7 @@ import { TZ, tzHour, startOfTodayUtc, OWNER } from "@/lib/config";
 import { getNews } from "@/infrastructure/news";
 import { recentBriefs, noRepeatClause } from "@/core/brief/variety";
 import { buildDayPicture, describeDay } from "@/core/brief/agenda";
+import { asArray } from "@/lib/as-array";
 
 export const maxDuration = 60;
 
@@ -68,7 +69,7 @@ export async function GET(req: Request) {
     headers: { cookie: req.headers.get("cookie") ?? "" },
   })
     .then((r) => r.json())
-    .then((j) => j.data ?? [])
+    .then((j) => asArray(j.data))
     .catch(() => []);
 
   const g = greeting();

@@ -11,6 +11,7 @@ import {
   CheckSquare, FileText, Brain, Wallet, Briefcase, Dumbbell, Receipt, Loader2,
   Microscope, GraduationCap, Paperclip,
 } from "lucide-react";
+import { asArray } from "@/lib/as-array";
 
 interface SearchHit {
   kind: "task" | "note" | "memory" | "holding" | "career" | "workout" | "expense" | "research" | "skill" | "file";
@@ -44,7 +45,7 @@ export function CommandPalette() {
         .then((r) => r.json()).catch(() => null);
       // ignore a slow response that lost the race to a newer keystroke
       if (mine !== seq.current) return;
-      setHits(j?.data ?? []);
+      setHits(asArray(j?.data));
       setSearching(false);
     }, 180);
     return () => { if (timer.current) clearTimeout(timer.current); };

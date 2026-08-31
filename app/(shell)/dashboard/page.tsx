@@ -3,18 +3,9 @@ import {
   CommandView,
   type EventRow,
   type LogRow,
-  type NoteRow,
   type Stats,
   type TaskRow,
 } from "@/features/dashboard/components/command-view";
-import { ConsoleBand, ReviewBand, WorldBand } from "@/features/dashboard/components/bands";
-import { LearnBand } from "@/features/dashboard/components/learn-band";
-import { StreamsBand } from "@/features/dashboard/components/streams-band";
-import { TickTickBand } from "@/features/dashboard/components/ticktick-band";
-import { EisenhowerBand } from "@/features/dashboard/components/eisenhower-band";
-import { DashboardLayout } from "@/features/dashboard/components/dashboard-layout";
-import { MissionControl } from "@/features/dashboard/components/mission-control";
-import { OpsBand } from "@/features/dashboard/components/ops-band";
 import { ExamStrip } from "@/features/dashboard/components/exam-strip";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
@@ -128,35 +119,27 @@ export default async function DashboardPage() {
   const stats: Stats = { memories, sources, runs, notes: noteCount };
   const open = (tasks ?? []).filter((t) => t.status !== "done").length;
 
-  const bands = [
-    { id: "command", label: "01 · Home", node: (
-      <CommandView
-        tasks={(tasks ?? []) as TaskRow[]}
-        events={events}
-        notes={(notes ?? []) as NoteRow[]}
-        log={(log ?? []) as LogRow[]}
-        stats={stats}
-        weather={weather}
-        steps={typeof health?.steps === "number" ? health.steps : Number(health?.steps) || null}
-        userName={OWNER}
-      />
-    ) },
-    { id: "mission", label: "03 · Mission Control", node: <MissionControl /> },
-    { id: "ops", label: "04 · Operations", node: <OpsBand /> },
-    { id: "world", label: "05 · World", node: <WorldBand geo={{ lat: Number(process.env.SAGE_LAT ?? 12.9716), lon: Number(process.env.SAGE_LON ?? 77.5946) }} /> },
-    { id: "console", label: "06 · Console", node: <ConsoleBand stats={{ open, notes: noteCount, memories }} /> },
-    { id: "review", label: "07 · Review", node: <ReviewBand activity={activity} journal={journal} health={health} /> },
-    { id: "learn", label: "08 · Learn", node: <LearnBand /> },
-    { id: "matrix", label: "09 · Eisenhower Matrix", node: <EisenhowerBand /> },
-    { id: "deadlines", label: "10 · Deadlines", node: <TickTickBand /> },
-    { id: "feeds", label: "11 · Feeds", node: <StreamsBand /> },
-  ];
-
+  /**
+   * The dashboard is the wall now.
+   *
+   * It used to be eleven stacked bands behind a reorder editor, which is the
+   * opposite of what was asked for: the point of this screen is that all of it
+   * is visible at once. Everything those bands showed is either a pane on the
+   * wall (Eisenhower, Deadlines, Feeds, Mission Control, Activity) or has its
+   * own route reachable from the F-key rail. The band components are still in
+   * the tree, unimported, rather than deleted.
+   */
   return (
     <div>
       {/* Above everything, and only when a paper is close. */}
       <ExamStrip />
-      <DashboardLayout bands={bands} />
+      <CommandView
+        tasks={(tasks ?? []) as TaskRow[]}
+        events={events}
+        log={(log ?? []) as LogRow[]}
+        stats={stats}
+        weather={weather}
+      />
     </div>
   );
 }

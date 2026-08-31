@@ -1,26 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "../command.css";
-import { NumberTicker } from "@/components/number-ticker";
+import "../wall.css";
 import { sound } from "@/lib/sound";
 import { ExpandModal } from "@/components/expand-modal";
 import { TaskManager } from "./task-manager";
-import { ExpandableCell } from "./expandable-cell";
-import { ScheduleManager } from "./schedule-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
-import { ChronoTile, FieldTile, CosmosTile, PlayingTile, WireTile } from "./tiles";
-import { CommuteTile } from "./commute-tile";
+import { PlayingTile } from "./tiles";
 import { TileGuard } from "@/components/tile-guard";
+import { AgentLogTile, GithubTile, BioTile, SystemTile } from "./page-tiles";
 import {
-  SignalsTile, AgentLogTile, GithubTile, BioTile, PortfolioTile, MemoryTile, ExamTile, SystemTile,
-} from "./page-tiles";
-import { Brackets, Crosshair } from "@/components/chrome";
+  MarketsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, FeedsTile,
+  ClocksTile, SkyTile, CommandsTile,
+} from "./wall-tiles";
+import { Pane } from "@/components/pane";
+import { Crosshair } from "@/components/chrome";
+import { EisenhowerBand } from "./eisenhower-band";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
 import { BriefBlock } from "./brief-block";
-import { tzHour, fmt } from "@/lib/config";
+import { fmt, TZ } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
 export interface TaskRow { id: string; title: string; status: string; dueAt: string | null }
@@ -31,13 +31,6 @@ export interface Stats { memories: number; sources: number; runs: number; notes:
 export interface WeatherRow { temp: number; high: number; low: number; label: string; wind: number; place: string; aqi?: number | null }
 
 const pad = (n: number) => String(n).padStart(2, "0");
-
-const LOG_LABEL: Record<string, string> = {
-  "memory.extracted": "memory committed",
-  "brief.generated": "brief compiled",
-  "reminder.fired": "reminder fired",
-  "automation.completed": "automation complete",
-};
 
 /* ─── Gita rotator (design element from the prototype) ─── */
 const GITA = [
@@ -76,37 +69,26 @@ const GITA = [
 export function CommandView({
   tasks: initialTasks,
   events,
-  notes: initialNotes,
   log,
   stats,
   weather,
-  steps,
-  userName,
 }: {
   tasks: TaskRow[];
   events: EventRow[] | null;
-  notes: NoteRow[];
   log: LogRow[];
   stats: Stats;
   weather: WeatherRow | null;
-  steps?: number | null;
-  userName: string;
 }) {
-  const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
-  const [notes, setNotes] = useState(initialNotes);
   const [gi, setGi] = useState(0);
   const [ask, setAsk] = useState("");
   const [askOut, setAskOut] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
-  const [noteText, setNoteText] = useState("");
   const [focusSec, setFocusSec] = useState(25 * 60);
   const [focusRun, setFocusRun] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
 
   const now = new Date();
-  const hour = tzHour(now);
-  const greet = hour < 5 ? "Late night" : hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const open = tasks.filter((t) => t.status !== "done").length;
   const todays = (events ?? []).filter((e) => new Date(e.start).toDateString() === now.toDateString());
 
@@ -165,26 +147,6 @@ export function CommandView({
     });
   };
 
-  const addNote = async () => {
-    const text = noteText.trim();
-    if (!text) return;
-    setNoteText("");
-    const res = await fetch("/api/note", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: text }),
-    });
-    const { data } = await res.json();
-    setNotes((prev) => [{ id: data.id, title: text, createdAt: new Date().toISOString() }, ...prev].slice(0, 6));
-    window.dispatchEvent(new CustomEvent("sage:toast", { detail: { title: "NOTE CAPTURED", body: text } }));
-    router.refresh();
-  };
-
-  const delNote = async (id: string) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-    await fetch(`/api/note/${id}`, { method: "DELETE" });
-  };
-
   /* focus ring geometry */
   const fr = 40, fc = 2 * Math.PI * fr;
   const fpct = 1 - focusSec / (25 * 60);
@@ -196,260 +158,170 @@ export function CommandView({
   const lead = (first.getDay() + 6) % 7, prevDim = new Date(Y, M, 0).getDate();
   const evDays = new Set((events ?? []).map((e) => { const d = new Date(e.start); return d.getMonth() === M ? d.getDate() : -1; }));
 
+  /* Week / day-of-year / quarter, in IST.
+     Deriving these from toISOString would put late-evening glances on
+     tomorrow's numbers at +05:30 — a clock that is wrong every evening. */
+  const dayKeyIst = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now);
+  const istYear = Number(dayKeyIst.slice(0, 4));
+  const doy = Math.floor((Date.parse(`${dayKeyIst}T00:00:00Z`) - Date.UTC(istYear, 0, 1)) / 86400000) + 1;
+  const week = Math.ceil(doy / 7);
+  const quarter = Math.floor(Number(dayKeyIst.slice(5, 7)) / 3.01) + 1;
+  const focusMin = Math.round((25 * 60 - focusSec) / 60);
+  const agentRunning = log.some((l) => l.type.startsWith("agent."));
+
+  /**
+   * How much of the viewport the wall is allowed to have.
+   *
+   * This was a guessed constant, and a guess is wrong the moment anything
+   * above changes height — the desk strip, the ticker, an exam banner that
+   * only appears in exam week. Too small and the wall floats; too large and
+   * the bottom row paints under the F-key rail, which is exactly how the
+   * first pass looked. So it is measured: distance from the top of the
+   * viewport to the top of the wall, plus whatever the rail occupies.
+   */
+  const wallRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const fit = () => {
+      const el = wallRef.current;
+      if (!el) return;
+      const rail = document.querySelector<HTMLElement>(".fn-rail");
+      const chrome = el.getBoundingClientRect().top + window.scrollY + (rail?.offsetHeight ?? 0);
+      el.style.setProperty("--wall-chrome", `${Math.round(chrome)}px`);
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    // The strips above can appear after first paint (exam banner, ticker), so
+    // one measurement at mount is not enough.
+    const ro = new ResizeObserver(fit);
+    if (document.body) ro.observe(document.body);
+    return () => { window.removeEventListener("resize", fit); ro.disconnect(); };
+  }, []);
+
   return (
-    <div>
-      {/* ================= 01 HOME ================= */}
-      <section className="section" id="home">
-        <div className="sectitle"><span className="sn">01</span><h2>Home</h2><span className="line" /><span className="tag">ASSISTANT · NOTES · GITA · AGENDA</span></div>
-        {/* The hero, tiled.
+    <div className="wall" ref={wallRef}>
+      {/* ── ROW 1 ─────────────────────────────────────────────────────────
+          The map leads, at the width it earns. */}
+      <div className="wall-row wall-r1">
+        <Pane n={1} title="Atlas Map" status="LIVE" live className="wall-map" frame>
+          <AtlasMap lat={12.9352} lon={77.6245} />
+          <span className="deck-map-marks" aria-hidden>
+            <Crosshair /><Crosshair /><Crosshair /><Crosshair />
+          </span>
+        </Pane>
+        <TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard>
+        <TileGuard name="KEYMETRICS">
+          <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+        </TileGuard>
+        <TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard>
+      </div>
 
-            This was an overlay stage: the map at inset:0 with glass columns
-            floating on top of it at z-index 2. That works for a globe — a
-            sphere in the middle, panels over the empty corners — and fails
-            completely for a map, which is rectangular and uses every pixel.
-            The panels covered the thing they sat on, including the Atlas
-            toolbar, so the map's own controls were unreachable.
-
-            Now it is rows: chrome, a band of panes, the map full-width on its
-            own row, then the rest. Nothing overlaps anything. */}
-        <div className="deck">
-          <div className="deck-head">
-            <span className="hh-name">{greet}, {userName}</span>
-            <span className="hh-sub">
-              <i className="hh-dot" />
-              {weather ? `${weather.place} ${weather.temp}° · ${weather.label}` : "SAGE"} · ONLINE
-            </span>
-            <span className="deck-figs">
-            {weather && (
-              <div className="hs-stat"><span className="hs-v num">{weather.temp}°</span><span className="hs-k">{weather.high}°/{weather.low}°{typeof weather.aqi === "number" ? ` · AQI ${weather.aqi}` : ""}</span></div>
-            )}
-            <div className="hs-stat"><span className="hs-v num">{open}</span><span className="hs-k">Open</span></div>
-            <div className="hs-stat"><span className="hs-v num">{todays.length}</span><span className="hs-k">Events</span></div>
-            {typeof steps === "number" && steps > 0 && (
-              <div className="hs-stat"><span className="hs-v num"><NumberTicker value={steps} /></span><span className="hs-k">Steps</span></div>
-            )}
-            </span>
-          </div>
-
-          {/* The map leads. It is the thing he actually looks at, and it gets
-              the room to prove it — full width, its own row, above everything
-              else so nothing can crowd or cover it. */}
-          <div className="deck-map">
-            <AtlasMap lat={12.9352} lon={77.6245} />
-            {/* Framing only — brackets and corner registration marks make the
-                map read as a viewport onto something rather than as an image
-                dropped into a box. They claim nothing, so they cannot lie. */}
-            <Brackets tone="signal" />
-            <span className="deck-map-marks" aria-hidden>
-              <Crosshair /><Crosshair /><Crosshair /><Crosshair />
-            </span>
-          </div>
-
-          <div className="tiles c2 deck-band">
-            <div className="deck-col">
-<SitrepBand compact />
-            <BriefBlock />
-              <ExpandableCell title="Intelligence" tag="MEMORY CORE">
-                <div className="bh"><span className="t">Intelligence</span><span className="i">MEM</span><span className="r">LIVE</span></div>
-                <div className="counters" style={{ margin: 0 }}>
-                  <div className="ct"><div className="cv num"><NumberTicker value={stats.memories} /></div><div className="ck">Memories</div></div>
-                  <div className="ct"><div className="cv num"><NumberTicker value={stats.sources} /></div><div className="ck">Sources</div></div>
-                  <div className="ct"><div className="cv num"><NumberTicker value={stats.runs} /></div><div className="ck">Agent runs</div></div>
-                  <div className="ct"><div className="cv num"><NumberTicker value={stats.notes} /></div><div className="ck">Notes</div></div>
-                </div>
-              </ExpandableCell>
-              {/* grow to fill, but never shrink below the notes it is showing —
-                  inline flex:1 would beat the stylesheet's no-shrink rule */}
-              <ExpandableCell title="Notes" tag="ADD · REMOVE" style={{ flex: "1 0 auto" }} hud="notes">
-                <div className="bh"><span className="t">Notes</span><span className="i">NTS</span><span className="r">{pad(notes.length)}</span></div>
-                <div className="notein">
-                  <input value={noteText} onChange={(e) => setNoteText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addNote()} placeholder="capture a thought…" />
-                  <button onClick={addNote}>ADD</button>
-                </div>
-                {notes.map((n) => (
-                  <div className="note" key={n.id}>
-                    <span className="nb" />
-                    <div style={{ flex: 1 }}>
-                      <div className="ntx">{n.title}</div>
-                      <div className="nt2">{fmt(n.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false })}</div>
-                    </div>
-                    <button className="del" onClick={() => delNote(n.id)}>×</button>
-                  </div>
-                ))}
-              </ExpandableCell>
-            </div>
-            <div className="deck-col">
-<NextAction />
-              <ExpandableCell title="Bhagavad Gita" tag="श्लोक" className="gita">
-                <div className="bh"><span className="t">Gita</span><span className="i">श्लोक</span></div>
-                <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
-                <div className="dev">{gita.dev}</div>
-                <div className="tr">{gita.tr}</div>
-                <div className="en">{gita.en}</div>
-                <div className="src"><span>अध्याय {gita.src}</span><i /><span>BHAGAVAD GITA</span></div>
-              </ExpandableCell>
-              <ExpandableCell title={`${now.toLocaleString("en", { month: "long" })} ${Y}`} tag="ADD EVENTS" expanded={<ScheduleManager events={events} />}>
-                <div className="bh"><span className="t">{now.toLocaleString("en", { month: "long" }).toUpperCase()} {Y}</span><span className="i">CAL</span></div>
-                <div className="cal">
-                  {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}
-                  {Array.from({ length: lead }).map((_, i) => <div className="d out" key={`p${i}`}>{prevDim - lead + 1 + i}</div>)}
-                  {Array.from({ length: dim }).map((_, i) => (
-                    <div className={`d${i + 1 === now.getDate() ? " today" : ""}`} key={i}>
-                      {pad(i + 1)}
-                      {evDays.has(i + 1) && <span className="ev" />}
-                    </div>
-                  ))}
-                </div>
-              </ExpandableCell>
-              {/* grow to fill, never shrink: an inline flex:1 has basis 0%, so once
-                  the column overflowed the Agenda collapsed to zero height and
-                  vanished entirely — the same bug that hid Notes. */}
-              <ExpandableCell title="Agenda" tag="ADD · REMOVE" style={{ flex: "1 0 auto" }} hud="agenda" expanded={<ScheduleManager events={events} />}>
-                <div className="bh"><span className="t">Agenda</span><span className="i">AGD</span><span className="r">{events ? "LIVE" : "OFFLINE"}</span></div>
-                {/* Grouped by day. A flat list ran Thursday straight into
-                    Friday with nothing between them, so "what is left today"
-                    could only be worked out by reading every weekday label. */}
-                {(() => {
-                  const rows = (events ?? []).slice(0, 6);
-                  const dayKey = (d: Date) => fmt(d, { year: "numeric", month: "2-digit", day: "2-digit" });
-                  const todayKey = dayKey(new Date());
-                  const tomorrowKey = dayKey(new Date(Date.now() + 864e5));
-                  let last: string | null = null;
-                  return rows.map((e, i) => {
-                    const d = new Date(e.start);
-                    const key = dayKey(d);
-                    const head = key === last ? null
-                      : key === todayKey ? "TODAY"
-                      : key === tomorrowKey ? "TOMORROW"
-                      : fmt(d, { weekday: "long" }).toUpperCase();
-                    last = key;
-                    const isNext = i === 0;
-                    return (
-                      <div key={i}>
-                        {head && <div className="ag-day">{head}</div>}
-                        <div className={`ag${isNext ? " now" : ""}`}>
-                          <span className="tm">
-                            {e.allDay ? "ALL DAY" : fmt(d, { hour: "2-digit", minute: "2-digit", hour12: false })}
-                          </span>
-                          <span className="mk2"><i /></span>
-                          <div><div className="en2">{e.summary}</div><div className="el2">{isNext ? "NEXT" : "SCHEDULED"}</div></div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-                {events !== null && events.length === 0 && <p className="lbl">NO UPCOMING EVENTS</p>}
-                {events === null && <p className="lbl">CONNECT GOOGLE IN SETTINGS</p>}
-              </ExpandableCell>
-            </div>
-          </div>
-
-          {/* The instrument band. Every tile here is a re-presentation of data
-              SAGE already produces — the density comes from showing what is
-              known, tightly, not from fetching more. */}
-          <div className="tiles c4">
-            <TileGuard name="CHRONO"><ChronoTile n={4} /></TileGuard>
-            <TileGuard name="FIELD"><FieldTile n={7} /></TileGuard>
-            <TileGuard name="COMMUTE"><CommuteTile n={8} /></TileGuard>
-            <TileGuard name="PLAYING"><PlayingTile n={19} /></TileGuard>
-          </div>
-          {/* One pane per page: the glanceable half of each screen, with the
-              screen itself a click away on the title. Everything here rides a
-              route that already exists. */}
-          <div className="tiles c4">
-            <TileGuard name="SIGNALS"><SignalsTile n={2} /></TileGuard>
-            <TileGuard name="AGENTLOG"><AgentLogTile n={14} /></TileGuard>
-            <TileGuard name="BIO"><BioTile n={26} /></TileGuard>
-            <TileGuard name="PORTFOLIO"><PortfolioTile n={20} /></TileGuard>
-          </div>
-          <div className="tiles c4">
-            <TileGuard name="GITHUB"><GithubTile n={27} /></TileGuard>
-            <TileGuard name="MEMORY"><MemoryTile n={11} /></TileGuard>
-            <TileGuard name="EXAM"><ExamTile n={24} /></TileGuard>
-            <TileGuard name="SYSTEM"><SystemTile n={31} /></TileGuard>
-          </div>
-          <div className="tiles c2">
-            <TileGuard name="WIRE"><WireTile n={15} /></TileGuard>
-            <TileGuard name="COSMOS"><CosmosTile n={30} /></TileGuard>
-          </div>
-        </div>
-
-        <div className="cell ask">
-          <div className="askbox">
-            <span className="sig" />
-            <input
-              value={ask}
-              onChange={(e) => setAsk(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { doAsk(ask); setAsk(""); } }}
-              placeholder="Ask Sage anything…"
-            />
-            <span className="kb">↵</span>
-          </div>
-          <div className="chips">
-            {["What's my plan today?", "Summarize my unread email", "What do you know about me?", "Any tasks due soon?"].map((q) => (
-              <button key={q} className="chip" onClick={() => doAsk(q)}>{q}</button>
-            ))}
-          </div>
-          <div className="sageout">{asking ? "…" : askOut && <><b>Sage:</b> {askOut}</>}</div>
-        </div>
-      </section>
-
-      {/* ================= 02 EXECUTE ================= */}
-      <section className="section" id="exec" style={{ paddingTop: 0 }}>
-        <div className="sectitle"><span className="sn">02</span><h2>Execute</h2><span className="line" /><span className="tag">DIRECTIVES · FOCUS · ACTIVITY</span></div>
-        <div className="grid deck2a">
-          <div className="cell expandable" data-hud="tasks" onClick={() => setTaskModal(true)}>
-            <div className="bh">
-              <span className="t">Directives</span><span className="i">TSK</span>
-              <span className="r">{tasks.filter((t) => t.status === "done").length}/{tasks.length} · <span className="expand-hint">MANAGE ⤢</span></span>
-            </div>
-            {tasks.map((t, i) => (
-              <div className={`task${t.status === "done" ? " done" : ""}`} key={t.id} onClick={(e) => { e.stopPropagation(); toggleTask(t); }}>
-                <span className="box" /><span className="tx">{t.title}</span><span className="rank">{pad(i + 1)}</span>
-              </div>
-            ))}
-            {tasks.length === 0 && <p className="lbl">NO OPEN DIRECTIVES — TAP TO ADD</p>}
-          </div>
-          <ExpandableCell title="Focus Cycle" tag="POMODORO">
-            <div className="bh">
-              <span className="t">Focus Cycle</span><span className="i">FCS</span>
-              <span className="r" style={{ display: "flex", gap: 10 }}>
-                <button className="lbl" style={{ cursor: "pointer" }} onClick={() => setFocusRun((r) => !r)}>{focusRun ? "PAUSE" : "START"}</button>
-                <button className="lbl" style={{ cursor: "pointer" }} onClick={() => { setFocusRun(false); setFocusSec(25 * 60); }}>RESET</button>
+      {/* ── ROW 2 ───────────────────────────────────────────────────────── */}
+      <div className="wall-row wall-r2">
+        <TileGuard name="BIO"><BioTile n={4} /></TileGuard>
+        <TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard>
+        <TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard>
+        <div className="wall-stack">
+          <TileGuard name="ACTIVITY"><ActivityTile n={7} /></TileGuard>
+          <Pane
+            n={8}
+            title="Focus Cycle"
+            status={
+              <span className="fc-btns">
+                <button onClick={() => setFocusRun((r) => !r)}>{focusRun ? "PAUSE" : "START"}</button>
+                <button onClick={() => { setFocusRun(false); setFocusSec(25 * 60); }}>RESET</button>
               </span>
-            </div>
+            }
+            live={focusRun}
+          >
             <div className="fring">
               <svg viewBox="0 0 92 92">
-                <circle cx="46" cy="46" r={fr} fill="none" stroke="#2c2c30" strokeWidth="2.5" />
-                <circle cx="46" cy="46" r={fr} fill="none" stroke="#f4f4f5" strokeWidth="2.5" strokeDasharray={fc} strokeDashoffset={fc * (1 - fpct)} transform="rotate(-90 46 46)" strokeLinecap="round" />
-                <circle cx="46" cy="46" r="31" fill="none" stroke="#1c1c1f" strokeWidth="1" strokeDasharray="2 4" />
+                <circle cx="46" cy="46" r={fr} fill="none" stroke="var(--rule)" strokeWidth="2.5" />
+                <circle cx="46" cy="46" r={fr} fill="none" stroke="var(--signal)" strokeWidth="2.5" strokeDasharray={fc} strokeDashoffset={fc * (1 - fpct)} transform="rotate(-90 46 46)" strokeLinecap="round" />
               </svg>
               <div>
                 <div className="ft2 num">{pad(Math.floor(focusSec / 60))}:{pad(focusSec % 60)}</div>
                 <div className="fk">DEEP WORK · POMODORO</div>
               </div>
             </div>
-            <div className="counters">
-              <div className="ct"><div className="cv num">{open}</div><div className="ck">Open</div></div>
-              <div className="ct"><div className="cv num">{tasks.filter((t) => t.status === "done").length}</div><div className="ck">Done</div></div>
-              <div className="ct"><div className="cv num">{todays.length}</div><div className="ck">Events</div></div>
-              <div className="ct"><div className="cv num">{stats.runs}</div><div className="ck">Runs</div></div>
-            </div>
-          </ExpandableCell>
-          <ExpandableCell title="Activity" tag="SYSTEM LOG" className="!flex flex-col">
-            <div className="bh"><span className="t">Activity</span><span className="i">LOG</span><span className="r">SYSTEM</span></div>
-            <div className="feed">
-              {log.map((row, i) => (
-                <div className="fr" key={i}>
-                  <span className="ft">{fmt(row.createdAt, { hour: "2-digit", minute: "2-digit", hour12: false })}</span>{" "}
-                  <span className={i === 0 ? "fh" : ""}>{LOG_LABEL[row.type] ?? row.type}</span>
-                </div>
-              ))}
-              {log.length === 0 && <div className="fr"><span className="ft">—</span> no activity yet</div>}
-            </div>
-          </ExpandableCell>
+          </Pane>
         </div>
-      </section>
+        <TileGuard name="MISSION">
+          <MissionTile
+            n={9}
+            open={open}
+            events={todays.length}
+            agentRunning={agentRunning}
+            memories={stats.memories}
+            runs={stats.runs}
+            weather={weather ? `${weather.temp}° ${weather.label}` : null}
+          />
+        </TileGuard>
+      </div>
+
+      {/* ── ROW 3 ───────────────────────────────────────────────────────── */}
+      <div className="wall-row wall-r3">
+        <TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard>
+        <Pane
+          n={11}
+          title="Deadlines"
+          status={<span className="fc-btns"><button onClick={() => setTaskModal(true)}>OPEN</button></span>}
+          live={open > 0}
+        >
+          {tasks.map((t) => (
+            <div className={`task${t.status === "done" ? " done" : ""}`} key={t.id} onClick={() => toggleTask(t)}>
+              <span className="box" />
+              <span className="tx">{t.title}</span>
+              <span className="rank">{t.dueAt ? fmt(t.dueAt, { day: "2-digit", month: "short" }).toUpperCase() : "—"}</span>
+            </div>
+          ))}
+          {tasks.length === 0 && <div className="tile-wait">NO OPEN DIRECTIVES</div>}
+        </Pane>
+        <TileGuard name="GITHUB"><GithubTile n={13} /></TileGuard>
+        <TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard>
+      </div>
+
+      {/* ── ROW 4 ─────────────────────────────────────────────────────────
+          Nine narrow columns. Each pane's body scrolls inside itself, so a
+          long agenda cannot push the wall past the bottom of the screen. */}
+      <div className="wall-row wall-r4">
+        <TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard>
+        <TileGuard name="SKY"><SkyTile n={16} /></TileGuard>
+        <TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard>
+        <TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard>
+        <Pane n={19} title="What Now">
+          <NextAction />
+          <div className="askbox wall-ask">
+            <span className="sig" />
+            <input
+              value={ask}
+              onChange={(e) => setAsk(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { doAsk(ask); setAsk(""); } }}
+              placeholder="Ask Sage…"
+            />
+          </div>
+          <div className="sageout">{asking ? "…" : askOut}</div>
+        </Pane>
+        <Pane n={20} title="Gita" status={`अध्याय ${gita.src}`} className="gita">
+          <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
+          <div className="dev">{gita.dev}</div>
+          <div className="tr">{gita.tr}</div>
+          <div className="en">{gita.en}</div>
+        </Pane>
+        <Pane n={21} title={`${now.toLocaleString("en", { month: "long" })} ${Y}`}>
+          <div className="cal">
+            {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}
+            {Array.from({ length: lead }).map((_, i) => <div className="d out" key={`p${i}`}>{prevDim - lead + 1 + i}</div>)}
+            {Array.from({ length: dim }).map((_, i) => (
+              <div className={`d${i + 1 === now.getDate() ? " today" : ""}`} key={i}>
+                {pad(i + 1)}
+                {evDays.has(i + 1) && <span className="ev" />}
+              </div>
+            ))}
+          </div>
+        </Pane>
+        <TileGuard name="COMMANDS"><CommandsTile n={22} /></TileGuard>
+        <TileGuard name="SYSTEM"><SystemTile n={23} /></TileGuard>
+      </div>
 
       <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">
         <TaskManager tasks={tasks} setTasks={setTasks} />

@@ -1,0 +1,176 @@
+/* SAGE · THE WALL
+   ────────────────────────────────────────────────────────────────────────
+   The dashboard as one screen.
+
+   Below 1400px this is a plain vertical stack that scrolls — the layout that
+   already worked, and the one his phone gets. At 1400px and up it becomes a
+   fixed four-row grid the exact height of the viewport, and stops scrolling
+   entirely: zoomed out, every pane is on screen at once.
+
+   The whole thing hangs on one rule, repeated everywhere: `min-height: 0`.
+   A grid or flex child defaults to `min-height: auto`, which floors the track
+   at its content's height — so one long list silently makes the wall taller
+   than the screen and the page scrolls again. Each pane's body already has
+   `overflow: auto` with a hidden scrollbar (app/globals.css), so a pane that
+   cannot fit scrolls inside itself instead of pushing on its neighbours. That
+   is what makes a fixed-height wall possible at all. */
+
+.wall { display: flex; flex-direction: column; gap: 1px; background: var(--rule); min-height: 0; }
+.wall-row { display: grid; gap: 1px; min-height: 0; }
+.wall-row > * { min-width: 0; min-height: 0; }
+
+/* A cell holding two stacked panes — 07 Activity over 08 Focus. */
+.wall-stack { display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+.wall-stack > * { min-height: 0; }
+
+/* Stacked and scrolling: phones, and laptops at normal zoom. */
+.wall-row { grid-template-columns: repeat(2, 1fr); }
+.wall-map { grid-column: 1 / -1; height: 46vh; min-height: 300px; }
+
+@media (max-width: 720px) {
+  .wall-row { grid-template-columns: 1fr; }
+  .wall-map { height: 52vh; }
+}
+
+/* ── THE WALL PROPER ──────────────────────────────────────────────────────
+   One screen, no scroll. The row ratios and column templates are read off
+   the reference: four bands, each with its own rhythm. Forcing them onto a
+   single uniform grid is the thing that would not reproduce it. */
+@media (min-width: 1400px) {
+  .wall {
+    /* The frame rails top and bottom are fixed-height and sit outside. */
+    height: calc(100dvh - var(--wall-chrome, 74px));
+    overflow: hidden;
+  }
+  /* One row of tracks, floored at zero.
+     Without this the grid's implicit rows size to `auto` — the track grows to
+     its tallest pane and the row spills over the one below it, which is what
+     the wall looked like on the first pass: right at the top, bleeding at the
+     bottom. */
+  .wall-row { grid-template-columns: none; grid-template-rows: minmax(0, 1fr); grid-auto-rows: minmax(0, 1fr); }
+
+  .wall-r1 { flex: 2.1; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.25fr) minmax(0, 0.7fr) minmax(0, 1.1fr); }
+  .wall-r2 { flex: 1.55; grid-template-columns: repeat(2, minmax(0, 0.62fr)) minmax(0, 0.9fr) minmax(0, 1fr) minmax(0, 0.72fr); }
+  .wall-r3 { flex: 1.5; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.15fr); }
+  .wall-r4 { flex: 1.5; grid-template-columns: repeat(9, minmax(0, 1fr)); }
+
+  .wall-map { grid-column: auto; height: auto; min-height: 0; }
+}
+
+/* Everything below is pane-internal and applies at every width. */
+
+/* 02 markets */
+.mk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); margin-bottom: 8px; }
+.mk-cell { background: var(--panel); padding: 7px 9px; min-width: 0; }
+.mk-h { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); text-transform: uppercase; }
+.mk-p { font-family: var(--mono); font-size: 13px; color: var(--foreground); font-variant-numeric: tabular-nums; margin: 2px 0; }
+.mk-c { font-family: var(--mono); font-size: 9px; }
+.mk-c.up { color: var(--live); }
+.mk-c.down { color: var(--danger); }
+
+/* 03 key metrics — a 3×3 of figures. */
+.km { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); }
+.km > * { background: var(--panel); padding: 9px 6px; align-items: center; text-align: center; }
+
+/* 05 health traces */
+.hz { padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.hz:last-child { border-bottom: 0; }
+.hz-h { display: flex; justify-content: space-between; align-items: baseline; }
+.hz-k { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); text-transform: uppercase; }
+.hz-v { font-family: var(--mono); font-size: 12px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+/* 07 activity histogram */
+.acts { display: flex; align-items: flex-end; gap: 4px; height: 100%; min-height: 90px; padding-top: 6px; }
+.act { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; min-width: 0; }
+.act-n { font-family: var(--mono); font-size: 8.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.act-b { width: 100%; background: var(--signal-faint); border-top: 1px solid var(--signal); min-height: 1px; }
+.act-k { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); }
+
+/* 12 feeds */
+.vid { display: flex; gap: 9px; padding: 6px 0; border-bottom: 1px solid var(--rule); text-decoration: none; color: inherit; }
+.vid:last-child { border-bottom: 0; }
+.vid:hover .vid-t { color: var(--signal); }
+.vid-th { position: relative; flex: 0 0 88px; height: 50px; overflow: hidden; background: var(--hairbg); }
+.vid-th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vid-tx { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.vid-t { font-size: 11.5px; line-height: 1.35; color: var(--foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.vid-c { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--subtle); text-transform: uppercase; }
+
+/* 15 world clocks */
+.clocks { display: flex; gap: 8px; justify-content: space-around; padding-top: 4px; }
+.clk { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.clk svg { width: 52px; height: 52px; }
+.clk-t { font-family: var(--mono); font-size: 12px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.clk-k { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+.clk-d { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); }
+
+/* 16 sky */
+.moonrow { display: flex; align-items: center; gap: 11px; padding: 4px 0 9px; }
+.moon { width: 46px; height: 46px; flex: none; }
+.moon-n { font-size: 12.5px; color: var(--foreground); }
+.moon-i { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); margin-top: 3px; }
+
+/* 22 command reference */
+.cref { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.cref:last-child { border-bottom: 0; }
+.cref-c { font-family: var(--mono); font-size: 10px; color: var(--foreground); white-space: nowrap; }
+.cref-d { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); text-transform: uppercase; text-align: right; }
+
+/* 01 atlas — the map fills its pane rather than scrolling inside it. */
+.wall-map > .pane-body { overflow: hidden; display: flex; padding: 0; }
+.wall-map .atlas-map { flex: 1; min-height: 0; }
+.wall-map .deck-map-marks { position: absolute; inset: 22px 6px 6px; z-index: 500; pointer-events: none; }
+.wall-map .deck-map-marks .xhair { position: absolute; color: var(--signal-dim); }
+.wall-map .deck-map-marks .xhair:nth-child(1) { top: 0; left: 0; }
+.wall-map .deck-map-marks .xhair:nth-child(2) { top: 0; right: 0; }
+.wall-map .deck-map-marks .xhair:nth-child(3) { bottom: 0; left: 0; }
+.wall-map .deck-map-marks .xhair:nth-child(4) { bottom: 0; right: 0; }
+
+/* Buttons living in a pane's status slot — 08 Focus, 11 Deadlines. */
+.fc-btns { display: inline-flex; gap: 9px; }
+.fc-btns button {
+  background: none; border: 0; cursor: pointer; color: var(--subtle);
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase;
+}
+.fc-btns button:hover { color: var(--signal); }
+
+/* The ask line inside 19 What Now — a full ask bar does not fit a ninth of a
+   row, and the chips it used to carry are the same four questions the
+   command palette already offers. */
+.wall-ask { padding: 0 8px; margin-top: 8px; }
+.wall-ask input { font-size: 12px; padding: 8px 0; }
+
+/* Bands written before Pane bring their own .cell chrome; inside the wall
+   they are grid children and must obey the same height rules as a Pane. */
+.wall-row > .cell, .wall-row > * > .cell, .wall-row > section.cell {
+  min-height: 0; overflow: auto; scrollbar-width: none;
+}
+.wall-row .cell::-webkit-scrollbar { display: none; }
+
+/* Clip at the pane, so the body's own scroller is what handles overflow.
+   Without this a long pane paints straight over its neighbours and out of the
+   bottom of the screen — the wall looked right and read as broken. */
+.wall .pane { overflow: hidden; }
+.wall-row > .cell { display: flex; flex-direction: column; }
+
+/* Row 4 carries nine panes including a month grid, so it needs a little more
+   than an even share; row 1 is mostly map and can give it up. */
+@media (min-width: 1400px) {
+  .wall-r1 { flex: 1.95; }
+  .wall-r4 { flex: 1.7; }
+}
+
+/* Bands written before the Pane component bring their own chrome and no
+   height discipline. As grid children they must clip like a Pane does, and
+   scroll their own overflow rather than painting over the row beneath. */
+.wall-row > *:not(.pane) { overflow: auto; scrollbar-width: none; }
+.wall-row > *:not(.pane)::-webkit-scrollbar { display: none; }
+
+/* A clipping shell for the bands that predate Pane. They bring `.section`
+   padding and a full-page rhythm; inside a grid track that padding is most of
+   the height, and their content paints over the row below. */
+.wall-cell { min-height: 0; overflow: auto; scrollbar-width: none; background: var(--panel); display: flex; flex-direction: column; }
+.wall-cell::-webkit-scrollbar { display: none; }
+.wall-cell > .section, .wall-cell > section { padding: 0; }
+.wall-cell .sectitle { padding: 6px 9px 4px; margin: 0; }
+.wall-cell .grid { border: 0; }

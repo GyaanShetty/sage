@@ -3390,3 +3390,36 @@ test("Serial's barcode is a function of its code, not of the render", async () =
   assert.notDeepEqual(bars("a163d3a"), bars("7381f5a"));
   assert.ok(bars("x").every((w) => w >= 1 && w <= 4));
 });
+
+/* ── the wall ───────────────────────────────────────────────────────────── */
+
+test("every wall track sets min-height: 0", async () => {
+  /**
+   * The failure this guards is specific and silent: a grid or flex child
+   * defaults to `min-height: auto`, which floors the track at its content's
+   * height. One long list then makes the wall taller than the viewport and the
+   * page scrolls again — which is the single thing the layout exists to
+   * prevent, and it looks fine until the day a pane has more rows than usual.
+   */
+  const fs = await import("node:fs/promises");
+  const src = await fs.readFile("features/dashboard/wall.css", "utf8");
+  const css = src.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  for (const sel of [".wall ", ".wall-row ", ".wall-row > * ", ".wall-stack ", ".wall-stack > * "]) {
+    const rule = new RegExp(`\\${sel.trim().replace(/[*>]/g, (c) => `\\${c}`)}\\s*\\{[^}]*\\}`);
+    const m = rule.exec(css);
+    assert.ok(m, `no rule for ${sel}`);
+    assert.match(m[0], /min-height:\s*0/, `${sel} must set min-height: 0`);
+  }
+});
+
+test("the wall only claims the viewport above the fallback breakpoint", async () => {
+  // Below 1400px it must stay a scrolling stack: forcing a fixed height on a
+  // phone is how the panes become unreadable slivers.
+  const fs = await import("node:fs/promises");
+  const css = (await fs.readFile("features/dashboard/wall.css", "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const at = css.indexOf("@media (min-width: 1400px)");
+  assert.ok(at > 0, "no 1400px breakpoint");
+  assert.equal(/height:\s*calc\(100dvh/.test(css.slice(0, at)), false, "viewport height set outside the breakpoint");
+  assert.match(css.slice(at), /height:\s*calc\(100dvh/);
+});

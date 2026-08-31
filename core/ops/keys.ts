@@ -37,7 +37,7 @@ const TYPE = "ops.apikeys";
  * pair together is what makes "paste these two and Outlook works" a single
  * action instead of one field here and one environment variable there.
  */
-export const PROVIDERS = ["google", "tavily", "hevy", "alphavantage", "outlook_id", "outlook_secret", "fmp"] as const;
+export const PROVIDERS = ["google", "tavily", "hevy", "alphavantage", "outlook_id", "outlook_secret", "outlook_tenant", "fmp"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 interface StoredKey {

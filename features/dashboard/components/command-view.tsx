@@ -16,6 +16,7 @@ import { TileGuard } from "@/components/tile-guard";
 import {
   SignalsTile, AgentLogTile, GithubTile, BioTile, PortfolioTile, MemoryTile, ExamTile, SystemTile,
 } from "./page-tiles";
+import { Brackets, Crosshair } from "@/components/chrome";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
 import { BriefBlock } from "./brief-block";
@@ -235,6 +236,13 @@ export function CommandView({
               else so nothing can crowd or cover it. */}
           <div className="deck-map">
             <AtlasMap lat={12.9352} lon={77.6245} />
+            {/* Framing only — brackets and corner registration marks make the
+                map read as a viewport onto something rather than as an image
+                dropped into a box. They claim nothing, so they cannot lie. */}
+            <Brackets tone="signal" />
+            <span className="deck-map-marks" aria-hidden>
+              <Crosshair /><Crosshair /><Crosshair /><Crosshair />
+            </span>
           </div>
 
           <div className="tiles c2 deck-band">

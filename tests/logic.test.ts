@@ -3420,8 +3420,11 @@ test("the wall only claims the viewport above the fallback breakpoint", async ()
   const css = (await fs.readFile("features/dashboard/wall.css", "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
   const at = css.indexOf("@media (min-width: 1400px)");
   assert.ok(at > 0, "no 1400px breakpoint");
-  assert.equal(/height:\s*calc\(100dvh/.test(css.slice(0, at)), false, "viewport height set outside the breakpoint");
-  assert.match(css.slice(at), /height:\s*calc\(100dvh/);
+  // The rule reads `height: var(--wall-h, calc(100dvh - …))` — measured at
+  // runtime, with a viewport-relative fallback for the first paint. What must
+  // hold is that no viewport-height claim appears before the breakpoint.
+  assert.equal(/100dvh/.test(css.slice(0, at)), false, "viewport height set outside the breakpoint");
+  assert.match(css.slice(at), /height:\s*var\(--wall-h/);
 });
 
 test("every container-relative size in the wall is clamped", async () => {

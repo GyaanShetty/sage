@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pane, Row } from "@/components/pane";
+import { Pane, Row, Empty } from "@/components/pane";
 import { BarStrip, BarRows, Ring, Matrix, Progress, Delta } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { TZ } from "@/lib/config";
@@ -64,7 +64,7 @@ export function SignalsTile({ n }: { n?: number }) {
       live={!!lines?.length}
     >
       {!lines && <div className="tile-wait">ACQUIRING…</div>}
-      {lines?.length === 0 && <div className="tile-wait">NO SIGNAL</div>}
+      {lines?.length === 0 && <Empty reason="Nothing needs you" action="Open sitrep" href="/sitrep" />}
       {TIERS.map(({ key, label }) => {
         // An alert is promoted to NOW whatever produced it, so a tier can be
         // empty on a quiet day. An empty heading is noise; skip it.
@@ -96,7 +96,7 @@ export function AgentLogTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Agent Log" status={<Go href="/agents">{runs ? `${pad(runs.length)} RUNS` : "…"}</Go>} live={!!runs?.length}>
       {!runs && <div className="tile-wait">ACQUIRING…</div>}
-      {runs?.length === 0 && <div className="tile-wait">NO RUNS YET</div>}
+      {runs?.length === 0 && <Empty reason="No agent has run" action="Start one" href="/agents" />}
       {runs?.map((r) => (
         <div className="log-row" key={r.id}>
           <span className="lg-t">{hhmm(r.createdAt)}</span>
@@ -122,7 +122,7 @@ export function GithubTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Commits" status={<Go href="/push">{days ? `${total} · 26W` : "…"}</Go>}>
       {!days && <div className="tile-wait">ACQUIRING…</div>}
-      {days?.length === 0 && <div className="tile-wait">NO CONTRIBUTION DATA</div>}
+      {days?.length === 0 && <Empty reason="GitHub not reporting" action="Check the token" href="/settings" />}
       {recent.length > 0 && (
         <Matrix
           cols={26}
@@ -145,7 +145,7 @@ export function BioTile({ n }: { n?: number }) {
   const sleep = v?.sleepMin ? `${Math.floor(v.sleepMin / 60)}H${pad(v.sleepMin % 60)}` : "—";
   return (
     <Pane n={n} title="Biometrics" status={<Go href="/health">{v ? "SYNCED" : "…"}</Go>} live={!!v}>
-      {!v && <div className="tile-wait">NO RECENT READING</div>}
+      {!v && <Empty reason="Nothing synced today" action="Run the Health shortcut" href="/health" />}
       {v && (
         <>
           <div className="bio-figs">
@@ -174,7 +174,7 @@ export function PortfolioTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Portfolio" status={<Go href="/portfolio">{p?.total != null ? "LIVE" : "…"}</Go>} live={p?.total != null}>
       {!p && <div className="tile-wait">ACQUIRING…</div>}
-      {p && p.total == null && <div className="tile-wait">NO HOLDINGS</div>}
+      {p && p.total == null && <Empty reason="No holdings" action="Add one" href="/portfolio" />}
       {p?.total != null && (
         <>
           <div className="tstat">
@@ -205,7 +205,7 @@ export function MemoryTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Memory" status={<Go href="/memory">{m?.total != null ? `${m.total} HELD` : "…"}</Go>}>
       {!m && <div className="tile-wait">ACQUIRING…</div>}
-      {m?.recent?.length === 0 && <div className="tile-wait">NOTHING STORED</div>}
+      {m?.recent?.length === 0 && <Empty reason="Nothing remembered yet" action="Tell Sage something" href="/memory" />}
       {m?.recent?.slice(0, 6).map((r, i) => (
         <div className="mem-row" key={i}>
           <span className="mm-n">{pad(i + 1)}</span>
@@ -227,7 +227,7 @@ export function ExamTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Exams" status={<Go href="/exam">{ex ? `${pad(ex.length)}` : "…"}</Go>}>
       {!ex && <div className="tile-wait">ACQUIRING…</div>}
-      {ex?.length === 0 && <div className="tile-wait">NONE SCHEDULED</div>}
+      {ex?.length === 0 && <Empty reason="No papers scheduled" action="Add an exam" href="/exam" />}
       {ex?.slice(0, 5).map((e, i) => {
         const d = daysTo(e.date);
         return <Row key={i} k={e.name} v={`${d}D`} tone={d <= 7 ? "down" : d <= 21 ? "signal" : undefined} />;

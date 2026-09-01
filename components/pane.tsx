@@ -120,3 +120,33 @@ export function Row({ k, v, tone }: { k: ReactNode; v: ReactNode; tone?: "up" | 
     </div>
   );
 }
+
+/**
+ * An empty pane is a door, not a dead end.
+ *
+ * "NO HOLDINGS" and "NO CONTRIBUTION DATA" tell you a pane is empty and
+ * nothing else — not whether that is a problem, not whose problem, and not
+ * what to do about it. On a wall of thirty panes that reads as a broken
+ * dashboard, when in fact most of them are simply waiting on a thing only you
+ * can do: connect an account, enter a holding, let a shortcut run.
+ *
+ * So an empty state states the reason and offers the next move. `href` makes
+ * the whole thing a link to wherever the move happens.
+ *
+ * The distinction that matters: `Empty` is for "nothing here yet", which is a
+ * standing condition. A pane that has not finished its first fetch is a
+ * different state and stays as a plain wait — offering someone an action for
+ * a request that is still in flight is how you get a dashboard full of
+ * buttons that turn out to have been unnecessary two seconds later.
+ */
+export function Empty({ reason, action, href }: { reason: string; action?: string; href?: string }) {
+  const body = (
+    <>
+      <span className="empty-r">{reason}</span>
+      {action && <span className="empty-a">{action} →</span>}
+    </>
+  );
+  return href
+    ? <a className="empty is-link" href={href}>{body}</a>
+    : <div className="empty">{body}</div>;
+}

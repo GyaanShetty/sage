@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Pane, Row, Stat } from "@/components/pane";
+import { Pane, Row, Stat, Empty } from "@/components/pane";
 import { Wave, BarStrip } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { asArray } from "@/lib/as-array";
@@ -158,8 +158,18 @@ export function HealthTile({ n }: { n?: number }) {
     { everyMs: 900_000 },
   );
 
+  /**
+   * A metric that was never sent is missing, not zero.
+   *
+   * This coerced absent fields to 0, so a shortcut that posts sleep and
+   * nothing else rendered "0 BPM" and "0 KCAL" — which is not an empty
+   * reading, it is a claim that his resting heart rate is zero. Absent values
+   * are dropped, and a trace with nothing in it says so.
+   */
   const col = (k: keyof HealthDay) =>
-    (series ?? []).map((d) => Number(d[k] ?? 0)).filter((x) => Number.isFinite(x));
+    (series ?? [])
+      .map((d) => d[k])
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
 
   const trace = (label: string, k: keyof HealthDay, unit: string, tone: string) => {
     const data = col(k);
@@ -168,7 +178,9 @@ export function HealthTile({ n }: { n?: number }) {
       <div className="hz" key={label}>
         <div className="hz-h">
           <span className="hz-k">{label}</span>
-          <span className="hz-v">{last != null ? `${Math.round(last)}${unit}` : "—"}</span>
+          <span className={`hz-v${last == null ? " none" : ""}`}>
+            {last != null ? `${Math.round(last)}${unit}` : "NOT SENT"}
+          </span>
         </div>
         {data.length > 1 && <Wave data={data} height={22} tone={tone} />}
       </div>
@@ -177,7 +189,7 @@ export function HealthTile({ n }: { n?: number }) {
 
   return (
     <Pane n={n} title="Health" status={<Go href="/health">{series?.length ? "LIVE" : "…"}</Go>} live={!!series?.length}>
-      {series?.length === 0 && <div className="tile-wait">NO HEALTH DATA SYNCED</div>}
+      {series?.length === 0 && <Empty reason="No health data" action="Run the Health shortcut" href="/health" />}
       {trace("Heart rate", "restingHr", " BPM", "var(--live)")}
       {trace("Blood oxygen", "spo2", "%", "var(--signal)")}
       {trace("Sleep", "sleepHours", " H", "var(--muted)")}
@@ -208,7 +220,7 @@ export function ActivityTile({ n }: { n?: number }) {
 
   return (
     <Pane n={n} title="System Activity" status="EVENTS / DAY">
-      {rows.length === 0 && <div className="tile-wait">NO ACTIVITY RECORDED</div>}
+      {rows.length === 0 && <Empty reason="Nothing logged this week" action="Open the log" href="/sitrep" />}
       {/* An empty histogram is not a small histogram — it is an empty box with
           a minimum height, holding space it has nothing to put in. */}
       {rows.length > 0 && <div className="acts">
@@ -281,7 +293,7 @@ export function FeedsTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Feeds" status={<Go href="/wire">See all</Go>}>
       {!items && <div className="tile-wait">ACQUIRING…</div>}
-      {items?.length === 0 && <div className="tile-wait">NO ITEMS</div>}
+      {items?.length === 0 && <Empty reason="No videos in the watchlist" action="Add channels" href="/settings" />}
       {items?.slice(0, 4).map((v, i) => (
         <a className="vid" key={i} href={v.url} target="_blank" rel="noreferrer">
           {v.thumb && (
@@ -467,7 +479,7 @@ export function CodeTile({ n }: { n?: number }) {
           <Row k="Today" v={solvedToday ? `${s.todaySolved} DONE` : "NOT YET"} tone={solvedToday ? "up" : "down"} />
         </>
       )}
-      {d && !s && <div className="tile-wait">SET A LEETCODE USERNAME IN SETTINGS</div>}
+      {d && !s && <Empty reason="No LeetCode profile" action="Set your username" href="/settings" />}
     </Pane>
   );
 }
@@ -499,7 +511,7 @@ export function PushTile({ n }: { n?: number }) {
       live={pushes.length > 0}
     >
       {!d && <div className="tile-wait">ACQUIRING…</div>}
-      {d && pushes.length === 0 && <div className="tile-wait">NOTHING PUSHED YET</div>}
+      {d && pushes.length === 0 && <Empty reason="Nothing pushed yet" action="Push a solution" href="/push" />}
       {pushes.slice(0, 6).map((p, i) => (
         <a className="psh" key={i} href={p.url} target="_blank" rel="noreferrer">
           <span className="psh-t">{p.title || p.path}</span>
@@ -541,7 +553,7 @@ export function CareerTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Career" status={<Go href="/career">{rows.length ? `${rows.length} OPEN` : "—"}</Go>} live={rows.length > 0}>
       {!apps && <div className="tile-wait">ACQUIRING…</div>}
-      {apps?.length === 0 && <div className="tile-wait">NO APPLICATIONS TRACKED</div>}
+      {apps?.length === 0 && <Empty reason="No applications tracked" action="Add one" href="/career" />}
       {rows.length > 0 && (
         <>
           <div className="km" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
@@ -580,7 +592,7 @@ export function InboxTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Inbox" status={<Go href="/mail">{rows.length ? `${rows.length} UNREAD` : "CLEAR"}</Go>} live={rows.length > 0}>
       {!msgs && <div className="tile-wait">ACQUIRING…</div>}
-      {msgs?.length === 0 && <div className="tile-wait">INBOX CLEAR</div>}
+      {msgs?.length === 0 && <Empty reason="Inbox clear" action="Open mail" href="/mail" />}
       {rows.slice(0, 6).map((m) => (
         <div className="psh" key={m.id}>
           <span className="psh-t">{m.subject || "(no subject)"}</span>
@@ -617,7 +629,7 @@ export function ReviewTile({ n }: { n?: number }) {
             <span className={`tstat-v${due > 0 ? " signal" : ""}`}>{pad(due)}</span>
             <span className="tstat-k">DUE TODAY</span>
           </div>
-          {due === 0 && <div className="tile-wait">NOTHING DUE — CLEAR</div>}
+          {due === 0 && <Empty reason="Nothing due today" action="Review anyway" href="/review" />}
           {d.cards.slice(0, 4).map((c) => (
             <div className="psh" key={c.id}><span className="psh-t">{c.front}</span></div>
           ))}
@@ -654,7 +666,7 @@ export function GraphTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Graph" status={<Go href="/graph">{g ? `${g.nodes.length} NODES` : "…"}</Go>} live={!!g?.nodes.length}>
       {!g && <div className="tile-wait">ACQUIRING…</div>}
-      {g?.nodes.length === 0 && <div className="tile-wait">GRAPH EMPTY</div>}
+      {g?.nodes.length === 0 && <Empty reason="Graph is empty" action="Add a source" href="/knowledge" />}
       {!!g?.nodes.length && (
         <>
           <div className="km">
@@ -662,6 +674,94 @@ export function GraphTile({ n }: { n?: number }) {
           </div>
           <Row k="Links" v={String(links)} tone="signal" />
           <Row k="Links per node" v={density} tone="muted" />
+        </>
+      )}
+    </Pane>
+  );
+}
+
+/* ── 33 SPEND ─────────────────────────────────────────────────────────────
+   Thirty days out, by category, largest first.
+
+   The total is the least useful number here and goes last: you already know
+   roughly what you spend. Where it went is the thing you cannot recall, and
+   the recurring line is the one that quietly grows while nobody looks at it. */
+interface Spend { total: number; byCategory: Record<string, number>; recurring: { merchant: string; amount: number }[] }
+
+export function SpendTile({ n }: { n?: number }) {
+  const [s, setS] = useState<Spend | null | undefined>(undefined);
+
+  useLive(
+    () => fetch("/api/expenses").then((r) => r.json())
+      .then((j) => setS(j?.data?.summary ?? null)).catch(() => setS(null)),
+    { everyMs: 600_000 },
+  );
+
+  const cats = Object.entries(s?.byCategory ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const rupees = (v: number) => `₹${Math.round(v).toLocaleString("en-IN")}`;
+  const subs = asArray<{ merchant: string; amount: number }>(s?.recurring);
+
+  return (
+    <Pane n={n} title="Spend" status={<Go href="/portfolio">30 DAYS</Go>} live={!!s?.total}>
+      {s === undefined && <div className="tile-wait">ACQUIRING…</div>}
+      {(s === null || (s && !s.total)) && <Empty reason="Nothing logged" action="Add an expense" href="/portfolio" />}
+      {!!s?.total && (
+        <>
+          <div className="tstat">
+            <span className="tstat-v">{rupees(s.total)}</span>
+            <span className="tstat-k">LAST 30 DAYS</span>
+          </div>
+          {cats.map(([cat, amt]) => (
+            <Row key={cat} k={cat} v={rupees(amt)} />
+          ))}
+          {subs.length > 0 && (
+            <Row k="Recurring" v={rupees(subs.reduce((a, x) => a + x.amount, 0))} tone="signal" />
+          )}
+        </>
+      )}
+    </Pane>
+  );
+}
+
+/* ── 34 CALIBRATION ───────────────────────────────────────────────────────
+   Whether his confidence is worth anything.
+
+   Hit rate on its own flatters — call everything at 95% and get 90% right and
+   you look excellent while being systematically overconfident. The gap
+   between claimed confidence and actual outcome is the number that tells you
+   something you did not already believe, so it leads. */
+interface Calibration { scored: number; pending: number; hitRate: number; meanConfidence: number; overconfidence: number; brier: number | null }
+
+export function CalibrationTile({ n }: { n?: number }) {
+  const [c, setC] = useState<Calibration | null | undefined>(undefined);
+
+  useLive(
+    () => fetch("/api/decisions").then((r) => r.json())
+      .then((j) => setC(j?.data?.calibration ?? null)).catch(() => setC(null)),
+    { everyMs: 900_000 },
+  );
+
+  const asPct = (v: number) => `${Math.round(v * 100)}%`;
+  const over = c ? c.overconfidence : 0;
+
+  return (
+    <Pane n={n} title="Calibration" status={<Go href="/decisions">{c ? `${c.scored} SCORED` : "…"}</Go>} live={!!c?.scored}>
+      {c === undefined && <div className="tile-wait">ACQUIRING…</div>}
+      {(c === null || c?.scored === 0) && (
+        <Empty reason="No decisions resolved yet" action="Log a call" href="/decisions" />
+      )}
+      {!!c?.scored && (
+        <>
+          <div className="tstat">
+            <span className={`tstat-v${Math.abs(over) > 0.1 ? " down" : " up"}`}>
+              {over >= 0 ? "+" : "−"}{Math.abs(Math.round(over * 100))}
+            </span>
+            <span className="tstat-k">{over >= 0 ? "OVERCONFIDENT" : "UNDERCONFIDENT"}</span>
+          </div>
+          <Row k="Hit rate" v={asPct(c.hitRate)} />
+          <Row k="Mean confidence" v={asPct(c.meanConfidence)} />
+          {c.brier != null && <Row k="Brier" v={c.brier.toFixed(3)} tone="muted" />}
+          <Row k="Awaiting outcome" v={String(c.pending)} tone={c.pending > 0 ? "signal" : "muted"} />
         </>
       )}
     </Pane>

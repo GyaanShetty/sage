@@ -47,7 +47,21 @@
    * which is better than getting the arithmetic right: there is nothing left
    * to drift when a strip above or below changes.
    */
-  .wall { height: var(--wall-h, calc(100dvh - 104px)); overflow: hidden; }
+  /*
+   * The wall is exactly as tall as its container, full stop.
+   *
+   * Three earlier versions computed this: a guessed constant, then a
+   * measurement that could see the chrome above but not the frame rail below,
+   * then one measured against the scroll container — which was right but ran
+   * once, before the strips above had settled, and nothing re-triggered it
+   * because a wall inside an `overflow: hidden` parent cannot change any box
+   * the observer was watching.
+   *
+   * The page already renders the wall inside a full-height wrapper inside a
+   * flex-sized `main`. So `100%` is the answer, and it needs no JavaScript,
+   * cannot go stale, and re-solves itself whenever anything above changes.
+   */
+  .wall { flex: 1; height: 100%; min-height: 0; overflow: hidden; }
   /* One row of tracks, floored at zero.
      Without this the grid's implicit rows size to `auto` — the track grows to
      its tallest pane and the row spills over the one below it, which is what
@@ -327,7 +341,7 @@
   .wall-r2 { flex: 1.35; }
   .wall-r3 { flex: 1.35; }
   .wall-r4 { flex: 1.6; }
-  .wall-r5 { flex: 1.1; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .wall-r5 { flex: 1.1; grid-template-columns: repeat(7, minmax(0, 1fr)); }
 }
 
 /* 24 code · 25 push · 27 inbox — two-line rows, title over metadata. */

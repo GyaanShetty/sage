@@ -3420,11 +3420,12 @@ test("the wall only claims the viewport above the fallback breakpoint", async ()
   const css = (await fs.readFile("features/dashboard/wall.css", "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
   const at = css.indexOf("@media (min-width: 1400px)");
   assert.ok(at > 0, "no 1400px breakpoint");
-  // The rule reads `height: var(--wall-h, calc(100dvh - …))` — measured at
-  // runtime, with a viewport-relative fallback for the first paint. What must
-  // hold is that no viewport-height claim appears before the breakpoint.
-  assert.equal(/100dvh/.test(css.slice(0, at)), false, "viewport height set outside the breakpoint");
-  assert.match(css.slice(at), /height:\s*var\(--wall-h/);
+  // The wall takes 100% of its container, and only above the breakpoint.
+  // Below it the stack must be free to grow and scroll, so a height claim
+  // there is the regression this guards.
+  assert.equal(/\.wall\s*\{[^}]*height:\s*100%/.test(css.slice(0, at)), false,
+    "wall height claimed outside the breakpoint");
+  assert.match(css.slice(at), /\.wall\s*\{[^}]*height:\s*100%/);
 });
 
 test("every container-relative size in the wall is clamped", async () => {

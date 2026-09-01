@@ -1112,7 +1112,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 
    All of it is off under prefers-reduced-motion, at the bottom of the block. */
 
-@keyframes sage-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
+@keyframes sage-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(1000%); } }
 @keyframes sage-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 @keyframes sage-blink { 0%, 45% { opacity: 1; } 50%, 95% { opacity: 0.25; } }
 @keyframes sage-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(220%); } }
@@ -1122,8 +1122,17 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 
 /* A single scanline crossing the viewport. One, slow, and barely there — the
    CRT effect is a texture, not a strobe. */
+/*
+ * Absolute, not fixed.
+ *
+ * As a fixed element it was outside the wall's clip and its travel counted
+ * toward the wrapper's scroll height — 130 stray pixels that made the page
+ * scroll for no visible reason. Inside `.wall`, which is `overflow: hidden`,
+ * it is clipped and contributes nothing.
+ */
+.wall { position: relative; }
 .wall::after {
-  content: ""; position: fixed; left: 0; right: 0; height: 90px; z-index: 900;
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 9%; z-index: 900;
   pointer-events: none; opacity: 0.55;
   background: linear-gradient(180deg, transparent, var(--signal-faint) 55%, transparent);
   animation: sage-scan 11s linear infinite;
@@ -1237,4 +1246,41 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 /* The shell pads the bottom of every page so content clears the rail. The
    wall computes its own height to the pixel, so that padding is 32px of
    scroll on the one screen that is supposed to have none. */
-main.hud-grid:has(.wall) { padding-bottom: 0; overflow: hidden; }
+/*
+ * A definite-height chain from the scroll container down to the wall.
+ *
+ * `height: 100%` only resolves against a parent with a definite height, and
+ * between `main` and the wall sit two plain wrappers that size to their
+ * content — so the wall's 100% was 100% of "auto", which is auto, and it grew
+ * past the bottom of the screen. Rather than measure anything, every link in
+ * that chain becomes a flex column that hands its height down.
+ *
+ * Scoped by :has(.wall) so no other page is affected.
+ */
+@media (min-width: 1400px) {
+  main.hud-grid:has(.wall) { padding-bottom: 0; overflow: hidden; display: flex; flex-direction: column; }
+  main.hud-grid:has(.wall) > *,
+  main.hud-grid :has(> .wall) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
+  /* The exam banner is a strip and keeps its own height; only the wall grows. */
+  main.hud-grid .xs-strip { flex: none; }
+}
+
+/* Empty states that offer the next move. */
+.empty {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 9px;
+  font-family: var(--mono); letter-spacing: 0.18em; text-transform: uppercase;
+  text-decoration: none;
+}
+.empty-r { font-size: 8px; color: var(--faint); }
+.empty-a { font-size: 8.5px; color: var(--signal-dim); }
+.empty.is-link:hover .empty-a { color: var(--signal); }
+.empty.is-link:hover .empty-r { color: var(--subtle); }
+@media (min-width: 1400px) {
+  .wall .empty { padding: clamp(3px, 4cqh, 10px) 9px; gap: clamp(1px, 1.5cqh, 4px); }
+  .wall .empty-r { font-size: clamp(6.5px, 3.2cqh, 8px); }
+  .wall .empty-a { font-size: clamp(7px, 3.4cqh, 8.5px); }
+}
+.pane-mag .empty { padding: 22px 4px; gap: 8px; }
+.pane-mag .empty-r { font-size: 12px; }
+.pane-mag .empty-a { font-size: 13px; }
+.hz-v.none { color: var(--faint); font-size: 0.72em; letter-spacing: 0.18em; }

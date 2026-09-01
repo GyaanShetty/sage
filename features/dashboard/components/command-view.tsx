@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "../command.css";
 import "../wall.css";
 import { sound } from "@/lib/sound";
@@ -15,7 +15,7 @@ import {
 import {
   MarketsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, FeedsTile,
   ClocksTile, SkyTile, CommandsTile, CodeTile, PushTile, CareerTile, InboxTile,
-  ReviewTile, GraphTile,
+  ReviewTile, GraphTile, SpendTile, CalibrationTile,
 } from "./wall-tiles";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
@@ -172,39 +172,8 @@ export function CommandView({
   const focusMin = Math.round((25 * 60 - focusSec) / 60);
   const agentRunning = log.some((l) => l.type.startsWith("agent."));
 
-  /**
-   * The wall's height, measured rather than assumed.
-   *
-   * The first version subtracted a guessed constant, and a guess is wrong the
-   * moment anything above changes height. The second measured only what sits
-   * *above* the wall — which left the frame rail below it as thirty
-   * unaccounted pixels, and the page scrolled by exactly that much.
-   *
-   * So both ends are measured: from the top of the viewport down to the wall,
-   * and from the bottom of its scroll container back up to the bottom of the
-   * viewport. Anything that appears later — the exam banner, a taller ticker —
-   * is picked up by the observer rather than by another constant.
-   */
-  const wallRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const fit = () => {
-      const el = wallRef.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top;
-      const host = el.closest("main");
-      const belowHost = host ? Math.max(0, window.innerHeight - host.getBoundingClientRect().bottom) : 0;
-      const rail = document.querySelector<HTMLElement>(".fn-rail")?.offsetHeight ?? 0;
-      el.style.setProperty("--wall-h", `${Math.max(320, Math.round(window.innerHeight - top - belowHost - rail))}px`);
-    };
-    fit();
-    window.addEventListener("resize", fit);
-    const ro = new ResizeObserver(() => requestAnimationFrame(fit));
-    if (document.body) ro.observe(document.body);
-    return () => { window.removeEventListener("resize", fit); ro.disconnect(); };
-  }, []);
-
   return (
-    <div className="wall" ref={wallRef}>
+    <div className="wall">
       {/* ── ROW 1 ─────────────────────────────────────────────────────────
           The map leads, at the width it earns. */}
       <div className="wall-row wall-r1">
@@ -341,6 +310,8 @@ export function CommandView({
         <TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard>
         <TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard>
         <TileGuard name="EXAM"><ExamTile n={30} /></TileGuard>
+        <TileGuard name="SPEND"><SpendTile n={33} /></TileGuard>
+        <TileGuard name="CALIBRATION"><CalibrationTile n={34} /></TileGuard>
       </div>
 
       <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">

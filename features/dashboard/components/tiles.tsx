@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Pane, Row } from "@/components/pane";
+import { Pane, Row, Empty } from "@/components/pane";
 import { BarStrip, Progress, Delta } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { TZ } from "@/lib/config";
@@ -167,7 +167,7 @@ export function PlayingTile({ n }: { n?: number }) {
 
   return (
     <Pane n={n} title="Now Playing" status={p?.playing ? "LIVE" : "IDLE"} live={!!p?.playing}>
-      {!p?.playing && <div className="tile-wait">NOTHING PLAYING</div>}
+      {!p?.playing && <Empty reason="Nothing playing" action="Open Spotify" href="https://open.spotify.com" />}
       {p?.playing && (
         <div className="np">
           {p.art && (
@@ -201,7 +201,7 @@ export function WireTile({ n, source = "hindu" }: { n?: number; source?: string 
   return (
     <Pane n={n} title="Wire" status={items ? `${items.length} ITEMS` : "…"} live={!!items?.length}>
       {!items && <div className="tile-wait">ACQUIRING…</div>}
-      {items?.length === 0 && <div className="tile-wait">NO ITEMS</div>}
+      {items?.length === 0 && <Empty reason="No headlines" action="Open the wire" href="/wire" />}
       {items?.slice(0, 8).map((it, i) => (
         <a className="wire-row" key={i} href={it.link} target="_blank" rel="noreferrer">
           <span className="wire-n">{pad(i + 1)}</span>

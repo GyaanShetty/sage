@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pane } from "@/components/pane";
+import { Pane, Empty } from "@/components/pane";
 import { useLivePosition } from "@/lib/geo-position";
 import { useLive } from "@/lib/live";
 import { distanceM, type Place } from "@/core/places/schedule";
@@ -77,8 +77,8 @@ export function CommuteTile({ n }: { n?: number }) {
       status={state === "live" ? "LIVE" : state === "denied" ? "NO POSITION" : state === "locating" ? "ACQUIRING" : "OFF"}
       live={state === "live"}
     >
-      {state === "denied" && <div className="tile-wait">LOCATION BLOCKED — ALLOW IT TO SEE TRAVEL TIMES</div>}
-      {state !== "denied" && places.length === 0 && <div className="tile-wait">NO SAVED PLACES — RIGHT-CLICK THE MAP</div>}
+      {state === "denied" && <Empty reason="Location blocked" action="Allow it to see travel times" />}
+      {state !== "denied" && places.length === 0 && <Empty reason="No saved places" action="Right-click the map to save one" />}
       {state !== "denied" && places.length > 0 && !legs && <div className="tile-wait">ACQUIRING…</div>}
       {legs?.map((l) => (
         <div className="trow" key={l.place.id}>

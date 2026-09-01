@@ -7,7 +7,7 @@ interface GNode { id: string; label: string; kind: string; group: string; weight
 interface GEdge { a: string; b: string }
 interface Sim extends GNode { x: number; y: number; vx: number; vy: number }
 
-const COLOR: Record<string, string> = { memory: "#f4f5f7", note: "#e8e9ec", source: "#e8a13a" };
+const COLOR: Record<string, string> = { memory: "#f4f5f7", note: "#e8e9ec", source: "#ff3b30" };
 
 export function KnowledgeGraph() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

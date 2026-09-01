@@ -321,7 +321,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
         const j = await fetch("/api/atlas/seismic").then((r) => r.json());
         g.clearLayers();
         for (const q of asArray<{ lat: number; lon: number; mag: number; place: string; time: string }>(j?.data)) {
-          L.circleMarker([q.lat, q.lon], { radius: 2 + q.mag * 1.6, color: "#e8a13a", weight: 1, fillColor: "#e8a13a", fillOpacity: 0.15 })
+          L.circleMarker([q.lat, q.lon], { radius: 2 + q.mag * 1.6, color: "#ff3b30", weight: 1, fillColor: "#ff3b30", fillOpacity: 0.15 })
             .bindTooltip(`◈ M${q.mag.toFixed(1)} · ${q.place} · ${new Date(q.time).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })} IST`, { sticky: true })
             .addTo(g);
         }
@@ -373,10 +373,10 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
     const g = L.layerGroup();
     L.circle([position.lat, position.lon], {
       radius: Math.max(position.accuracy, 12),
-      color: "#e8a13a", weight: 1, fillColor: "#e8a13a", fillOpacity: 0.07,
+      color: "#ff3b30", weight: 1, fillColor: "#ff3b30", fillOpacity: 0.07,
     }).addTo(g);
     L.circleMarker([position.lat, position.lon], {
-      radius: 4, color: "#0c0d0f", weight: 2, fillColor: "#e8a13a", fillOpacity: 1,
+      radius: 4, color: "#0c0d0f", weight: 2, fillColor: "#ff3b30", fillOpacity: 1,
     }).bindTooltip(`YOU · ±${Math.round(position.accuracy)}m`, { direction: "top" }).addTo(g);
     g.addTo(map);
     meRef.current = g;
@@ -439,7 +439,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
       .then((j) => {
         if (cancelled || !j?.ok) return;
         routeRef.current?.remove();
-        const line = L.polyline(j.data.points, { color: "#e8a13a", weight: 3, opacity: 0.85 });
+        const line = L.polyline(j.data.points, { color: "#ff3b30", weight: 3, opacity: 0.85 });
         line.addTo(map);
         routeRef.current = line;
         setRoute({ meters: j.data.meters, seconds: j.data.seconds, name: target.name });

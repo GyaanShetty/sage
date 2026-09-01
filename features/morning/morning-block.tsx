@@ -20,7 +20,7 @@ interface Step { id: string; label: string; kind: StepKind; source?: string; ico
 // Gyaan's morning block, in order.
 const STEPS: Step[] = [
   { id: "gmail", label: "Gmail", kind: "gmail", icon: Mail, tint: "#e86a6a" },
-  { id: "ft", label: "Financial Times", kind: "feed", source: "ft", icon: Newspaper, tint: "#e8a13a" },
+  { id: "ft", label: "Financial Times", kind: "feed", source: "ft", icon: Newspaper, tint: "#ff3b30" },
   { id: "mint", label: "Mint", kind: "feed", source: "mint", icon: TrendingUp, tint: "#54c98a" },
   { id: "finexpress", label: "Financial Express", kind: "feed", source: "finexpress", icon: Newspaper, tint: "#f4f5f7" },
   { id: "coindesk", label: "CoinDesk", kind: "feed", source: "coindesk", icon: Coins, tint: "#e8c14a" },

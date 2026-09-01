@@ -41,7 +41,7 @@ const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 
 const STATE_COLOUR: Record<LineStatus["state"], string> = {
   under: "var(--live)",
-  watch: "#e8a13a",
+  watch: "#ff3b30",
   over: "#f87171",
 };
 

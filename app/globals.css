@@ -40,11 +40,15 @@
   --live-dim: rgba(255, 255, 255, 0.5);
   --live-glow: rgba(255, 255, 255, 0.55);
 
-  --warn: #d4b106;
-  --danger: #e5484d;
+  --warn: #ff6b35;
+  /* Alert red sits close to the signal red on purpose. The two are told apart
+     by motion and by the hazard rule, not by hue — the reference sheets are
+     one red and white on black, and inventing a second hue to carry "urgent"
+     would break the thing that makes them read as one instrument. */
+  --danger: #ff1f3d;
 
   /* ── SIGNAL ────────────────────────────────────────────────────────────
-     Amber, and the only hue in the system.
+     Red, and the only hue in the system.
 
      The palette was monochrome with meaning carried by luminance alone, which
      reads as elegant and reads as flat: nothing on screen tells you where to
@@ -54,10 +58,10 @@
 
      Never decorative. If a thing is not live, current, or asking for a
      decision, it is grey. */
-  --signal: #e8a13a;
-  --signal-dim: rgba(232, 161, 58, 0.45);
-  --signal-faint: rgba(232, 161, 58, 0.12);
-  --signal-glow: rgba(232, 161, 58, 0.55);
+  --signal: #ff3b30;
+  --signal-dim: rgba(255, 59, 48, 0.5);
+  --signal-faint: rgba(255, 59, 48, 0.13);
+  --signal-glow: rgba(255, 59, 48, 0.6);
 
   /* ── INSTRUMENT CHROME ─────────────────────────────────────────────────
      The measurements that make a panel read as instrumentation rather than a
@@ -715,7 +719,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   --up: #4fb477;
   --down: #d4585c;
   --mark: #6f7178;          /* default instrument grey */
-  --pane-hd: rgba(232, 161, 58, 0.055);
+  --pane-hd: rgba(255, 59, 48, 0.06);
 }
 
 /* ── pane ── */
@@ -1091,3 +1095,141 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .deck-map-marks .xhair:nth-child(4) { bottom: 0; right: 0; }
 .sitrep-cell { position: relative; }
 #sitrep { position: relative; }
+
+/* ── MOTION ───────────────────────────────────────────────────────────────
+   A wall of numbers that never moves reads as a printout. What separates an
+   instrument from a poster is that it is visibly *doing* something between
+   the moments you look at it.
+
+   Two rules keep this from becoming decoration:
+
+   - Motion is tied to state wherever it can be. A pane marked live pulses; a
+     pane that is not, does not. A bar grows when its data arrives. The blink
+     on an alert row is the alert, not a flourish laid over it.
+   - Nothing moves fast. Everything here is 2–12s. Fast animation on a screen
+     you keep open all day is a headache, and it makes the one thing that
+     genuinely needs attention impossible to spot.
+
+   All of it is off under prefers-reduced-motion, at the bottom of the block. */
+
+@keyframes sage-scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
+@keyframes sage-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@keyframes sage-blink { 0%, 45% { opacity: 1; } 50%, 95% { opacity: 0.25; } }
+@keyframes sage-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(220%); } }
+@keyframes sage-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes sage-radar { to { transform: rotate(360deg); } }
+@keyframes sage-drift { 0% { background-position: 0 0; } 100% { background-position: 0 var(--grid-cell); } }
+
+/* A single scanline crossing the viewport. One, slow, and barely there — the
+   CRT effect is a texture, not a strobe. */
+.wall::after {
+  content: ""; position: fixed; left: 0; right: 0; height: 90px; z-index: 900;
+  pointer-events: none; opacity: 0.55;
+  background: linear-gradient(180deg, transparent, var(--signal-faint) 55%, transparent);
+  animation: sage-scan 11s linear infinite;
+}
+
+/* The header band of a live pane carries a slow highlight travelling left to
+   right — the pane's own "receiving" indicator, at the top edge where it does
+   not sit on top of any number. */
+.pane-hd { position: relative; overflow: hidden; }
+.pane:has(.pane-s.live) .pane-hd::after {
+  content: ""; position: absolute; inset: 0; width: 45%;
+  background: linear-gradient(90deg, transparent, var(--signal-faint), transparent);
+  animation: sage-sweep 4.5s var(--ease) infinite;
+}
+
+/* Live status text breathes. */
+.pane-s.live { animation: sage-pulse 2.6s ease-in-out infinite; }
+
+/* Bars grow from the axis when their data lands, rather than appearing. */
+.act-b { transform-origin: bottom; animation: sage-rise 0.7s var(--ease) both; }
+.act:nth-child(2) .act-b { animation-delay: 0.05s; }
+.act:nth-child(3) .act-b { animation-delay: 0.10s; }
+.act:nth-child(4) .act-b { animation-delay: 0.15s; }
+.act:nth-child(5) .act-b { animation-delay: 0.20s; }
+.act:nth-child(6) .act-b { animation-delay: 0.25s; }
+.act:nth-child(7) .act-b { animation-delay: 0.30s; }
+
+/* An alert row blinks. This is the one place motion is the message: the
+   hazard rule says something is wrong, and the blink says it is still wrong. */
+.hzd-danger { animation: sage-blink 1.6s steps(1, end) infinite; }
+.trow-v.down { animation: sage-blink 3.2s steps(1, end) infinite; }
+
+/* The technical ground behind the panes drifts by one grid cell a minute —
+   slow enough that you never catch it moving and never quite read the screen
+   as still. */
+.wall { background-image: linear-gradient(var(--signal-faint) 1px, transparent 1px); background-size: 100% var(--grid-cell); animation: sage-drift 60s linear infinite; }
+
+/* Reticles sweep. The Arc is a real fraction, so only the outer ring turns. */
+.ret { animation: sage-radar 8s linear infinite; }
+
+/* Values settle rather than snap when they change. */
+.tstat-v, .trow-v, .mk-p, .hz-v { transition: color 0.4s var(--ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wall::after, .pane:has(.pane-s.live) .pane-hd::after, .pane-s.live,
+  .act-b, .hzd-danger, .trow-v.down, .wall, .ret { animation: none !important; }
+}
+
+/* ── MAGNIFY ──────────────────────────────────────────────────────────────
+   Any pane opens at a size you can actually read. On a wall this dense every
+   figure is a glance; this is where you go when the glance was not enough. */
+.pane-zoom {
+  flex: none; background: none; border: 0; cursor: pointer; padding: 0 2px;
+  font-family: var(--mono); font-size: 10px; line-height: 1; color: var(--faint);
+  transition: color 0.15s var(--ease);
+}
+.pane-hd:hover .pane-zoom { color: var(--subtle); }
+.pane-zoom:hover { color: var(--signal); }
+
+/* The magnified copy overrides the container-query sizes with fixed ones —
+   inside the modal there is no pane to be a fraction of, and a cqh value
+   without its container resolves to zero. */
+.pane-mag { font-size: 15px; }
+.pane-mag .trow { padding: 7px 4px; min-height: 30px; }
+.pane-mag .trow-k { font-size: 13px; }
+.pane-mag .trow-v { font-size: 14px; }
+.pane-mag .tstat { padding: 12px 4px; }
+.pane-mag .tstat-v { font-size: 34px; }
+.pane-mag .tstat-k { font-size: 10px; }
+.pane-mag .tile-cap { font-size: 9px; padding: 12px 4px 4px; }
+.pane-mag .tile-wait { font-size: 12px; padding: 20px 4px; }
+.pane-mag .mk-p { font-size: 22px; }
+.pane-mag .mk-h, .pane-mag .mk-c { font-size: 11px; }
+.pane-mag .mk-cell { padding: 12px 14px; }
+.pane-mag .km > * { padding: 16px 8px; }
+.pane-mag .hz-k { font-size: 11px; }
+.pane-mag .hz-v { font-size: 18px; }
+.pane-mag .hz { padding: 10px 0; }
+.pane-mag .vid-th { flex-basis: 150px; height: 84px; }
+.pane-mag .vid-t { font-size: 15px; -webkit-line-clamp: 3; }
+.pane-mag .vid-c { font-size: 10px; }
+.pane-mag .psh-t, .pane-mag .cd-t { font-size: 14px; white-space: normal; }
+.pane-mag .psh-m { font-size: 10px; }
+.pane-mag .psh, .pane-mag .cd-daily { padding: 8px 4px; }
+.pane-mag .cref { padding: 9px 0; }
+.pane-mag .cref-c { font-size: 14px; }
+.pane-mag .cref-d { font-size: 10px; }
+.pane-mag .clk svg { width: 96px; height: 96px; }
+.pane-mag .clk-t { font-size: 20px; }
+.pane-mag .clk-k, .pane-mag .clk-d { font-size: 11px; }
+.pane-mag .moon { width: 92px; height: 92px; }
+.pane-mag .moon-n { font-size: 20px; }
+.pane-mag .moon-i { font-size: 11px; }
+.pane-mag .acts { min-height: 220px; }
+.pane-mag .act-n { font-size: 13px; }
+.pane-mag .act-k { font-size: 11px; }
+.pane-mag .cal .d { font-size: 12px; padding: 7px 5px; }
+.pane-mag .cal .dh { font-size: 10px; padding: 6px 0; }
+.pane-mag .task .tx { font-size: 15px; -webkit-line-clamp: none; }
+.pane-mag .gita .dev { font-size: 21px; }
+.pane-mag .gita .en { font-size: 15px; }
+
+/* A magnified pane needs more room than the 560px the modal was built for —
+   a 3×3 figure grid at 34px type does not fit in a phone-sized box. */
+.xm-panel:has(.pane-mag) { width: min(980px, 100%); }
+.xm-panel:has(.pane-mag) .xm-body { padding: 20px 24px; }
+/* Corner brackets on the magnified panel, so it reads as the same instrument
+   pulled forward rather than as a dialog from a different application. */
+.xm-panel:has(.pane-mag) { box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--signal-dim); }

@@ -205,7 +205,7 @@ export function CommandView({
       {/* ── ROW 1 ─────────────────────────────────────────────────────────
           The map leads, at the width it earns. */}
       <div className="wall-row wall-r1">
-        <Pane n={1} title="Atlas Map" status="LIVE" live className="wall-map" frame>
+        <Pane n={1} title="Atlas Map" status="LIVE" live className="wall-map" frame noZoom>
           <AtlasMap lat={12.9352} lon={77.6245} />
           <span className="deck-map-marks" aria-hidden>
             <Crosshair /><Crosshair /><Crosshair /><Crosshair />

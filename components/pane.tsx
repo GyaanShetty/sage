@@ -12,8 +12,11 @@
  * entire reason real terminals number their screens.
  */
 
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import { Brackets, Hazard } from "@/components/chrome";
+import { ExpandModal } from "@/components/expand-modal";
 
 export interface PaneProps {
   /** Screen number, shown as `NN)`. Stable per pane — it is an address. */
@@ -37,12 +40,23 @@ export interface PaneProps {
    * anything.
    */
   alert?: "signal" | "danger";
+  /**
+   * Suppress the magnify control.
+   *
+   * On by default, because the whole point of a wall this dense is that
+   * everything is a glance and anything worth reading properly is one click
+   * from being readable. Off for the map, which is already interactive and
+   * would lose its state on a remount.
+   */
+  noZoom?: boolean;
   children: ReactNode;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function Pane({ n, title, status, live, className, bare, frame, alert, children }: PaneProps) {
+export function Pane({ n, title, status, live, className, bare, frame, alert, noZoom, children }: PaneProps) {
+  const [zoom, setZoom] = useState(false);
+
   return (
     <section className={`pane${className ? ` ${className}` : ""}`}>
       {alert && <Hazard tone={alert} />}
@@ -56,9 +70,29 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, ch
           {status !== undefined && (
             <span className={`pane-s${live ? " live" : ""}`}>{status}</span>
           )}
+          {!noZoom && (
+            <button className="pane-zoom" onClick={() => setZoom(true)} aria-label={`Magnify ${title}`}>⤢</button>
+          )}
         </header>
       )}
       <div className="pane-body">{children}</div>
+
+      {/*
+        The magnified copy renders the same children rather than a second,
+        richer view. Two renderings of one pane drift apart — the big one gets
+        a field the small one never grows — and then the number you checked at
+        a glance and the number you opened to read disagree.
+      */}
+      {!noZoom && (
+        <ExpandModal
+          open={zoom}
+          onClose={() => setZoom(false)}
+          title={title}
+          tag={n !== undefined ? `PANE ${pad(n)}` : undefined}
+        >
+          <div className="pane-mag">{children}</div>
+        </ExpandModal>
+      )}
     </section>
   );
 }

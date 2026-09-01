@@ -15,7 +15,7 @@ const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as co
 type Stage = (typeof STAGES)[number];
 const STAGE_META: Record<Stage, { label: string; color: string }> = {
   applied: { label: "Applied", color: "#7b8cff" },
-  assessment: { label: "Assessment / OA", color: "#e8a13a" },
+  assessment: { label: "Assessment / OA", color: "#ff3b30" },
   interview: { label: "Interview", color: "#f4f5f7" },
   offer: { label: "Offer", color: "#54c98a" },
   rejected: { label: "Closed", color: "#8a8a90" },

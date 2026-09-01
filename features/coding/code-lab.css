@@ -12,7 +12,7 @@
 .cl-link:hover { color: var(--foreground); }
 
 .tag.d-easy { color: var(--live); }
-.tag.d-med { color: #e8a13a; }
+.tag.d-med { color: #ff3b30; }
 .tag.d-hard { color: #f87171; }
 
 .cl-fold { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--subtle); background: none; border: 0; padding: 12px 0 6px; cursor: pointer; }
@@ -51,7 +51,7 @@
 .cl-level:disabled { opacity: .5; cursor: default; }
 .cl-level.used { border-color: var(--live-dim); color: var(--live); }
 /* The one that ends the exercise looks like it. */
-.cl-level.danger { color: #e8a13a; border-style: dashed; }
+.cl-level.danger { color: #ff3b30; border-style: dashed; }
 
 .cl-coaching { margin-top: 12px; border-left: 2px solid var(--live-dim); padding-left: 11px; }
 .cl-coachtext { font-size: 12.5px; line-height: 1.6; color: var(--muted); white-space: pre-wrap; }

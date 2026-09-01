@@ -229,7 +229,7 @@
 .bg-unbudgeted { margin-top: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
 .bg-unrow { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); background: none; border: 1px dashed var(--border-glass-strong); padding: 5px 8px; cursor: pointer; }
 .bg-unrow:hover { color: var(--foreground); border-style: solid; }
-.bg-unrow b { font-family: var(--mono); font-size: 10.5px; color: #e8a13a; }
+.bg-unrow b { font-family: var(--mono); font-size: 10.5px; color: #ff3b30; }
 
 @media (max-width: 640px) {
   .bg-buckets { grid-template-columns: 1fr; }

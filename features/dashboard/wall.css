@@ -37,11 +37,17 @@
    the reference: four bands, each with its own rhythm. Forcing them onto a
    single uniform grid is the thing that would not reproduce it. */
 @media (min-width: 1400px) {
-  .wall {
-    /* The frame rails top and bottom are fixed-height and sit outside. */
-    height: calc(100dvh - var(--wall-chrome, 74px));
-    overflow: hidden;
-  }
+  /*
+   * The wall takes whatever the shell gives it.
+   *
+   * This was `calc(100dvh - measured-chrome)`, and the measurement could only
+   * ever see what sits *above* the wall — so the frame rail below it was 30
+   * unaccounted pixels and the page scrolled by exactly that much. Letting
+   * the flex parent hand down the height removes the arithmetic entirely,
+   * which is better than getting the arithmetic right: there is nothing left
+   * to drift when a strip above or below changes.
+   */
+  .wall { height: var(--wall-h, calc(100dvh - 104px)); overflow: hidden; }
   /* One row of tracks, floored at zero.
      Without this the grid's implicit rows size to `auto` — the track grows to
      its tallest pane and the row spills over the one below it, which is what

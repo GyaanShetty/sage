@@ -173,29 +173,32 @@ export function CommandView({
   const agentRunning = log.some((l) => l.type.startsWith("agent."));
 
   /**
-   * How much of the viewport the wall is allowed to have.
+   * The wall's height, measured rather than assumed.
    *
-   * This was a guessed constant, and a guess is wrong the moment anything
-   * above changes height — the desk strip, the ticker, an exam banner that
-   * only appears in exam week. Too small and the wall floats; too large and
-   * the bottom row paints under the F-key rail, which is exactly how the
-   * first pass looked. So it is measured: distance from the top of the
-   * viewport to the top of the wall, plus whatever the rail occupies.
+   * The first version subtracted a guessed constant, and a guess is wrong the
+   * moment anything above changes height. The second measured only what sits
+   * *above* the wall — which left the frame rail below it as thirty
+   * unaccounted pixels, and the page scrolled by exactly that much.
+   *
+   * So both ends are measured: from the top of the viewport down to the wall,
+   * and from the bottom of its scroll container back up to the bottom of the
+   * viewport. Anything that appears later — the exam banner, a taller ticker —
+   * is picked up by the observer rather than by another constant.
    */
   const wallRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const fit = () => {
       const el = wallRef.current;
       if (!el) return;
-      const rail = document.querySelector<HTMLElement>(".fn-rail");
-      const chrome = el.getBoundingClientRect().top + window.scrollY + (rail?.offsetHeight ?? 0);
-      el.style.setProperty("--wall-chrome", `${Math.round(chrome)}px`);
+      const top = el.getBoundingClientRect().top;
+      const host = el.closest("main");
+      const belowHost = host ? Math.max(0, window.innerHeight - host.getBoundingClientRect().bottom) : 0;
+      const rail = document.querySelector<HTMLElement>(".fn-rail")?.offsetHeight ?? 0;
+      el.style.setProperty("--wall-h", `${Math.max(320, Math.round(window.innerHeight - top - belowHost - rail))}px`);
     };
     fit();
     window.addEventListener("resize", fit);
-    // The strips above can appear after first paint (exam banner, ticker), so
-    // one measurement at mount is not enough.
-    const ro = new ResizeObserver(fit);
+    const ro = new ResizeObserver(() => requestAnimationFrame(fit));
     if (document.body) ro.observe(document.body);
     return () => { window.removeEventListener("resize", fit); ro.disconnect(); };
   }, []);

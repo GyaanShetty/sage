@@ -1233,3 +1233,8 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 /* Corner brackets on the magnified panel, so it reads as the same instrument
    pulled forward rather than as a dialog from a different application. */
 .xm-panel:has(.pane-mag) { box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--signal-dim); }
+
+/* The shell pads the bottom of every page so content clears the rail. The
+   wall computes its own height to the pixel, so that padding is 32px of
+   scroll on the one screen that is supposed to have none. */
+main.hud-grid:has(.wall) { padding-bottom: 0; overflow: hidden; }

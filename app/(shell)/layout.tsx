@@ -20,6 +20,7 @@ import { VoiceContinue } from "@/components/voice-continue";
 import { FrameRail } from "@/components/frame-rail";
 import { DeskStrip } from "@/features/shell/components/desk-strip";
 import { FnRail } from "@/features/shell/components/fn-rail";
+import { FitPage } from "@/components/fit-page";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -51,6 +52,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <AmbientMode />
       <AmbientVoice />
       <HudLayer />
+      <FitPage />
       <GestureNav />
       <ErrorReporter />
     </div>

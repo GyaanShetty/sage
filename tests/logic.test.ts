@@ -3446,3 +3446,39 @@ test("every container-relative size in the wall is clamped", async () => {
 
   assert.deepEqual(bad, [], "unclamped container units");
 });
+
+/* ── feed watchlist ─────────────────────────────────────────────────────── */
+
+test("YouTube URLs are read structurally, and unreadable ones are refused", async () => {
+  const { parseFeedUrl } = await import("@/core/feeds/watchlist");
+
+  // Channels, in every form YouTube actually serves.
+  assert.deepEqual(parseFeedUrl("https://www.youtube.com/@veritasium"), { kind: "channel", ref: "@veritasium" });
+  assert.deepEqual(parseFeedUrl("@veritasium"), { kind: "channel", ref: "@veritasium" });
+  assert.deepEqual(
+    parseFeedUrl("https://youtube.com/channel/UCHnyfMqiRRG1u-2MsSQLbXA"),
+    { kind: "channel", ref: "UCHnyfMqiRRG1u-2MsSQLbXA" },
+  );
+  // Legacy /c/ and /user/ resolve through the same handle lookup.
+  assert.deepEqual(parseFeedUrl("https://www.youtube.com/c/Bloomberg"), { kind: "channel", ref: "@Bloomberg" });
+
+  // Videos.
+  assert.deepEqual(parseFeedUrl("https://youtu.be/dQw4w9WgXcQ"), { kind: "video", ref: "dQw4w9WgXcQ" });
+  assert.deepEqual(parseFeedUrl("https://www.youtube.com/shorts/dQw4w9WgXcQ"), { kind: "video", ref: "dQw4w9WgXcQ" });
+
+  // A watch URL opened from inside a playlist is still that video. Subscribing
+  // to the playlist it happened to be in is not what was pasted.
+  assert.deepEqual(
+    parseFeedUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PLabc&index=3"),
+    { kind: "video", ref: "dQw4w9WgXcQ" },
+  );
+  // A share link with a tracking parameter.
+  assert.deepEqual(parseFeedUrl("https://youtu.be/dQw4w9WgXcQ?si=xY_9"), { kind: "video", ref: "dQw4w9WgXcQ" });
+
+  // Refused rather than guessed. A search page turned into a channel id would
+  // produce a feed that silently returns nothing.
+  assert.equal(parseFeedUrl("https://www.youtube.com/results?search_query=news"), null);
+  assert.equal(parseFeedUrl("https://vimeo.com/12345"), null);
+  assert.equal(parseFeedUrl("not a url"), null);
+  assert.equal(parseFeedUrl(""), null);
+});

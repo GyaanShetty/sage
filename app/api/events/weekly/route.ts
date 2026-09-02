@@ -18,7 +18,7 @@ const WEEKS = 12;
 const dayKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(d);
 
 /** The Monday of the IST week containing `d`, as a YYYY-MM-DD key. */
-export function weekKey(d: Date): string {
+function weekKey(d: Date): string {
   const k = dayKey(d);
   const noon = new Date(`${k}T12:00:00Z`);
   const back = (noon.getUTCDay() + 6) % 7;      // Monday = 0

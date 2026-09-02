@@ -112,9 +112,39 @@ export function AgentLogTile({ n }: { n?: number }) {
 /* ── GITHUB · /push ───────────────────────────────────────────────────── */
 export function GithubTile({ n }: { n?: number }) {
   const [days, setDays] = useState<{ date: string; count: number; level: number }[] | null>(null);
+  /**
+   * Why it is empty, not just that it is.
+   *
+   * The route already tells three stories apart — no token returns
+   * `data: null`, an API failure returns `{ ok: false, error }`, and a working
+   * call returns days — and this tile threw all three into one empty array and
+   * rendered "GitHub not reporting". That sent him to check a token that was
+   * fine, or to re-add one that was expired, with no way to tell which.
+   */
+  const [why, setWhy] = useState<{ reason: string; action: string } | null>(null);
+
   useLive(
-    () => fetch("/api/github/contributions").then((r) => r.json())
-      .then((j) => setDays(asArray(j?.data?.days, j?.data))).catch(() => setDays([])),
+    () => fetch("/api/github/contributions").then((r) => r.json()).then((j) => {
+      if (j?.ok && j.data === null) {
+        setWhy({ reason: "No GitHub token", action: "Add GITHUB_TOKEN" });
+        setDays([]);
+        return;
+      }
+      if (j?.ok === false) {
+        const msg = String(j.error ?? "");
+        // 401 is a token that is wrong or expired; 403 is one whose scopes do
+        // not cover the contributions query. Different fixes entirely.
+        setWhy(
+          msg.includes("401") ? { reason: "Token rejected", action: "Replace GITHUB_TOKEN" }
+          : msg.includes("403") ? { reason: "Token lacks read:user", action: "Re-scope the token" }
+          : { reason: msg.slice(0, 42) || "GitHub call failed", action: "Open settings" },
+        );
+        setDays([]);
+        return;
+      }
+      setWhy(null);
+      setDays(asArray(j?.data?.days, j?.data));
+    }).catch(() => { setWhy({ reason: "Couldn't reach GitHub", action: "Retry from settings" }); setDays([]); }),
     { everyMs: 900_000 },
   );
   const recent = (days ?? []).slice(-182);
@@ -122,7 +152,13 @@ export function GithubTile({ n }: { n?: number }) {
   return (
     <Pane n={n} title="Commits" status={<Go href="/push">{days ? `${total} · 26W` : "…"}</Go>}>
       {!days && <div className="tile-wait">ACQUIRING…</div>}
-      {days?.length === 0 && <Empty reason="GitHub not reporting" action="Check the token" href="/settings" />}
+      {days?.length === 0 && (
+        <Empty
+          reason={why?.reason ?? "No contributions in range"}
+          action={why?.action ?? "Open GitHub"}
+          href="/settings"
+        />
+      )}
       {recent.length > 0 && (
         <Matrix
           cols={26}

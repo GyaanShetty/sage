@@ -14,6 +14,7 @@ import { ProgressPanel } from "./components/progress-panel";
 import { ReadinessPanel } from "./components/readiness-panel";
 import { TZ } from "@/lib/config";
 import { Acquiring } from "@/components/ui/acquiring";
+import { ShortcutRecipe } from "./components/shortcut-recipe";
 
 interface Day {
   day: string;
@@ -112,6 +113,11 @@ export function HealthView() {
           <Target className="size-3.5" /> Goals
         </button>
       </div>
+
+      {/* Collapsed by default. It is a reference, not a reading: it should be
+          findable on the page where the gap shows, without displacing the
+          numbers that are the reason to open the page at all. */}
+      <ShortcutRecipe />
 
       {/* The state of the fetch belongs above the page, not buried under two
           panels that load separately — a failure used to show two working

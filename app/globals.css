@@ -1307,3 +1307,43 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 
 /* The mark, above the wordmark on the login screen. */
 .lg-mark { display: block; margin: 0 auto 14px; color: var(--signal); }
+
+/* ── DONUT · LINE · HISTOGRAM · DIVERGING ─────────────────────────────────
+   Chart chrome. Every one carries its values in text beside the mark, so
+   nothing here is encoded by colour or angle alone. */
+.dnt { display: flex; align-items: center; gap: 12px; padding: 6px 8px; }
+.dnt svg { flex: none; }
+.dnt-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dnt-row { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 9px; }
+.dnt-row i { width: 7px; height: 7px; flex: none; }
+.dnt-l { flex: 1; min-width: 0; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dnt-v { color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+.hist { display: flex; align-items: flex-end; gap: 1px; padding: 6px 8px 0; }
+.hist-b { flex: 1; background: var(--signal-faint); border-top: 1px solid var(--signal); min-height: 1px; }
+/* Losing days are the left half of the distribution; marking them lets the
+   asymmetry be read without counting bars. */
+.hist-b.dn { background: color-mix(in srgb, var(--danger) 14%, transparent); border-top-color: var(--danger); }
+
+.dvg { display: flex; flex-direction: column; gap: 2px; padding: 5px 8px; }
+.dvg-row { display: flex; align-items: center; gap: 7px; }
+.dvg-l { flex: 0 0 58px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.06em;
+  color: var(--muted); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dvg-track { position: relative; flex: 1; height: 100%; min-width: 0;
+  background: linear-gradient(90deg, transparent 49.7%, var(--rule) 49.7%, var(--rule) 50.3%, transparent 50.3%); }
+.dvg-track i { position: absolute; top: 15%; bottom: 15%; }
+.dvg-track i.up { background: var(--live); }
+.dvg-track i.dn { background: var(--danger); }
+.dvg-v { flex: 0 0 56px; text-align: right; font-family: var(--mono); font-size: 9px;
+  font-variant-numeric: tabular-nums; }
+.dvg-v.up { color: var(--live); }
+.dvg-v.dn { color: var(--danger); }
+
+@media (min-width: 1400px) {
+  .wall .dnt { gap: clamp(6px, 6cqh, 12px); padding: clamp(2px, 2cqh, 6px) 8px; }
+  .wall .dnt-row { font-size: clamp(6.5px, 3.2cqh, 9px); }
+  .wall .dvg-l { font-size: clamp(6px, 3cqh, 8.5px); }
+  .wall .dvg-v { font-size: clamp(6.5px, 3.2cqh, 9px); }
+  .wall .dvg { gap: 1px; padding: clamp(2px, 2cqh, 5px) 8px; }
+}

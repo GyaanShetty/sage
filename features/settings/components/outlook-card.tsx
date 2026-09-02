@@ -65,6 +65,21 @@ export function OutlookCard() {
     void load();
   };
 
+  /**
+   * Check without signing in.
+   *
+   * Connect leaves the app, so a misconfiguration is only discovered on a
+   * Microsoft error page — away from the two values it is about. This asks
+   * the same question from the server and brings the answer back here.
+   */
+  const check = async () => {
+    setBusy(true); setNote("Asking Microsoft…");
+    const j = await fetch("/api/outlook/check", { method: "POST" }).then((r) => r.json()).catch(() => null);
+    setBusy(false);
+    if (j?.ok) setNote(j.data?.verdict ?? "Looks right.");
+    else setNote([j?.error, j?.data?.hint].filter(Boolean).join(" — ") || "Check failed.");
+  };
+
   const missing = s && (!s.hasId || !s.hasSecret);
 
   return (
@@ -111,13 +126,22 @@ export function OutlookCard() {
           Disconnect
         </button>
       ) : (
-        <button
-          onClick={() => void connect()}
-          disabled={busy || !!missing}
-          className="flex items-center gap-1.5 bg-accent px-3.5 py-1.5 text-xs font-medium text-background disabled:opacity-40"
-        >
-          {busy && <Loader2 className="size-3 animate-spin" />} Connect
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void check()}
+            disabled={busy || !!missing}
+            className="border border-[var(--rule)] px-3 py-1.5 text-xs text-muted hover:text-foreground disabled:opacity-40"
+          >
+            Check
+          </button>
+          <button
+            onClick={() => void connect()}
+            disabled={busy || !!missing}
+            className="flex items-center gap-1.5 bg-accent px-3.5 py-1.5 text-xs font-medium text-background disabled:opacity-40"
+          >
+            {busy && <Loader2 className="size-3 animate-spin" />} Connect
+          </button>
+        </div>
       )}
     </GlassPanel>
   );

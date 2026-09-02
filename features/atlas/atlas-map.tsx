@@ -34,7 +34,21 @@ const INITIAL: LayerDef[] = [
 
 const CYAN = "#f4f5f7";
 
-export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: number; lon?: number; onZoomOut?: () => void; center?: [number, number] }) {
+/**
+ * `compact` is the wall variant.
+ *
+ * On its own page the toolbar is a stacked band above the map and that is
+ * right — there is room, and the labels help. Inside a dashboard pane roughly
+ * two hundred pixels tall the same band takes three quarters of the height
+ * and the map becomes a strip: the controls end up covering the thing they
+ * control, which is the exact failure the band was introduced to fix.
+ *
+ * So compact keeps every control and changes only how much room each takes:
+ * layer chips lose their labels to `title`, the find field hides behind a
+ * button and expands over the map only while it is being used, and the status
+ * readouts move to the Pane header, which was already there saying "LIVE".
+ */
+export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = false }: { lat?: number; lon?: number; onZoomOut?: () => void; center?: [number, number]; compact?: boolean }) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LMap | null>(null);
   const LRef = useRef<L | null>(null);
@@ -54,6 +68,9 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   const [placeName, setPlaceName] = useState("");
   /** Find-a-place. Nominatim, debounced, biased to the current centre. */
   const [query, setQuery] = useState("");
+  // Compact only: the find field is hidden until asked for, so the map keeps
+  // the row it would otherwise occupy.
+  const [findOpen, setFindOpen] = useState(false);
   const [hits, setHits] = useState<{ name: string; lat: number; lon: number }[]>([]);
   const [seeking, setSeeking] = useState(false);
   /** A place he asked to be routed to, overriding the scheduled one. */
@@ -485,7 +502,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
   const toggle = (k: string) => setLayers((ls) => ls.map((l) => (l.key === k ? { ...l, on: !l.on } : l)));
 
   return (
-    <div className="atlas">
+    <div className={`atlas${compact ? " is-compact" : ""}`}>
       <div className="atlas-map" ref={elRef} />
       {/**
         * The toolbar sits ABOVE the map, not on it.
@@ -496,7 +513,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
         * spare. Out of the way, the map gets all its space back.
         */}
       <div className="atlas-toolbar">
-        <div className="rail">
+        <div className="rail atlas-id">
           <span className="sig-dot on" />
           <span className="sig">ATLAS</span>
           <span className="k">{status}</span>
@@ -520,7 +537,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
 
         {/* Find a place. Right-click adds where you already are; this is the
             other half — getting somewhere you have not found yet. */}
-        {!pending && (
+        {!pending && (compact ? findOpen : true) && (
           <div className="rail atlas-find">
             <span className="k">FIND</span>
             <input
@@ -533,6 +550,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
             {seeking && <span className="k">…</span>}
             {query && <button className="atlas-chip" onClick={() => { setQuery(""); setHits([]); }}>CLEAR</button>}
             {!query && <span className="atlas-hint">OR RIGHT-CLICK THE MAP TO SAVE A SPOT</span>}
+            {compact && <button className="atlas-chip" onClick={() => { setFindOpen(false); setQuery(""); setHits([]); }}>✕</button>}
           </div>
         )}
 
@@ -559,9 +577,19 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center }: { lat?: numb
         )}
 
         <div className="atlas-layers">
+          {compact && !findOpen && (
+            <button className="atlas-chip" onClick={() => setFindOpen(true)} title="Find a place">
+              <span className="ac-ic">⌕</span><span className="ac-lb">FIND</span>
+            </button>
+          )}
           {layers.map((l) => (
-            <button key={l.key} className={`atlas-chip${l.on ? " on" : ""}`} onClick={() => toggle(l.key)}>
-              <span className="ac-ic">{l.icon}</span>{l.label}{l.live && <span className="ac-live" />}
+            <button
+              key={l.key}
+              className={`atlas-chip${l.on ? " on" : ""}`}
+              onClick={() => toggle(l.key)}
+              title={l.label}
+            >
+              <span className="ac-ic">{l.icon}</span><span className="ac-lb">{l.label}</span>{l.live && <span className="ac-live" />}
             </button>
           ))}
         </div>

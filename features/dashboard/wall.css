@@ -406,3 +406,16 @@
 
 /* The ticker is a second row the map cannot spare either. */
 .atlas.is-compact .atlas-ticker { position: absolute; left: 0; right: 0; bottom: 0; z-index: 600; }
+
+/* ── PAGE TWO ─────────────────────────────────────────────────────────────
+   Three rows rather than five: these panes are lists and figures, none of
+   them is a map, and giving fourteen panes the room that thirty-one had is
+   what makes the second page readable rather than merely full. */
+@media (min-width: 1400px) {
+  .wall2-r1 { flex: 1.15; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .wall2-r2 { flex: 1.1; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.3fr); }
+  .wall2-r3 { flex: 1; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* How long since a skill was practised, beside its level. */
+.sk-ago { color: var(--subtle); font-weight: 400; margin-left: 6px; }

@@ -25,13 +25,14 @@ import { PAGES } from "./pages";
 /** href → the label on the key. Order is the order along the rail. */
 const KEYS: { fn: number; href: string; label: string }[] = [
   { fn: 5, href: "/dashboard", label: "DESK" },
-  { fn: 6, href: "/workspace", label: "TASKS" },
-  { fn: 7, href: "/sitrep", label: "SIGNALS" },
-  { fn: 8, href: "/memory", label: "MEMORY" },
-  { fn: 9, href: "/health", label: "BIO" },
-  { fn: 10, href: "/mail", label: "WIRE" },
-  { fn: 11, href: "/calendar", label: "CALENDAR" },
-  { fn: 12, href: "/markets", label: "MARKETS" },
+  { fn: 6, href: "/ops", label: "OPS" },
+  { fn: 7, href: "/workspace", label: "TASKS" },
+  { fn: 8, href: "/sitrep", label: "SIGNALS" },
+  { fn: 9, href: "/memory", label: "MEMORY" },
+  { fn: 10, href: "/health", label: "BIO" },
+  { fn: 11, href: "/mail", label: "WIRE" },
+  { fn: 12, href: "/calendar", label: "CALENDAR" },
+  { fn: 13, href: "/markets", label: "MARKETS" },
 ];
 
 /** Every key must point at a page that exists — a dead key is worse than none. */

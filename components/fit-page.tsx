@@ -42,7 +42,26 @@ const MIN_ZOOM = 0.7;
  * height is a function of the content rather than of the layout, so the
  * measurement would swing wildly as you move between items.
  */
-const NEVER_FIT = ["/dashboard", "/mail", "/code", "/chat", "/read", "/knowledge", "/memory"];
+const NEVER_FIT = [
+  // Walls size themselves to the viewport; zooming one that already fits
+  // would shrink it for no reason.
+  "/dashboard", "/ops",
+  // Readers and editors, where scrolling is the point.
+  "/mail", "/code", "/chat", "/read", "/knowledge", "/memory",
+  /*
+   * The calendar positions every hour line, every event and the now-marker
+   * with absolute pixel offsets (PX_PER_MIN) inside a box sized in `vh`.
+   * `zoom` rescales the pixels but `vh` resolves against the unzoomed
+   * viewport, so the grid and the events on it stop agreeing — events land at
+   * the wrong hour and the now-line drifts off it. Worse, the page's height
+   * then depends on the zoom just applied, so the iteration below has no
+   * fixed point and visibly hunts.
+   *
+   * That is a property of the page, not a preference: any layout that mixes
+   * pixel arithmetic with viewport units cannot be zoomed safely.
+   */
+  "/calendar",
+];
 
 export function FitPage() {
   const pathname = usePathname();

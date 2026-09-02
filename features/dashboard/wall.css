@@ -419,3 +419,30 @@
 
 /* How long since a skill was practised, beside its level. */
 .sk-ago { color: var(--subtle); font-weight: 400; margin-left: 6px; }
+
+/* ── MARKETS ──────────────────────────────────────────────────────────────
+   Prices, then intelligence, then the desk. Row 1 is where the eye lands, so
+   it gets the height; the TV embeds sit at the bottom where they can be
+   ignored, since a video is the one thing on the screen that will hold your
+   attention whether or not it has anything to say. */
+@media (min-width: 1400px) {
+  .wall3-r1 {
+    flex: 1.5;
+    grid-template-columns:
+      minmax(0, 0.8fr) minmax(0, 1.6fr) minmax(0, 1.15fr) minmax(0, 0.85fr);
+  }
+  .wall3-r2 { flex: 1.25; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 0.8fr); }
+  .wall3-r3 { flex: 1.15; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); }
+
+  /* A video wants its whole pane, and its own body must not scroll. */
+  .mk-tv > .pane-body { overflow: hidden; display: flex; padding: 0; }
+  .mk-tv .stream-frame { flex: 1; min-height: 0; width: 100%; }
+
+  /* The price rows carry a sparkline, so they need more room than a plain
+     key/value row and less than a figure. */
+  .wall .mkt { padding: clamp(1px, 1cqh, 4px) 8px; }
+  .wall .mkt .sym { font-size: clamp(7px, 3.4cqh, 10px); width: 62px; flex-basis: 62px; }
+  .wall .mkt .px { font-size: clamp(7.5px, 3.6cqh, 10.5px); }
+  .wall .mkt .chg { font-size: clamp(6.5px, 3.2cqh, 9px); }
+  .wall .mkta-text { font-size: clamp(9px, 4.4cqh, 12.5px); line-height: 1.55; padding: 6px 8px; }
+}

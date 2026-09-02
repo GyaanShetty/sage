@@ -45,7 +45,7 @@ const MIN_ZOOM = 0.7;
 const NEVER_FIT = [
   // Walls size themselves to the viewport; zooming one that already fits
   // would shrink it for no reason.
-  "/dashboard", "/ops",
+  "/dashboard", "/ops", "/markets",
   // Readers and editors, where scrolling is the point.
   "/mail", "/code", "/chat", "/read", "/knowledge", "/memory",
   /*

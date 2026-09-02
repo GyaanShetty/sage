@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { NarrativePanel, PulsePanel, EventsCorrelationPanel } from "./intel-panels";
 import "@/features/dashboard/command.css";
+import "@/features/dashboard/wall.css";
+import { Pane, Row, Stat, Empty } from "@/components/pane";
+import { Progress } from "@/components/instruments";
 import { NumberTicker } from "@/components/number-ticker";
-import { Acquiring } from "@/components/ui/acquiring";
 import { asArray } from "@/lib/as-array";
 
 interface Quote { symbol: string; name: string; price: number; change: number; changePct: number; currency: string; spark: number[] }
@@ -160,147 +162,218 @@ export function MarketsView() {
     }));
   };
 
-  return (
-    <div>
-      <section className="section" id="markets">
-        <div className="sectitle">
-          <span className="sn">MKT</span><h2>Markets</h2><span className="line" />
-          <button className="chip" onClick={() => setCustomize((c) => !c)} style={{ marginLeft: "auto" }}>
-            {customize ? "DONE" : "CUSTOMIZE"}
-          </button>
-        </div>
+  /**
+   * Movers and breadth, derived rather than fetched.
+   *
+   * Both are functions of the quotes already on screen, so they cost nothing
+   * upstream — which matters on a free tier, and matters more because a
+   * "movers" pane that disagreed with the watchlist beside it would be worse
+   * than no movers pane at all.
+   */
+  const universe = [
+    ...(stocks ?? []).map((q) => ({ sym: q.symbol.replace(/\.(NS|BO)$/, ""), pct: q.changePct })),
+    ...(coins ?? []).map((c) => ({ sym: c.symbol, pct: c.change24h })),
+  ].filter((x) => Number.isFinite(x.pct));
 
-        {/* indices strip */}
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(indices?.length ?? cfg.indices.length, 1)}, 1fr)`, marginBottom: 1 }}>
+  const movers = [...universe].sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  const up = universe.filter((x) => x.pct > 0).length;
+  const down = universe.filter((x) => x.pct < 0).length;
+  const flat = universe.length - up - down;
+
+  return (
+    <div className="wall">
+      {/* ── ROW 1 · PRICES ───────────────────────────────────────────────── */}
+      <div className="wall-row wall3-r1">
+        <Pane
+          n={1}
+          title="Indices"
+          status={
+            <span className="fc-btns">
+              <button onClick={() => setCustomize((c) => !c)}>{customize ? "DONE" : "CUSTOMIZE"}</button>
+            </span>
+          }
+          live={!!indices?.length}
+        >
+          {indices === null && <div className="tile-wait">ACQUIRING…</div>}
           {(indices ?? []).map((q) => (
-            <div className="cell ct" key={q.symbol}>
-              <div className="cv num"><NumberTicker value={q.price} format={(v) => fmtPx(v, q.currency)} /></div>
-              <div className="ck">{q.name} <span className={q.changePct >= 0 ? "up-txt" : "dn-txt"}>{q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(2)}%</span></div>
+            <div className="tstat" key={q.symbol}>
+              <span className="tstat-v num">
+                <NumberTicker value={q.price} format={(v) => fmtPx(v, q.currency)} />
+              </span>
+              <span className="tstat-k">
+                {q.name} <span className={q.changePct >= 0 ? "up-txt" : "dn-txt"}>
+                  {q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(2)}%
+                </span>
+              </span>
             </div>
           ))}
-          {indices === null && <div className="cell"><p className="lbl">LOADING INDICES…</p></div>}
-        </div>
-        {customize && (
-          <div className="cell" style={{ marginBottom: 1 }}>
-            <p className="lbl" style={{ marginBottom: 6 }}>INDICES · YAHOO SYMBOLS (^NSEI, ^BSESN, ^GSPC, ^IXIC…)</p>
-            <Editor items={cfg.indices} onChange={(v) => save({ ...cfg, indices: v })} placeholder="add index…" />
-          </div>
-        )}
+          {customize && (
+            <>
+              <div className="tile-cap">YAHOO SYMBOLS · ^NSEI ^BSESN ^GSPC</div>
+              <Editor items={cfg.indices} onChange={(v) => save({ ...cfg, indices: v })} placeholder="add index…" />
+            </>
+          )}
+        </Pane>
 
-        {/* ── market intelligence ── */}
-        <NarrativePanel />
-        <PulsePanel />
-        <EventsCorrelationPanel symbols={[...cfg.indices, ...cfg.stocks]} />
+        <Pane n={2} title="Watchlist" status="YAHOO · 5M" live={!!stocks?.length}>
+          {customize && (
+            <>
+              <div className="tile-cap">NSE RELIANCE.NS · BSE 500325.BO · US NVDA</div>
+              <Editor items={cfg.stocks} onChange={(v) => save({ ...cfg, stocks: v })} placeholder="add ticker…" />
+            </>
+          )}
+          {stocks === null && <div className="tile-wait">ACQUIRING…</div>}
+          {stocks?.map((q) => (
+            <div className="mkt" key={q.symbol}>
+              <span className="sym">{q.symbol.replace(/\.(NS|BO)$/, "")}</span>
+              <Spark data={q.spark} up={q.changePct >= 0} />
+              <span className="px">{fmtPx(q.price, q.currency)}</span>
+              <span className={`chg${q.changePct >= 0 ? " up" : ""}`}>
+                {q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(1)}%
+              </span>
+              <button
+                className="mkt-add"
+                title={added.has(q.symbol) ? "Added to portfolio" : "Add to portfolio"}
+                disabled={added.has(q.symbol)}
+                onClick={() => addToPortfolio(q.symbol, "stock")}
+              >{added.has(q.symbol) ? "✓" : "+"}</button>
+            </div>
+          ))}
+        </Pane>
 
-        <div className="grid deckmkt">
-          {/* watchlist */}
-          <div className="cell">
-            <div className="bh"><span className="t">Watchlist</span><span className="i">EQ</span><span className="r">YAHOO · 5M CACHE</span></div>
+        <div className="wall-stack">
+          <Pane n={3} title="Crypto" status="CG · USD" live={!!coins?.length}>
             {customize && (
               <>
-                <p className="lbl" style={{ margin: "4px 0 6px" }}>NSE: RELIANCE.NS · BSE: 500325.BO · US: NVDA</p>
-                <Editor items={cfg.stocks} onChange={(v) => save({ ...cfg, stocks: v })} placeholder="add ticker…" />
+                <div className="tile-cap">COINGECKO IDS · bitcoin ethereum</div>
+                <Editor items={cfg.crypto} onChange={(v) => save({ ...cfg, crypto: v })} placeholder="add coin id…" />
               </>
             )}
-            {stocks === null && <Acquiring label="EQUITIES" />}
-            {stocks?.map((q) => (
-              <div className="mkt" key={q.symbol}>
-                <span className="sym" style={{ width: 92, flex: "0 0 92px" }}>{q.symbol.replace(/\.(NS|BO)$/, "")}</span>
-                <Spark data={q.spark} up={q.changePct >= 0} />
-                <span className="px">{fmtPx(q.price, q.currency)}</span>
-                <span className={`chg${q.changePct >= 0 ? " up" : ""}`}>{q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(1)}%</span>
-                <button
-                  className="mkt-add"
-                  title={added.has(q.symbol) ? "Added to portfolio" : "Add to portfolio"}
-                  disabled={added.has(q.symbol)}
-                  onClick={() => addToPortfolio(q.symbol, "stock")}
-                >{added.has(q.symbol) ? "✓" : "+"}</button>
+            {coins === null && <div className="tile-wait">ACQUIRING…</div>}
+            {coins?.map((c) => (
+              <div className="mkt" key={c.symbol}>
+                <span className="sym">{c.symbol}</span>
+                <Spark data={c.spark} up={c.change24h >= 0} />
+                <span className="px">${c.price >= 1000 ? Math.round(c.price).toLocaleString() : c.price.toFixed(2)}</span>
+                <span className={`chg${c.change24h >= 0 ? " up" : ""}`}>
+                  {c.change24h >= 0 ? "▲" : "▽"} {Math.abs(c.change24h).toFixed(1)}%
+                </span>
               </div>
             ))}
-          </div>
+          </Pane>
 
-          {/* crypto + fx */}
-          <div className="stack">
-            <div className="cell">
-              <div className="bh"><span className="t">Crypto</span><span className="i">CG</span><span className="r">USD · LIVE</span></div>
-              {customize && (
-                <>
-                  <p className="lbl" style={{ margin: "4px 0 6px" }}>COINGECKO IDS: bitcoin · ethereum · dogecoin…</p>
-                  <Editor items={cfg.crypto} onChange={(v) => save({ ...cfg, crypto: v })} placeholder="add coin id…" />
-                </>
-              )}
-              {coins === null && <Acquiring label="CRYPTO" />}
-              {coins?.map((c) => (
-                <div className="mkt" key={c.symbol}>
-                  <span className="sym">{c.symbol}</span>
-                  <Spark data={c.spark} up={c.change24h >= 0} />
-                  <span className="px">${c.price >= 1000 ? Math.round(c.price).toLocaleString() : c.price.toFixed(2)}</span>
-                  <span className={`chg${c.change24h >= 0 ? " up" : ""}`}>{c.change24h >= 0 ? "▲" : "▽"} {Math.abs(c.change24h).toFixed(1)}%</span>
-                </div>
-              ))}
-            </div>
-            <div className="cell" style={{ flex: 1 }}>
-              <div className="bh"><span className="t">Currency</span><span className="i">ECB</span><span className="r">PER INR</span></div>
-              {fx?.map((f) => (
-                <div className="mkt" key={f.pair}>
-                  <span className="sym" style={{ flex: 1, width: "auto" }}>{f.pair}</span>
-                  <span className="px">₹{f.rate.toFixed(2)}</span>
-                  <span className="chg">{f.pair.startsWith("JPY") ? "PER 100" : ""}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI analysis */}
-          <div className="cell mkta">
-            <div className="bh"><span className="t">Analysis</span><span className="i">AI</span><span className="r">DESK BRIEF · 2×/DAY</span></div>
-            {analysisLoading && <p className="lbl">COMPILING BRIEF…</p>}
-            {!analysisLoading && !analysis && (
-              <div className="empty-state"><div className="es-t">NO BRIEF YET</div><div className="es-d">The desk files twice a day — check back shortly.</div></div>
-            )}
-            {analysis && <div className="mkta-text">{analysis}</div>}
-          </div>
+          <Pane n={4} title="Currency" status="ECB · PER INR" live={!!fx?.length}>
+            {fx === null && <div className="tile-wait">ACQUIRING…</div>}
+            {fx?.map((f) => (
+              <Row key={f.pair} k={f.pair} v={`₹${f.rate.toFixed(2)}`} />
+            ))}
+          </Pane>
         </div>
 
-        {/* market TV */}
-        <div className="grid streams-grid" style={{ marginTop: 1 }}>
-          {cfg.streams.map((f, i) => (
-            <div className="cell stream-cell" key={`${f.id}-${i}`}>
-              <div className="bh" style={{ marginBottom: 8 }}>
-                <span className="t" style={{ fontSize: 10 }}>{f.label}</span>
-                <span className="i">TV</span>
-                <button className="stream-swap" onClick={() => { setEditingStream(editingStream === i ? null : i); setStreamDraft(""); }}>
+        {/* Movers reads absolute move, so the worst faller ranks with the best
+            riser. A "top movers" list sorted by signed change is a top gainers
+            list wearing the wrong label. */}
+        <Pane n={5} title="Movers" status="BY ABSOLUTE MOVE" live={movers.length > 0}>
+          {universe.length === 0 && <div className="tile-wait">ACQUIRING…</div>}
+          {movers.slice(0, 8).map((m) => (
+            <Row
+              key={m.sym}
+              k={m.sym}
+              v={`${m.pct >= 0 ? "▲" : "▽"}${Math.abs(m.pct).toFixed(1)}%`}
+              tone={m.pct >= 0 ? "up" : "down"}
+            />
+          ))}
+        </Pane>
+      </div>
+
+      {/* ── ROW 2 · INTELLIGENCE ─────────────────────────────────────────── */}
+      <div className="wall-row wall3-r2">
+        <div className="wall-cell"><NarrativePanel /></div>
+        <div className="wall-cell"><PulsePanel /></div>
+        <div className="wall-cell"><EventsCorrelationPanel symbols={[...cfg.indices, ...cfg.stocks]} /></div>
+
+        <Pane n={9} title="Breadth" status={`${universe.length} NAMES`} live={universe.length > 0}>
+          {universe.length === 0 && <div className="tile-wait">ACQUIRING…</div>}
+          {universe.length > 0 && (
+            <>
+              <div className="km">
+                <Stat v={String(up)} k="Advancing" tone="up" />
+                <Stat v={String(down)} k="Declining" tone="down" />
+                <Stat v={String(flat)} k="Flat" />
+              </div>
+              {/* The ratio, not the counts, is what says whether a green index
+                  is broad or is three names carrying everything. */}
+              <Progress
+                pct={universe.length ? up / universe.length : 0}
+                left={`${Math.round((up / Math.max(universe.length, 1)) * 100)}% UP`}
+                right={`${Math.round((down / Math.max(universe.length, 1)) * 100)}% DOWN`}
+              />
+            </>
+          )}
+        </Pane>
+      </div>
+
+      {/* ── ROW 3 · DESK ─────────────────────────────────────────────────── */}
+      <div className="wall-row wall3-r3">
+        <Pane n={10} title="Desk Brief" status="AI · 2×/DAY" live={!!analysis}>
+          {analysisLoading && <div className="tile-wait">COMPILING…</div>}
+          {!analysisLoading && !analysis && (
+            <Empty reason="No brief filed yet" action="The desk files twice a day" />
+          )}
+          {analysis && <div className="mkta-text">{analysis}</div>}
+        </Pane>
+
+        {cfg.streams.map((f, i) => (
+          <Pane
+            key={`${f.id}-${i}`}
+            n={11 + i}
+            title={f.label}
+            className="mk-tv"
+            status={
+              <span className="fc-btns">
+                <button onClick={() => { setEditingStream(editingStream === i ? null : i); setStreamDraft(""); }}>
                   {editingStream === i ? "CANCEL" : "SWAP"}
                 </button>
+              </span>
+            }
+            live={playing[i]}
+          >
+            {editingStream === i ? (
+              <div className="notein" style={{ marginBottom: 0 }}>
+                <input
+                  autoFocus
+                  value={streamDraft}
+                  onChange={(e) => setStreamDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyStream(i)}
+                  placeholder="Paste any YouTube link…"
+                />
+                <button onClick={() => applyStream(i)}>SET</button>
               </div>
-              {editingStream === i ? (
-                <div className="notein" style={{ marginBottom: 0 }}>
-                  <input autoFocus value={streamDraft} onChange={(e) => setStreamDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyStream(i)} placeholder="Paste any YouTube link…" />
-                  <button onClick={() => applyStream(i)}>SET</button>
-                </div>
-              ) : playing[i] ? (
-                <div className="stream-frame">
-                  <iframe
-                    src={`https://www.youtube-nocookie.com/embed/${f.id}?autoplay=1&mute=1`}
-                    title={f.label}
-                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <button
-                  className="stream-frame stream-poster"
-                  style={{ backgroundImage: `url(https://i.ytimg.com/vi/${f.id}/hqdefault.jpg)` }}
-                  onClick={() => setPlaying((p) => p.map((v, j) => (j === i ? true : v)))}
-                  aria-label={`Play ${f.label}`}
-                >
-                  <span className="stream-play">▶ ENGAGE</span>
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+            ) : playing[i] ? (
+              <div className="stream-frame">
+                <iframe
+                  src={`https://www.youtube-nocookie.com/embed/${f.id}?autoplay=1&mute=1`}
+                  title={f.label}
+                  allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            ) : (
+              /* Poster until asked. Two autoplaying embeds on a screen that is
+                 open all day is a lot of bandwidth for something nobody is
+                 listening to. */
+              <button
+                className="stream-frame stream-poster"
+                style={{ backgroundImage: `url(https://i.ytimg.com/vi/${f.id}/hqdefault.jpg)` }}
+                onClick={() => setPlaying((p) => p.map((v, j) => (j === i ? true : v)))}
+                aria-label={`Play ${f.label}`}
+              >
+                <span className="stream-play">▶ ENGAGE</span>
+              </button>
+            )}
+          </Pane>
+        ))}
+      </div>
     </div>
   );
 }

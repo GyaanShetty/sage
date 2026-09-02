@@ -1,4 +1,5 @@
 import {
+  Gauge,
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
@@ -16,6 +17,7 @@ export interface Item { href: string; label: string; icon: LucideIcon; hint?: st
 
 export const PAGES: Item[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, hint: "command", group: "NOW" },
+  { href: "/ops", label: "Ops", icon: Gauge, hint: "page two", group: "NOW" },
   { href: "/sitrep", label: "Sitrep", icon: Radio, hint: "live status", group: "NOW" },
   { href: "/morning", label: "Morning", icon: Sunrise, hint: "the block", group: "NOW" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, hint: "week · month", group: "NOW" },

@@ -16,6 +16,9 @@ import { TradesPanel } from "./components/trades-panel";
 import { AlertsPanel } from "./components/alerts-panel";
 import { Acquiring } from "@/components/ui/acquiring";
 import { asArray } from "@/lib/as-array";
+import "@/features/dashboard/wall.css";
+import { Pane, Row, Stat, Empty as PaneEmpty } from "@/components/pane";
+import { Donut, Line, Histogram, Diverging } from "@/components/instruments";
 
 interface SymbolHit { symbol: string; name: string; exchange: string; kind: "crypto" | "stock" }
 
@@ -70,6 +73,28 @@ export function PortfolioView() {
   const [exp, setExp] = useState({ amount: "", merchant: "", category: "food" });
   const [scanning, setScanning] = useState(false);
   // mentor
+  /**
+   * The analytics the endpoints have always returned and nothing displayed.
+   *
+   * /api/portfolio/history carries 180 days of value, a benchmark series and
+   * alpha; /api/portfolio/trades carries realised P&L and income by year.
+   * Every chart below is drawn from one of those — none of this is a new
+   * upstream, which is why four charts cost one round trip each.
+   */
+  const [history, setHistory] = useState<{
+    series: { day: string; value: number }[];
+    benchmark: { day: string; value: number }[];
+    periodPct: number | null; benchPct: number | null; alpha: number | null;
+  } | null>(null);
+  const [trades, setTrades] = useState<{ realizedTotal: number; incomeTotal: number; years: number[] } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/portfolio/history").then((r) => r.json())
+      .then((j) => setHistory(j?.data ?? null)).catch(() => setHistory(null));
+    fetch("/api/portfolio/trades").then((r) => r.json())
+      .then((j) => setTrades(j?.data ?? null)).catch(() => setTrades(null));
+  }, []);
+
   const [mentorQ, setMentorQ] = useState("");
   const [mentorA, setMentorA] = useState<string | null>(null);
   const [mentorBusy, setMentorBusy] = useState(false);
@@ -234,8 +259,96 @@ export function PortfolioView() {
   const topLoser = [...movers].sort((a, b) => (a.change24h ?? 0) - (b.change24h ?? 0))[0];
   const allocTint = ["#f4f5f7", "#a855f7", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#f87171", "#c4b5fd"];
 
+  /* Daily returns as percentages, from consecutive snapshots. A zero-valued
+     snapshot is skipped rather than treated as a −100% day: the portfolio was
+     not wiped out, the snapshot did not price. */
+  const valueSeries = asArray<{ day: string; value: number }>(history?.series).map((s) => s.value);
+  const dailyReturns = valueSeries
+    .map((v, i) => (i > 0 && valueSeries[i - 1] > 0 ? ((v - valueSeries[i - 1]) / valueSeries[i - 1]) * 100 : null))
+    .filter((x): x is number => x != null);
+
+  const pnlByPosition = priced
+    .map((p) => ({ label: p.symbol.replace(/\.(NS|BO)$/, ""), value: (p.value ?? 0) - (p.qty ?? 0) * (p.avgCost ?? 0) }))
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+    .slice(0, 8);
+
   return (
     <div className="pf-wrap">
+      {/* ── THE BOARD ─────────────────────────────────────────────────────
+          The four charts asked for, on data that was already being returned
+          and thrown away. Detail — holdings, thesis, alerts, budget — stays
+          below: this screen is a working screen as well as a readout, and a
+          strict one-viewport wall would hide the table you came to edit. */}
+      <div className="board pf-wall">
+        <div className="wall-row wall4-r1">
+          <Pane n={1} title="Position" status="LIVE" live={!!totals}>
+            <div className="km" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+              <Stat v={money(totals?.value ?? 0)} k="Value" />
+              <Stat v={money(totals?.cost ?? 0)} k="Cost" />
+              <Stat v={money(totals?.pnl ?? 0)} k="Unrealised" tone={up ? "up" : "down"} />
+              <Stat v={`${dayUp ? "+" : ""}${fmt(dayPct, 1)}%`} k="Today" tone={dayUp ? "up" : "down"} />
+            </div>
+          </Pane>
+
+          <Pane n={2} title="Allocation" status={`${priced.length} HOLDINGS`} live={priced.length > 0}>
+            {priced.length === 0
+              ? <PaneEmpty reason="No priced holdings" action="Add one" href="#add" />
+              : <Donut slices={allocation.map((a) => ({ label: a.symbol.replace(/\.(NS|BO)$/, ""), value: a.value }))} />}
+          </Pane>
+
+          <Pane
+            n={3}
+            title="Timeline"
+            status={history?.alpha != null ? `α ${history.alpha >= 0 ? "+" : ""}${history.alpha.toFixed(1)}%` : "180 DAYS"}
+            live={!!history?.series?.length}
+          >
+            <Line
+              series={valueSeries}
+              benchmark={asArray<{ day: string; value: number }>(history?.benchmark).map((b) => b.value)}
+            />
+            {/* Alpha is the whole point of drawing the benchmark: beating a
+                number you did not have to work for is the only version of
+                "up 12%" that means anything. */}
+            <Row k="Portfolio" v={history?.periodPct != null ? `${history.periodPct >= 0 ? "+" : ""}${history.periodPct.toFixed(1)}%` : "—"} tone={(history?.periodPct ?? 0) >= 0 ? "up" : "down"} />
+            <Row k="Benchmark" v={history?.benchPct != null ? `${history.benchPct >= 0 ? "+" : ""}${history.benchPct.toFixed(1)}%` : "—"} tone="muted" />
+            <Row k="Alpha" v={history?.alpha != null ? `${history.alpha >= 0 ? "+" : ""}${history.alpha.toFixed(1)}%` : "—"} tone={(history?.alpha ?? 0) >= 0 ? "up" : "down"} />
+          </Pane>
+        </div>
+
+        <div className="wall-row wall4-r2">
+          <Pane n={4} title="Returns" status={`${dailyReturns.length} DAYS`} live={dailyReturns.length > 0}>
+            {dailyReturns.length < 2
+              ? <PaneEmpty reason="Not enough history" action="Snapshots build daily" />
+              : (
+                <>
+                  <Histogram values={dailyReturns} />
+                  <Row k="Best day" v={`+${Math.max(...dailyReturns).toFixed(2)}%`} tone="up" />
+                  <Row k="Worst day" v={`${Math.min(...dailyReturns).toFixed(2)}%`} tone="down" />
+                </>
+              )}
+          </Pane>
+
+          <Pane n={5} title="By position" status="UNREALISED" live={pnlByPosition.length > 0}>
+            <Diverging rows={pnlByPosition} />
+          </Pane>
+
+          <Pane n={6} title="Realised" status={trades ? `${trades.years?.length ?? 0} YEARS` : "…"} live={!!trades}>
+            {!trades && <div className="tile-wait">ACQUIRING…</div>}
+            {trades && (
+              <>
+                {/* Realised and unrealised are kept apart on purpose: one is
+                    money you have, the other is money the market is currently
+                    willing to say you have. */}
+                <Row k="Realised P&L" v={money(trades.realizedTotal ?? 0)} tone={(trades.realizedTotal ?? 0) >= 0 ? "up" : "down"} />
+                <Row k="Income" v={money(trades.incomeTotal ?? 0)} tone="signal" />
+                <Row k="Top gainer" v={topGainer ? `${topGainer.symbol} ${(topGainer.change24h ?? 0).toFixed(1)}%` : "—"} tone="up" />
+                <Row k="Top loser" v={topLoser ? `${topLoser.symbol} ${(topLoser.change24h ?? 0).toFixed(1)}%` : "—"} tone="down" />
+              </>
+            )}
+          </Pane>
+        </div>
+      </div>
+
       <div className="cc-head">
         <div className="sectitle" style={{ marginBottom: 0 }}><span className="sn">PF</span><h2>Portfolio</h2><span className="line" /><span className="tag">LIVE P&amp;L · NEWS-LINKED</span></div>
         <div className="pf-headbtns">

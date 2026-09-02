@@ -202,3 +202,174 @@ export function Delta({ pct }: { pct: number }) {
     </span>
   );
 }
+
+/* ── donut ────────────────────────────────────────────────────────────────
+   Allocation by weight.
+
+   A pie is the wrong chart almost everywhere, and right here: the parts sum
+   to a whole, which is the only case it is ever right for. Each arc carries
+   its label and its percentage in the legend beside it, so the chart is not
+   the only place the value exists — a ring read alone tells you "roughly a
+   third" and never which third. */
+export function Donut({
+  slices, size = 92,
+}: { slices: { label: string; value: number }[]; size?: number }) {
+  const rows = slices.filter((s) => s.value > 0);
+  const total = rows.reduce((a, s) => a + s.value, 0);
+  if (!rows.length || total <= 0) return <Empty label="NO ALLOCATION" />;
+
+  const R = 16, C = 2 * Math.PI * R;
+  let offset = 0;
+
+  return (
+    <div className="dnt">
+      <svg viewBox="0 0 40 40" style={{ width: size, height: size }} aria-hidden>
+        {rows.map((s, i) => {
+          const frac = s.value / total;
+          const dash = C * frac;
+          // -90° puts the first slice at twelve o'clock, where a reader
+          // expects a pie to start.
+          const el = (
+            <circle
+              key={s.label}
+              cx="20" cy="20" r={R} fill="none" strokeWidth="7"
+              stroke={i === 0 ? SIGNAL : `color-mix(in srgb, ${SIGNAL} ${Math.max(12, 90 - i * 18)}%, var(--muted))`}
+              strokeDasharray={`${dash} ${C - dash}`}
+              strokeDashoffset={-offset}
+              transform="rotate(-90 20 20)"
+            />
+          );
+          offset += dash;
+          return el;
+        })}
+      </svg>
+      <div className="dnt-legend">
+        {rows.slice(0, 7).map((s, i) => (
+          <div className="dnt-row" key={s.label}>
+            <i style={{ background: i === 0 ? SIGNAL : `color-mix(in srgb, ${SIGNAL} ${Math.max(12, 90 - i * 18)}%, var(--muted))` }} />
+            <span className="dnt-l">{s.label}</span>
+            <span className="dnt-v">{Math.round((s.value / total) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── line ─────────────────────────────────────────────────────────────────
+   One or two series over time.
+
+   Both are rebased to 100 at the start, because two lines at different
+   absolute levels compare nothing: a portfolio at ₹4 lakh and an index at
+   24,000 on one axis is a picture of the axis, not of the performance. */
+export function Line({
+  series, benchmark, height = 70,
+}: { series: number[]; benchmark?: number[]; height?: number }) {
+  if (series.length < 2) return <Empty label="NOT ENOUGH HISTORY" />;
+
+  const rebase = (xs: number[]) => {
+    const first = xs.find((x) => x > 0);
+    return first ? xs.map((x) => (x / first) * 100) : xs;
+  };
+
+  const a = rebase(series);
+  const b = benchmark && benchmark.length > 1 ? rebase(benchmark) : null;
+  const all = b ? [...a, ...b] : a;
+  const min = Math.min(...all), max = Math.max(...all), rng = max - min || 1;
+
+  const path = (xs: number[]) =>
+    xs.map((v, i) => `${(i / (xs.length - 1)) * 100},${28 - ((v - min) / rng) * 26}`).join(" ");
+
+  return (
+    <svg className="inst" viewBox="0 0 100 30" preserveAspectRatio="none" style={{ height }} aria-hidden>
+      <line x1="0" y1="15" x2="100" y2="15" stroke={GRID} strokeWidth="0.3" />
+      {b && <polyline points={path(b)} fill="none" stroke={MARK} strokeWidth="0.7" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
+      <polyline points={path(a)} fill="none" stroke={SIGNAL} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/**
+ * Bucket values into `count` equal-width bins.
+ *
+ * Exported and pure so the boundaries can be tested: an off-by-one here puts
+ * the maximum in its own lonely bin at the right edge, which looks like a
+ * fat tail and is arithmetic. The `min(…, count - 1)` is what prevents it.
+ */
+export function bucket(values: number[], count = 11): { from: number; to: number; n: number }[] {
+  if (!values.length) return [];
+  const min = Math.min(...values), max = Math.max(...values);
+  const width = (max - min) / count || 1;
+  const bins = Array.from({ length: count }, (_, i) => ({
+    from: min + i * width, to: min + (i + 1) * width, n: 0,
+  }));
+  for (const v of values) {
+    const i = Math.min(count - 1, Math.floor((v - min) / width));
+    bins[i].n += 1;
+  }
+  return bins;
+}
+
+/* ── histogram ────────────────────────────────────────────────────────────
+   The distribution of daily returns.
+
+   Volatility is one number summarising this shape, and the shape is what you
+   actually want: two portfolios with identical volatility can have wholly
+   different tails, and only one of them will ruin your month. */
+export function Histogram({ values, height = 60 }: { values: number[]; height?: number }) {
+  const bins = bucket(values);
+  if (!bins.length) return <Empty label="NO RETURNS YET" />;
+  const peak = Math.max(1, ...bins.map((b) => b.n));
+
+  return (
+    <div className="hist" style={{ height }}>
+      {bins.map((b, i) => (
+        <span
+          key={i}
+          className={`hist-b${b.to <= 0 ? " dn" : ""}`}
+          style={{ height: `${(b.n / peak) * 100}%` }}
+          title={`${b.from.toFixed(2)}% to ${b.to.toFixed(2)}% · ${b.n} days`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── diverging ────────────────────────────────────────────────────────────
+   Signed values around a zero line.
+
+   A plain bar chart of profit and loss puts the biggest loss and the biggest
+   gain at opposite ends of one axis and makes them look like the same kind of
+   thing. Centred on zero, the direction is the geometry. */
+export function Diverging({
+  rows, height = 12,
+}: { rows: { label: string; value: number }[]; height?: number }) {
+  const live = rows.filter((r) => Number.isFinite(r.value));
+  if (!live.length) return <Empty label="NO POSITIONS" />;
+  const scale = Math.max(...live.map((r) => Math.abs(r.value))) || 1;
+
+  return (
+    <div className="dvg">
+      {live.map((r) => {
+        const frac = Math.abs(r.value) / scale;
+        const up = r.value >= 0;
+        return (
+          <div className="dvg-row" key={r.label} style={{ height }}>
+            <span className="dvg-l">{r.label}</span>
+            <span className="dvg-track">
+              <i
+                className={up ? "up" : "dn"}
+                style={{ width: `${frac * 50}%`, left: up ? "50%" : `${50 - frac * 50}%` }}
+              />
+            </span>
+            <span className={`dvg-v ${up ? "up" : "dn"}`}>
+              {up ? "+" : "−"}{Math.abs(r.value) >= 1000
+                ? Math.round(Math.abs(r.value)).toLocaleString("en-IN")
+                : Math.abs(r.value).toFixed(0)}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

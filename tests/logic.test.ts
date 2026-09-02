@@ -3483,3 +3483,30 @@ test("YouTube URLs are read structurally, and unreadable ones are refused", asyn
   assert.equal(parseFeedUrl("not a url"), null);
   assert.equal(parseFeedUrl(""), null);
 });
+
+/* ── chart maths ────────────────────────────────────────────────────────── */
+
+test("histogram buckets are equal-width and the maximum lands in the last bin", async () => {
+  /**
+   * The off-by-one this guards: `floor((v - min) / width)` puts the maximum
+   * at index `count`, one past the end, so it either throws or gets its own
+   * lonely bin at the right edge — which reads as a fat tail and is
+   * arithmetic. Neither symptom is visible by eye on a real distribution.
+   */
+  const { bucket } = await import("@/components/instruments");
+
+  const bins = bucket([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5);
+  assert.equal(bins.length, 5);
+  assert.equal(bins.reduce((a, b) => a + b.n, 0), 11, "every value is counted exactly once");
+  assert.equal(bins[bins.length - 1].n > 0, true, "the maximum lands inside the last bin");
+
+  // Equal width, to floating-point tolerance.
+  const widths = bins.map((b) => b.to - b.from);
+  for (const w of widths) assert.ok(Math.abs(w - widths[0]) < 1e-9);
+
+  // Degenerate inputs must not divide by zero or produce NaN bounds.
+  const flat = bucket([3, 3, 3], 4);
+  assert.equal(flat.reduce((a, b) => a + b.n, 0), 3);
+  assert.ok(flat.every((b) => Number.isFinite(b.from) && Number.isFinite(b.to)));
+  assert.deepEqual(bucket([], 5), []);
+});

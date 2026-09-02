@@ -1284,3 +1284,23 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .pane-mag .empty-r { font-size: 12px; }
 .pane-mag .empty-a { font-size: 13px; }
 .hz-v.none { color: var(--faint); font-size: 0.72em; letter-spacing: 0.18em; }
+
+/* The feeds add field: present only in the magnified pane, where there is
+   room for it to be usable. */
+.feed-add { display: none; }
+.pane-mag .feed-add {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 0 12px; border-bottom: 1px solid var(--rule); margin-bottom: 10px;
+}
+.pane-mag .feed-add input {
+  flex: 1; min-width: 220px; background: none; border: 1px solid var(--rule-strong);
+  color: var(--foreground); font-family: var(--mono); font-size: 11px;
+  letter-spacing: 0.1em; padding: 8px 10px; outline: none;
+}
+.pane-mag .feed-add input:focus { border-color: var(--signal); }
+.pane-mag .feed-add input::placeholder { color: var(--faint); }
+.pane-mag .feed-add button {
+  background: var(--signal); color: var(--background); border: 0; cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; padding: 8px 14px;
+}
+.pane-mag .feed-note { font-family: var(--mono); font-size: 10px; color: var(--subtle); }

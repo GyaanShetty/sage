@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { watchedChannels } from "@/core/feeds/watchlist";
 
 export interface Video {
   id: string;
@@ -15,7 +16,17 @@ const DEFAULT_CHANNELS = ["@FinancialTimes", "@CoinDesk", "@Bloomberg", "@CNBC",
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
 
-function channels(): string[] {
+/**
+ * Which channels to read: the store first, the environment second.
+ *
+ * Same resolution order as the API keys, for the same reason — what he added
+ * from the app takes effect without a redeploy, and an environment variable
+ * still works for anyone who prefers one. Store-before-env is what makes
+ * "add a channel" actually replace the default set rather than append to it.
+ */
+async function channels(): Promise<string[]> {
+  const saved = await watchedChannels().catch(() => [] as string[]);
+  if (saved.length) return saved;
   const env = process.env.MORNING_YT_CHANNELS;
   return env ? env.split(",").map((s) => s.trim()).filter(Boolean) : DEFAULT_CHANNELS;
 }
@@ -69,7 +80,7 @@ async function channelVideos(id: string, perChannel: number): Promise<Video[]> {
 
 /** Latest videos across the configured channels, newest first. */
 export async function getMorningVideos(perChannel = 2): Promise<Video[]> {
-  const ids = (await Promise.all(channels().map(resolveChannelId))).filter((x): x is string => !!x);
+  const ids = (await Promise.all((await channels()).map(resolveChannelId))).filter((x): x is string => !!x);
   const sets = await Promise.all(ids.map((c) => channelVideos(c, perChannel)));
   return sets.flat().sort((a, b) => b.published - a.published).slice(0, 6);
 }

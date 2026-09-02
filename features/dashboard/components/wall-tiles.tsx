@@ -283,15 +283,54 @@ interface Video { title: string; channel?: string; url: string; thumb?: string |
 
 export function FeedsTile({ n }: { n?: number }) {
   const [items, setItems] = useState<Video[] | null>(null);
+  const [url, setUrl] = useState("");
+  const [note, setNote] = useState<string | null>(null);
 
-  useLive(
-    () => fetch("/api/youtube").then((r) => r.json())
-      .then((j) => setItems(asArray<Video>(j?.data?.videos))).catch(() => setItems([])),
-    { everyMs: 900_000 },
-  );
+  const load = () => fetch("/api/youtube").then((r) => r.json())
+    .then((j) => setItems(asArray<Video>(j?.data?.videos))).catch(() => setItems([]));
+
+  useLive(load, { everyMs: 900_000, scopes: ["feeds"] });
+
+  /**
+   * Adding lives in the magnified view only.
+   *
+   * A text field in a pane this size is not usable — it would be forty pixels
+   * wide next to four thumbnails — and the add is a rare action while reading
+   * the list is the constant one. The pane stays a list; ⤢ is where you go to
+   * change what feeds it.
+   */
+  const add = async () => {
+    const paste = url.trim();
+    if (!paste) return;
+    setNote("…");
+    const j = await fetch("/api/feeds/sources", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: paste }),
+    }).then((r) => r.json()).catch(() => null);
+
+    if (j?.ok) {
+      setUrl("");
+      setNote("Added. Fetching…");
+      // The upstream is cached for half an hour, so the new channel will not
+      // appear this second. Saying so beats a list that looks unchanged.
+      void load();
+    } else {
+      setNote(j?.error ?? "Couldn't add that.");
+    }
+  };
 
   return (
     <Pane n={n} title="Feeds" status={<Go href="/wire">See all</Go>}>
+      <div className="feed-add">
+        <input
+          value={url}
+          onChange={(e) => { setUrl(e.target.value); setNote(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter") void add(); }}
+          placeholder="PASTE A YOUTUBE CHANNEL OR VIDEO LINK"
+        />
+        <button onClick={() => void add()}>ADD</button>
+        {note && <span className="feed-note">{note}</span>}
+      </div>
       {!items && <div className="tile-wait">ACQUIRING…</div>}
       {items?.length === 0 && <Empty reason="No videos in the watchlist" action="Add channels" href="/settings" />}
       {items?.slice(0, 4).map((v, i) => (

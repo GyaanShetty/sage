@@ -147,7 +147,10 @@ export function KeyMetricsTile({
 /* ── 05 HEALTH ────────────────────────────────────────────────────────────
    Four traces rather than four numbers. A resting heart rate of 68 means
    nothing on its own; 68 against the last fortnight means something. */
-interface HealthDay { day: string; restingHr?: number; spo2?: number; sleepHours?: number; activeKcal?: number; steps?: number }
+interface HealthDay {
+  day: string; restingHr?: number; spo2?: number; sleepHours?: number;
+  activeKcal?: number; steps?: number; dietaryKcal?: number; waterMl?: number;
+}
 
 export function HealthTile({ n }: { n?: number }) {
   const [series, setSeries] = useState<HealthDay[] | null>(null);
@@ -193,7 +196,12 @@ export function HealthTile({ n }: { n?: number }) {
       {trace("Heart rate", "restingHr", " BPM", "var(--live)")}
       {trace("Blood oxygen", "spo2", "%", "var(--signal)")}
       {trace("Sleep", "sleepHours", " H", "var(--muted)")}
-      {trace("Energy", "activeKcal", " KCAL", "var(--live)")}
+      {trace("Energy out", "activeKcal", " KCAL", "var(--live)")}
+      {/* In and out are separate traces on purpose. Netting one against the
+          other produces a number that is neither, and hides the day you ate
+          nothing and the day you trained twice behind the same zero. */}
+      {trace("Energy in", "dietaryKcal", " KCAL", "var(--signal)")}
+      {trace("Water", "waterMl", " ML", "var(--muted)")}
     </Pane>
   );
 }

@@ -1,3 +1,9 @@
+/* The login screen, on the system palette.
+   Every colour here was a literal, written before --signal existed. On the
+   red palette that made this the one screen in the app still lit white — and
+   it is the first screen anyone sees, so it was the one setting the
+   expectation the rest of the app then broke. */
+
 /* The access gate. Terminal maximalism: everything is type, nothing is an
    image, and the whole page weighs almost nothing. */
 
@@ -10,8 +16,8 @@
   overflow: hidden;
   padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
   background:
-    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.05), transparent 60%),
-    #06070a;
+    radial-gradient(120% 80% at 50% 0%, var(--signal-faint), transparent 60%),
+    var(--background);
 }
 
 /* Faint horizontal sweep — CRT, not disco. */
@@ -19,8 +25,8 @@
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.028) 0px,
-    rgba(255, 255, 255, 0.028) 1px,
+    var(--signal-faint) 0px,
+    var(--signal-faint) 1px,
     transparent 1px,
     transparent 3px
   );
@@ -38,7 +44,7 @@
   position: absolute; top: 50%; transform: translateY(-50%);
   z-index: 0; pointer-events: none; user-select: none;
   font-family: var(--mono); font-size: 11px; line-height: 1.45;
-  color: rgba(255, 255, 255, 0.10);
+  color: var(--signal-faint);
   white-space: pre;
   animation: lgDrift 14s ease-in-out infinite alternate;
 }
@@ -56,13 +62,13 @@
   animation: lgRise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
   width: min(560px, 100%);
   padding: 30px 26px 22px;
-  background: rgba(9, 10, 13, 0.86);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
   border: 1px solid var(--border-glass);
   backdrop-filter: blur(18px);
 }
 
 /* Bracket corners, the same motif the HUD uses elsewhere. */
-.lg-corner { position: absolute; width: 14px; height: 14px; border: 1px solid rgba(255, 255, 255, 0.5); }
+.lg-corner { position: absolute; width: 14px; height: 14px; border: 1px solid var(--signal-dim); }
 .lg-corner.tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
 .lg-corner.tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
 .lg-corner.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
@@ -92,12 +98,12 @@
   margin-top: 22px;
   display: flex; align-items: center; gap: 10px;
   border: 1px solid var(--border-glass);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--glass);
   padding: 0 12px;
   transition: border-color 0.18s ease;
 }
-.lg-field:focus-within { border-color: rgba(255, 255, 255, 0.45); box-shadow: 0 0 24px rgba(255, 255, 255, 0.06); }
-.lg-field.err { border-color: rgba(248, 113, 113, 0.5); }
+.lg-field:focus-within { border-color: var(--signal); box-shadow: 0 0 24px var(--signal-faint); }
+.lg-field.err { border-color: var(--danger); }
 
 .lg-prompt { font-family: var(--mono); font-size: 10px; color: var(--live); animation: lgBlink 1.3s steps(1) infinite; }
 @keyframes lgBlink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }
@@ -121,7 +127,7 @@
 .lg-err {
   margin-top: 10px;
   font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.2px;
-  color: #f87171;
+  color: var(--danger);
 }
 
 .lg-foot {

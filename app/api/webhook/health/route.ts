@@ -6,8 +6,26 @@ import { machineAuth } from "@/lib/security";
  * Receiver for iPhone Shortcuts (or anything else) posting daily health data.
  * Auth: ?key=CRON_SECRET or Authorization: Bearer CRON_SECRET.
  *
- * Body: any JSON — expected keys: steps, sleepHours, activeKcal, restingHr,
- * distanceKm, battery. Unknown keys are stored as-is.
+ * Body: any JSON. Recognised keys, with the aliases Apple Health's own field
+ * names arrive under from Shortcuts:
+ *
+ *   steps                                  step count
+ *   sleepHours | sleepMinutes | sleep      time asleep
+ *   activeKcal | calories | kcal           energy BURNED
+ *   dietaryKcal | dietaryEnergy            energy CONSUMED — MyFitnessPal
+ *                | caloriesConsumed        writes this into Apple Health
+ *   proteinG | protein                     protein consumed
+ *   restingHr | hr | heartRate             resting heart rate
+ *   spo2 | oxygenSaturation | bloodOxygen  blood oxygen
+ *   waterMl | water                        water; accumulates within a day
+ *   weightKg | weight, distanceKm | distance
+ *
+ * Unknown keys are stored as-is, so a shortcut can post more than SAGE reads
+ * today without the data being lost.
+ *
+ * Shortcuts commonly posts one metric per request; the store merges by IST
+ * day, so several small posts through the day are fine and are in fact easier
+ * to build than one that gathers everything.
  */
 export async function POST(req: Request) {
   if (!machineAuth(req)) {

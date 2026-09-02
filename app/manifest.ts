@@ -16,7 +16,14 @@ export default function manifest(): MetadataRoute.Manifest {
       method: "GET",
       params: { title: "title", text: "text", url: "url" },
     },
+    /*
+     * The mark is vector, so one file covers every size — "any" tells the
+     * platform to scale it rather than pick the nearest raster. The PNGs stay
+     * listed after it as the fallback for older Android launchers, which
+     * ignore SVG icons entirely.
+     */
     icons: [
+      { src: "/sage-mark.svg", sizes: "any", type: "image/svg+xml" },
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
       { src: "/icon-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },

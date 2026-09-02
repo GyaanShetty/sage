@@ -12,6 +12,24 @@ export interface DayMetrics {
   distanceKm: number | null;
   weightKg: number | null;
   waterMl: number | null;
+  /**
+   * Blood oxygen, per cent.
+   *
+   * The dashboard has had a Blood Oxygen trace for weeks that could never
+   * fill: the tile read `spo2` and the store had no such field, so every
+   * reading posted for it was dropped on ingest. A metric shown on screen
+   * that the store cannot hold is worse than one that is missing, because it
+   * looks like the watch is not reporting.
+   */
+  spo2: number | null;
+  /**
+   * Calories *consumed*, as distinct from `activeKcal`, which is calories
+   * burned. MyFitnessPal writes intake into Apple Health, so this is the
+   * field that carries it — conflating the two would net a day's eating
+   * against a day's exercise and call the result a metric.
+   */
+  dietaryKcal: number | null;
+  proteinG: number | null;
 }
 
 export interface Workout {
@@ -81,6 +99,11 @@ function normalise(p: Record<string, unknown>): Partial<DayMetrics> {
     distanceKm: num(p.distanceKm ?? p.distance),
     weightKg: num(p.weightKg ?? p.weight),
     waterMl: num(p.waterMl ?? p.water),
+    // Apple Health's own names come through Shortcuts unchanged, so accept
+    // them alongside the short ones rather than making him rename fields.
+    spo2: num(p.spo2 ?? p.oxygenSaturation ?? p.bloodOxygen),
+    dietaryKcal: num(p.dietaryKcal ?? p.dietaryEnergy ?? p.caloriesConsumed),
+    proteinG: num(p.proteinG ?? p.protein),
   };
 }
 
@@ -104,7 +127,8 @@ export async function listDays(days = 30): Promise<DayMetrics[]> {
     // an explicit day in the payload wins, so backfills land on the right date
     const day = typeof p.day === "string" ? p.day : dayOf(row.createdAt as string);
     const cur = byDay.get(day) ?? {
-      day, steps: null, sleepHours: null, activeKcal: null,
+      day, steps: null, sleepHours: null, activeKcal: null, spo2: null,
+      dietaryKcal: null, proteinG: null,
       restingHr: null, distanceKm: null, weightKg: null, waterMl: null,
     };
     const n = normalise(p);

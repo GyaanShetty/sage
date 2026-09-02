@@ -1304,3 +1304,6 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em; padding: 8px 14px;
 }
 .pane-mag .feed-note { font-family: var(--mono); font-size: 10px; color: var(--subtle); }
+
+/* The mark, above the wordmark on the login screen. */
+.lg-mark { display: block; margin: 0 auto 14px; color: var(--signal); }

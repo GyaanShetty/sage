@@ -41,8 +41,14 @@ export function AmbientCanvas() {
     let nextStreak = performance.now() + 6000 + Math.random() * 9000;
 
     let last = 0;
+    // Read once per frame, not once per particle: getComputedStyle is a
+    // layout read and there are hundreds of particles.
+    const themed = (name: string, fallback: string) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+
     const draw = (t: number) => {
       raf = requestAnimationFrame(draw);
+      const drift = themed("--signal", "#ff3b30");
       if (t - last < 33) return; // ~30fps cap
       last = t;
       ctx.clearRect(0, 0, w, h);
@@ -53,7 +59,10 @@ export function AmbientCanvas() {
         if (p.y < -4) p.y = h + 4;
         const twinkle = 0.5 + 0.5 * Math.sin(t / 1600 + p.tw);
         ctx.globalAlpha = 0.05 + 0.1 * p.z * twinkle;
-        ctx.fillStyle = "#c8d4d6";
+        // Read from the theme rather than hardcoded, so the idle field is the
+        // same red as everything else instead of the one pale-blue survivor
+        // of the old palette.
+        ctx.fillStyle = drift;
         const s = p.z * 1.4;
         ctx.fillRect(p.x % (w + 8), p.y % (h + 8), s, s);
       }

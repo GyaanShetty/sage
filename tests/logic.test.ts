@@ -248,7 +248,8 @@ const dayKey = (offset: number) => {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
 };
 const metrics = (day: string, steps: number | null) =>
-  ({ day, steps, sleepHours: null, activeKcal: null, restingHr: null, distanceKm: null, weightKg: null, waterMl: null });
+  ({ day, steps, sleepHours: null, activeKcal: null, restingHr: null, distanceKm: null,
+     weightKg: null, waterMl: null, spo2: null, dietaryKcal: null, proteinG: null });
 
 test("stepStreak does not break on an incomplete today", () => {
   // Yesterday and the day before met the goal; today is still in progress.

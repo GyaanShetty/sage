@@ -10,12 +10,12 @@ import { AtlasMap } from "@/features/atlas/atlas-map";
 import { PlayingTile } from "./tiles";
 import { TileGuard } from "@/components/tile-guard";
 import {
-  AgentLogTile, GithubTile, BioTile, SystemTile, PortfolioTile, MemoryTile, ExamTile,
+  AgentLogTile, GithubTile, BioTile, PortfolioTile, ExamTile,
 } from "./page-tiles";
 import {
   MarketsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, FeedsTile,
-  ClocksTile, SkyTile, CommandsTile, CodeTile, PushTile, CareerTile, InboxTile,
-  ReviewTile, GraphTile, SpendTile, CalibrationTile,
+  ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, InboxTile,
+  ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
@@ -177,8 +177,8 @@ export function CommandView({
       {/* ── ROW 1 ─────────────────────────────────────────────────────────
           The map leads, at the width it earns. */}
       <div className="wall-row wall-r1">
-        <Pane n={1} title="Atlas Map" status="LIVE" live className="wall-map" frame noZoom>
-          <AtlasMap lat={12.9352} lon={77.6245} />
+        <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map" frame noZoom>
+          <AtlasMap lat={12.9352} lon={77.6245} compact />
           <span className="deck-map-marks" aria-hidden>
             <Crosshair /><Crosshair /><Crosshair /><Crosshair />
           </span>
@@ -298,15 +298,13 @@ export function CommandView({
         </Pane>
         <TileGuard name="CAREER"><CareerTile n={26} /></TileGuard>
         <TileGuard name="INBOX"><InboxTile n={27} /></TileGuard>
-        <TileGuard name="COMMANDS"><CommandsTile n={22} /></TileGuard>
-        <TileGuard name="SYSTEM"><SystemTile n={23} /></TileGuard>
       </div>
 
       {/* ── ROW 5 ─────────────────────────────────────────────────────────
           The stores: what SAGE holds, what is owed, what is coming. */}
       <div className="wall-row wall-r5">
         <TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard>
-        <TileGuard name="MEMORY"><MemoryTile n={29} /></TileGuard>
+        <TileGuard name="GROWTH"><GrowthTile n={29} /></TileGuard>
         <TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard>
         <TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard>
         <TileGuard name="EXAM"><ExamTile n={30} /></TileGuard>

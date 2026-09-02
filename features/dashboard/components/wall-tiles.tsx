@@ -767,3 +767,44 @@ export function CalibrationTile({ n }: { n?: number }) {
     </Pane>
   );
 }
+
+/* ── 29 GROWTH ────────────────────────────────────────────────────────────
+   What SAGE learned, week by week.
+
+   `32 GRAPH` says how much is held right now, which is a stock. This is the
+   flow: memories committed per week over the last three months. A store that
+   grew fast and then stopped tells you something a single total never can,
+   and it is the difference between a system in use and one that was set up
+   once. */
+export function GrowthTile({ n }: { n?: number }) {
+  const [weeks, setWeeks] = useState<{ week: string; count: number }[] | null>(null);
+
+  useLive(
+    () => fetch("/api/events/weekly?type=memory.extracted").then((r) => r.json())
+      .then((j) => setWeeks(asArray<{ week: string; count: number }>(j?.data))).catch(() => setWeeks([])),
+    { everyMs: 900_000, scopes: ["memory"] },
+  );
+
+  const rows = weeks ?? [];
+  const total = rows.reduce((a, w) => a + w.count, 0);
+  const last = rows.length ? rows[rows.length - 1].count : 0;
+  const prev = rows.length > 1 ? rows[rows.length - 2].count : 0;
+
+  return (
+    <Pane n={n} title="Growth" status={<Go href="/memory">12 WEEKS</Go>} live={last > 0}>
+      {!weeks && <div className="tile-wait">ACQUIRING…</div>}
+      {weeks?.length === 0 && <Empty reason="Nothing committed yet" action="Tell Sage something" href="/memory" />}
+      {rows.length > 0 && (
+        <>
+          <div className="tstat">
+            <span className="tstat-v">{total}</span>
+            <span className="tstat-k">COMMITTED · 12 WEEKS</span>
+          </div>
+          <BarStrip data={rows.map((w) => w.count)} height={34} />
+          <Row k="This week" v={String(last)} tone={last >= prev ? "up" : "down"} />
+          <Row k="Last week" v={String(prev)} tone="muted" />
+        </>
+      )}
+    </Pane>
+  );
+}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Pane, Row, Stat, Empty } from "@/components/pane";
+import { PaneForm } from "@/components/pane-form";
 import { BarStrip, Progress } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { asArray } from "@/lib/as-array";
@@ -55,7 +56,24 @@ export function SkillsTile({ n }: { n?: number }) {
   const ranked = [...rows].sort((a, b) => (b.target - b.level) - (a.target - a.level));
 
   return (
-    <Pane n={n} title="Skills" status={<Go href="/education">{rows.length ? `${rows.length} TRACKED` : "…"}</Go>} live={rows.length > 0}>
+    <Pane
+      n={n}
+      title="Skills"
+      status={<Go href="/education">{rows.length ? `${rows.length} TRACKED` : "…"}</Go>}
+      live={rows.length > 0}
+      edit={
+        <PaneForm
+          endpoint="/api/skills"
+          submitLabel="TRACK"
+          fields={[
+            { name: "name", label: "Skill", required: true },
+            { name: "category", label: "Category", placeholder: "DSA, Systems…" },
+            { name: "level", label: "Level 0–5", type: "number", fallback: 0 },
+            { name: "target", label: "Target 0–5", type: "number", fallback: 5 },
+          ]}
+        />
+      }
+    >
       {!skills && <div className="tile-wait">ACQUIRING…</div>}
       {skills?.length === 0 && <Empty reason="No skills tracked" action="Add one" href="/education" />}
       {ranked.slice(0, 7).map((s) => {
@@ -101,7 +119,23 @@ export function BudgetTile({ n }: { n?: number }) {
   const ranked = [...rows].sort((a, b) => b.usedPct - a.usedPct);
 
   return (
-    <Pane n={n} title="Budget" status={<Go href="/portfolio">{totals ? "THIS MONTH" : "…"}</Go>} live={!!totals}>
+    <Pane
+      n={n}
+      title="Budget"
+      status={<Go href="/portfolio">{totals ? "THIS MONTH" : "…"}</Go>}
+      live={!!totals}
+      edit={
+        <PaneForm
+          endpoint="/api/budget"
+          submitLabel="SET"
+          extra={{ action: "save" }}
+          fields={[
+            { name: "category", label: "Envelope", required: true },
+            { name: "limit", label: "Limit ₹", type: "number", required: true },
+          ]}
+        />
+      }
+    >
       {!lines && <div className="tile-wait">ACQUIRING…</div>}
       {lines?.length === 0 && <Empty reason="No budget set" action="Plan a month" href="/portfolio" />}
       {totals && (
@@ -146,7 +180,26 @@ export function DecisionsTile({ n }: { n?: number }) {
   const rows = due ?? [];
 
   return (
-    <Pane n={n} title="Decisions" status={<Go href="/decisions">{pending ? `${pending} OPEN` : "…"}</Go>} live={rows.length > 0}>
+    <Pane
+      n={n}
+      title="Decisions"
+      status={<Go href="/decisions">{pending ? `${pending} OPEN` : "…"}</Go>}
+      live={rows.length > 0}
+      edit={
+        /* Confidence is asked for at the time of the call, not later. A number
+           recalled after the outcome is known is not a forecast, and the whole
+           calibration pane is built on it being one. */
+        <PaneForm
+          endpoint="/api/decisions"
+          submitLabel="LOG"
+          fields={[
+            { name: "title", label: "The call", required: true },
+            { name: "confidence", label: "Confidence %", type: "number", required: true },
+            { name: "reviewAt", label: "Review on", type: "date" },
+          ]}
+        />
+      }
+    >
       {!due && <div className="tile-wait">ACQUIRING…</div>}
       {due?.length === 0 && pending === 0 && <Empty reason="Nothing logged" action="Log a call" href="/decisions" />}
       {due?.length === 0 && pending > 0 && <Empty reason="None due for review" action="See open calls" href="/decisions" />}

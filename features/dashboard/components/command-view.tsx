@@ -18,6 +18,7 @@ import {
   ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
 import { Pane } from "@/components/pane";
+import { PaneForm } from "@/components/pane-form";
 import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
 import { SitrepBand } from "./sitrep-band";
@@ -241,6 +242,20 @@ export function CommandView({
           title="Deadlines"
           status={<span className="fc-btns"><button onClick={() => setTaskModal(true)}>OPEN</button></span>}
           live={open > 0}
+          edit={
+            <PaneForm
+              endpoint="/api/task"
+              submitLabel="ADD"
+              /* A new directive has to come back through the server render
+                 that produced the list; refetching here would give the pane a
+                 second, disagreeing copy. */
+              onDone={() => window.location.reload()}
+              fields={[
+                { name: "title", label: "Directive", required: true },
+                { name: "dueAt", label: "Due", type: "datetime" },
+              ]}
+            />
+          }
         >
           {tasks.map((t) => (
             <div className={`task${t.status === "done" ? " done" : ""}`} key={t.id} onClick={() => toggleTask(t)}>

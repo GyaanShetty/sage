@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Pane, Row, Stat, Empty } from "@/components/pane";
+import { PaneForm } from "@/components/pane-form";
 import { Wave, BarStrip } from "@/components/instruments";
 import { useLive } from "@/lib/live";
 import { asArray } from "@/lib/as-array";
@@ -573,9 +574,21 @@ export function PushTile({ n }: { n?: number }) {
    Applications by stage. The count per stage is the whole point: five
    applications sitting in "applied" and none in "interview" is a different
    situation from the reverse, and a flat total hides that. */
-interface Application { id: string; company: string; role?: string; status?: string; deadline?: string | null }
+/**
+ * `stage`, not `status`.
+ *
+ * The type in core/career/scan.ts has always called this `stage`, and this
+ * tile read `status` — so every application fell through to the "applied"
+ * bucket and the other three counts have been permanently zero since the pane
+ * shipped. A pane that renders four numbers of which three cannot ever be
+ * non-zero is worse than one that renders none: it looks like the data.
+ *
+ * The stage list is the same one the API validates against, so a stage added
+ * there cannot silently vanish from here.
+ */
+interface Application { id: string; company: string; role?: string; stage?: string; deadline?: string | null }
 
-const STAGES = ["applied", "screening", "interview", "offer"];
+const STAGES = ["applied", "assessment", "interview", "offer"] as const;
 
 export function CareerTile({ n }: { n?: number }) {
   const [apps, setApps] = useState<Application[] | null>(null);
@@ -589,7 +602,7 @@ export function CareerTile({ n }: { n?: number }) {
   const rows = apps ?? [];
   const byStage = STAGES.map((st) => ({
     stage: st,
-    count: rows.filter((a) => (a.status ?? "applied").toLowerCase() === st).length,
+    count: rows.filter((a) => (a.stage ?? "applied").toLowerCase() === st).length,
   }));
 
   // Only deadlines still ahead — a passed deadline is history, not a warning.
@@ -598,7 +611,26 @@ export function CareerTile({ n }: { n?: number }) {
     .sort((a, b) => Date.parse(a.deadline!) - Date.parse(b.deadline!))[0];
 
   return (
-    <Pane n={n} title="Career" status={<Go href="/career">{rows.length ? `${rows.length} OPEN` : "—"}</Go>} live={rows.length > 0}>
+    <Pane
+      n={n}
+      title="Career"
+      status={<Go href="/career">{rows.length ? `${rows.length} OPEN` : "—"}</Go>}
+      live={rows.length > 0}
+      edit={
+        <PaneForm
+          endpoint="/api/career"
+          submitLabel="TRACK"
+          onDone={() => window.dispatchEvent(new CustomEvent("sage:refresh", { detail: "career" }))}
+          fields={[
+            { name: "company", label: "Company", required: true },
+            { name: "role", label: "Role" },
+            { name: "stage", label: "Stage", type: "select", fallback: "applied",
+              options: STAGES.map((s) => ({ value: s, label: s.toUpperCase() })) },
+            { name: "deadline", label: "Deadline", type: "date" },
+          ]}
+        />
+      }
+    >
       {!apps && <div className="tile-wait">ACQUIRING…</div>}
       {apps?.length === 0 && <Empty reason="No applications tracked" action="Add one" href="/career" />}
       {rows.length > 0 && (
@@ -749,7 +781,25 @@ export function SpendTile({ n }: { n?: number }) {
   const subs = asArray<{ merchant: string; amount: number }>(s?.recurring);
 
   return (
-    <Pane n={n} title="Spend" status={<Go href="/portfolio">30 DAYS</Go>} live={!!s?.total}>
+    <Pane
+      n={n}
+      title="Spend"
+      status={<Go href="/portfolio">30 DAYS</Go>}
+      live={!!s?.total}
+      edit={
+        <PaneForm
+          endpoint="/api/expenses"
+          submitLabel="LOG"
+          fields={[
+            { name: "amount", label: "Amount ₹", type: "number", required: true },
+            { name: "merchant", label: "Merchant", required: true },
+            { name: "category", label: "Category", type: "select", fallback: "other",
+              options: ["food", "transport", "bills", "subscriptions", "health", "other"]
+                .map((c) => ({ value: c, label: c.toUpperCase() })) },
+          ]}
+        />
+      }
+    >
       {s === undefined && <div className="tile-wait">ACQUIRING…</div>}
       {(s === null || (s && !s.total)) && <Empty reason="Nothing logged" action="Add an expense" href="/portfolio" />}
       {!!s?.total && (
@@ -838,7 +888,19 @@ export function GrowthTile({ n }: { n?: number }) {
   const prev = rows.length > 1 ? rows[rows.length - 2].count : 0;
 
   return (
-    <Pane n={n} title="Growth" status={<Go href="/memory">12 WEEKS</Go>} live={last > 0}>
+    <Pane
+      n={n}
+      title="Growth"
+      status={<Go href="/memory">12 WEEKS</Go>}
+      live={last > 0}
+      edit={
+        <PaneForm
+          endpoint="/api/memory"
+          submitLabel="REMEMBER"
+          fields={[{ name: "text", label: "Tell Sage something worth keeping", required: true }]}
+        />
+      }
+    >
       {!weeks && <div className="tile-wait">ACQUIRING…</div>}
       {weeks?.length === 0 && <Empty reason="Nothing committed yet" action="Tell Sage something" href="/memory" />}
       {rows.length > 0 && (

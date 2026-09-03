@@ -1347,3 +1347,40 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   .wall .dvg-v { font-size: clamp(6.5px, 3.2cqh, 9px); }
   .wall .dvg { gap: 1px; padding: clamp(2px, 2cqh, 5px) 8px; }
 }
+
+/* ── PANE FORM ────────────────────────────────────────────────────────────
+   The editor inside a magnified pane. Present nowhere else: a form in a
+   200px pane is forty pixels wide, and editing is rare while reading is
+   constant. */
+.pfm { display: none; }
+.pane-mag .pfm {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px;
+  padding: 0 0 14px; margin-bottom: 12px; border-bottom: 1px solid var(--rule);
+}
+.pane-mag .pfm-f { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1; }
+.pane-mag .pfm-l {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--subtle);
+}
+.pane-mag .pfm-l i { color: var(--signal); font-style: normal; margin-left: 3px; }
+.pane-mag .pfm-f input, .pane-mag .pfm-f select {
+  background: none; border: 1px solid var(--rule-strong); color: var(--foreground);
+  font-family: var(--mono); font-size: 12px; padding: 7px 9px; outline: none;
+  /* Dark form controls: without this the native select paints white on macOS. */
+  color-scheme: dark;
+}
+.pane-mag .pfm-f input:focus, .pane-mag .pfm-f select:focus { border-color: var(--signal); }
+.pane-mag .pfm-f input::placeholder { color: var(--faint); }
+.pane-mag .pfm-go {
+  background: var(--signal); color: var(--background); border: 0; cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.16em;
+  padding: 9px 16px; align-self: flex-end;
+}
+.pane-mag .pfm-go:disabled { opacity: 0.45; cursor: default; }
+.pane-mag .pfm-note {
+  flex-basis: 100%; font-family: var(--mono); font-size: 10px; color: var(--muted);
+}
+
+/* The + sits left of ⤢ and is the same weight; it is a second door into the
+   same room, not a more important one. */
+.pane-add { font-size: 12px; }

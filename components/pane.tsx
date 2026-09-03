@@ -41,6 +41,16 @@ export interface PaneProps {
    */
   alert?: "signal" | "danger";
   /**
+   * An editor for whatever this pane shows.
+   *
+   * Rendered only inside the magnified view, which is the rule the feeds add
+   * field already set: a text input in a 200px pane is forty pixels wide and
+   * unusable, and editing is rare while reading is constant. Its presence
+   * puts a + in the header, which opens the same modal magnify uses — one
+   * overlay, one piece of state.
+   */
+  edit?: ReactNode;
+  /**
    * Suppress the magnify control.
    *
    * On by default, because the whole point of a wall this dense is that
@@ -54,7 +64,7 @@ export interface PaneProps {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-export function Pane({ n, title, status, live, className, bare, frame, alert, noZoom, children }: PaneProps) {
+export function Pane({ n, title, status, live, className, bare, frame, alert, noZoom, edit, children }: PaneProps) {
   const [zoom, setZoom] = useState(false);
 
   return (
@@ -70,6 +80,9 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, no
           {status !== undefined && (
             <span className={`pane-s${live ? " live" : ""}`}>{status}</span>
           )}
+          {edit && (
+            <button className="pane-zoom pane-add" onClick={() => setZoom(true)} aria-label={`Add to ${title}`}>+</button>
+          )}
           {!noZoom && (
             <button className="pane-zoom" onClick={() => setZoom(true)} aria-label={`Magnify ${title}`}>⤢</button>
           )}
@@ -83,14 +96,17 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, no
         a field the small one never grows — and then the number you checked at
         a glance and the number you opened to read disagree.
       */}
-      {!noZoom && (
+      {(!noZoom || edit) && (
         <ExpandModal
           open={zoom}
           onClose={() => setZoom(false)}
           title={title}
           tag={n !== undefined ? `PANE ${pad(n)}` : undefined}
         >
-          <div className="pane-mag">{children}</div>
+          <div className="pane-mag">
+            {edit}
+            {children}
+          </div>
         </ExpandModal>
       )}
     </section>

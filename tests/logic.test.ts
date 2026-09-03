@@ -3510,3 +3510,45 @@ test("histogram buckets are equal-width and the maximum lands in the last bin", 
   assert.ok(flat.every((b) => Number.isFinite(b.from) && Number.isFinite(b.to)));
   assert.deepEqual(bucket([], 5), []);
 });
+
+/* ── pane forms ─────────────────────────────────────────────────────────── */
+
+test("form payloads are typed, and empty optional fields are omitted", async () => {
+  /**
+   * Both failures this guards produce a 400 that reads as "the form is
+   * broken" rather than as bad input, and neither is visible in a browser
+   * until the request fails:
+   *
+   *  - a number field posting a string is rejected by a z.number() schema;
+   *  - an empty optional field sent as "" is a *value* — it fails date
+   *    parsing and, on an upsert, overwrites real data with nothing.
+   */
+  const { buildPayload, missingRequired } = await import("@/components/pane-form");
+
+  const fields = [
+    { name: "amount", label: "Amount", type: "number" as const, required: true },
+    { name: "merchant", label: "Merchant", required: true },
+    { name: "category", label: "Category", type: "select" as const, fallback: "other" },
+    { name: "note", label: "Note" },
+  ];
+
+  const out = buildPayload(fields, { amount: "250", merchant: " Blue Tokai ", note: "" });
+  assert.equal(out.amount, 250, "a number field posts a number");
+  assert.equal(typeof out.amount, "number");
+  assert.equal(out.merchant, "Blue Tokai", "values are trimmed");
+  assert.equal("note" in out, false, "an empty optional field is omitted, not sent as an empty string");
+  assert.equal(out.category, "other", "an empty field with a fallback sends the fallback");
+
+  // Junk in a number field is dropped rather than sent as NaN, which
+  // serialises to null and silently clears the column.
+  assert.equal("amount" in buildPayload(fields, { amount: "abc" }), false);
+
+  // Dates become instants. A bare "2026-09-04" would be read as UTC midnight
+  // and land the item on the previous evening in IST.
+  const dated = buildPayload([{ name: "due", label: "Due", type: "date" as const }], { due: "2026-09-04" });
+  assert.match(String(dated.due), /^\d{4}-\d{2}-\d{2}T/);
+
+  assert.deepEqual(missingRequired(fields, { amount: "1", merchant: "x" }), []);
+  assert.deepEqual(missingRequired(fields, { amount: "1" }), ["Merchant"]);
+  assert.deepEqual(missingRequired(fields, {}), ["Amount", "Merchant"]);
+});

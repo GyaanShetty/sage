@@ -73,3 +73,20 @@
 .ml-attico { display: flex; align-items: center; justify-content: center; height: 92px; background: var(--glass); color: var(--subtle); }
 .ml-attname { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ml-attsize { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1px; color: var(--subtle); }
+
+/* The two mailboxes. Set apart from the view chips so the account you are in
+   is never mistaken for the filter you are in. */
+.ml-accts { margin-right: 10px; padding-right: 10px; border-right: 1px solid var(--rule); }
+
+/* Why you cannot reply, said in the place the reply box would have been. */
+.ml-noreply {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--warn);
+  background: var(--glass);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.ml-noreply code { color: var(--foreground); font-size: 10px; }

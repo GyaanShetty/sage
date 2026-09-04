@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { SettingsView } from "@/features/settings/components/settings-view";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
-export const metadata: Metadata = { title: "Settings" };
+export const metadata: Metadata = {
+  title: "Settings",
+  description: "Connections, keys, voice and everything SAGE needs to run.",
+};
 export const dynamic = "force-dynamic";
 
 async function connected(provider: string): Promise<boolean> {

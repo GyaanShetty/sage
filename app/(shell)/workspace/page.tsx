@@ -6,7 +6,10 @@ import {
 } from "@/features/workspace/components/workspace-view";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
-export const metadata: Metadata = { title: "Workspace" };
+export const metadata: Metadata = {
+  title: "Workspace",
+  description: "Files, notes and the work in front of you.",
+};
 export const dynamic = "force-dynamic";
 
 export default async function WorkspacePage() {

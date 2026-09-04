@@ -6,7 +6,10 @@ import {
 } from "@/features/automations/components/automations-view";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
-export const metadata: Metadata = { title: "Automations" };
+export const metadata: Metadata = {
+  title: "Automations",
+  description: "Everything SAGE does on a schedule without being asked.",
+};
 export const dynamic = "force-dynamic";
 
 export default async function AutomationsPage() {

@@ -12,7 +12,10 @@ import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { getWeather } from "@/infrastructure/weather";
 import { OWNER } from "@/lib/config";
 
-export const metadata: Metadata = { title: "Command" };
+export const metadata: Metadata = {
+  title: "Command",
+  description: "Every live reading in SAGE on one screen — markets, health, mail, deadlines and agents.",
+};
 export const dynamic = "force-dynamic";
 
 async function count(table: string): Promise<number> {

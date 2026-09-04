@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { SitrepView } from "@/features/sitrep/sitrep-view";
 
-export const metadata: Metadata = { title: "Sitrep" };
+export const metadata: Metadata = {
+  title: "Sitrep",
+  description: "The situation, summarised: what changed and what needs you.",
+};
 export const dynamic = "force-dynamic";
 
 export default function SitrepPage() {

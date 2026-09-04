@@ -17,7 +17,14 @@ import { Component, type ReactNode } from "react";
  */
 interface State { failed: boolean; message: string }
 
-export class TileGuard extends Component<{ children: ReactNode; name?: string }, State> {
+/**
+ * `bare` renders the failure as content rather than as a whole pane.
+ *
+ * Pane wraps its own children in one of these, and a pane inside a pane draws
+ * two headers and two borders. The bare variant is the same guarantee without
+ * the second frame.
+ */
+export class TileGuard extends Component<{ children: ReactNode; name?: string; bare?: boolean }, State> {
   state: State = { failed: false, message: "" };
 
   static getDerivedStateFromError(err: unknown): State {
@@ -36,6 +43,9 @@ export class TileGuard extends Component<{ children: ReactNode; name?: string },
 
   render() {
     if (!this.state.failed) return this.props.children;
+    if (this.props.bare) {
+      return <div className="tile-wait" style={{ color: "var(--down)" }}>{this.state.message}</div>;
+    }
     return (
       <section className="pane">
         <header className="pane-hd">

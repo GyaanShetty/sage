@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { clearStaleChunkFlag } from "@/lib/crash";
 
 /**
  * Ship uncaught client errors to /api/ops.
@@ -32,6 +33,10 @@ function report(message: string, stack: string | undefined, where: string) {
 
 export function ErrorReporter() {
   useEffect(() => {
+    // The shell mounted, so whatever chunk was stale has been replaced. Arm the
+    // one-shot reload again for the next deploy that lands under an open tab.
+    clearStaleChunkFlag();
+
     const onError = (e: ErrorEvent) => report(e.message, e.error?.stack, e.filename || "window");
     const onRejection = (e: PromiseRejectionEvent) => {
       const r = e.reason;

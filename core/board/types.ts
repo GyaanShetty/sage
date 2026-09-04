@@ -11,7 +11,7 @@
  * the kind of bug that survives a demo.
  */
 
-export type NodeKind = "sticky" | "text" | "file" | "image" | "frame";
+export type NodeKind = "sticky" | "text" | "rect" | "ellipse" | "file" | "image" | "frame";
 
 export interface BoardNode {
   id: string;
@@ -243,4 +243,152 @@ export const MAX_DOC_BYTES = 2 * 1024 * 1024;
 export function tooLarge(doc: BoardDoc): number | null {
   const bytes = new TextEncoder().encode(JSON.stringify(doc)).length;
   return bytes > MAX_DOC_BYTES ? bytes : null;
+}
+
+/* ── arranging ────────────────────────────────────────────────────────── */
+
+export const GRID = 12;
+
+/**
+ * Snap a coordinate to the grid, unless overridden.
+ *
+ * The override matters as much as the snap: a diagram sometimes needs a node
+ * three pixels off the grid, and a canvas that refuses is a canvas you fight.
+ * Alt holds it off, the way every drawing tool does it.
+ */
+export function snap(v: number, on = true): number {
+  if (!on) return v;
+  // `+ 0` normalises -0, which Math.round produces for any small negative.
+  // It survives into the document and makes coordinate comparisons disagree
+  // with the eye: Object.is(-0, 0) is false, so a node "at zero" can fail an
+  // equality check against zero.
+  return Math.round(v / GRID) * GRID + 0;
+}
+
+/**
+ * Do two rectangles overlap at all?
+ *
+ * Intersection, not containment. A marquee that only selects fully-enclosed
+ * nodes means dragging a box over four notes selects two of them, and the hand
+ * reads that as the selection being broken rather than as a rule.
+ */
+export function intersects(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/** The rectangle between two points, in any drag direction. */
+export function rectBetween(x1: number, y1: number, x2: number, y2: number): Rect {
+  return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+}
+
+export type Align = "left" | "hcentre" | "right" | "top" | "vmiddle" | "bottom";
+
+/** Line the given nodes up. Returns only the nodes that moved. */
+export function alignNodes(nodes: BoardNode[], how: Align): BoardNode[] {
+  const b = boundsOf(nodes);
+  if (!b || nodes.length < 2) return nodes;
+  return nodes.map((n) => {
+    switch (how) {
+      case "left": return { ...n, x: b.x };
+      case "right": return { ...n, x: b.x + b.w - n.w };
+      case "hcentre": return { ...n, x: b.x + b.w / 2 - n.w / 2 };
+      case "top": return { ...n, y: b.y };
+      case "bottom": return { ...n, y: b.y + b.h - n.h };
+      case "vmiddle": return { ...n, y: b.y + b.h / 2 - n.h / 2 };
+    }
+  });
+}
+
+/**
+ * Space nodes evenly along an axis.
+ *
+ * The gaps are equalised, not the centres. Equal centre spacing looks wrong
+ * the moment the nodes are different sizes — which on a board of notes and
+ * file cards they always are.
+ */
+export function distributeNodes(nodes: BoardNode[], axis: "x" | "y"): BoardNode[] {
+  if (nodes.length < 3) return nodes;
+  const size = axis === "x" ? ("w" as const) : ("h" as const);
+  const sorted = [...nodes].sort((a, b) => a[axis] - b[axis]);
+
+  const first = sorted[0], last = sorted[sorted.length - 1];
+  const span = (last[axis] + last[size]) - first[axis];
+  const used = sorted.reduce((t, n) => t + n[size], 0);
+  const gap = (span - used) / (sorted.length - 1);
+
+  let cursor = first[axis];
+  const moved = new Map<string, number>();
+  for (const n of sorted) {
+    moved.set(n.id, cursor);
+    cursor += n[size] + gap;
+  }
+  // Returned in the caller's order, so a selection does not reshuffle.
+  return nodes.map((n) => ({ ...n, [axis]: moved.get(n.id) ?? n[axis] }));
+}
+
+/**
+ * Everything the board occupies, with padding — for zoom-to-fit and export.
+ *
+ * Ink counts. A board whose only content is a drawing has no nodes, and a
+ * bounds function that ignores strokes would report nothing to fit and leave
+ * the export blank.
+ */
+export function contentBounds(doc: BoardDoc, pad = 40): Rect | null {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  let any = false;
+
+  for (const n of doc.nodes) {
+    any = true;
+    x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y);
+    x1 = Math.max(x1, n.x + n.w); y1 = Math.max(y1, n.y + n.h);
+  }
+  for (const s of doc.strokes) {
+    for (let i = 0; i < s.pts.length; i += 2) {
+      any = true;
+      x0 = Math.min(x0, s.pts[i]); y0 = Math.min(y0, s.pts[i + 1]);
+      x1 = Math.max(x1, s.pts[i]); y1 = Math.max(y1, s.pts[i + 1]);
+    }
+  }
+  for (const e of doc.edges) {
+    for (const end of [e.from, e.to]) {
+      if ("node" in end) continue;
+      any = true;
+      x0 = Math.min(x0, end.x); y0 = Math.min(y0, end.y);
+      x1 = Math.max(x1, end.x); y1 = Math.max(y1, end.y);
+    }
+  }
+  if (!any) return null;
+  return { x: x0 - pad, y: y0 - pad, w: x1 - x0 + pad * 2, h: y1 - y0 + pad * 2 };
+}
+
+/** The view that fits `r` inside a viewport of `vw`×`vh`. */
+export function fitView(r: Rect, vw: number, vh: number, maxK = 1): { x: number; y: number; k: number } {
+  if (r.w <= 0 || r.h <= 0) return { x: 0, y: 0, k: 1 };
+  const k = Math.min(maxK, vw / r.w, vh / r.h);
+  return { k, x: vw / 2 - (r.x + r.w / 2) * k, y: vh / 2 - (r.y + r.h / 2) * k };
+}
+
+/**
+ * Alignment guides: the edges of other nodes this one is nearly level with.
+ *
+ * Nearly, within `tol` *screen* pixels — which is why the caller divides by
+ * the zoom. A tolerance in board units means guides that are impossible to hit
+ * when zoomed out and impossible to avoid when zoomed in.
+ */
+export function guidesFor(
+  moving: Rect, others: Rect[], tol = 6,
+): { v: number[]; h: number[] } {
+  const v: number[] = [], h: number[] = [];
+  const mx = [moving.x, moving.x + moving.w / 2, moving.x + moving.w];
+  const my = [moving.y, moving.y + moving.h / 2, moving.y + moving.h];
+
+  for (const o of others) {
+    for (const ox of [o.x, o.x + o.w / 2, o.x + o.w]) {
+      if (mx.some((m) => Math.abs(m - ox) <= tol)) v.push(ox);
+    }
+    for (const oy of [o.y, o.y + o.h / 2, o.y + o.h]) {
+      if (my.some((m) => Math.abs(m - oy) <= tol)) h.push(oy);
+    }
+  }
+  return { v: [...new Set(v)], h: [...new Set(h)] };
 }

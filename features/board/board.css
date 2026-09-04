@@ -271,3 +271,88 @@ main.hud-grid:has(.bd) {
   flex-direction: column;
 }
 main.hud-grid:has(.bd) > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ── shapes ────────────────────────────────────────────────────────────── */
+
+/*
+ * A shape is a node with different chrome, not a different kind of thing.
+ * Same drag, same resize, same ports, same tones — which is why a box can be
+ * wired into a diagram the moment it is drawn.
+ */
+.bd-n.k-rect, .bd-n.k-ellipse { background: transparent; }
+.bd-n.k-rect .bd-n-hd, .bd-n.k-ellipse .bd-n-hd { background: transparent; border-bottom: 0; }
+.bd-n.k-ellipse { border-radius: 50%; }
+.bd-n.k-rect .bd-n-body, .bd-n.k-ellipse .bd-n-body {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+/* ── arranging ─────────────────────────────────────────────────────────── */
+
+.bd-arr {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0;
+  background: var(--rule);
+  border: 1px solid var(--rule-strong);
+}
+.bd-arr-n {
+  padding: 0 8px;
+  background: var(--panel);
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--signal);
+  white-space: nowrap;
+}
+.bd-arr button {
+  width: 28px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 0;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.bd-arr button:hover { background: var(--panel-hi); color: var(--signal); }
+
+.bd-hud button.on { color: var(--signal); }
+
+/*
+ * Touch targets.
+ *
+ * A 9px port and a 12px grip are fine for a cursor and unusable for a finger;
+ * the ports also have to be visible without a hover that a touchscreen does
+ * not have. Both are widened on any device whose primary input is coarse.
+ */
+@media (pointer: coarse) {
+  .bd-port { width: 18px; height: 18px; margin: -9px 0 0 -9px; opacity: 0.55; }
+  .bd-n.sel .bd-port { opacity: 1; }
+  .bd-rz { width: 22px; height: 22px; }
+  .bd-tools button { width: 44px; height: 40px; font-size: 14px; }
+  .bd-tones button { width: 24px; height: 24px; }
+  .bd-arr button { width: 38px; height: 34px; font-size: 14px; }
+  .bd-n-hd { padding: 6px 8px; font-size: 10px; }
+}
+
+.bd-hud .bd-title {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}

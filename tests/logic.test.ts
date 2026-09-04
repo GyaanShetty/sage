@@ -3657,3 +3657,108 @@ test("strokeNear catches a crossing between samples, not just on them", async ()
   assert.equal(strokeNear(s, 50, 40, 5), false);
   assert.equal(strokeNear(s, 0, 0, 1), true);
 });
+
+/*
+ * Arranging and history.
+ *
+ * The undo tests exist because undo is the feature whose bugs are silent: a
+ * stack that is one step out of phase looks like "⌘Z did nothing", and a redo
+ * branch that survives a new edit jumps the board into a history that no
+ * longer connects to what is on screen. Neither is visible until it has
+ * already cost work.
+ */
+test("marquee selects nodes it merely touches, not only ones it encloses", async () => {
+  const { intersects, rectBetween } = await import("../core/board/types");
+
+  // A box dragged bottom-right to top-left is the same box.
+  assert.deepEqual(rectBetween(100, 80, 20, 10), { x: 20, y: 10, w: 80, h: 70 });
+
+  const marquee = { x: 0, y: 0, w: 100, h: 100 };
+  assert.equal(intersects(marquee, { x: 90, y: 90, w: 50, h: 50 }), true, "corner overlap counts");
+  assert.equal(intersects(marquee, { x: 20, y: 20, w: 10, h: 10 }), true, "fully inside counts");
+  assert.equal(intersects(marquee, { x: 101, y: 0, w: 10, h: 10 }), false, "just past does not");
+  // Touching edges only is not an overlap — otherwise a marquee dragged up to
+  // a node grabs it without ever covering a pixel of it.
+  assert.equal(intersects(marquee, { x: 100, y: 0, w: 10, h: 10 }), false);
+});
+
+test("snap respects the override and leaves aligned nodes alone", async () => {
+  const { snap, GRID } = await import("../core/board/types");
+  assert.equal(snap(0), 0);
+  assert.equal(snap(GRID * 3), GRID * 3, "already on the grid must not drift");
+  assert.equal(snap(GRID * 3 + 1), GRID * 3);
+  assert.equal(snap(GRID * 3 - 1), GRID * 3);
+  assert.equal(snap(-1), 0);
+  assert.equal(snap(37, false), 37, "the override is the whole point");
+});
+
+test("distribute equalises gaps, not centres", async () => {
+  const { distributeNodes } = await import("../core/board/types");
+  // Different widths, which is where centre-spacing looks wrong.
+  const nodes = [
+    { id: "a", kind: "sticky" as const, x: 0, y: 0, w: 100, h: 10 },
+    { id: "b", kind: "sticky" as const, x: 40, y: 0, w: 20, h: 10 },
+    { id: "c", kind: "sticky" as const, x: 300, y: 0, w: 100, h: 10 },
+  ];
+  const out = distributeNodes(nodes, "x");
+  const by = Object.fromEntries(out.map((n) => [n.id, n]));
+  // Ends are pinned; the middle sits so both gaps match.
+  assert.equal(by.a.x, 0);
+  assert.equal(by.c.x, 300);
+  const gap1 = by.b.x - (by.a.x + by.a.w);
+  const gap2 = by.c.x - (by.b.x + by.b.w);
+  assert.ok(Math.abs(gap1 - gap2) < 1e-9, `gaps differ: ${gap1} vs ${gap2}`);
+  // And the caller's order survives, or a selection reshuffles as you align it.
+  assert.deepEqual(out.map((n) => n.id), ["a", "b", "c"]);
+});
+
+test("contentBounds counts ink, so a board of only drawing can be fitted", async () => {
+  const { contentBounds, fitView, emptyBoard } = await import("../core/board/types");
+  const doc = emptyBoard("t");
+  assert.equal(contentBounds(doc), null, "an empty board has no bounds to fit");
+
+  doc.strokes.push({ id: "s", pts: [100, 100, 200, 300] });
+  const r = contentBounds(doc, 10)!;
+  assert.deepEqual([r.x, r.y, r.w, r.h], [90, 90, 120, 220]);
+
+  // Fitting never enlarges past 1: a single note blown up to fill a 4K screen
+  // is not what "fit" means.
+  const v = fitView(r, 1200, 800);
+  assert.ok(v.k <= 1);
+  assert.ok(Math.abs((r.x + r.w / 2) * v.k + v.x - 600) < 1e-6, "content centre lands on viewport centre");
+});
+
+test("undo coalesces a drag, and a new edit clears the redo branch", async () => {
+  const { emptyHistory, record, undo, redo, LIMIT } = await import("../features/board/history");
+  const { emptyBoard } = await import("../core/board/types");
+
+  const a = { ...emptyBoard("b"), title: "a" };
+  const b = { ...a, title: "b" };
+  const c = { ...a, title: "c" };
+
+  // Forty move events inside the coalesce window are one undo entry, not forty.
+  let h = emptyHistory();
+  for (let i = 0; i < 40; i++) h = record(h, a, "move", 1000 + i * 5);
+  assert.equal(h.past.length, 1, "a single drag must be a single undo step");
+
+  // A different kind of edit is its own entry.
+  h = record(h, b, "ink", 1300);
+  assert.equal(h.past.length, 2);
+
+  const u = undo(h, c)!;
+  assert.equal(u.doc.title, "b", "undo restores the state before the last edit");
+  const r = redo(u.history, u.doc)!;
+  assert.equal(r.doc.title, "c");
+
+  // Undo, then edit: the redo branch is gone rather than pointing at history
+  // that no longer connects to the board.
+  const u2 = undo(h, c)!;
+  assert.equal(u2.history.future.length, 1);
+  const after = record(u2.history, u2.doc, "text", 9000);
+  assert.equal(after.future.length, 0);
+
+  // And the stack is bounded, or a long session grows without limit.
+  let big = emptyHistory();
+  for (let i = 0; i < LIMIT + 25; i++) big = record(big, a, `k${i}`, i * 10_000);
+  assert.equal(big.past.length, LIMIT);
+});

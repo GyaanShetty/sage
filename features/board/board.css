@@ -356,3 +356,123 @@ main.hud-grid:has(.bd) > * { flex: 1; min-height: 0; display: flex; flex-directi
   letter-spacing: 0.04em;
   font-size: 11px;
 }
+
+/* ── text is not a sticky ──────────────────────────────────────────────── */
+
+/*
+ * A sticky is an object on the board: an edge, a header, something you push
+ * around. Text is a label on the board — no card, no chrome, set at whatever
+ * size it was made at. They shared a component and so felt like one tool with
+ * a bug.
+ */
+.bd-n.k-text {
+  border-color: transparent;
+  background: transparent;
+  line-height: 1.25;
+}
+.bd-n.k-text .bd-n-body { padding: 0; overflow: visible; }
+.bd-n.k-text:hover { border-color: var(--rule); }
+.bd-n.k-text.sel { border-color: var(--signal); background: transparent; }
+
+/* ── frames ────────────────────────────────────────────────────────────── */
+
+/*
+ * A frame is a region, so it must not paint over what it holds. Its title sits
+ * outside the top edge, the way a figure caption does, and the fill is only
+ * strong enough to read as a boundary.
+ */
+.bd-n.k-frame {
+  background: rgba(244, 245, 247, 0.02);
+  border-style: dashed;
+}
+.bd-n.k-frame .bd-n-hd {
+  position: absolute;
+  top: -19px;
+  left: -1px;
+  right: -1px;
+  border: 1px solid var(--rule-strong);
+  border-bottom: 0;
+}
+.bd-n.k-frame .bd-n-body { display: grid; place-items: start; opacity: 0.5; }
+
+/* ── sizes and menu ────────────────────────────────────────────────────── */
+
+.bd-sizes {
+  position: absolute;
+  top: 8px;
+  left: 50px;
+  z-index: 5;
+  display: flex;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule-strong);
+}
+.bd-tones { top: 32px; }
+.bd-sizes button {
+  width: 26px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+}
+.bd-sizes button:hover { color: var(--foreground); }
+.bd-sizes button.on { background: var(--signal-faint); color: var(--signal); }
+
+.bd-menu {
+  position: absolute;
+  z-index: 20;
+  min-width: 150px;
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.bd-menu button {
+  padding: 7px 10px;
+  background: var(--panel);
+  border: 0;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.bd-menu button:hover { background: var(--panel-hi); }
+.bd-menu button.danger { color: var(--signal); }
+.bd-menu-tones { display: flex; gap: 1px; background: var(--rule); padding: 6px 10px; }
+.bd-menu-tones button { width: 18px; height: 18px; padding: 0; border: 1px solid var(--rule-strong); }
+
+@media (pointer: coarse) {
+  .bd-sizes button { width: 38px; height: 34px; }
+  .bd-menu button { padding: 11px 14px; font-size: 13px; }
+}
+
+.bd-find {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--panel);
+  border: 1px solid var(--rule-strong);
+}
+.bd-find input {
+  width: 200px;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+}
+.bd-find span { font-size: 10px; letter-spacing: 0.1em; color: var(--subtle); min-width: 30px; }
+.bd-find button { background: none; border: 0; color: var(--subtle); cursor: pointer; font-size: 12px; }
+.bd-find button:hover { color: var(--signal); }

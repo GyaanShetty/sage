@@ -18,6 +18,8 @@ export interface BoardNode {
   kind: NodeKind;
   x: number; y: number; w: number; h: number;
   text?: string;
+  /** Text nodes carry their own size — a title and a caption are both "text". */
+  fontSize?: number;
   /** Palette slot, not a hex value — so a palette change moves every board. */
   tone?: Tone;
   /**
@@ -45,6 +47,7 @@ export type Side = "t" | "r" | "b" | "l";
 
 export interface Edge {
   id: string;
+  /** Which face each end leaves from. Auto by default; pinned once dragged. */
   /** A node id, or a free point for an arrow that ends in space. */
   from: { node: string } | { x: number; y: number };
   to: { node: string } | { x: number; y: number };

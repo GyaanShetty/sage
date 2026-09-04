@@ -5,6 +5,7 @@ import {
   type BoardDoc, type BoardNode, type Edge, type Tone, type Align, type Rect,
   anchorPoint, centreOf, screenToBoard, simplify, strokeNear,
   snap, intersects, rectBetween, alignNodes, distributeNodes, contentBounds, fitView, guidesFor, GRID,
+  nodesInside, distToSegment, midpoint, searchNodes,
 } from "@/core/board/types";
 import { type History, emptyHistory, record, undo as undoStep, redo as redoStep } from "./history";
 import { exportPng } from "./export";
@@ -29,7 +30,18 @@ import "./board.css";
  * than silently winning.
  */
 
-type Tool = "select" | "pan" | "sticky" | "text" | "rect" | "ellipse" | "pen" | "eraser" | "arrow";
+type Tool = "select" | "pan" | "sticky" | "text" | "rect" | "ellipse" | "frame" | "pen" | "eraser" | "arrow";
+
+/**
+ * Pen weights.
+ *
+ * Three, not a slider. A slider on a drawing tool is a decision you make every
+ * time you pick up the pen; three weights are a decision you make once.
+ */
+const PEN_SIZES = [2, 5, 10] as const;
+
+/** Text sizes, for the text tool. Same reasoning as the pen. */
+const TEXT_SIZES = [14, 22, 34] as const;
 
 const TONES: { id: Tone; css: string }[] = [
   { id: "plain", css: "#9a9ba1" },
@@ -60,6 +72,17 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
   const [marquee, setMarquee] = useState<Rect | null>(null);
   const [guides, setGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
   const [snapping, setSnapping] = useState(true);
+  const [penW, setPenW] = useState<number>(PEN_SIZES[0]);
+  const [fontSize, setFontSize] = useState<number>(TEXT_SIZES[0]);
+  /** Right-click menu: the fastest way to delete, which is what he asked for. */
+  const [menu, setMenu] = useState<{ x: number; y: number; node?: string; edge?: string } | null>(null);
+  /** The node an in-flight arrow would connect to, so the target lights up
+   *  before you let go rather than after. */
+  const [wireTarget, setWireTarget] = useState<string | null>(null);
+  const [selEdge, setSelEdge] = useState<string | null>(null);
+  const [find, setFind] = useState<string>("");
+  const [findOpen, setFindOpen] = useState(false);
+  const [findAt, setFindAt] = useState(0);
   const [editing, setEditing] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [note, setNote] = useState<string | null>(null);
@@ -284,6 +307,15 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
     // selection rather than replacing it.
     const onEmpty = e.target === hostRef.current || (e.target as HTMLElement).classList.contains("bd-grid");
     if (onEmpty) {
+      // An arrow is a line one pixel wide and cannot be clicked as a shape, so
+      // "empty canvas" is checked against the edges before it is believed.
+      const hitEdge = edgeAt(p.x, p.y, 8 / view.k)[0];
+      if (hitEdge && tool === "select") {
+        setSelEdge(hitEdge.id);
+        setSel([]);
+        return;
+      }
+      setSelEdge(null);
       gesture.current = { kind: "marquee", x0: p.x, y0: p.y, add: e.shiftKey };
       if (!e.shiftKey) { setSel([]); setEditing(null); }
       (e.target as Element).setPointerCapture?.(e.pointerId);
@@ -365,7 +397,11 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
 
     if (ink) { setInk((s) => (s ? [...s, p.x, p.y] : s)); return; }
     if (tool === "eraser" && e.buttons === 1) { erase(p.x, p.y); return; }
-    if (wire) { setWire({ ...wire, x: p.x, y: p.y }); return; }
+    if (wire) {
+      setWire({ ...wire, x: p.x, y: p.y });
+      setWireTarget(connectTarget(p.x, p.y, wire.from));
+      return;
+    }
   };
 
   const onUp = (e: React.PointerEvent) => {
@@ -378,7 +414,7 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
       // visibly twitch behind the pen as points are dropped and re-added.
       const pts = simplify(ink, INK_EPSILON / view.k);
       if (pts.length >= 4) {
-        mutate((d) => ({ ...d, strokes: [...d.strokes, { id: uid(), pts, tone, w: 2 }] }));
+        mutate((d) => ({ ...d, strokes: [...d.strokes, { id: uid(), pts, tone, w: penW }] }), "ink");
       }
       setInk(null);
       return;
@@ -386,22 +422,50 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
 
     if (wire) {
       const p = toBoard(e);
-      const hit = docRef.current.nodes.find(
-        (n) => p.x >= n.x && p.x <= n.x + n.w && p.y >= n.y && p.y <= n.y + n.h && n.id !== wire.from,
-      );
+      const hit = connectTarget(p.x, p.y, wire.from);
       // An arrow to empty space is a legitimate diagram, so a miss makes a
       // free endpoint rather than throwing the gesture away.
-      const to = hit ? { node: hit.id } : { x: p.x, y: p.y };
-      mutate((d) => ({ ...d, edges: [...d.edges, { id: uid(), from: { node: wire.from }, to, tone }] }));
+      const to = hit ? { node: hit } : { x: p.x, y: p.y };
+      mutate((d) => ({ ...d, edges: [...d.edges, { id: uid(), from: { node: wire.from }, to, tone }] }), "arrow");
       setWire(null);
+      setWireTarget(null);
     }
   };
 
   /* ── mutations ────────────────────────────────────────────────────────── */
 
   const SIZE: Record<string, [number, number]> = {
-    sticky: [180, 130], text: [240, 90], rect: [200, 130], ellipse: [160, 160],
+    sticky: [180, 130], text: [240, 48], rect: [200, 130], ellipse: [160, 160],
+    frame: [520, 360],
   };
+
+  /**
+   * Which node an arrow endpoint should attach to.
+   *
+   * Not "the node directly under the cursor" — that requires landing inside a
+   * box, and drawing an arrow then becomes an aiming exercise. Anything within
+   * a slack radius of a node's edge counts, so the arrow attaches when you get
+   * close and stays attached when the node later moves. The radius is in
+   * screen pixels, so it feels the same at every zoom.
+   */
+  const connectTarget = useCallback((x: number, y: number, exclude?: string): string | null => {
+    // 48px of slack, in screen pixels so it feels the same at every zoom.
+    // Tighter than this and you have to aim, which is the thing auto-connect
+    // exists to remove; looser and arrows attach to neighbours you were only
+    // passing over.
+    const slack = 48 / view.k;
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const n of docRef.current.nodes) {
+      if (n.id === exclude) continue;
+      // Distance to the box: zero inside it, the gap outside.
+      const dx = Math.max(n.x - x, 0, x - (n.x + n.w));
+      const dy = Math.max(n.y - y, 0, y - (n.y + n.h));
+      const d = Math.hypot(dx, dy);
+      if (d <= slack && d < bestD) { bestD = d; best = n.id; }
+    }
+    return best;
+  }, [view.k]);
 
   const addNode = (kind: BoardNode["kind"], x: number, y: number) => {
     const [w, h] = SIZE[kind] ?? [180, 130];
@@ -409,6 +473,7 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
       id: uid(), kind,
       x: snap(Math.round(x), snapping), y: snap(Math.round(y), snapping),
       w, h, text: "", tone,
+      ...(kind === "text" ? { fontSize } : {}),
     };
     mutate((d) => ({ ...d, nodes: [...d.nodes, n] }), `add-${kind}`);
     setSel([n.id]);
@@ -424,6 +489,29 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
     const doomed = new Set(docRef.current.strokes.filter((s) => strokeNear(s, x, y, r)).map((s) => s.id));
     if (!doomed.size) return;
     mutate((d) => ({ ...d, strokes: d.strokes.filter((s) => !doomed.has(s.id)) }));
+  };
+
+  /** Edges whose drawn segment passes within `tol` of a point. */
+  const edgeAt = useCallback((x: number, y: number, tol: number): Edge[] => {
+    const byNode = new Map(docRef.current.nodes.map((n) => [n.id, n]));
+    return docRef.current.edges.filter((e) => {
+      const a: BoardNode | { x: number; y: number } | undefined =
+        "node" in e.from ? byNode.get(e.from.node) : e.from;
+      const b: BoardNode | { x: number; y: number } | undefined =
+        "node" in e.to ? byNode.get(e.to.node) : e.to;
+      if (!a || !b) return false;
+      const isNode = (v: BoardNode | { x: number; y: number }): v is BoardNode => "w" in v;
+      const ac = isNode(a) ? centreOf(a) : a;
+      const bc = isNode(b) ? centreOf(b) : b;
+      const p1 = isNode(a) ? anchorPoint(a, bc) : ac;
+      const p2 = isNode(b) ? anchorPoint(b, ac) : bc;
+      return distToSegment(x, y, p1.x, p1.y, p2.x, p2.y) <= tol;
+    });
+  }, []);
+
+  const removeEdge = (id: string) => {
+    mutate((d) => ({ ...d, edges: d.edges.filter((e) => e.id !== id) }), "delete-edge");
+    setSelEdge(null);
   };
 
   const removeSelection = (ids: string[] = selRef.current) => {
@@ -508,6 +596,28 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
     mutate((d) => ({ ...d, title: next.slice(0, 80) }), "rename");
   }, [mutate]);
 
+  /**
+   * Pan to a node and select it.
+   *
+   * Search on a canvas has to move the view, not just highlight: a hit that is
+   * three screens away and merely outlined has not been found in any useful
+   * sense. Zoom is left alone — being thrown to a different scale to read one
+   * note loses the place you were in.
+   */
+  const goTo = useCallback((id: string) => {
+    const host = hostRef.current;
+    const n = docRef.current.nodes.find((m) => m.id === id);
+    if (!host || !n) return;
+    setView((v) => ({
+      ...v,
+      x: host.clientWidth / 2 - (n.x + n.w / 2) * v.k,
+      y: host.clientHeight / 2 - (n.y + n.h / 2) * v.k,
+    }));
+    setSel([id]);
+  }, []);
+
+  const hits = useMemo(() => searchNodes(doc.nodes, find), [doc.nodes, find]);
+
   const zoomToFit = useCallback(() => {
     const host = hostRef.current;
     const r = contentBounds(docRef.current);
@@ -550,12 +660,17 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
       if (mod && k === "a") { e.preventDefault(); setSel(docRef.current.nodes.map((n) => n.id)); return; }
       if (mod && k === "0") { e.preventDefault(); setView({ x: 0, y: 0, k: 1 }); return; }
       if (mod && k === "1") { e.preventDefault(); zoomToFit(); return; }
+      if (mod && k === "f") { e.preventDefault(); setFindOpen(true); return; }
       if (mod && k === "]") { e.preventDefault(); restack("front"); return; }
       if (mod && k === "[") { e.preventDefault(); restack("back"); return; }
       if (mod) return;
 
-      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeSelection(); return; }
-      if (e.key === "Escape") { setSel([]); setEditing(null); setTool("select"); return; }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        if (selEdge) removeEdge(selEdge); else removeSelection();
+        return;
+      }
+      if (e.key === "Escape") { setSel([]); setSelEdge(null); setEditing(null); setMenu(null); setTool("select"); return; }
 
       // Arrow keys nudge — one grid step, or one unit with shift, for the
       // adjustment snapping is otherwise in the way of.
@@ -574,16 +689,54 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
 
       const keys: Record<string, Tool> = {
         v: "select", h: "pan", n: "sticky", t: "text", r: "rect", o: "ellipse",
-        p: "pen", e: "eraser", a: "arrow",
+        f: "frame", p: "pen", e: "eraser", a: "arrow",
       };
       if (keys[k]) setTool(keys[k]);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, editing, undo, redo, copy, paste, zoomToFit, restack, mutate]);
+  }, [sel, selEdge, editing, undo, redo, copy, paste, zoomToFit, restack, mutate]);
 
   /* ── files ────────────────────────────────────────────────────────────── */
+
+  /**
+   * Right-click, on anything.
+   *
+   * Deleting used to mean selecting and then finding either a keyboard or a
+   * small ✕ in a header — two steps and a target, for the most common
+   * destructive action on a board. A context menu is the one gesture that
+   * works the same on a node, an arrow and a stroke.
+   */
+  const onContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const p = toBoard(e);
+    const r = hostRef.current?.getBoundingClientRect();
+    const at = { x: e.clientX - (r?.left ?? 0), y: e.clientY - (r?.top ?? 0) };
+
+    // Topmost first: nodes render in document order, so the last match wins.
+    const node = [...docRef.current.nodes].reverse()
+      .find((n) => p.x >= n.x && p.x <= n.x + n.w && p.y >= n.y && p.y <= n.y + n.h);
+    if (node) {
+      if (!selRef.current.includes(node.id)) setSel([node.id]);
+      setMenu({ ...at, node: node.id });
+      return;
+    }
+    const edge = edgeAt(p.x, p.y, 8 / view.k)[0];
+    setMenu(edge ? { ...at, edge: edge.id } : at);
+  };
+
+  // Any click elsewhere dismisses it, including one that lands on the canvas.
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    window.addEventListener("pointerdown", close);
+    window.addEventListener("blur", close);
+    return () => {
+      window.removeEventListener("pointerdown", close);
+      window.removeEventListener("blur", close);
+    };
+  }, [menu]);
 
   const onDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -660,6 +813,7 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
       onPointerMove={onMove}
       onPointerUp={onUp}
       onPointerCancel={onUp}
+      onContextMenu={onContextMenu}
       onDragOver={(e) => { e.preventDefault(); setDropping(true); }}
       onDragLeave={() => setDropping(false)}
       onDrop={onDrop}
@@ -678,20 +832,37 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
         <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
           {doc.strokes.map((s) => (
             <path key={s.id} d={pathOf(s.pts)} fill="none"
-              stroke={TONE_CSS[s.tone ?? "plain"]} strokeWidth={(s.w ?? 2) / view.k * view.k}
+              stroke={TONE_CSS[s.tone ?? "plain"]} strokeWidth={s.w ?? 2}
               strokeLinecap="round" strokeLinejoin="round" />
           ))}
           {ink && (
-            <path d={pathOf(ink)} fill="none" stroke={TONE_CSS[tone]} strokeWidth={2}
+            <path d={pathOf(ink)} fill="none" stroke={TONE_CSS[tone]} strokeWidth={penW}
               strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
           )}
           {doc.edges.map((e) => {
             const g = edgeGeom(e);
             if (!g) return null;
             const c = TONE_CSS[e.tone ?? "plain"];
+            const on = selEdge === e.id;
+            const mid = midpoint(g.p1, g.p2);
             return (
-              <line key={e.id} x1={g.p1.x} y1={g.p1.y} x2={g.p2.x} y2={g.p2.y}
-                stroke={c} strokeWidth={1.5} markerEnd={`url(#bd-ah-${e.tone ?? "plain"})`} />
+              <g key={e.id}>
+                <line x1={g.p1.x} y1={g.p1.y} x2={g.p2.x} y2={g.p2.y}
+                  stroke={c} strokeWidth={on ? 3 : 1.5} markerEnd={`url(#bd-ah-${e.tone ?? "plain"})`} />
+                {e.label && (
+                  <>
+                    {/* A chip behind the text, or the arrow reads through it. */}
+                    <rect
+                      x={mid.x - (e.label.length * 3.4 + 6)} y={mid.y - 9}
+                      width={e.label.length * 6.8 + 12} height={18}
+                      fill="var(--panel, #0c0d0f)" stroke={c} strokeWidth={0.75}
+                    />
+                    <text x={mid.x} y={mid.y + 4} textAnchor="middle" fontSize={11} fill="var(--foreground, #f4f5f7)">
+                      {e.label}
+                    </text>
+                  </>
+                )}
+              </g>
             );
           })}
           {/* Alignment guides: only while a drag is live, and only where an
@@ -709,6 +880,15 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
             <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h}
               fill="rgba(255,59,48,0.07)" stroke={TONE_CSS.signal}
               strokeWidth={1 / view.k} strokeDasharray={`${4 / view.k} ${3 / view.k}`} />
+          )}
+          {/* The node an in-flight arrow would attach to, outlined before you
+              let go — otherwise auto-connect is something you only discover
+              after the fact. */}
+          {wireTarget && byId.get(wireTarget) && (
+            <rect
+              x={byId.get(wireTarget)!.x - 3} y={byId.get(wireTarget)!.y - 3}
+              width={byId.get(wireTarget)!.w + 6} height={byId.get(wireTarget)!.h + 6}
+              fill="none" stroke={TONE_CSS.signal} strokeWidth={2 / view.k} />
           )}
           {wire && byId.get(wire.from) && (
             <line
@@ -744,8 +924,27 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
               // it first, so a drag never silently moves something else.
               const ids = selRef.current.includes(n.id) ? selRef.current : [n.id];
               if (!selRef.current.includes(n.id)) setSel([n.id]);
+
+              /*
+               * A frame carries what is inside it.
+               *
+               * By containment, not overlap — the opposite of the marquee
+               * rule, and deliberately so. A marquee is a gesture you aim; a
+               * frame is a container, and one that grabbed every node it
+               * merely touched would drag its neighbours along every time it
+               * moved.
+               */
+              const carried = new Set(ids);
+              for (const id of ids) {
+                const f = docRef.current.nodes.find((m) => m.id === id);
+                if (f?.kind !== "frame") continue;
+                for (const inner of nodesInside(f, docRef.current.nodes)) {
+                  if (inner.id !== f.id) carried.add(inner.id);
+                }
+              }
+
               const origin = new Map(
-                docRef.current.nodes.filter((m) => ids.includes(m.id)).map((m) => [m.id, { x: m.x, y: m.y }]),
+                docRef.current.nodes.filter((m) => carried.has(m.id)).map((m) => [m.id, { x: m.x, y: m.y }]),
               );
               // dx/dy hold the grab point, so the move branch works in
               // deltas and every member keeps its offset from the others.
@@ -770,6 +969,7 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
         {([
           ["select", "▷", "Select (V)"], ["pan", "✋", "Pan (H)"], ["sticky", "▤", "Sticky note (N)"],
           ["text", "T", "Text (T)"], ["rect", "▭", "Rectangle (R)"], ["ellipse", "◯", "Ellipse (O)"],
+          ["frame", "⬚", "Frame — moves what is inside it (F)"],
           ["pen", "✎", "Pen (P)"], ["eraser", "⌫", "Eraser (E)"],
           ["arrow", "→", "Arrow — drag from a node's edge dot (A)"],
         ] as [Tool, string, string][]).map(([id, glyph, label]) => (
@@ -807,12 +1007,104 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
         </div>
       )}
 
+      {findOpen && (
+        <div className="bd-find" onPointerDown={(e) => e.stopPropagation()}>
+          <input
+            autoFocus
+            value={find}
+            placeholder="Find on this board…"
+            onChange={(e) => { setFind(e.target.value); setFindAt(0); }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { setFindOpen(false); setFind(""); return; }
+              if (e.key === "Enter" && hits.length) {
+                // Enter walks the hits in document order, wrapping — which is
+                // why searchNodes returns them ordered rather than by score.
+                const next = (findAt + (e.shiftKey ? -1 : 1) + hits.length) % hits.length;
+                setFindAt(next);
+                goTo(hits[next]);
+              }
+            }}
+          />
+          <span>{find ? `${hits.length ? findAt + 1 : 0}/${hits.length}` : ""}</span>
+          <button onClick={() => { setFindOpen(false); setFind(""); }} aria-label="Close find">✕</button>
+        </div>
+      )}
+
+      {/* Weight, shown only for the tool it belongs to. A pen size sitting
+          next to the select arrow is a control that does nothing. */}
+      {tool === "pen" && (
+        <div className="bd-sizes" onPointerDown={(e) => e.stopPropagation()}>
+          {PEN_SIZES.map((w) => (
+            <button key={w} className={penW === w ? "on" : ""} title={`Pen ${w}px`} aria-label={`Pen size ${w}`}
+              onClick={() => setPenW(w)}>
+              <span style={{ width: w + 4, height: w + 4, borderRadius: "50%", background: "currentColor", display: "block" }} />
+            </button>
+          ))}
+        </div>
+      )}
+      {tool === "text" && (
+        <div className="bd-sizes" onPointerDown={(e) => e.stopPropagation()}>
+          {TEXT_SIZES.map((f) => (
+            <button key={f} className={fontSize === f ? "on" : ""} title={`${f}px text`} aria-label={`Text size ${f}`}
+              onClick={() => setFontSize(f)} style={{ fontSize: Math.min(18, f * 0.6) }}>A</button>
+          ))}
+        </div>
+      )}
+
+      {/* Right-click menu. */}
+      {menu && (
+        <div className="bd-menu" style={{ left: menu.x, top: menu.y }} onPointerDown={(e) => e.stopPropagation()}>
+          {menu.node && (
+            <>
+              <button onClick={() => { setEditing(menu.node!); setMenu(null); }}>Edit text</button>
+              <button onClick={() => { copy(); paste(); setMenu(null); }}>Duplicate</button>
+              <button onClick={() => { restack("front"); setMenu(null); }}>Bring to front</button>
+              <button onClick={() => { restack("back"); setMenu(null); }}>Send to back</button>
+              <div className="bd-menu-tones">
+                {TONES.map((t) => (
+                  <button key={t.id} style={{ background: t.css }} aria-label={`Colour ${t.id}`}
+                    onClick={() => {
+                      const ids = new Set(selRef.current.length ? selRef.current : [menu.node!]);
+                      mutate((d) => ({ ...d, nodes: d.nodes.map((n) => (ids.has(n.id) ? { ...n, tone: t.id } : n)) }), "tone");
+                      setMenu(null);
+                    }} />
+                ))}
+              </div>
+              <button className="danger" onClick={() => { removeSelection(selRef.current.length ? selRef.current : [menu.node!]); setMenu(null); }}>
+                Delete
+              </button>
+            </>
+          )}
+          {menu.edge && (
+            <>
+              <button onClick={() => {
+                const e0 = docRef.current.edges.find((x) => x.id === menu.edge);
+                const label = prompt("Arrow label", e0?.label ?? "")?.trim();
+                if (label !== undefined) {
+                  mutate((d) => ({ ...d, edges: d.edges.map((x) => (x.id === menu.edge ? { ...x, label: label || undefined } : x)) }), "label");
+                }
+                setMenu(null);
+              }}>Label arrow</button>
+              <button className="danger" onClick={() => { removeEdge(menu.edge!); setMenu(null); }}>Delete arrow</button>
+            </>
+          )}
+          {!menu.node && !menu.edge && (
+            <>
+              <button onClick={() => { paste(); setMenu(null); }}>Paste</button>
+              <button onClick={() => { setSel(docRef.current.nodes.map((n) => n.id)); setMenu(null); }}>Select all</button>
+              <button onClick={() => { zoomToFit(); setMenu(null); }}>Zoom to fit</button>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="bd-hud" onPointerDown={(e) => e.stopPropagation()}>
         <button onClick={rename} title="Rename this board" className="bd-title">{doc.title}</button>
         <span><b>{doc.nodes.length}</b> nodes</span>
         <span><b>{doc.strokes.length}</b> strokes</span>
         <button onClick={() => setView({ x: 0, y: 0, k: 1 })} title="Reset zoom (⌘0)">{Math.round(view.k * 100)}%</button>
         <button onClick={zoomToFit} title="Fit everything on screen (⌘1)">FIT</button>
+        <button onClick={() => setFindOpen(true)} title="Find on this board (⌘F)">FIND</button>
         <button onClick={() => undo()} title="Undo (⌘Z)">↺</button>
         <button onClick={() => redo()} title="Redo (⇧⌘Z)">↻</button>
         <button onClick={() => setSnapping((v) => !v)} title="Snap to grid — hold alt to override"
@@ -876,26 +1168,46 @@ function NodeView({
   }, [editing]);
 
   const label = n.kind === "sticky" ? "NOTE" : n.kind === "text" ? "TEXT"
-    : n.kind === "rect" ? "BOX" : n.kind === "ellipse" ? "OVAL"
+    : n.kind === "rect" ? "BOX" : n.kind === "ellipse" ? "OVAL" : n.kind === "frame" ? "FRAME"
     : n.kind === "image" ? "IMAGE" : "FILE";
+
+  /*
+   * Text is not a sticky note with the colour turned off.
+   *
+   * A sticky is an object on the board — it has an edge, it sits on top of
+   * things, you move it around. Text is a label *on* the board: no card, no
+   * header, no border, and it is set at whatever size it was created at. They
+   * were the same component with the same chrome, which made the two tools
+   * feel like one tool with a bug.
+   */
+  const bareText = n.kind === "text";
 
   return (
     <div
       className={`bd-n k-${n.kind} t-${n.tone ?? "plain"}${selected ? " sel" : ""}`}
-      style={{ left: n.x, top: n.y, width: n.w, height: n.h }}
+      style={{ left: n.x, top: n.y, width: n.w, height: n.h, fontSize: n.fontSize }}
       onPointerDown={(e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey); }}
       // Shapes are labelled too — a box you cannot title is a box you have to
       // annotate with a note beside it.
       onDoubleClick={() => { if (n.kind !== "image" && n.kind !== "file") onEdit(); }}
     >
-      <header className="bd-n-hd" onPointerDown={(e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey); onDragStart(e); }}>
-        <span>{label}</span>
-        <button title="Delete" aria-label="Delete node"
-          onPointerDown={(e) => e.stopPropagation()} onClick={onRemove}>✕</button>
-      </header>
+      {!bareText && (
+        <header className="bd-n-hd" onPointerDown={(e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey); onDragStart(e); }}>
+          <span>{label}</span>
+          <button title="Delete" aria-label="Delete node"
+            onPointerDown={(e) => e.stopPropagation()} onClick={onRemove}>✕</button>
+        </header>
+      )}
 
-      <div className="bd-n-body">
-        {(n.kind === "sticky" || n.kind === "text" || n.kind === "rect" || n.kind === "ellipse") && (
+      <div
+        className="bd-n-body"
+        // With no header, the text itself is the drag handle — otherwise a
+        // bare label is a thing you can create and never move again.
+        onPointerDown={bareText && !editing
+          ? (e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey); onDragStart(e); }
+          : undefined}
+      >
+        {(n.kind === "sticky" || n.kind === "text" || n.kind === "rect" || n.kind === "ellipse" || n.kind === "frame") && (
           editing ? (
             <textarea
               ref={taRef}
@@ -909,7 +1221,9 @@ function NodeView({
             <div style={{ whiteSpace: "pre-wrap" }}>
               {n.text || (
                 <span style={{ color: "var(--subtle)" }}>
-                  {n.kind === "rect" || n.kind === "ellipse" ? "Double-click to label" : "Double-click to write"}
+                  {n.kind === "rect" || n.kind === "ellipse" || n.kind === "frame"
+                    ? "Double-click to label"
+                    : "Double-click to write"}
                 </span>
               )}
             </div>

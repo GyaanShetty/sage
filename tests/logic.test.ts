@@ -3762,3 +3762,44 @@ test("undo coalesces a drag, and a new edit clears the redo branch", async () =>
   for (let i = 0; i < LIMIT + 25; i++) big = record(big, a, `k${i}`, i * 10_000);
   assert.equal(big.past.length, LIMIT);
 });
+
+test("distToSegment clamps to the segment, so an arrow is not clickable from its extension", async () => {
+  const { distToSegment } = await import("../core/board/types");
+  // Beside the middle of the segment: the perpendicular distance.
+  assert.equal(distToSegment(50, 10, 0, 0, 100, 0), 10);
+  // Past the end. Distance to the *endpoint*, not to the infinite line —
+  // otherwise clicking empty canvas selects an arrow half a screen away.
+  assert.equal(distToSegment(200, 0, 0, 0, 100, 0), 100);
+  assert.equal(distToSegment(-30, 40, 0, 0, 100, 0), 50);
+  // A zero-length edge is a point, not a division by zero.
+  assert.equal(distToSegment(3, 4, 0, 0, 0, 0), 5);
+});
+
+test("a frame carries what it contains, and only that", async () => {
+  const { nodesInside } = await import("../core/board/types");
+  const n = (id: string, x: number, y: number, w = 40, h = 40) =>
+    ({ id, kind: "sticky" as const, x, y, w, h });
+
+  const frame = { x: 0, y: 0, w: 200, h: 200 };
+  const inside = n("in", 20, 20);
+  const straddling = n("edge", 180, 180);   // hangs over the corner
+  const outside = n("out", 400, 400);
+  const flush = n("flush", 160, 160);       // exactly touching the far edge
+
+  const got = nodesInside(frame, [inside, straddling, outside, flush]).map((x) => x.id);
+  // Containment, not intersection: a frame that grabbed everything it merely
+  // overlapped would drag its neighbours along every time it moved.
+  assert.deepEqual(got, ["in", "flush"]);
+});
+
+test("searchNodes matches text and filenames, in document order", async () => {
+  const { searchNodes } = await import("../core/board/types");
+  const nodes = [
+    { id: "a", kind: "sticky" as const, x: 0, y: 0, w: 1, h: 1, text: "Placement prep" },
+    { id: "b", kind: "file" as const, x: 0, y: 0, w: 1, h: 1, file: { name: "placements.pdf", path: "p", mime: "", size: 0 } },
+    { id: "c", kind: "sticky" as const, x: 0, y: 0, w: 1, h: 1, text: "unrelated" },
+  ];
+  assert.deepEqual(searchNodes(nodes, "place"), ["a", "b"], "matches text and filenames, case-insensitively");
+  assert.deepEqual(searchNodes(nodes, "PLACEMENTS.PDF"), ["b"]);
+  assert.deepEqual(searchNodes(nodes, "   "), [], "a blank query is not a match-everything");
+});

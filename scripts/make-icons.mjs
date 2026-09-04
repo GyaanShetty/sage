@@ -58,11 +58,25 @@ function svg(inset) {
 const STANDARD = Buffer.from(svg(14));
 const MASKABLE = Buffer.from(svg(22));
 
+/*
+ * The version suffix is the point, not decoration.
+ *
+ * Icons are cached harder than anything else on the web: a browser will serve
+ * /icon-192.png from disk for months, and an installed PWA keeps the icon it
+ * was installed with essentially forever. Replacing the bytes at the same URL
+ * therefore changes nothing on the device that already has it. A new filename
+ * is the only reliable way to make a new icon actually appear.
+ *
+ * Bump this when the mark changes, and update app/layout.tsx, app/manifest.ts
+ * and public/sw.js to match.
+ */
+const V = "v2";
+
 const out = [
-  ["public/icon-192.png", STANDARD, 192],
-  ["public/icon-512.png", STANDARD, 512],
-  ["public/icon-maskable.png", MASKABLE, 512],
-  ["public/apple-icon.png", STANDARD, 180], // iOS home screen
+  [`public/icon-192-${V}.png`, STANDARD, 192],
+  [`public/icon-512-${V}.png`, STANDARD, 512],
+  [`public/icon-maskable-${V}.png`, MASKABLE, 512],
+  [`public/apple-icon-${V}.png`, STANDARD, 180], // iOS home screen
 ];
 
 for (const [path, src, size] of out) {
@@ -72,5 +86,5 @@ for (const [path, src, size] of out) {
 
 // The manifest lists this first, so it has to stand on its own — no
 // currentColor, no CSS variables.
-writeFileSync("public/sage-mark.svg", svg(14).replace(/width="1024" height="1024"/, 'role="img" aria-label="SAGE"') + "\n");
-console.log("wrote public/sage-mark.svg");
+writeFileSync(`public/sage-mark-${V}.svg`, svg(14).replace(/width="1024" height="1024"/, 'role="img" aria-label="SAGE"') + "\n");
+console.log(`wrote public/sage-mark-${V}.svg`);

@@ -32,6 +32,16 @@ export function OutlookCard() {
   const [s, setS] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  /**
+   * What each authority answered.
+   *
+   * The whole difficulty with AADSTS700016 is that it names two GUIDs and
+   * says nothing about which of them to change. Showing the verdict for every
+   * authority turns that into a list where one line says PASS.
+   */
+  const [probes, setProbes] = useState<
+    { tenant: string; label: string; ok: boolean; code: string | null; message: string | null }[] | null
+  >(null);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/outlook").then((r) => r.json()).catch(() => null);
@@ -73,11 +83,17 @@ export function OutlookCard() {
    * the same question from the server and brings the answer back here.
    */
   const check = async () => {
-    setBusy(true); setNote("Asking Microsoft…");
+    setBusy(true); setNote("Asking Microsoft…"); setProbes(null);
     const j = await fetch("/api/outlook/check", { method: "POST" }).then((r) => r.json()).catch(() => null);
     setBusy(false);
-    if (j?.ok) setNote(j.data?.verdict ?? "Looks right.");
-    else setNote([j?.error, j?.data?.hint].filter(Boolean).join(" — ") || "Check failed.");
+    setProbes(Array.isArray(j?.data?.probes) ? j.data.probes : null);
+    if (j?.ok) {
+      setNote(j.data?.verdict ?? "Looks right.");
+      // A fix rewrote the stored tenant, so the panel above is now stale.
+      void load();
+    } else {
+      setNote([j?.error, j?.data?.hint].filter(Boolean).join(" — ") || "Check failed.");
+    }
   };
 
   const missing = s && (!s.hasId || !s.hasSecret);
@@ -99,6 +115,17 @@ export function OutlookCard() {
             <p>Redirect URI, must be registered in Azure: {s.redirectUri}</p>
             <p>Client ID being sent: {s.clientId ?? "—"}</p>
             <p>Directory being signed into: {s.tenant}</p>
+          </div>
+        )}
+
+        {probes && (
+          <div className="mt-2 space-y-0.5 font-mono text-[10px]">
+            {probes.map((p) => (
+              <p key={p.tenant} className={p.ok ? "text-[var(--up,#2fd07a)]" : "text-subtle"}>
+                {p.ok ? "PASS" : "FAIL"} · {p.label}
+                {!p.ok && p.code ? ` · ${p.code}` : ""}
+              </p>
+            ))}
           </div>
         )}
         {/*

@@ -3803,3 +3803,48 @@ test("searchNodes matches text and filenames, in document order", async () => {
   assert.deepEqual(searchNodes(nodes, "PLACEMENTS.PDF"), ["b"]);
   assert.deepEqual(searchNodes(nodes, "   "), [], "a blank query is not a match-everything");
 });
+
+test("edgePath bows out along each anchor's own face", async () => {
+  const { edgePath } = await import("../core/board/types");
+
+  // Right face to left face: the controls must push outward horizontally, or
+  // edges between neighbouring boxes lie on top of each other.
+  const d = edgePath({ x: 100, y: 50, side: "r" }, { x: 300, y: 50, side: "l" });
+  const nums = d.match(/-?\d+(\.\d+)?/g)!.map(Number);
+  // M x y C c1x c1y, c2x c2y, x2 y2
+  assert.deepEqual([nums[0], nums[1]], [100, 50], "starts at the first anchor");
+  assert.deepEqual([nums[6], nums[7]], [300, 50], "ends at the second");
+  assert.ok(nums[2] > 100, "first control bows right, off the right face");
+  assert.ok(nums[4] < 300, "second control bows left, off the left face");
+
+  // A short link stays nearly straight; a long one is capped rather than
+  // swinging across the board.
+  const short = edgePath({ x: 0, y: 0, side: "r" }, { x: 30, y: 0, side: "l" });
+  const long = edgePath({ x: 0, y: 0, side: "r" }, { x: 4000, y: 0, side: "l" });
+  assert.ok(Number(short.match(/-?\d+(\.\d+)?/g)![2]) <= 20 + 1e-9, "short links keep a minimum bow");
+  assert.ok(Number(long.match(/-?\d+(\.\d+)?/g)![2]) <= 140 + 1e-9, "and long ones are capped");
+
+  /*
+   * A free endpoint — an arrow into empty space — has no face to leave by.
+   * Its control point must not coincide with the endpoint: the tangent there
+   * would be undefined and the arrowhead, oriented along it, points in an
+   * arbitrary direction. That is exactly what it did.
+   */
+  const free = edgePath({ x: 0, y: 0, side: "r" }, { x: 200, y: 0 });
+  const f = free.match(/-?\d+(\.\d+)?/g)!.map(Number);
+  assert.notDeepEqual([f[4], f[5]], [f[6], f[7]], "the loose end's control must not sit on the endpoint");
+});
+
+test("inkPath smooths through midpoints and still reaches both ends", async () => {
+  const { inkPath } = await import("../core/board/types");
+
+  assert.equal(inkPath([]), "", "no points is no path, not a broken one");
+  assert.equal(inkPath([1, 2]), "");
+  // Two points cannot be curved, so they stay a line.
+  assert.equal(inkPath([0, 0, 10, 10]), "M 0 0 L 10 10");
+
+  const d = inkPath([0, 0, 10, 20, 20, 0, 30, 20]);
+  assert.ok(d.startsWith("M 0 0"), "starts on the first sample");
+  assert.ok(d.endsWith("L 30 20"), "and finishes on the last, which is a control point for nothing");
+  assert.ok(d.includes("Q"), "the middle is quadratic, not a polyline");
+});

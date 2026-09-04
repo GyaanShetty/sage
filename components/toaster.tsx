@@ -116,7 +116,7 @@ export function Toaster() {
             if (!d) continue;
             push(d);
             if (d.kind === "alert" && "Notification" in window && Notification.permission === "granted") {
-              new Notification(`SAGE · ${d.title}`, { body: d.body, icon: "/icon-192.png" });
+              new Notification(`SAGE · ${d.title}`, { body: d.body, icon: "/icon-192-v2.png" });
             }
           }
         }

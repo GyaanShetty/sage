@@ -99,7 +99,7 @@ export async function credsStatus(): Promise<{
   };
 }
 
-export async function outlookAuthUrl(): Promise<string | null> {
+export async function outlookAuthUrl(tenantOverride?: string): Promise<string | null> {
   const creds = await outlookCreds();
   if (!creds) return null;
   const params = new URLSearchParams({
@@ -112,7 +112,7 @@ export async function outlookAuthUrl(): Promise<string | null> {
     // re-consents rather than silently reusing the old, narrower grant.
     prompt: "consent",
   });
-  return `${authority(await outlookTenant(), "authorize")}?${params}`;
+  return `${authority(tenantOverride ?? (await outlookTenant()), "authorize")}?${params}`;
 }
 
 interface TokenResponse { access_token: string; refresh_token?: string; expires_in: number }

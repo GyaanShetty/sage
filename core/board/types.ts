@@ -11,7 +11,7 @@
  * the kind of bug that survives a demo.
  */
 
-export type NodeKind = "sticky" | "text" | "rect" | "ellipse" | "file" | "image" | "frame";
+export type NodeKind = "sticky" | "text" | "rect" | "ellipse" | "file" | "image" | "frame" | "live";
 
 export interface BoardNode {
   id: string;
@@ -28,6 +28,14 @@ export interface BoardNode {
    * ever be undefined.
    */
   file?: { name: string; path: string; mime: string; size: number; readable?: boolean; chars?: number };
+  /**
+   * For live nodes: which part of SAGE this card is bound to.
+   *
+   * This is the thing no other whiteboard can do — a node that *is* your open
+   * tasks or your holdings and stays current, rather than a note about them
+   * that was true the day you wrote it.
+   */
+  live?: { source: string; arg?: string };
 }
 
 export type Tone = "signal" | "amber" | "cyan" | "green" | "plain";
@@ -392,3 +400,65 @@ export function guidesFor(
   }
   return { v: [...new Set(v)], h: [...new Set(h)] };
 }
+
+/* ── edges, frames and live nodes ─────────────────────────────────────── */
+
+/**
+ * How far a point is from a line segment.
+ *
+ * For clicking an arrow. Distance to the infinite line is the tempting
+ * version and it is wrong: it selects an arrow from anywhere along its
+ * extension, so clicking empty canvas half a screen away picks an edge you
+ * cannot see. Clamping to the segment is the whole job.
+ */
+export function distToSegment(
+  px: number, py: number,
+  ax: number, ay: number, bx: number, by: number,
+): number {
+  const vx = bx - ax, vy = by - ay;
+  const len2 = vx * vx + vy * vy;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * vx + (py - ay) * vy) / len2));
+  return Math.hypot(px - (ax + t * vx), py - (ay + t * vy));
+}
+
+/**
+ * Which nodes a frame carries.
+ *
+ * Containment, not intersection — the opposite of the marquee rule, and
+ * deliberately so. A marquee is a gesture you aim; a frame is a container, and
+ * one that grabbed every node it merely overlapped would drag its neighbours
+ * along every time it moved.
+ */
+export function nodesInside(frame: Rect, nodes: BoardNode[]): BoardNode[] {
+  return nodes.filter(
+    (n) =>
+      n.x >= frame.x && n.y >= frame.y &&
+      n.x + n.w <= frame.x + frame.w &&
+      n.y + n.h <= frame.y + frame.h,
+  );
+}
+
+/** Where an edge's label sits: the midpoint of the drawn segment. */
+export function midpoint(a: { x: number; y: number }, b: { x: number; y: number }) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+/**
+ * Node text search.
+ *
+ * Case-insensitive across everything a node can be identified by — its text
+ * and, for attachments, the filename. Returns ids in document order so
+ * stepping through hits with Enter is stable rather than jumping around.
+ */
+export function searchNodes(nodes: BoardNode[], query: string): string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return nodes
+    .filter((n) => `${n.text ?? ""} ${n.file?.name ?? ""}`.toLowerCase().includes(q))
+    .map((n) => n.id);
+}
+
+/** The sources a live node can be bound to. */
+export const LIVE_SOURCES = ["tasks", "markets", "health", "calendar", "career"] as const;
+export type LiveSource = (typeof LIVE_SOURCES)[number];

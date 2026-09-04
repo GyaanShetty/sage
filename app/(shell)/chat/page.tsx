@@ -9,7 +9,10 @@ import {
   loadThreadMessages,
 } from "@/infrastructure/db/threads";
 
-export const metadata: Metadata = { title: "Chat" };
+export const metadata: Metadata = {
+  title: "Chat",
+  description: "Talk to SAGE with everything it knows about you already loaded.",
+};
 export const dynamic = "force-dynamic";
 
 export default async function ChatPage({

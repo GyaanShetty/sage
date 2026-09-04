@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { OpsView } from "@/features/dashboard/components/ops-view";
 
-export const metadata: Metadata = { title: "Ops" };
+export const metadata: Metadata = {
+  title: "Ops",
+  description: "SAGE's standing state: skills, budget, decisions, weather, machinery and keys.",
+};
 export const dynamic = "force-dynamic";
 
 /**

@@ -26,6 +26,8 @@ import "./mail.css";
 interface Row {
   id?: string; from: string; subject: string; snippet: string;
   date: string; unread: boolean; important?: boolean;
+  /** Outlook's own deep link. Gmail's is built from the id instead. */
+  webLink?: string;
 }
 interface Attachment {
   attachmentId: string; filename: string; mimeType: string;
@@ -78,6 +80,19 @@ interface Summary {
   suggestedReply: string;
 }
 
+/**
+ * The two mailboxes, kept separate rather than merged.
+ *
+ * A merged list has to explain, on every row, which account a message came
+ * from — and the two accounts mean different things to him: one is personal,
+ * one is university. Two tabs is one extra click and no ambiguity.
+ */
+const ACCOUNTS = [
+  { key: "gmail", label: "GMAIL" },
+  { key: "outlook", label: "OUTLOOK" },
+] as const;
+type Account = (typeof ACCOUNTS)[number]["key"];
+
 const VIEWS = [
   { key: "unread", label: "UNREAD" },
   { key: "inbox", label: "INBOX" },
@@ -102,6 +117,7 @@ function address(raw: string): string {
 }
 
 export function MailView() {
+  const [account, setAccount] = useState<Account>("gmail");
   const [view, setView] = useState("unread");
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -113,20 +129,26 @@ export function MailView() {
   const [reply, setReply] = useState("");
   const [drafted, setDrafted] = useState<"idle" | "saving" | "done" | "error">("idle");
 
-  const load = useCallback(async (v: string, search: string) => {
-    setRows(null); setErr(null);
-    const params = search.trim() ? `q=${encodeURIComponent(search.trim())}` : `view=${v}`;
-    const j = await fetch(`/api/mail?${params}`).then((r) => r.json()).catch(() => null);
-    if (!j?.ok) { setErr(j?.error ?? "Couldn't reach Gmail."); setRows([]); return; }
+  const load = useCallback(async (acct: Account, v: string, search: string) => {
+    setRows(null); setErr(null); setOpenId(null); setFull(null);
+    const params = search.trim()
+      ? `q=${encodeURIComponent(search.trim())}&view=${v}`
+      : `view=${v}`;
+    const j = await fetch(`/api/mail?${params}&account=${acct}`).then((r) => r.json()).catch(() => null);
+    if (!j?.ok) {
+      setErr(j?.error ?? `Couldn't reach ${acct === "outlook" ? "Outlook" : "Gmail"}.`);
+      setRows([]);
+      return;
+    }
     setRows(j.data.messages as Row[]);
   }, []);
-  useEffect(() => { void load(view, q); /* eslint-disable-next-line */ }, [view]);
+  useEffect(() => { void load(account, view, q); /* eslint-disable-next-line */ }, [account, view]);
 
   const open = async (id?: string) => {
     if (!id) return;
     if (openId === id) { setOpenId(null); return; }
     setOpenId(id); setFull(null); setSummary(null); setReply(""); setDrafted("idle");
-    const j = await fetch(`/api/mail?id=${encodeURIComponent(id)}`).then((r) => r.json()).catch(() => null);
+    const j = await fetch(`/api/mail?id=${encodeURIComponent(id)}&account=${account}`).then((r) => r.json()).catch(() => null);
     if (j?.ok) setFull(j.data as Full);
   };
 
@@ -134,7 +156,7 @@ export function MailView() {
     setSummarising(true);
     const j = await fetch("/api/mail", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ action: "summarise", id }),
+      body: JSON.stringify({ action: "summarise", id, account }),
     }).then((r) => r.json()).catch(() => null);
     setSummarising(false);
     if (j?.ok) {
@@ -169,6 +191,17 @@ export function MailView() {
       </div>
 
       <div className="ml-bar">
+        <div className="ml-views ml-accts">
+          {ACCOUNTS.map((a) => (
+            <button
+              key={a.key}
+              onClick={() => { setQ(""); setView("unread"); setAccount(a.key); }}
+              className={cn("ml-view", account === a.key && "on")}
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
         <div className="ml-views">
           {VIEWS.map((v) => (
             <button
@@ -180,12 +213,14 @@ export function MailView() {
             </button>
           ))}
         </div>
-        <form className="ml-search" onSubmit={(e) => { e.preventDefault(); void load(view, q); }}>
+        <form className="ml-search" onSubmit={(e) => { e.preventDefault(); void load(account, view, q); }}>
           <Search className="size-3.5 shrink-0" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Gmail search — from:x, has:attachment, newer_than:7d…"
+            placeholder={account === "outlook"
+              ? "Search subject, sender and preview…"
+              : "Gmail search — from:x, has:attachment, newer_than:7d…"}
           />
         </form>
       </div>
@@ -226,10 +261,12 @@ export function MailView() {
                         </button>
                         <a
                           className="ml-btn"
-                          href={`https://mail.google.com/mail/u/0/#inbox/${full.id}`}
+                          href={account === "outlook"
+                            ? (full.webLink ?? "https://outlook.office.com/mail/")
+                            : `https://mail.google.com/mail/u/0/#inbox/${full.id}`}
                           target="_blank" rel="noreferrer"
                         >
-                          <ExternalLink className="size-3" /> OPEN IN GMAIL
+                          <ExternalLink className="size-3" /> OPEN IN {account === "outlook" ? "OUTLOOK" : "GMAIL"}
                         </a>
                       </div>
 
@@ -256,6 +293,18 @@ export function MailView() {
                         <Attachments messageId={full.id as string} files={full.attachments} />
                       ) : null}
 
+                      {/*
+                        Stated, not hidden. SAGE holds Mail.Read on Outlook, so
+                        drafting genuinely cannot work — and a compose box that
+                        silently disappears on one account reads as a bug,
+                        while one that appears and fails is worse.
+                      */}
+                      {account === "outlook" ? (
+                        <div className="ml-noreply">
+                          Read-only on Outlook — SAGE has <code>Mail.Read</code> only.
+                          Reply in Outlook, or ask me to widen the permission.
+                        </div>
+                      ) : (
                       <div className="ml-reply">
                         <textarea
                           value={reply}
@@ -270,6 +319,7 @@ export function MailView() {
                             : <><PenLine className="size-3" /> SAVE DRAFT</>}
                         </button>
                       </div>
+                      )}
                     </>
                   )}
                 </div>

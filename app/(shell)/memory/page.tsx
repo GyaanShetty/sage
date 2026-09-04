@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { MemoryView, type MemoryItem } from "@/features/memory/components/memory-view";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 
-export const metadata: Metadata = { title: "Memory" };
+export const metadata: Metadata = {
+  title: "Memory",
+  description: "What SAGE remembers about you, and why.",
+};
 export const dynamic = "force-dynamic";
 
 export default async function MemoryPage() {

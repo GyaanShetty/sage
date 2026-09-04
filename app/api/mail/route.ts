@@ -3,9 +3,48 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
 import { listGmail, getGmailMessage, createGmailDraft } from "@/infrastructure/integrations/google";
+import { listOutlookMail, readOutlookMail, type OutlookMessage } from "@/infrastructure/integrations/outlook";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
+
+/**
+ * Outlook, normalised into the shape the mail view already reads.
+ *
+ * The normalising happens here rather than in the client on purpose: a second
+ * message shape reaching the view means every feature — the list, the reader,
+ * the summariser, the attachment strip — gets written twice, and the second
+ * copy is the one that rots. One shape in, one set of behaviours.
+ *
+ * Graph gives no snippet separate from the body, so bodyPreview is the
+ * snippet. Bodies arrive as HTML; they are stripped to text here because the
+ * view renders bodies as text and never as markup — a mail body is untrusted
+ * markup from anyone who knows your address.
+ */
+function fromOutlook(m: OutlookMessage, withBody = false) {
+  const text = (m.body ?? "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return {
+    id: m.id,
+    // The view's `sender()` reads the `Name <address>` form, so it is
+    // reassembled here rather than teaching the view a second convention.
+    from: m.fromName && m.from ? `${m.fromName} <${m.from}>` : m.from || m.fromName,
+    subject: m.subject,
+    snippet: m.preview,
+    date: m.receivedAt,
+    unread: m.unread,
+    webLink: m.webLink,
+    ...(withBody ? { to: "", body: text || m.preview } : {}),
+  };
+}
 
 /** Mailbox views, mapped to the Gmail queries behind them. */
 const VIEWS: Record<string, string> = {
@@ -18,6 +57,37 @@ const VIEWS: Record<string, string> = {
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const id = url.searchParams.get("id");
+  const account = url.searchParams.get("account") === "outlook" ? "outlook" : "gmail";
+
+  if (account === "outlook") {
+    if (id) {
+      const msg = await readOutlookMail(id);
+      if (!msg) return NextResponse.json({ ok: false, error: "Outlook isn't connected, or that message is gone." }, { status: 404 });
+      return NextResponse.json({ ok: true, data: fromOutlook(msg, true) });
+    }
+
+    const mail = await listOutlookMail(50);
+    if (mail === null) {
+      return NextResponse.json({ ok: false, error: "Outlook isn't connected — Settings → Connect Outlook." }, { status: 400 });
+    }
+
+    /*
+     * Graph has no query language to hand a view to, so the views are applied
+     * here. "important" and "starred" have no Outlook equivalent under
+     * Mail.Read, so they fall back to the inbox rather than returning an empty
+     * list that reads as "no important mail" when it means "not supported".
+     */
+    const view = url.searchParams.get("view") ?? "unread";
+    const search = url.searchParams.get("q")?.trim().toLowerCase();
+    let rows = mail;
+    if (search) {
+      rows = mail.filter((m) =>
+        `${m.subject} ${m.fromName} ${m.from} ${m.preview}`.toLowerCase().includes(search));
+    } else if (view === "unread") {
+      rows = mail.filter((m) => m.unread);
+    }
+    return NextResponse.json({ ok: true, data: { query: search || view, messages: rows.map((m) => fromOutlook(m)) } });
+  }
 
   // One message, in full.
   if (id) {
@@ -50,6 +120,7 @@ const summarySchema = z.object({
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     action?: "summarise" | "draft";
+    account?: "gmail" | "outlook";
     id?: string;
     to?: string; subject?: string; text?: string;
   };
@@ -67,7 +138,14 @@ export async function POST(req: Request) {
 
   if (!body.id) return NextResponse.json({ ok: false, error: "id required" }, { status: 400 });
 
-  const msg = await getGmailMessage(body.id);
+  /*
+   * Summarising is the reason to read mail inside SAGE at all, so it works on
+   * both accounts. Only drafting is Gmail-only, and that is a scope limit
+   * rather than a decision: Outlook is connected with Mail.Read.
+   */
+  const msg = body.account === "outlook"
+    ? await readOutlookMail(body.id).then((m) => (m ? fromOutlook(m, true) : null))
+    : await getGmailMessage(body.id);
   if (!msg) return NextResponse.json({ ok: false, error: "Couldn't read that message." }, { status: 404 });
 
   const model = getModel("fast");

@@ -17,6 +17,7 @@
 import { useState, type ReactNode } from "react";
 import { Brackets, Hazard } from "@/components/chrome";
 import { ExpandModal } from "@/components/expand-modal";
+import { TileGuard } from "@/components/tile-guard";
 
 export interface PaneProps {
   /** Screen number, shown as `NN)`. Stable per pane — it is an address. */
@@ -88,7 +89,24 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, no
           )}
         </header>
       )}
-      <div className="pane-body">{children}</div>
+      {/*
+        Every pane guards its own body.
+
+        TileGuard was applied by hand at the call sites, which meant coverage
+        was a matter of remembering — and six panes on the wall (the map, the
+        focus cycle, deadlines, what now, gita, the month) were never wrapped.
+        A throw in any of them unmounted the whole application and produced
+        Next's white "a client-side exception has occurred" page.
+
+        Guarding here instead makes it structural: a pane cannot be added
+        without the guard, because the guard is part of what a pane is. The
+        outer TileGuards at the call sites stay and simply never fire first —
+        they are the fallback for a tile that throws before it renders a Pane
+        at all.
+      */}
+      <div className="pane-body">
+        <TileGuard bare name={title}>{children}</TileGuard>
+      </div>
 
       {/*
         The magnified copy renders the same children rather than a second,
@@ -105,7 +123,7 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, no
         >
           <div className="pane-mag">
             {edit}
-            {children}
+            <TileGuard bare name={title}>{children}</TileGuard>
           </div>
         </ExpandModal>
       )}

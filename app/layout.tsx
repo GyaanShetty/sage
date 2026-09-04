@@ -18,7 +18,19 @@ export const metadata: Metadata = {
   description: APP_TAGLINE,
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: APP_NAME },
-  icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
+  /*
+   * The tab icon, the iOS home-screen icon and the vector the manifest
+   * prefers, all rendered from the same mark by scripts/make-icons.mjs. The
+   * SVG is listed first so a browser that can scale it does, and the 192 is
+   * the raster fallback for the ones that cannot.
+   */
+  icons: {
+    icon: [
+      { url: "/sage-mark.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

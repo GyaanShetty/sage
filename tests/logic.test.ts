@@ -3552,3 +3552,37 @@ test("form payloads are typed, and empty optional fields are omitted", async () 
   assert.deepEqual(missingRequired(fields, { amount: "1" }), ["Merchant"]);
   assert.deepEqual(missingRequired(fields, {}), ["Amount", "Merchant"]);
 });
+
+/*
+ * Stale-chunk detection.
+ *
+ * This is the branch that decides between "reload the page" and "show the
+ * error", and getting it wrong is expensive in both directions: a real bug
+ * classed as a stale chunk reloads into the same crash, and a stale chunk
+ * classed as a real bug leaves him looking at a fault screen when a reload
+ * would have fixed it. Neither is visible in a browser until it happens to
+ * him, so it is tested here.
+ */
+test("isChunkError tells a stale deploy from a real bug", async () => {
+  const { isChunkError } = await import("../lib/crash");
+
+  const chunk = [
+    Object.assign(new Error("boom"), { name: "ChunkLoadError" }),
+    new Error("Loading chunk 4821 failed. (missing: /_next/static/chunks/4821.js)"),
+    new Error("Loading CSS chunk 12 failed."),
+    // Safari and Firefox, which is the phrasing the iPhone produces.
+    new Error("error loading dynamically imported module: /_next/static/chunks/x.js"),
+    new Error("Importing a module script failed."),
+  ];
+  for (const e of chunk) assert.equal(isChunkError(e), true, e.message);
+
+  const real = [
+    new TypeError("Cannot read properties of undefined (reading 'map')"),
+    new Error("t.filter is not a function"),
+    new Error("Minified React error #418"),
+  ];
+  for (const e of real) assert.equal(isChunkError(e), false, e.message);
+
+  assert.equal(isChunkError(null), false);
+  assert.equal(isChunkError(undefined), false);
+});

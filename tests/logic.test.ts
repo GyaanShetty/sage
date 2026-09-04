@@ -3586,3 +3586,74 @@ test("isChunkError tells a stale deploy from a real bug", async () => {
   assert.equal(isChunkError(null), false);
   assert.equal(isChunkError(undefined), false);
 });
+
+/*
+ * Board geometry.
+ *
+ * Every function here fails in a way that looks plausible on screen: an
+ * arrow that meets the wrong face still points roughly at the box, and a
+ * simplifier that rounds a corner still draws a line. That is exactly the
+ * class of bug that survives a demo and is only noticed once a diagram has
+ * been trusted, so it is pinned down here instead.
+ */
+test("anchorPoint meets the face the ray actually crosses", async () => {
+  const { anchorPoint } = await import("../core/board/types");
+
+  // A wide box, approached from 45° above-right. The ray reaches the top
+  // before the side, and an angle-only test gets this wrong.
+  const wide = { x: 0, y: 0, w: 200, h: 40 };
+  assert.equal(anchorPoint(wide, { x: 200, y: -100 }).side, "t");
+
+  // The same approach on a tall box reaches the side first.
+  const tall = { x: 0, y: 0, w: 40, h: 200 };
+  assert.equal(anchorPoint(tall, { x: 140, y: -60 }).side, "r");
+
+  // The four cardinals, on a square, land exactly on the midpoint of a face.
+  const sq = { x: 0, y: 0, w: 100, h: 100 };
+  const r = anchorPoint(sq, { x: 500, y: 50 });
+  assert.equal(r.side, "r");
+  assert.deepEqual([r.x, r.y], [100, 50]);
+  assert.equal(anchorPoint(sq, { x: 50, y: -500 }).side, "t");
+  assert.equal(anchorPoint(sq, { x: -500, y: 50 }).side, "l");
+  assert.equal(anchorPoint(sq, { x: 50, y: 500 }).side, "b");
+
+  // Target exactly on the centre: a face, never NaN. NaN renders as an arrow
+  // that silently disappears.
+  const d = anchorPoint(sq, { x: 50, y: 50 });
+  assert.ok(Number.isFinite(d.x) && Number.isFinite(d.y));
+});
+
+test("simplify drops collinear runs but keeps corners and endpoints", async () => {
+  const { simplify } = await import("../core/board/types");
+
+  // A straight line sampled at ten points is two points.
+  const line: number[] = [];
+  for (let i = 0; i <= 10; i++) line.push(i * 10, 0);
+  assert.deepEqual(simplify(line, 1), [0, 0, 100, 0]);
+
+  // A right angle must keep its vertex — rounding off the corner of a
+  // hand-drawn box means the drawing stops being the drawing.
+  const corner = [0, 0, 25, 0, 50, 0, 50, 25, 50, 50];
+  const out = simplify(corner, 1);
+  assert.deepEqual(out, [0, 0, 50, 0, 50, 50]);
+
+  // Endpoints always survive, and a two-point stroke is returned untouched.
+  assert.deepEqual(simplify([3, 4, 9, 12], 1), [3, 4, 9, 12]);
+
+  // And it genuinely shrinks a noisy stroke rather than merely reordering it.
+  const noisy: number[] = [];
+  for (let i = 0; i < 400; i++) noisy.push(i, Math.sin(i / 40) * 30);
+  const small = simplify(noisy, 2);
+  assert.ok(small.length < noisy.length / 4, `expected a large reduction, got ${small.length / 2} points`);
+  assert.deepEqual(small.slice(0, 2), [0, 0]);
+});
+
+test("strokeNear catches a crossing between samples, not just on them", async () => {
+  const { strokeNear } = await import("../core/board/types");
+  // Two points far apart: an eraser dragged across the middle of the segment
+  // must still hit it, or fast strokes survive being crossed out.
+  const s = { id: "s", pts: [0, 0, 100, 0] };
+  assert.equal(strokeNear(s, 50, 2, 5), true);
+  assert.equal(strokeNear(s, 50, 40, 5), false);
+  assert.equal(strokeNear(s, 0, 0, 1), true);
+});

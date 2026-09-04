@@ -2,13 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  MousePointer2, Hand, StickyNote, Type, Square, Circle, Frame, Pen, Eraser,
+  ArrowRight, Search, Undo2, Redo2, Maximize2, Download, Grid3x3, Trash2, Copy,
+  Layers, X,
+} from "lucide-react";
+import {
   type BoardDoc, type BoardNode, type Edge, type Tone, type Align, type Rect,
-  anchorPoint, centreOf, screenToBoard, simplify, strokeNear,
+  anchorPoint, centreOf, screenToBoard, simplify, strokeNear, edgePath, inkPath,
   snap, intersects, rectBetween, alignNodes, distributeNodes, contentBounds, fitView, guidesFor, GRID,
   nodesInside, distToSegment, midpoint, searchNodes,
 } from "@/core/board/types";
 import { type History, emptyHistory, record, undo as undoStep, redo as redoStep } from "./history";
 import { exportPng } from "./export";
+import { Minimap } from "./minimap";
 import "./board.css";
 
 /**
@@ -61,6 +67,27 @@ const SAVE_DEBOUNCE = 800;
 const INK_EPSILON = 0.8;
 
 const uid = () => crypto.randomUUID();
+
+/**
+ * The rail, in the order the hand reaches for it: what you point with, what
+ * you put down, what you draw with.
+ */
+/** The tools that create a node, and the node kind each one creates. */
+const PLACES = ["sticky", "text", "rect", "ellipse", "frame"] as const;
+type PlaceTool = (typeof PLACES)[number];
+
+const TOOLS: [Tool, typeof MousePointer2, string][] = [
+  ["select", MousePointer2, "Select (V)"],
+  ["pan", Hand, "Pan (H)"],
+  ["sticky", StickyNote, "Sticky note (N)"],
+  ["text", Type, "Text (T)"],
+  ["rect", Square, "Rectangle (R)"],
+  ["ellipse", Circle, "Ellipse (O)"],
+  ["frame", Frame, "Frame — moves what is inside it (F)"],
+  ["pen", Pen, "Pen (P)"],
+  ["eraser", Eraser, "Eraser (E)"],
+  ["arrow", ArrowRight, "Arrow — drag from a node's edge dot (A)"],
+];
 
 export function BoardCanvas({ initial }: { initial: BoardDoc }) {
   const [doc, setDoc] = useState<BoardDoc>(initial);
@@ -298,8 +325,12 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
 
     if (tool === "pen") { setInk([p.x, p.y]); (e.target as Element).setPointerCapture?.(e.pointerId); return; }
     if (tool === "eraser") { erase(p.x, p.y); (e.target as Element).setPointerCapture?.(e.pointerId); return; }
-    if (tool === "sticky" || tool === "text" || tool === "rect" || tool === "ellipse") {
-      addNode(tool, p.x, p.y);
+    // Every tool that puts something down. Listed from one place rather than
+    // re-enumerated here, or a new tool reaches the rail and the shortcut map
+    // and silently does nothing when clicked — which is exactly what the
+    // frame tool did.
+    if (PLACES.includes(tool as PlaceTool)) {
+      addNode(tool as BoardNode["kind"], p.x, p.y);
       return;
     }
 
@@ -791,8 +822,10 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
 
     const bPoint = b ? centreOf(b) : (e.to as { x: number; y: number });
     const aPoint = a ? centreOf(a) : (e.from as { x: number; y: number });
-    const p1 = a ? anchorPoint(a, bPoint) : aPoint;
-    const p2 = b ? anchorPoint(b, aPoint) : bPoint;
+    // The side matters now: the curve bows out along the face it leaves by,
+    // which is what stops six edges becoming a cat's cradle.
+    const p1 = a ? anchorPoint(a, bPoint) : { ...aPoint, side: undefined };
+    const p2 = b ? anchorPoint(b, aPoint) : { ...bPoint, side: undefined };
     return { p1, p2 };
   };
 
@@ -804,7 +837,25 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
   return (
     <div
       ref={hostRef}
-      className={`bd${tool === "pan" ? " is-pan" : ""}${tool === "pen" ? " is-ink" : ""}${tool === "eraser" ? " is-erase" : ""}${tool === "sticky" || tool === "text" ? " is-place" : ""}`}
+      /*
+       * `is-through` makes nodes ignore the pointer.
+       *
+       * Nodes stop propagation so that grabbing one does not also start a
+       * marquee — correct while selecting, and wrong for every other tool.
+       * It meant you could not draw across a sticky note, erase something
+       * sitting on top of a frame, or drop a note *inside* a frame, because
+       * the thing underneath swallowed the press. Those are not edge cases;
+       * they are what a frame is for.
+       */
+      className={[
+        "bd",
+        gesture.current?.kind === "move" ? "is-dragging" : "",
+        tool === "pan" ? "is-pan" : "",
+        tool === "pen" ? "is-ink" : "",
+        tool === "eraser" ? "is-erase" : "",
+        PLACES.includes(tool as PlaceTool) ? "is-place" : "",
+        tool !== "select" && tool !== "pan" && tool !== "arrow" ? "is-through" : "",
+      ].filter(Boolean).join(" ")}
       onPointerDownCapture={onDownCapture}
       onPointerMoveCapture={onMoveCapture}
       onPointerUpCapture={onUpCapture}
@@ -831,12 +882,12 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
         </defs>
         <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
           {doc.strokes.map((s) => (
-            <path key={s.id} d={pathOf(s.pts)} fill="none"
+            <path key={s.id} d={inkPath(s.pts)} fill="none"
               stroke={TONE_CSS[s.tone ?? "plain"]} strokeWidth={s.w ?? 2}
               strokeLinecap="round" strokeLinejoin="round" />
           ))}
           {ink && (
-            <path d={pathOf(ink)} fill="none" stroke={TONE_CSS[tone]} strokeWidth={penW}
+            <path d={inkPath(ink)} fill="none" stroke={TONE_CSS[tone]} strokeWidth={penW}
               strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />
           )}
           {doc.edges.map((e) => {
@@ -847,8 +898,18 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
             const mid = midpoint(g.p1, g.p2);
             return (
               <g key={e.id}>
-                <line x1={g.p1.x} y1={g.p1.y} x2={g.p2.x} y2={g.p2.y}
-                  stroke={c} strokeWidth={on ? 3 : 1.5} markerEnd={`url(#bd-ah-${e.tone ?? "plain"})`} />
+                {/* A fat transparent path under the real one: a 1.5px curve is
+                    impossible to click, and widening the visible stroke to
+                    make it clickable would ruin the drawing. */}
+                <path d={edgePath(g.p1, g.p2)} stroke="transparent" strokeWidth={14} fill="none" />
+                <path
+                  d={edgePath(g.p1, g.p2)}
+                  stroke={c}
+                  strokeWidth={on ? 2.5 : 1.5}
+                  fill="none"
+                  markerEnd={`url(#bd-ah-${e.tone ?? "plain"})`}
+                  className={on ? "bd-edge on" : "bd-edge"}
+                />
                 {e.label && (
                   <>
                     {/* A chip behind the text, or the arrow reads through it. */}
@@ -891,11 +952,10 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
               fill="none" stroke={TONE_CSS.signal} strokeWidth={2 / view.k} />
           )}
           {wire && byId.get(wire.from) && (
-            <line
-              x1={anchorPoint(byId.get(wire.from)!, wire).x}
-              y1={anchorPoint(byId.get(wire.from)!, wire).y}
-              x2={wire.x} y2={wire.y}
-              stroke={TONE_CSS[tone]} strokeWidth={1.5} strokeDasharray="4 3"
+            <path
+              d={edgePath(anchorPoint(byId.get(wire.from)!, wire), { x: wire.x, y: wire.y })}
+              stroke={TONE_CSS[tone]} strokeWidth={1.5} fill="none" strokeDasharray="5 4"
+              className="bd-wire"
             />
           )}
         </g>
@@ -966,15 +1026,19 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
       </div>
 
       <div className="bd-tools" onPointerDown={(e) => e.stopPropagation()}>
-        {([
-          ["select", "▷", "Select (V)"], ["pan", "✋", "Pan (H)"], ["sticky", "▤", "Sticky note (N)"],
-          ["text", "T", "Text (T)"], ["rect", "▭", "Rectangle (R)"], ["ellipse", "◯", "Ellipse (O)"],
-          ["frame", "⬚", "Frame — moves what is inside it (F)"],
-          ["pen", "✎", "Pen (P)"], ["eraser", "⌫", "Eraser (E)"],
-          ["arrow", "→", "Arrow — drag from a node's edge dot (A)"],
-        ] as [Tool, string, string][]).map(([id, glyph, label]) => (
-          <button key={id} className={tool === id ? "on" : ""} title={label} aria-label={label}
-            onClick={() => setTool(id)}>{glyph}</button>
+        {TOOLS.map(([id, Icon, label], i) => (
+          <button
+            key={id}
+            className={tool === id ? "on" : ""}
+            title={label}
+            aria-label={label}
+            onClick={() => setTool(id)}
+            // A hairline between the groups — pointer tools, content tools,
+            // drawing tools — so the rail reads as three decisions and not ten.
+            data-group={i === 2 || i === 7 ? "start" : undefined}
+          >
+            <Icon className="size-[15px]" strokeWidth={1.6} />
+          </button>
         ))}
       </div>
 
@@ -1000,10 +1064,10 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
           ] as [Align | "dist-x" | "dist-y", string, string][]).map(([how, glyph, label]) => (
             <button key={how} title={label} aria-label={label} onClick={() => arrange(how)}>{glyph}</button>
           ))}
-          <button title="Bring to front" aria-label="Bring to front" onClick={() => restack("front")}>⌃</button>
-          <button title="Send to back" aria-label="Send to back" onClick={() => restack("back")}>⌄</button>
-          <button title="Duplicate" aria-label="Duplicate" onClick={() => { copy(); paste(); }}>⧉</button>
-          <button title="Delete" aria-label="Delete selection" onClick={() => removeSelection()}>✕</button>
+          <button title="Bring to front" aria-label="Bring to front" onClick={() => restack("front")}><Layers className="size-3.5" /></button>
+          <button title="Send to back" aria-label="Send to back" onClick={() => restack("back")}><Layers className="size-3.5 rotate-180" /></button>
+          <button title="Duplicate" aria-label="Duplicate" onClick={() => { copy(); paste(); }}><Copy className="size-3.5" /></button>
+          <button title="Delete" aria-label="Delete selection" onClick={() => removeSelection()}><Trash2 className="size-3.5" /></button>
         </div>
       )}
 
@@ -1026,7 +1090,7 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
             }}
           />
           <span>{find ? `${hits.length ? findAt + 1 : 0}/${hits.length}` : ""}</span>
-          <button onClick={() => { setFindOpen(false); setFind(""); }} aria-label="Close find">✕</button>
+          <button onClick={() => { setFindOpen(false); setFind(""); }} aria-label="Close find"><X className="size-3" /></button>
         </div>
       )}
 
@@ -1103,37 +1167,54 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
         <span><b>{doc.nodes.length}</b> nodes</span>
         <span><b>{doc.strokes.length}</b> strokes</span>
         <button onClick={() => setView({ x: 0, y: 0, k: 1 })} title="Reset zoom (⌘0)">{Math.round(view.k * 100)}%</button>
-        <button onClick={zoomToFit} title="Fit everything on screen (⌘1)">FIT</button>
-        <button onClick={() => setFindOpen(true)} title="Find on this board (⌘F)">FIND</button>
-        <button onClick={() => undo()} title="Undo (⌘Z)">↺</button>
-        <button onClick={() => redo()} title="Redo (⇧⌘Z)">↻</button>
+        <button onClick={zoomToFit} title="Fit everything on screen (⌘1)" aria-label="Zoom to fit"><Maximize2 className="size-3" /></button>
+        <button onClick={() => setFindOpen(true)} title="Find on this board (⌘F)" aria-label="Find"><Search className="size-3" /></button>
+        <button onClick={() => undo()} title="Undo (⌘Z)" aria-label="Undo"><Undo2 className="size-3" /></button>
+        <button onClick={() => redo()} title="Redo (⇧⌘Z)" aria-label="Redo"><Redo2 className="size-3" /></button>
         <button onClick={() => setSnapping((v) => !v)} title="Snap to grid — hold alt to override"
-          className={snapping ? "on" : ""}>{snapping ? "SNAP" : "FREE"}</button>
-        <button onClick={() => void download()} title="Export the whole board as a PNG">PNG</button>
+          className={snapping ? "on" : ""} aria-label="Toggle snapping"><Grid3x3 className="size-3" /></button>
+        <button onClick={() => void download()} title="Export the whole board as a PNG" aria-label="Export PNG"><Download className="size-3" /></button>
         <span className={status === "error" ? "sv" : ""}>
           {status === "saving" ? "SAVING" : status === "error" ? "UNSAVED" : "SAVED"}
         </span>
       </div>
 
       {note && (
-        <div className="bd-hud" style={{ right: 8, bottom: 40, color: "var(--signal)" }}
+        <div className="bd-hud bd-note"
           onPointerDown={(e) => e.stopPropagation()}>
           {note}
           <button onClick={() => setNote(null)}>✕</button>
         </div>
       )}
 
+      {/* Only on a board with nothing on it — an empty canvas is the least
+          informative screen a tool can show. */}
+      {!doc.nodes.length && !doc.strokes.length && (
+        <div className="bd-hint">
+          <h2>{doc.title}</h2>
+          <p>
+            Pick a tool on the left, or press <kbd>N</kbd> for a note,{" "}
+            <kbd>P</kbd> to draw, <kbd>F</kbd> for a frame.<br />
+            Drop a file anywhere. Drag from a note&rsquo;s edge to connect it.<br />
+            <kbd>Space</kbd>-free panning with two fingers or <kbd>alt</kbd>-drag.
+          </p>
+        </div>
+      )}
+
+      <Minimap
+        doc={doc}
+        view={view}
+        size={{ w: hostRef.current?.clientWidth ?? 0, h: hostRef.current?.clientHeight ?? 0 }}
+        onJump={(x, y) => {
+          const host = hostRef.current;
+          if (!host) return;
+          setView((v) => ({ ...v, x: host.clientWidth / 2 - x * v.k, y: host.clientHeight / 2 - y * v.k }));
+        }}
+      />
+
       {dropping && <div className="bd-drop">DROP TO ATTACH</div>}
     </div>
   );
-}
-
-/** An SVG path from the flat point array. */
-function pathOf(pts: number[]): string {
-  if (pts.length < 4) return "";
-  let d = `M ${pts[0]} ${pts[1]}`;
-  for (let i = 2; i < pts.length; i += 2) d += ` L ${pts[i]} ${pts[i + 1]}`;
-  return d;
 }
 
 function NodeView({
@@ -1193,9 +1274,11 @@ function NodeView({
     >
       {!bareText && (
         <header className="bd-n-hd" onPointerDown={(e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey); onDragStart(e); }}>
-          <span>{label}</span>
+          {/* A frame's title is its header. A caption floating in the middle
+              of an empty region reads as a note someone left there. */}
+          <span>{n.kind === "frame" ? (n.text || "FRAME") : label}</span>
           <button title="Delete" aria-label="Delete node"
-            onPointerDown={(e) => e.stopPropagation()} onClick={onRemove}>✕</button>
+            onPointerDown={(e) => e.stopPropagation()} onClick={onRemove}><X className="size-3" /></button>
         </header>
       )}
 
@@ -1207,7 +1290,7 @@ function NodeView({
           ? (e) => { e.stopPropagation(); onSelect(e.shiftKey || e.metaKey); onDragStart(e); }
           : undefined}
       >
-        {(n.kind === "sticky" || n.kind === "text" || n.kind === "rect" || n.kind === "ellipse" || n.kind === "frame") && (
+        {(n.kind === "sticky" || n.kind === "text" || n.kind === "rect" || n.kind === "ellipse") && (
           editing ? (
             <textarea
               ref={taRef}
@@ -1221,13 +1304,24 @@ function NodeView({
             <div style={{ whiteSpace: "pre-wrap" }}>
               {n.text || (
                 <span style={{ color: "var(--subtle)" }}>
-                  {n.kind === "rect" || n.kind === "ellipse" || n.kind === "frame"
+                  {n.kind === "rect" || n.kind === "ellipse"
                     ? "Double-click to label"
                     : "Double-click to write"}
                 </span>
               )}
             </div>
           )
+        )}
+
+        {n.kind === "frame" && editing && (
+          <textarea
+            ref={taRef}
+            value={n.text ?? ""}
+            placeholder="Frame name…"
+            onChange={(e) => onText(e.target.value)}
+            onBlur={onBlur}
+            onPointerDown={(e) => e.stopPropagation()}
+          />
         )}
 
         {n.kind === "image" && n.file && (

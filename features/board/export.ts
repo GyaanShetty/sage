@@ -1,4 +1,4 @@
-import { type BoardDoc, type BoardNode, type Tone, centreOf, contentBounds } from "@/core/board/types";
+import { type BoardDoc, type BoardNode, type Tone, anchorPoint, centreOf, contentBounds, edgePath, inkPath } from "@/core/board/types";
 
 /**
  * Render a board to a PNG.
@@ -56,14 +56,13 @@ export async function exportPng(doc: BoardDoc, scale = 2): Promise<Blob | null> 
 
   // Ink first, so a note dropped over a scribble covers it here exactly as it
   // does on screen.
+  // Path2D takes the same SVG path data the canvas renders, so the export is
+  // the drawing rather than a straight-segment approximation of it.
   for (const s of doc.strokes) {
     if (s.pts.length < 4) continue;
     ctx.strokeStyle = TONE_CSS[s.tone ?? "plain"];
     ctx.lineWidth = s.w ?? 2;
-    ctx.beginPath();
-    ctx.moveTo(s.pts[0], s.pts[1]);
-    for (let i = 2; i < s.pts.length; i += 2) ctx.lineTo(s.pts[i], s.pts[i + 1]);
-    ctx.stroke();
+    ctx.stroke(new Path2D(inkPath(s.pts)));
   }
 
   const byId = new Map(doc.nodes.map((n) => [n.id, n]));
@@ -71,24 +70,56 @@ export async function exportPng(doc: BoardDoc, scale = 2): Promise<Blob | null> 
     const a = "node" in e.from ? byId.get(e.from.node) : e.from;
     const b = "node" in e.to ? byId.get(e.to.node) : e.to;
     if (!a || !b) continue;
-    const end = (v: BoardNode | { x: number; y: number }) => ("w" in v ? centreOf(v) : v);
-    const ac = end(a), bc = end(b);
+    const isNode = (v: BoardNode | { x: number; y: number }): v is BoardNode => "w" in v;
+    const ac = isNode(a) ? centreOf(a) : a;
+    const bc = isNode(b) ? centreOf(b) : b;
+    const p1 = isNode(a) ? anchorPoint(a, bc) : { ...ac, side: undefined };
+    const p2 = isNode(b) ? anchorPoint(b, ac) : { ...bc, side: undefined };
+
     ctx.strokeStyle = TONE_CSS[e.tone ?? "plain"];
     ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(ac.x, ac.y);
-    ctx.lineTo(bc.x, bc.y);
-    ctx.stroke();
+    ctx.stroke(new Path2D(edgePath(p1, p2)));
 
-    // The head, drawn as a filled triangle along the line's own direction.
-    const ang = Math.atan2(bc.y - ac.y, bc.x - ac.x);
+    /*
+     * The head points along the curve, not along the chord.
+     *
+     * On a bowed edge those differ by enough to look broken — an arrowhead
+     * aimed at the far box while the line arrives from the side. The tangent
+     * at the end of a cubic runs from its last control point to its endpoint,
+     * and the control point sits along the anchor's own face.
+     */
+    const bow = Math.min(140, Math.max(20, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.4));
+    const c2 =
+      p2.side === "l" ? { x: p2.x - bow, y: p2.y }
+      : p2.side === "r" ? { x: p2.x + bow, y: p2.y }
+      : p2.side === "t" ? { x: p2.x, y: p2.y - bow }
+      : p2.side === "b" ? { x: p2.x, y: p2.y + bow }
+      // Free endpoint: the control bows back toward the start, matching
+      // edgePath, so the exported head points the same way the screen does.
+      : p1;
+    const ang = Math.atan2(p2.y - c2.y, p2.x - c2.x);
     ctx.fillStyle = TONE_CSS[e.tone ?? "plain"];
     ctx.beginPath();
-    ctx.moveTo(bc.x, bc.y);
-    ctx.lineTo(bc.x - 10 * Math.cos(ang - 0.4), bc.y - 10 * Math.sin(ang - 0.4));
-    ctx.lineTo(bc.x - 10 * Math.cos(ang + 0.4), bc.y - 10 * Math.sin(ang + 0.4));
+    ctx.moveTo(p2.x, p2.y);
+    ctx.lineTo(p2.x - 10 * Math.cos(ang - 0.4), p2.y - 10 * Math.sin(ang - 0.4));
+    ctx.lineTo(p2.x - 10 * Math.cos(ang + 0.4), p2.y - 10 * Math.sin(ang + 0.4));
     ctx.closePath();
     ctx.fill();
+
+    if (e.label) {
+      const m = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
+      ctx.font = "11px ui-monospace, Menlo, monospace";
+      const w = ctx.measureText(e.label).width + 12;
+      ctx.fillStyle = GROUND;
+      ctx.fillRect(m.x - w / 2, m.y - 9, w, 18);
+      ctx.strokeRect(m.x - w / 2, m.y - 9, w, 18);
+      ctx.fillStyle = TEXT;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(e.label, m.x, m.y);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+    }
   }
 
   for (const n of doc.nodes) {

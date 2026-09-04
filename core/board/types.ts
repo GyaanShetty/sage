@@ -448,6 +448,79 @@ export function midpoint(a: { x: number; y: number }, b: { x: number; y: number 
 }
 
 /**
+ * A curved path between two anchors, bowed along the face each one leaves by.
+ *
+ * Straight lines between boxes cross each other and cross the boxes, and a
+ * diagram of six nodes becomes a cat's cradle. Curving each end *out along
+ * its own face* — right leaves rightward, top leaves upward — makes edges
+ * separate naturally, and is why every diagramming tool that looks good does
+ * this and every one that does not looks like a wiring loom.
+ *
+ * The bow scales with the distance so short links stay nearly straight,
+ * capped so a long one does not swing across the board.
+ */
+export function edgePath(
+  p1: { x: number; y: number; side?: Side },
+  p2: { x: number; y: number; side?: Side },
+): string {
+  const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  const bow = Math.min(140, Math.max(20, dist * 0.4));
+  const out = (p: { x: number; y: number; side?: Side }, other: { x: number; y: number }) => {
+    switch (p.side) {
+      case "l": return { x: p.x - bow, y: p.y };
+      case "r": return { x: p.x + bow, y: p.y };
+      case "t": return { x: p.x, y: p.y - bow };
+      case "b": return { x: p.x, y: p.y + bow };
+      default: {
+        /*
+         * A free endpoint has no face to leave by, so it bows toward the other
+         * end — a third of the way along, which keeps the curve reading as one
+         * gesture.
+         *
+         * Returning the point itself, as this once did, makes the control
+         * point coincide with the endpoint. The tangent there is then
+         * undefined, and an arrowhead oriented along it points in an arbitrary
+         * direction — which is exactly how it looked: heads aimed at nothing.
+         */
+        const dx = other.x - p.x, dy = other.y - p.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const reach = Math.min(bow, len / 3);
+        return { x: p.x + (dx / len) * reach, y: p.y + (dy / len) * reach };
+      }
+    }
+  };
+  const c1 = out(p1, p2);
+  const c2 = out(p2, p1);
+  return `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`;
+}
+
+/**
+ * Smooth a polyline into quadratic curves through the midpoints.
+ *
+ * Raw pointer samples drawn as straight segments look like a seismograph at
+ * any real zoom — every hand tremor is a visible corner. Running the curve
+ * through the midpoint of each pair, with the sample itself as the control
+ * point, is the standard trick: it costs nothing, needs no extra points, and
+ * turns the same data into a line that looks drawn rather than plotted.
+ */
+export function inkPath(pts: number[]): string {
+  const n = pts.length / 2;
+  if (n < 2) return "";
+  if (n === 2) return `M ${pts[0]} ${pts[1]} L ${pts[2]} ${pts[3]}`;
+
+  let d = `M ${pts[0]} ${pts[1]}`;
+  for (let i = 1; i < n - 1; i++) {
+    const cx = pts[i * 2], cy = pts[i * 2 + 1];
+    const mx = (cx + pts[i * 2 + 2]) / 2;
+    const my = (cy + pts[i * 2 + 3]) / 2;
+    d += ` Q ${cx} ${cy}, ${mx} ${my}`;
+  }
+  // The final sample is a control point for nothing, so it is drawn to.
+  d += ` L ${pts[(n - 1) * 2]} ${pts[(n - 1) * 2 + 1]}`;
+  return d;
+}
+
+/**
  * Node text search.
  *
  * Case-insensitive across everything a node can be identified by — its text

@@ -61,6 +61,13 @@ const NEVER_FIT = [
    * pixel arithmetic with viewport units cannot be zoomed safely.
    */
   "/calendar",
+  /*
+   * The board is an infinite canvas that already fills the frame, and its
+   * pointer maths converts screen pixels to board coordinates. `zoom` scales
+   * those pixels without the conversion knowing, so every click would land
+   * somewhere other than where the cursor is.
+   */
+  "/board",
 ];
 
 export function FitPage() {

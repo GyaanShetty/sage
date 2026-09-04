@@ -1,0 +1,273 @@
+/*
+ * Board — the whiteboard, in the terminal's own language.
+ *
+ * The reference is Obsidian Canvas, but the surface has to read as part of
+ * SAGE rather than as a drawing app someone embedded: hairlines instead of
+ * shadows, square corners, the same red, and a grid you can navigate by.
+ */
+
+.bd {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background);
+  touch-action: none;              /* we own panning and pinch ourselves */
+  cursor: default;
+}
+.bd.is-pan { cursor: grab; }
+.bd.is-pan:active { cursor: grabbing; }
+.bd.is-ink { cursor: crosshair; }
+.bd.is-erase { cursor: cell; }
+.bd.is-place { cursor: copy; }
+.bd.is-arrow { cursor: crosshair; }
+
+/*
+ * The grid is painted as a background rather than as elements, so panning a
+ * board with a thousand nodes does not also move ten thousand grid lines.
+ * Two layers: fine cells, and a heavier line every tenth, which is what makes
+ * the zoom level legible without a readout.
+ */
+.bd-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--rule) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule) 1px, transparent 1px),
+    linear-gradient(to right, var(--rule-strong) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--rule-strong) 1px, transparent 1px);
+  opacity: 0.5;
+}
+
+.bd-layer {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.bd-svg {
+  position: absolute;
+  top: 0; left: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ── nodes ─────────────────────────────────────────────────────────────── */
+
+.bd-n {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule-strong);
+  background: var(--panel);
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow: hidden;
+}
+.bd-n.sel { border-color: var(--signal); box-shadow: 0 0 0 1px var(--signal-faint); }
+
+.bd-n-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--hairbg);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+  flex: none;
+  cursor: move;
+}
+.bd-n-hd button {
+  background: none;
+  border: 0;
+  color: var(--subtle);
+  font: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.bd-n-hd button:hover { color: var(--signal); }
+
+.bd-n-body { flex: 1; min-height: 0; padding: 6px 8px; overflow: auto; }
+
+/* The editor is a textarea, not a contenteditable: a sticky note is plain
+   text, and contenteditable buys rich formatting nobody asked for along with
+   every paste bug in the world. */
+.bd-n textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  resize: none;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+}
+.bd-n textarea::placeholder { color: var(--subtle); }
+
+/* Tones are palette slots, so changing the palette moves every board. */
+.bd-n.t-signal { border-color: var(--signal); }
+.bd-n.t-signal .bd-n-hd { background: var(--signal-faint); color: var(--signal); }
+.bd-n.t-amber { border-color: var(--warn); }
+.bd-n.t-amber .bd-n-hd { background: rgba(255, 107, 53, 0.13); color: var(--warn); }
+.bd-n.t-cyan { border-color: #35c7ff; }
+.bd-n.t-cyan .bd-n-hd { background: rgba(53, 199, 255, 0.13); color: #35c7ff; }
+.bd-n.t-green { border-color: #2fd07a; }
+.bd-n.t-green .bd-n-hd { background: rgba(47, 208, 122, 0.13); color: #2fd07a; }
+
+.bd-n-file { display: grid; gap: 4px; font-size: 11px; }
+.bd-n-file .nm { color: var(--foreground); word-break: break-all; }
+.bd-n-file .mt { color: var(--subtle); font-size: 10px; letter-spacing: 0.08em; }
+.bd-n-file .pv {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow: hidden;
+}
+.bd-n img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+/* The resize grip. Bottom-right only: four grips on every node is more chrome
+   than a board full of notes can carry. */
+.bd-rz {
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 12px; height: 12px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--rule-strong) 50%);
+}
+
+/* The four dots an arrow can be dragged from, one per face. */
+.bd-port {
+  position: absolute;
+  width: 9px; height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border: 1px solid var(--signal);
+  background: var(--background);
+  border-radius: 50%;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.bd-n:hover .bd-port, .bd-n.sel .bd-port { opacity: 1; }
+
+/* ── tool rail ─────────────────────────────────────────────────────────── */
+
+.bd-tools {
+  position: absolute;
+  top: 8px; left: 8px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule-strong);
+}
+.bd-tools button {
+  width: 34px; height: 30px;
+  display: grid;
+  place-items: center;
+  background: var(--panel);
+  border: 0;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.bd-tools button:hover { color: var(--foreground); background: var(--panel-hi); }
+.bd-tools button.on { background: var(--signal-faint); color: var(--signal); }
+
+.bd-tones { position: absolute; top: 8px; left: 50px; z-index: 5; display: flex; gap: 4px; }
+.bd-tones button {
+  width: 16px; height: 16px;
+  border: 1px solid var(--rule-strong);
+  background: var(--c);
+  cursor: pointer;
+  padding: 0;
+}
+.bd-tones button.on { outline: 1px solid var(--foreground); outline-offset: 1px; }
+
+.bd-hud {
+  position: absolute;
+  right: 8px; bottom: 8px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--rule-strong);
+  background: var(--panel);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.bd-hud b { color: var(--foreground); font-weight: 500; }
+.bd-hud .sv { color: var(--signal); }
+.bd-hud button {
+  background: none; border: 0; color: var(--muted);
+  font: inherit; letter-spacing: inherit; cursor: pointer; padding: 0;
+}
+.bd-hud button:hover { color: var(--signal); }
+
+.bd-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 59, 48, 0.08);
+  border: 1px dashed var(--signal);
+  color: var(--signal);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  pointer-events: none;
+}
+
+/* ── index ─────────────────────────────────────────────────────────────── */
+
+.bd-ix { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1px; background: var(--rule); }
+.bd-ix a, .bd-ix button.new {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  background: var(--panel);
+  border: 0;
+  color: var(--foreground);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+.bd-ix a:hover, .bd-ix button.new:hover { background: var(--panel-hi); }
+.bd-ix .ti { font-size: 14px; }
+.bd-ix .mt { font-size: 10px; letter-spacing: 0.1em; color: var(--subtle); text-transform: uppercase; }
+.bd-ix button.new { color: var(--signal); border: 1px dashed var(--rule-strong); }
+
+/*
+ * The board owns the whole frame.
+ *
+ * `main.hud-grid` is a padded scroll container, which is right for a document
+ * and wrong for an infinite canvas: the canvas has to be exactly the size of
+ * the space it is given, or its own panning fights the page's scrolling and
+ * pointer coordinates stop matching what is under the cursor.
+ */
+main.hud-grid:has(.bd) {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+main.hud-grid:has(.bd) > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }

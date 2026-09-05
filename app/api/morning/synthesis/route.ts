@@ -8,12 +8,13 @@ import { getMarkets } from "@/infrastructure/markets";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { TZ, tzHour, OWNER } from "@/lib/config";
 import { recentBriefs, noRepeatClause, dayContext } from "@/core/brief/variety";
+import { describeMail, gatherMail, rankMail } from "@/core/mail/triage";
 
 export const maxDuration = 60;
 
 const schema = z.object({
   summary: z.string().describe("2-3 sentence read of the morning: the big themes across the news"),
-  connections: z.array(z.string()).describe("Each ties a news theme to Gyaan's own world — his markets/crypto, tasks, or day"),
+  connections: z.array(z.string()).describe("Each ties a news theme to Gyaan's own world — his markets/crypto, tasks, mail, or day"),
   watch: z.array(z.string()).describe("Specific things to watch in the markets today, given the news"),
   actions: z.array(z.string()).describe(`2-4 short, concrete suggested tasks for ${OWNER}`),
   spoken: z.string().describe("A SHORT spoken briefing (2-3 sentences, ~45 words) that SAGE says ALOUD — NOT a rehash of the text above. Lead with the single sharpest insight, then one concrete suggestion. Conversational, warm, direct, first person to Gyaan ('sir'). No lists, no markdown."),
@@ -37,13 +38,18 @@ export async function GET(req: Request) {
   const cp = cached?.payload as { bucket?: string; data?: unknown } | null;
   if (cp?.bucket === bucket && cp.data && !refresh) return NextResponse.json({ ok: true, data: cp.data });
 
-  const [headlineSets, markets, events, { data: tasks }] = await Promise.all([
+  const [headlineSets, markets, events, mail, { data: tasks }] = await Promise.all([
     Promise.all(Object.keys(NEWS_SOURCES).map(async (k) => ({ source: NEWS_SOURCES[k].source, items: await getSourceHeadlines(k, 4) }))),
     getMarkets().catch(() => null),
     listUpcomingEvents(4).catch(() => null),
+    // The synthesis is the screen that connects things to each other, and his
+    // mail was the one input it had never been given — so it could tie a
+    // headline to a task but never to the email about it.
+    gatherMail(15).catch(() => []),
     db.from("Task").select("title").eq("userId", DEFAULT_USER_ID).in("status", ["todo", "doing"]).limit(10),
   ]);
   const previous = await recentBriefs("morning.synthesis", 3);
+  const important = mail.length ? await rankMail(mail, 4).catch(() => []) : [];
 
   const headlines = headlineSets
     .filter((s) => s.items.length)
@@ -55,8 +61,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, data: { summary: "Feeds unavailable right now — try again shortly.", connections: [], watch: [], actions: [], spoken: "Morning, sir. The feeds are quiet just now — give it a moment and I'll have your read ready." } });
   }
 
-  const system = `You are SAGE, ${OWNER}'s British chief of staff. He has just read his morning news. Synthesize it and INTERLINK it with his own world — his crypto/markets, his open tasks, his day. Be specific, sharp, and useful; connect dots he might miss. No fluff.`;
-  const prompt = `Today's headlines by source:\n${headlines}\n\n${OWNER}'s crypto/markets: ${JSON.stringify((markets ?? []).slice(0, 6).map((c) => ({ s: c.symbol, chg24h: c.change24h })))}\nHis open tasks: ${JSON.stringify((tasks ?? []).map((t) => t.title))}\nToday's events: ${JSON.stringify((events ?? []).map((e) => e.summary))}\n${dayContext(TZ)}${noRepeatClause(previous)}`;
+  const system = `You are SAGE, ${OWNER}'s British chief of staff. He has just read his morning news. Synthesize it and INTERLINK it with his own world — his crypto/markets, his open tasks, his mail, his day. Be specific, sharp, and useful; connect dots he might miss. No fluff.`;
+  const prompt = `Today's headlines by source:\n${headlines}\n\n${OWNER}'s crypto/markets: ${JSON.stringify((markets ?? []).slice(0, 6).map((c) => ({ s: c.symbol, chg24h: c.change24h })))}\nHis open tasks: ${JSON.stringify((tasks ?? []).map((t) => t.title))}\nMail that needs him (Gmail and Outlook):\n${describeMail(important)}\nToday's events: ${JSON.stringify((events ?? []).map((e) => e.summary))}\n${dayContext(TZ)}${noRepeatClause(previous)}`;
 
   // Try the smart model, then fall back to the fast one if it's busy/quota'd —
   // so the brief actually generates instead of showing "model busy".

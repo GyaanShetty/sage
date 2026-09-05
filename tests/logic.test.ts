@@ -333,7 +333,7 @@ const emptyDay: DayPicture = {
   now: new Date().toISOString(), weekday: "Monday", date: "3 August", weekend: false,
   events: [], next: null, committedMin: 0, load: "clear", longestGapMin: null, lastEventEndsAt: null,
   tasks: [], overdue: [], dueToday: [], headline: null, openCount: 0,
-  unread: [], opportunities: [], markets: [], portfolio: null, weather: null, reminders: [], goals: [], budget: null, training: null,
+  unread: [], importantMail: [], opportunities: [], markets: [], portfolio: null, weather: null, reminders: [], goals: [], budget: null, training: null,
 };
 
 test("describeDay states an empty day plainly instead of inventing work", () => {
@@ -3276,7 +3276,7 @@ test("the brief leads with career deadlines, and says nothing when there are non
 
   const withOpps = describeDay({
     ...emptyDay,
-    unread: [{ from: "someone", subject: "hello" }],
+    unread: [{ from: "someone", subject: "hello", account: "gmail" }],
     opportunities: [
       { subject: "Summer Analyst application", from: "Acme", deadline: "2026-03-01", kinds: ["internship", "deadline"] },
       { subject: "Interview slot", from: "Beta Corp", deadline: null, kinds: ["interview"] },

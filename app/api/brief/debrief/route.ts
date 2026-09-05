@@ -100,7 +100,18 @@ export async function GET(req: Request) {
       bits.push("Your task list is clear.");
     }
 
-    if (emails.length) bits.push(`${emails.length} unread ${emails.length === 1 ? "email" : "emails"} waiting.`);
+    // The fallback speaks when there is no model, so it too names mail rather
+    // than counting it — a brief that only ever says "four unread" is the
+    // thing this whole change exists to remove.
+    if (picture.importantMail.length) {
+      const m = picture.importantMail[0];
+      bits.push(`In your mail: ${m.from} on ${m.subject}.`);
+      if (picture.importantMail.length > 1) {
+        bits.push(`And ${picture.importantMail.length - 1} more worth a look.`);
+      }
+    } else if (emails.length) {
+      bits.push(`${emails.length} unread ${emails.length === 1 ? "email" : "emails"}, none of them pressing.`);
+    }
 
     const nifty = (quotes as { name: string; changePct: number }[]).find((q) => /nifty/i.test(q.name));
     if (nifty) bits.push(`The Nifty is ${nifty.changePct >= 0 ? "up" : "down"} ${Math.abs(nifty.changePct).toFixed(1)} percent.`);
@@ -120,11 +131,12 @@ Open with exactly "${g}, sir." then brief him properly, in this order, skipping 
 1. THE SHAPE OF THE DAY — how full it is and what the first commitment is, with its time. If the day is clear, say so; that is good news, not an absence.
 2. WHAT NEEDS DOING — lead with the single item flagged "lead with this one". Name it. If something is overdue, say how long by, with a little dry exasperation if it has been sitting a while.
 3. THE MARKETS — one honest line on his positions and the wider tape. Do not soften a loss.
-4. ANYTHING ELSE THAT MATTERS — an important email, the weather if it would change his plans, a nudge if he has not trained in days.
+4. THE MAIL — if anything is listed under "MAIL THAT NEEDS HIM", say who it is from and what it wants, in one line each, naming at most two. That is the whole reason he asked for this: a count of unread mail tells him nothing he did not already know. If nothing is listed, say the inbox has nothing pressing rather than listing what is in it.
+5. ANYTHING ELSE THAT MATTERS — the weather if it would change his plans, a nudge if he has not trained in days.
 
 Finish with one short characterful forward line, like "Shall we, sir?" or "Right then — let's make a dent."
 
-Be specific: real times, real names, real numbers, all of which are below. Never say "you have several tasks" when you have been given the count and the titles. Keep it flowing and conversational — 90 to 140 words, five to eight sentences.
+Be specific: real times, real names, real numbers, all of which are below. Never say "you have several tasks" when you have been given the count and the titles. Keep it flowing and conversational — 100 to 150 words, six to nine sentences.
 
 ${describeDay(picture)}
 

@@ -1,0 +1,235 @@
+/*
+ * The deck — three columns around a centre that holds the mark, over a band
+ * of six.
+ *
+ * The wall this sits beside is a grid of equal cells, because thirty panes
+ * only fit if none of them is special. The deck is the opposite claim: the
+ * middle column is special, and everything else is arranged around it. Both
+ * are right for what they are, which is why both exist.
+ */
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--rule);
+  min-height: 0;
+}
+
+.deck-cols {
+  display: grid;
+  gap: 1px;
+  min-height: 0;
+}
+
+.deck-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+}
+.deck-col > * { flex: 1; min-height: 0; overflow: hidden; }
+
+.deck-band {
+  display: grid;
+  gap: 1px;
+  min-height: 0;
+}
+/*
+ * A grid item's default `min-height: auto` is the size of its content, so a
+ * pane with a long list refuses to shrink and spills out past its own border
+ * — which is exactly how the band looked. This is the same rule the wall
+ * depends on, and it has to be restated for every track.
+ */
+.deck-band > *, .deck-cols > * { min-height: 0; }
+
+/* Below the breakpoint everything stacks and scrolls, the same bargain the
+   wall makes: a phone is already the constraint. */
+@media (max-width: 1399px) {
+  .deck-cols { grid-template-columns: 1fr; }
+  .deck-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .deck-col > *, .deck-band > * { min-height: 190px; }
+  .deck-col.is-centre { order: -1; }
+}
+
+@media (min-width: 1400px) {
+  .deck { flex: 1; height: 100%; overflow: hidden; }
+  /* The centre is widest, and the left column narrower than the right: the map
+     and the feeds read fine at that width, and the markets and task list do
+     not. */
+  .deck-cols {
+    flex: 3.05;
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.24fr) minmax(0, 1.16fr);
+  }
+  .deck-band {
+    flex: 1;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* ── the centre ─────────────────────────────────────────────────────────── */
+
+.deck-col.is-centre {
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+}
+.deck-col.is-centre > * { flex: none; }
+
+.deck-hero {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.6cqh, 20px);
+  padding: 16px clamp(16px, 4%, 44px);
+  container-type: size;
+  text-align: center;
+}
+
+.deck-sigil { flex: none; margin-bottom: 2px; }
+
+.deck-id h2 {
+  margin: 0;
+  font-size: clamp(16px, 3.4cqh, 26px);
+  font-weight: 300;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  color: var(--foreground);
+}
+.deck-id p {
+  margin: 4px 0 0;
+  font-size: clamp(8px, 1.3cqh, 10px);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+/* The ask bar: the only control on this screen that waits for you. */
+.deck-ask {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid var(--rule-strong);
+  background: var(--background);
+  transition: border-color 0.15s ease;
+}
+.deck-ask:focus-within { border-color: var(--signal-dim); }
+.deck-ask input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: 0;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+}
+.deck-ask input::placeholder { color: var(--subtle); }
+.deck-ask button {
+  display: grid;
+  place-items: center;
+  background: none;
+  border: 0;
+  color: var(--subtle);
+  cursor: pointer;
+  padding: 0 2px;
+}
+.deck-ask button:hover { color: var(--signal); }
+
+/* A little level meter beside the field, so the bar reads as something that
+   listens rather than as a search box. */
+.deck-ask-wave { display: flex; align-items: center; gap: 2px; height: 14px; }
+.deck-ask-wave i {
+  width: 2px;
+  background: var(--signal);
+  opacity: 0.75;
+  animation: deck-wave 1.25s ease-in-out infinite;
+}
+.deck-ask-wave i:nth-child(1) { height: 5px;  animation-delay: 0s; }
+.deck-ask-wave i:nth-child(2) { height: 10px; animation-delay: 0.12s; }
+.deck-ask-wave i:nth-child(3) { height: 14px; animation-delay: 0.24s; }
+.deck-ask-wave i:nth-child(4) { height: 9px;  animation-delay: 0.36s; }
+.deck-ask-wave i:nth-child(5) { height: 5px;  animation-delay: 0.48s; }
+@keyframes deck-wave {
+  0%, 100% { transform: scaleY(0.45); }
+  50% { transform: scaleY(1); }
+}
+
+.deck-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.deck-chips button {
+  padding: 5px 11px;
+  border: 1px solid var(--rule);
+  background: var(--glass);
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.deck-chips button:hover { color: var(--foreground); border-color: var(--rule-strong); }
+
+.deck-quote {
+  position: relative;
+  margin: 0;
+  padding: 10px 26px 0;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(9px, 1.5cqh, 11px);
+  line-height: 1.9;
+  color: var(--subtle);
+  max-width: 420px;
+}
+.deck-quote em { font-style: normal; display: block; letter-spacing: 0.08em; }
+.deck-quote b { display: block; font-weight: 400; color: var(--muted); }
+.deck-quote .q {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--faint);
+}
+.deck-quote .q.r { left: auto; right: 0; }
+
+/* ── quick access ───────────────────────────────────────────────────────── */
+
+.deck-quick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  height: 100%;
+  min-height: 0;
+}
+.deck-quick a {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 6px 2px;
+  background: var(--panel);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+.deck-quick a:hover { color: var(--signal); background: var(--panel-hi); }
+
+.deck-more { color: var(--subtle); text-decoration: none; }
+.deck-more:hover { color: var(--signal); }
+
+/* The deck owns the frame, exactly as the wall does. */
+main.hud-grid:has(.deck) { padding-bottom: 0; overflow: hidden; }
+@media (min-width: 1400px) {
+  main.hud-grid:has(.deck) { display: flex; flex-direction: column; }
+  main.hud-grid:has(.deck) > *,
+  main.hud-grid :has(> .deck) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
+  main.hud-grid .xs-strip { flex: none; }
+}

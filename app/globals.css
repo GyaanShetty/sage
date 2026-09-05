@@ -1384,3 +1384,89 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 /* The + sits left of ⤢ and is the same weight; it is a second door into the
    same room, not a more important one. */
 .pane-add { font-size: 12px; }
+
+/* ── the sigil ──────────────────────────────────────────────────────────
+   The mark as a centrepiece: a halo it sits inside, two arcs turning at
+   different rates so the motion never reads as a spinner, and the four
+   operations set either side. Sized entirely from --sigil so one number
+   scales the whole assembly. */
+
+.sigil {
+  position: relative;
+  width: var(--sigil);
+  height: var(--sigil);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.sigil-halo {
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--signal-faint) 0%, transparent 62%);
+  animation: sigil-breathe 6s ease-in-out infinite;
+}
+
+.sigil-ring {
+  position: absolute;
+  inset: 4%;
+  border-radius: 50%;
+  border: 1px solid var(--signal-dim);
+  /* Gapped rather than solid: a complete circle reads as a progress spinner,
+     and this is not measuring anything. */
+  mask: conic-gradient(from 0deg, #000 0 62%, transparent 62% 70%, #000 70% 100%);
+  animation: sigil-turn 26s linear infinite;
+}
+.sigil-ring.is-slow {
+  inset: -4%;
+  border-color: var(--rule-strong);
+  mask: conic-gradient(from 180deg, #000 0 40%, transparent 40% 52%, #000 52% 100%);
+  animation-duration: 48s;
+  animation-direction: reverse;
+}
+
+.sigil-mark { position: relative; z-index: 1; color: var(--foreground); }
+
+.sigil-words {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  gap: 0.45em;
+  font-size: calc(var(--sigil) * 0.045);
+  letter-spacing: 0.2em;
+  color: var(--subtle);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+.sigil-words i { font-style: normal; }
+.sigil-words.is-left { right: calc(100% + 0.6em); text-align: right; }
+.sigil-words.is-right { left: calc(100% + 0.6em); text-align: left; }
+
+@keyframes sigil-turn { to { transform: rotate(360deg); } }
+@keyframes sigil-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sigil-ring, .sigil-halo { animation: none; }
+}
+
+/* The motto, centred in the header. */
+.brand-motto {
+  font-size: 10px;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+/* The creed on the bottom rail — set apart from the readouts beside it,
+   because it is the one thing there that is not a measurement. */
+.fr-creed {
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--faint);
+  opacity: 0.9;
+}
+@media (max-width: 900px) { .fr-creed { display: none; } }

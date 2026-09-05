@@ -4,6 +4,11 @@ import { z } from "zod";
 export const APP_NAME = "SAGE";
 export const APP_TAGLINE = "Your personal AI operating system";
 
+/** The line from the identity sheet. Header centre, and the login screen. */
+export const APP_MOTTO = "Clarity in chaos";
+/** And the one under it, which the frame rail carries. */
+export const APP_CREED = "Intelligence stands higher";
+
 /**
  * Everything user-facing is formatted in this timezone.
  *

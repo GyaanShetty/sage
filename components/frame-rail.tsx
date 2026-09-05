@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { TZ } from "@/lib/config";
+import { APP_CREED, TZ } from "@/lib/config";
 
 /**
  * The frame around the workspace.
@@ -59,6 +59,11 @@ export function FrameRail({ edge }: { edge: "top" | "bottom" }) {
       ) : (
         <>
           <span className="fr-k">STATUS</span><span className="fr-sig">NOMINAL</span>
+          <span className="fr-rule" />
+          {/* The creed from his identity sheet. The one field on this rail
+              that is not a measurement, which is why it sits apart and
+              greyed rather than beside the readouts. */}
+          <span className="fr-creed">{APP_CREED}</span>
           <span className="fr-rule" />
           <span className="fr-k">LOCAL</span>
           <span className="fr-v" suppressHydrationWarning>{clock || "--:--:--"}</span>

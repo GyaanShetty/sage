@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SAGE" viewBox="0 0 100 100">
-  <rect width="100" height="100" fill="#070708"/>
-  <g transform="translate(14 14) scale(0.72)">
-    <g fill="#ff3b30"><path d="M14 12 L31 34 L38 30 L50 44 L34 44 L20 26 Z"/><path d="M86 12 L69 34 L62 30 L50 44 L66 44 L80 26 Z"/><path d="M50 6 L60 28 L50 38 L40 28 Z"/><path d="M32 42 L68 42 L50 62 Z"/><path d="M43 58 H57 Q60 72 63 84 H37 Q40 72 43 58 Z"/><path d="M35 86 H65 L67 92 H33 Z"/><path d="M31 94 H69 L71 99 H29 Z"/></g>
-    <path d="M47 20 h6 v5 h5 v6 h-5 v5 h-6 v-5 h-5 v-6 h5 z" fill="#070708"/>
-  </g>
-</svg>

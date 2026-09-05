@@ -23,10 +23,10 @@ export default function manifest(): MetadataRoute.Manifest {
      * ignore SVG icons entirely.
      */
     icons: [
-      { src: "/sage-mark-v2.svg", sizes: "any", type: "image/svg+xml" },
-      { src: "/icon-192-v2.png", sizes: "192x192", type: "image/png" },
-      { src: "/icon-512-v2.png", sizes: "512x512", type: "image/png" },
-      { src: "/icon-maskable-v2.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/sage-mark-v3.svg", sizes: "any", type: "image/svg+xml" },
+      { src: "/icon-192-v3.png", sizes: "192x192", type: "image/png" },
+      { src: "/icon-512-v3.png", sizes: "512x512", type: "image/png" },
+      { src: "/icon-maskable-v3.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

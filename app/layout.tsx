@@ -26,10 +26,10 @@ export const metadata: Metadata = {
    */
   icons: {
     icon: [
-      { url: "/sage-mark-v2.svg", type: "image/svg+xml" },
-      { url: "/icon-192-v2.png", sizes: "192x192", type: "image/png" },
+      { url: "/sage-mark-v3.svg", type: "image/svg+xml" },
+      { url: "/icon-192-v3.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: "/apple-icon-v2.png",
+    apple: "/apple-icon-v3.png",
   },
 };
 

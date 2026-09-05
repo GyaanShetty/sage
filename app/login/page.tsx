@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startAuthentication } from "@simplewebauthn/browser";
-import { APP_NAME, APP_TAGLINE } from "@/lib/config";
+import { APP_MOTTO, APP_NAME } from "@/lib/config";
 import "./login.css";
-import { SageMark } from "@/components/ui/sage-mark";
+import { SageSigil } from "@/components/ui/sage-sigil";
 
 /** Filler for the side columns — meaningless on purpose, it is texture. */
 const GLYPHS = "01▏▎▍▌▋▊▉█░▒▓╱╲╳┄┈─═╬╫╪⌁⌂⌘⏣◈◇◆▪▫";
@@ -150,11 +150,13 @@ export default function LoginPage() {
         <div className="lg-corner tl" /><div className="lg-corner tr" />
         <div className="lg-corner bl" /><div className="lg-corner br" />
 
-        <SageMark size={64} online className="lg-mark" />
+        {/* The lock screen is the one place with room for the mark at full
+            presence, and the one moment that is an arrival. */}
+        <SageSigil size={150} words={false} className="lg-mark" />
         <h1 className="brand-wordmark">{APP_NAME}</h1>
 
         <div className="lg-rule">
-          <span /><em>{APP_TAGLINE}</em><span />
+          <span /><em>{APP_MOTTO}</em><span />
         </div>
 
         <div className="lg-boot">

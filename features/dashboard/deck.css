@@ -11,28 +11,65 @@
 .deck {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--rule);
+  gap: var(--deck-gap);
+  padding: var(--deck-gap);
+  background: var(--background);
   min-height: 0;
+
+  /* Cards with air between them, not a hairline grid.
+     The wall is edge-to-edge because thirty panes only fit that way; the deck
+     has fourteen and the space is what makes each one a thing you can look at
+     rather than a cell in a table. */
+  --deck-gap: 10px;
+}
+
+/*
+ * Every pane on the deck is a card, and every card clips.
+ *
+ * `.pane` had no overflow rule at all: it worked on the wall only because the
+ * wall's rows are rigid and its content short. Here a mail subject or a task
+ * title wider than its column escaped the pane entirely and drew itself over
+ * the neighbour — which is exactly what it looked like, panes bleeding into
+ * each other across the bottom band.
+ */
+.deck .pane {
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.deck .pane-hd {
+  background: linear-gradient(180deg, rgba(255, 59, 48, 0.07), transparent);
+  border-bottom: 1px solid var(--rule);
+  padding: 5px 9px;
+}
+.deck .wall-cell {
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--panel);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .deck-cols {
   display: grid;
-  gap: 1px;
+  gap: var(--deck-gap);
   min-height: 0;
 }
 
 .deck-col {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--deck-gap);
   min-height: 0;
 }
 .deck-col > * { flex: 1; min-height: 0; overflow: hidden; }
 
 .deck-band {
   display: grid;
-  gap: 1px;
+  gap: var(--deck-gap);
   min-height: 0;
 }
 /*
@@ -58,8 +95,8 @@
      and the feeds read fine at that width, and the markets and task list do
      not. */
   .deck-cols {
-    flex: 3.05;
-    grid-template-columns: minmax(0, 1.02fr) minmax(0, 1.24fr) minmax(0, 1.16fr);
+    flex: 3.15;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1.18fr);
   }
   .deck-band {
     flex: 1;
@@ -70,7 +107,7 @@
 /* ── the centre ─────────────────────────────────────────────────────────── */
 
 .deck-col.is-centre {
-  background: var(--panel);
+  background: transparent;
   position: relative;
   overflow: hidden;
 }
@@ -83,13 +120,21 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(8px, 1.6cqh, 20px);
-  padding: 16px clamp(16px, 4%, 44px);
+  gap: clamp(6px, 1.4cqh, 16px);
+  padding: 8px clamp(12px, 3%, 36px);
   container-type: size;
   text-align: center;
 }
 
-.deck-sigil { flex: none; margin-bottom: 2px; }
+/* The sigil is the centrepiece, so it takes whatever room the column has
+   rather than a fixed size — at a fixed 264px it was a small badge floating in
+   a tall empty column, which is the opposite of the point. */
+.deck-sigil {
+  flex: none;
+  width: min(46cqh, 78%) !important;
+  height: min(46cqh, 78%) !important;
+  margin-bottom: 2px;
+}
 
 .deck-id h2 {
   margin: 0;
@@ -201,10 +246,12 @@
 .deck-quick {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   gap: 1px;
   background: var(--rule);
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 .deck-quick a {
   display: grid;

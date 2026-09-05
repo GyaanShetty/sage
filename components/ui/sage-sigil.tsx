@@ -35,7 +35,9 @@ export function SageSigil({
       <span className="sigil-halo" />
       <span className="sigil-ring" />
       <span className="sigil-ring is-slow" />
-      <SageMark size={size * 0.52} online className="sigil-mark" />
+      {/* Sized as a share of the ring rather than in pixels, so the mark
+          still fills it when the caller scales the whole assembly in CSS. */}
+      <SageMark size={0} online className="sigil-mark" />
 
       {words && (
         <>

@@ -1,6 +1,7 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { proxyFetch } from "@/infrastructure/http/fetch";
 import { keysFor } from "@/core/ops/keys";
+import { getSetting } from "@/core/ops/settings";
 import { appUrl } from "./google";
 
 /**
@@ -31,6 +32,17 @@ const GRAPH = "https://graph.microsoft.com/v1.0";
  * request goes to that directory instead of being guessed.
  */
 export async function outlookTenant(): Promise<string> {
+  /*
+   * The plain setting first.
+   *
+   * A tenant is a public GUID, not a credential, so it is stored unsealed —
+   * the encrypted store refuses to write without KEY_SECRET, which meant Check
+   * could work out the right tenant and then fail to save it. The sealed
+   * lookup stays behind it so an existing configuration keeps working.
+   */
+  const plain = await getSetting("outlook_tenant").catch(() => null);
+  if (plain) return plain;
+
   const t = await keysFor("outlook_tenant").catch(() => [] as string[]);
   return (t[t.length - 1] ?? process.env.OUTLOOK_TENANT_ID ?? "common").trim();
 }

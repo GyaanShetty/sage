@@ -1470,3 +1470,8 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   opacity: 0.9;
 }
 @media (max-width: 900px) { .fr-creed { display: none; } }
+
+/* The mark inside a sigil is sized by the ring, not by a pixel value — the
+   caller may scale the whole assembly with CSS, and a hard-coded width would
+   not follow it. */
+.sigil .sigil-mark { width: 54%; height: 54%; }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { outlookAuthUrl, outlookCreds, outlookTenant, redirectUri } from "@/infrastructure/integrations/outlook";
 import { proxyFetch } from "@/infrastructure/http/fetch";
-import { addKey } from "@/core/ops/keys";
+import { setSetting } from "@/core/ops/settings";
 
 /**
  * Find the authority that actually works, rather than asking him to guess.
@@ -123,13 +123,14 @@ export async function POST() {
   // Exactly one alternative works — adopt it rather than describing it.
   if (working.length >= 1) {
     const pick = working[0];
-    const res = await addKey("outlook_tenant", pick.tenant, "found by Check").catch(() => ({ ok: false as const, error: "write failed" }));
-    const saved = res.ok;
+    const saved = await setSetting("outlook_tenant", pick.tenant).catch(() => false);
     return NextResponse.json({
       ok: saved,
       data: {
         verdict: saved
-          ? `Fixed: "${pick.label}" works, and SAGE has saved it. Press Connect.`
+          ? `Fixed — "${pick.label}" works and SAGE has saved it. Press Connect, and sign in with the account the app is registered under${
+              pick.tenant === "consumers" ? " — the personal Microsoft account, not the university one" : ""
+            }.`
           : `"${pick.label}" works, but SAGE could not save it — set outlook_tenant to ${pick.tenant}.`,
         tenant: pick.tenant, clientId: creds.id, redirectUri: redirectUri(), probes,
       },

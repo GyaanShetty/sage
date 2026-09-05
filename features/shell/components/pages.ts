@@ -1,7 +1,7 @@
 import {
   Gauge,
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
-  FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot, PenLine,
+  FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot, PenLine, LayoutGrid,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
   Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, type LucideIcon,
 } from "lucide-react";
@@ -48,6 +48,7 @@ export const PAGES: Item[] = [
   { href: "/memory", label: "Memory", icon: Brain, group: "MIND" },
   { href: "/graph", label: "Mind Graph", icon: Network, group: "MIND" },
   { href: "/board", label: "Boards", icon: PenLine, hint: "draw · note · attach", group: "MIND" },
+  { href: "/wall", label: "The Wall", icon: LayoutGrid, hint: "every pane, max density", group: "MIND" },
   { href: "/health", label: "Health", icon: Activity, group: "MIND" },
 
   { href: "/settings", label: "Settings", icon: Settings, group: "MIND" },

@@ -23,10 +23,28 @@ import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
 import { SitrepBand } from "./sitrep-band";
 import { NextAction } from "./next-action";
+import {
+  SpendTrendTile, SpendShapeTile, TaskRhythmTile, TaskWeekdayTile, FocusTile,
+  AgentRunsTile, MemoryGrowthTile, ReadingTile, ReviewTrendTile, JournalTile,
+  StepsTile, CorpusTile,
+} from "./chart-tiles";
+import { BudgetTile, WeatherWeekTile } from "./ops-tiles";
 import { BriefBlock } from "./brief-block";
 import { fmt, TZ } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
+export type PageId = "overview" | "markets" | "body" | "work" | "mind";
+
+const PAGE_KEY = "sage-wall-page";
+
+export const PAGES: { id: PageId; label: string }[] = [
+  { id: "overview", label: "OVERVIEW" },
+  { id: "markets", label: "MARKETS" },
+  { id: "body", label: "BODY" },
+  { id: "work", label: "WORK" },
+  { id: "mind", label: "MIND" },
+];
+
 export interface TaskRow { id: string; title: string; status: string; dueAt: string | null }
 export interface EventRow { id?: string; summary: string; start: string; allDay?: boolean }
 export interface NoteRow { id: string; title: string; createdAt: string }
@@ -91,6 +109,37 @@ export function CommandView({
   const [focusSec, setFocusSec] = useState(25 * 60);
   const [focusRun, setFocusRun] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
+
+  /*
+   * The tab he was last in, restored.
+   *
+   * Read in an effect rather than as the initial state, because reading
+   * localStorage during render makes the server and client disagree and React
+   * throws away the whole tree to recover from it.
+   */
+  const [page, setPage] = useState<PageId>("overview");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PAGE_KEY) as PageId | null;
+      if (saved && PAGES.some((p) => p.id === saved)) setPage(saved);
+    } catch { /* private mode; the default is fine */ }
+  }, []);
+  useEffect(() => {
+    try { localStorage.setItem(PAGE_KEY, page); } catch { /* nothing to persist to */ }
+  }, [page]);
+
+  // 1–5 switch pages, unless he is typing into something.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const i = Number(e.key) - 1;
+      if (Number.isInteger(i) && i >= 0 && i < PAGES.length) setPage(PAGES[i].id);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const now = new Date();
   const open = tasks.filter((t) => t.status !== "done").length;
@@ -174,9 +223,33 @@ export function CommandView({
   const agentRunning = log.some((l) => l.type.startsWith("agent."));
 
   return (
+    <div className="wall-shell">
+      {/*
+        Pages, not one wall.
+        Twenty-nine panes on one screen was dense in panes and sparse in
+        content — thirty small boxes each holding one number, which is what
+        "empty" turned out to mean. Ten or so per page makes each one twice
+        the size, which is the room a chart needs to be worth drawing.
+        Client state rather than routes: the data is already loaded, so
+        switching should cost nothing.
+      */}
+      <nav className="wall-tabs" aria-label="Dashboard pages">
+        {PAGES.map((p, i) => (
+          <button
+            key={p.id}
+            className={page === p.id ? "on" : ""}
+            onClick={() => setPage(p.id)}
+            aria-current={page === p.id ? "page" : undefined}
+          >
+            <em>{i + 1}</em>{p.label}
+          </button>
+        ))}
+      </nav>
+
     <div className="wall">
       {/* ── ROW 1 ─────────────────────────────────────────────────────────
           The map leads, at the width it earns. */}
+      {page === "overview" && (
       <div className="wall-row wall-r1">
         <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map" frame noZoom>
           <AtlasMap lat={12.9352} lon={77.6245} compact />
@@ -190,8 +263,10 @@ export function CommandView({
         </TileGuard>
         <TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard>
       </div>
+      )}
 
       {/* ── ROW 2 ───────────────────────────────────────────────────────── */}
+      {page === "body" && (
       <div className="wall-row wall-r2">
         <TileGuard name="BIO"><BioTile n={4} /></TileGuard>
         <TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard>
@@ -233,8 +308,10 @@ export function CommandView({
           />
         </TileGuard>
       </div>
+      )}
 
       {/* ── ROW 3 ───────────────────────────────────────────────────────── */}
+      {page === "work" && (
       <div className="wall-row wall-r3">
         <TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard>
         <Pane
@@ -271,10 +348,12 @@ export function CommandView({
         <TileGuard name="CODE"><CodeTile n={24} /></TileGuard>
         <TileGuard name="PUSH"><PushTile n={25} /></TileGuard>
       </div>
+      )}
 
       {/* ── ROW 4 ─────────────────────────────────────────────────────────
           Nine narrow columns. Each pane's body scrolls inside itself, so a
           long agenda cannot push the wall past the bottom of the screen. */}
+      {page === "overview" && (
       <div className="wall-row wall-r4">
         <TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard>
         <TileGuard name="SKY"><SkyTile n={16} /></TileGuard>
@@ -314,22 +393,97 @@ export function CommandView({
         <TileGuard name="CAREER"><CareerTile n={26} /></TileGuard>
         <TileGuard name="INBOX"><InboxTile n={27} /></TileGuard>
       </div>
+      )}
 
-      {/* ── ROW 5 ─────────────────────────────────────────────────────────
-          The stores: what SAGE holds, what is owed, what is coming. */}
-      <div className="wall-row wall-r5">
-        <TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard>
-        <TileGuard name="GROWTH"><GrowthTile n={29} /></TileGuard>
-        <TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard>
-        <TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard>
+      {/* ── ROW 5 · work ─────────────────────────────────────────────── */}
+      {page === "work" && (
+      <div className="wall-row wall-auto">
         <TileGuard name="EXAM"><ExamTile n={30} /></TileGuard>
-        <TileGuard name="SPEND"><SpendTile n={33} /></TileGuard>
-        <TileGuard name="CALIBRATION"><CalibrationTile n={34} /></TileGuard>
+        <TileGuard name="CAREER2"><CareerTile n={26} /></TileGuard>
+        <TileGuard name="TASKRHYTHM"><TaskRhythmTile n={35} /></TileGuard>
+        <TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard>
+        <TileGuard name="FOCUSHIST"><FocusTile n={37} /></TileGuard>
       </div>
+      )}
+
+      {/* ── OVERVIEW · the trends row ─────────────────────────────────
+          Two rows made each one four hundred pixels tall with its content in
+          the top third — a bigger pane holding the same one number reads as
+          emptier, not fuller. These fill the space with the only thing that
+          honestly can: what has actually been happening. */}
+      {page === "overview" && (
+        <div className="wall-row wall-auto">
+          <TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard>
+          <TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard>
+          <TileGuard name="OVFOCUS"><FocusTile n={37} /></TileGuard>
+          <TileGuard name="OVMEM"><MemoryGrowthTile n={43} /></TileGuard>
+          <TileGuard name="OVAGENTS"><AgentRunsTile n={48} /></TileGuard>
+        </div>
+      )}
+
+      {/* ── MARKETS ──────────────────────────────────────────────────────
+          The money page: what it is worth, what it is made of, what it
+          costs to live. */}
+      {page === "markets" && (
+      <>
+        <div className="wall-row wall-auto">
+          <TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard>
+          <TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard>
+          <TileGuard name="SPEND"><SpendTile n={33} /></TileGuard>
+        </div>
+        <div className="wall-row wall-auto">
+          <TileGuard name="SPENDTREND"><SpendTrendTile n={38} /></TileGuard>
+          <TileGuard name="SPENDSHAPE"><SpendShapeTile n={39} /></TileGuard>
+          <TileGuard name="BUDGET"><BudgetTile n={42} /></TileGuard>
+        </div>
+      </>
+      )}
+
+      {/* ── BODY ─────────────────────────────────────────────────────────
+          What the machine is doing, and what it has been doing. */}
+      {page === "body" && (
+      <>
+        <div className="wall-row wall-auto">
+          <TileGuard name="BIO"><BioTile n={4} /></TileGuard>
+          <TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard>
+          <TileGuard name="STEPS"><StepsTile n={40} /></TileGuard>
+        </div>
+        <div className="wall-row wall-auto">
+          <TileGuard name="SKY"><SkyTile n={16} /></TileGuard>
+          <TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard>
+          <TileGuard name="WEATHERWEEK"><WeatherWeekTile n={44} /></TileGuard>
+        </div>
+      </>
+      )}
+
+      {/* ── MIND ─────────────────────────────────────────────────────────
+          What SAGE knows, and whether he is still feeding it. */}
+      {page === "mind" && (
+      <>
+        <div className="wall-row wall-auto">
+          <TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard>
+          <TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard>
+          <TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard>
+        </div>
+        <div className="wall-row wall-auto">
+          <TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard>
+          <TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard>
+          <TileGuard name="READING"><ReadingTile n={47} /></TileGuard>
+          <TileGuard name="AGENTRUNS"><AgentRunsTile n={48} /></TileGuard>
+        </div>
+        <div className="wall-row wall-auto">
+          <TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard>
+          <TileGuard name="GROWTH"><GrowthTile n={29} /></TileGuard>
+          <TileGuard name="CALIBRATION"><CalibrationTile n={34} /></TileGuard>
+          <TileGuard name="FEEDS2"><FeedsTile n={12} /></TileGuard>
+        </div>
+      </>
+      )}
 
       <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">
         <TaskManager tasks={tasks} setTasks={setTasks} />
       </ExpandModal>
+    </div>
     </div>
   );
 }

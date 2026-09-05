@@ -373,3 +373,244 @@ export function Diverging({
     </div>
   );
 }
+
+/* ── radial ───────────────────────────────────────────────────────────────
+   A rose plot: magnitude as spoke length around a cycle. The right form for
+   anything whose x-axis wraps — hours of a day, days of a week, months of a
+   year — where a bar chart puts Sunday and Monday at opposite ends of the
+   page and hides that they are adjacent. */
+
+/** Where a slice sits on the circle, in degrees clockwise from twelve. */
+export function spokeAngle(index: number, count: number): number {
+  if (count <= 0) return 0;
+  // Modulo before scaling so an index past the end wraps to the start rather
+  // than spiralling off — the seam is the whole point of a cyclic chart.
+  return ((index % count) + count) % count * (360 / count);
+}
+
+/** Polar to cartesian, with 0° at twelve o'clock rather than at three. */
+export function polar(cx: number, cy: number, r: number, deg: number) {
+  const rad = ((deg - 90) * Math.PI) / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+
+export function Radial({
+  data,
+  labels,
+  size = 120,
+  tone = SIGNAL,
+}: {
+  data: number[];
+  labels?: string[];
+  size?: number;
+  tone?: string;
+}) {
+  if (!data.length || data.every((v) => !v)) return <Empty />;
+
+  const cx = size / 2, cy = size / 2;
+  const rMax = size / 2 - 12;
+  const rMin = rMax * 0.22;
+  const max = Math.max(...data);
+  const step = 360 / data.length;
+
+  return (
+    <svg className="inst inst-radial" viewBox={`0 0 ${size} ${size}`} preserveAspectRatio="xMidYMid meet">
+      {/* Two rings for scale, so a long spoke can be read as a proportion
+          rather than only compared with its neighbours. */}
+      {[0.55, 1].map((f) => (
+        <circle key={f} cx={cx} cy={cy} r={rMin + (rMax - rMin) * f} fill="none" stroke={GRID} strokeWidth={0.5} />
+      ))}
+
+      {data.map((v, i) => {
+        const a0 = spokeAngle(i, data.length) + 1.5;
+        const a1 = spokeAngle(i, data.length) + step - 1.5;
+        const r = rMin + (rMax - rMin) * (max ? v / max : 0);
+        const p0 = polar(cx, cy, rMin, a0);
+        const p1 = polar(cx, cy, r, a0);
+        const p2 = polar(cx, cy, r, a1);
+        const p3 = polar(cx, cy, rMin, a1);
+        const big = a1 - a0 > 180 ? 1 : 0;
+        return (
+          <path
+            key={i}
+            d={`M ${p0.x} ${p0.y} L ${p1.x} ${p1.y} A ${r} ${r} 0 ${big} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rMin} ${rMin} 0 ${big} 0 ${p0.x} ${p0.y} Z`}
+            fill={tone}
+            opacity={0.28 + 0.62 * (max ? v / max : 0)}
+          />
+        );
+      })}
+
+      {labels?.map((l, i) => {
+        const p = polar(cx, cy, rMax + 6, spokeAngle(i, labels.length) + step / 2);
+        return (
+          <text key={i} x={p.x} y={p.y} fontSize={5.5} fill="var(--subtle)"
+            textAnchor="middle" dominantBaseline="middle">{l}</text>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ── gauge ────────────────────────────────────────────────────────────────
+   One arc against a target. Only for values that genuinely have a ceiling —
+   a gauge implies a maximum, and putting an unbounded number in one invents
+   a limit that does not exist. */
+export function Gauge({
+  value,
+  max,
+  label,
+  unit = "",
+  size = 96,
+  tone = SIGNAL,
+}: {
+  value: number;
+  max: number;
+  label?: string;
+  unit?: string;
+  size?: number;
+  tone?: string;
+}) {
+  const pct = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 8;
+  // A 270° sweep with the gap at the bottom: a full circle reads as a pie and
+  // an open one reads as a dial.
+  const SWEEP = 270, START = 225;
+  const arc = (from: number, to: number) => {
+    const a = polar(cx, cy, r, from);
+    const b = polar(cx, cy, r, to);
+    return `M ${a.x} ${a.y} A ${r} ${r} 0 ${to - from > 180 ? 1 : 0} 1 ${b.x} ${b.y}`;
+  };
+
+  return (
+    <svg className="inst inst-gauge" viewBox={`0 0 ${size} ${size}`} preserveAspectRatio="xMidYMid meet">
+      <path d={arc(START, START + SWEEP)} fill="none" stroke={GRID} strokeWidth={6} strokeLinecap="butt" />
+      {pct > 0 && (
+        <path d={arc(START, START + SWEEP * pct)} fill="none" stroke={tone} strokeWidth={6} strokeLinecap="butt" />
+      )}
+      <text x={cx} y={cy - 1} fontSize={size * 0.2} fill="var(--foreground)" textAnchor="middle"
+        dominantBaseline="middle" style={{ fontVariantNumeric: "tabular-nums" }}>
+        {Math.round(value)}{unit}
+      </text>
+      {label && (
+        <text x={cx} y={cy + size * 0.17} fontSize={size * 0.085} fill="var(--subtle)"
+          textAnchor="middle" letterSpacing="0.14em">{label.toUpperCase()}</text>
+      )}
+    </svg>
+  );
+}
+
+/* ── area ─────────────────────────────────────────────────────────────────
+   A trend with the ground filled in. For cumulative or level series where the
+   quantity under the line means something; a plain line is better where it
+   does not. */
+export function Area({
+  data,
+  height = 56,
+  tone = SIGNAL,
+  baseline = true,
+}: {
+  data: number[];
+  height?: number;
+  tone?: string;
+  baseline?: boolean;
+}) {
+  if (data.length < 2) return <Empty />;
+  const W = 100;
+  const max = Math.max(...data);
+  const min = Math.min(...data, 0);
+  const span = max - min || 1;
+  const x = (i: number) => (i / (data.length - 1)) * W;
+  const y = (v: number) => height - ((v - min) / span) * (height - 4) - 2;
+
+  const line = data.map((v, i) => `${i ? "L" : "M"} ${x(i).toFixed(2)} ${y(v).toFixed(2)}`).join(" ");
+
+  return (
+    <svg className="inst inst-area" viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="inst-area-g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={tone} stopOpacity="0.34" />
+          <stop offset="100%" stopColor={tone} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {baseline && <line x1={0} y1={height - 2} x2={W} y2={height - 2} stroke={GRID} strokeWidth={0.5} />}
+      <path d={`${line} L ${W} ${height} L 0 ${height} Z`} fill="url(#inst-area-g)" />
+      <path d={line} fill="none" stroke={tone} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/* ── heat ─────────────────────────────────────────────────────────────────
+   Did it happen that day, over weeks. The one chart that answers "am I
+   actually keeping this up" — a total cannot, because a total hides whether
+   thirty things happened on thirty days or all in one. */
+export function Heat({
+  days,
+  weeks = 12,
+  tone = SIGNAL,
+}: {
+  /** Newest last, one number per day. */
+  days: number[];
+  weeks?: number;
+  tone?: string;
+}) {
+  if (!days.length) return <Empty />;
+  const cells = days.slice(-weeks * 7);
+  const max = Math.max(...cells, 1);
+  const cols = Math.ceil(cells.length / 7);
+
+  return (
+    <svg className="inst inst-heat" viewBox={`0 0 ${cols * 4} 28`} preserveAspectRatio="xMidYMid meet">
+      {cells.map((v, i) => (
+        <rect
+          key={i}
+          x={Math.floor(i / 7) * 4}
+          y={(i % 7) * 4}
+          width={3.2}
+          height={3.2}
+          fill={v > 0 ? tone : GRID}
+          // Intensity carries the amount; presence alone is the grid colour,
+          // so an empty day and a quiet day never look the same.
+          opacity={v > 0 ? 0.28 + 0.72 * (v / max) : 1}
+        />
+      ))}
+    </svg>
+  );
+}
+
+/* ── stack ────────────────────────────────────────────────────────────────
+   Composition, as one bar. For "what is this made of" where the parts sum to
+   a meaningful whole — never for unrelated quantities that merely fit. */
+export function Stack({
+  parts,
+  height = 10,
+}: {
+  parts: { label: string; value: number; tone?: string }[];
+  height?: number;
+}) {
+  const total = parts.reduce((t, p) => t + Math.max(0, p.value), 0);
+  if (!total) return <Empty />;
+
+  let x = 0;
+  return (
+    <div className="inst-stack">
+      <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" height={height}>
+        {parts.map((p, i) => {
+          const w = (Math.max(0, p.value) / total) * 100;
+          const seg = <rect key={i} x={x} y={0} width={Math.max(0, w - 0.4)} height={height} fill={p.tone ?? SIGNAL} opacity={0.85 - i * 0.13} />;
+          x += w;
+          return seg;
+        })}
+      </svg>
+      <div className="inst-stack-key">
+        {parts.filter((p) => p.value > 0).map((p, i) => (
+          <span key={i}>
+            <i style={{ background: p.tone ?? SIGNAL, opacity: 0.85 - i * 0.13 }} />
+            {p.label}
+            <b>{Math.round((p.value / total) * 100)}%</b>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}

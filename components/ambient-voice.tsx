@@ -30,6 +30,25 @@ import { speakLowLatency, isSpeaking } from "@/lib/speak";
 const POLL_MS = 240_000; // four minutes
 const SEEN_KEY = "sage-ambient-seen";
 
+/*
+ * A ceiling on speech, independent of dedupe.
+ *
+ * The dedupe key is computed on the server, and it only takes one key that
+ * embeds a changing value — a price, a count — for an item to look new on
+ * every poll and be announced forever. That is not hypothetical: the anomaly
+ * key was built from its rendered text, which contains the live price, and
+ * SAGE repeated the same sitrep every four minutes until it was killed.
+ *
+ * Fixing the key fixes that instance. These two limits mean the *class* of
+ * bug can no longer produce a loop: at most one thing spoken every quarter of
+ * an hour, and at most a dozen in a day. If SAGE ever has more than twelve
+ * genuinely urgent things to say in one day, it should not be saying them
+ * through an ambient poll.
+ */
+const MIN_GAP_MS = 900_000;   // fifteen minutes between anything spoken
+const MAX_PER_DAY = 12;
+const RATE_KEY = "sage-ambient-rate";
+
 interface Item { key: string; urgency: string; text: string; domain: string; href?: string }
 
 function isTyping(): boolean {
@@ -69,7 +88,24 @@ export function AmbientVoice() {
       }
     };
     const writeSeen = (items: Record<string, string>) => {
-      localStorage.setItem(SEEN_KEY, JSON.stringify({ day: today, items }));
+      try {
+        localStorage.setItem(SEEN_KEY, JSON.stringify({ day: today, items }));
+      } catch {
+        /* storage full or blocked — the rate limit below still holds */
+      }
+    };
+
+    /** How many have been spoken today, and when the last one was. */
+    const readRate = (): { day: string; count: number; last: number } => {
+      try {
+        const raw = JSON.parse(localStorage.getItem(RATE_KEY) || "{}");
+        return raw?.day === today ? raw : { day: today, count: 0, last: 0 };
+      } catch {
+        return { day: today, count: 0, last: 0 };
+      }
+    };
+    const writeRate = (r: { day: string; count: number; last: number }) => {
+      try { localStorage.setItem(RATE_KEY, JSON.stringify(r)); } catch { /* no-op */ }
     };
 
     let first = true;
@@ -90,6 +126,12 @@ export function AmbientVoice() {
        * waits for the next tick.
        */
       if (isSpeaking()) return;
+
+      // The ceiling, checked before the request so a rate-limited session is
+      // also a quiet one on the network.
+      const rate = readRate();
+      if (rate.count >= MAX_PER_DAY) return;
+      if (rate.last && Date.now() - rate.last < MIN_GAP_MS) return;
 
       try {
         const res = await fetch("/api/ambient");
@@ -124,6 +166,7 @@ export function AmbientVoice() {
         const say = fresh[0];
         seen[say.key] = "1";
         writeSeen(seen);
+        writeRate({ day: today, count: rate.count + 1, last: Date.now() });
 
         hudHighlight("sitrep");
         await speakLowLatency(`Sir — ${say.text}`, { fast: true });

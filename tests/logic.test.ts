@@ -3848,3 +3848,32 @@ test("inkPath smooths through midpoints and still reaches both ends", async () =
   assert.ok(d.endsWith("L 30 20"), "and finishes on the last, which is a control point for nothing");
   assert.ok(d.includes("Q"), "the middle is quadratic, not a polyline");
 });
+
+/*
+ * Ambient dedupe keys.
+ *
+ * A key that embeds a value rather than identifying a subject is how SAGE
+ * ended up repeating the same sitrep every four minutes: the anomaly key was
+ * built from its rendered text, that text contains the live price, so the key
+ * changed on every poll and the client never recognised it as already said.
+ *
+ * Source-matching rather than behavioural, because the failure is in how a
+ * string is composed and there is no way to observe it without a live feed —
+ * which is precisely why it shipped.
+ */
+test("no ambient dedupe key is built from a value that moves", async () => {
+  const src = (await import("node:fs")).readFileSync("core/ambient/index.ts", "utf8")
+    // Block comments only: stripping // would eat the https:// in URLs.
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const keys = [...src.matchAll(/key:\s*`([^`]+)`/g)].map((m) => m[1]);
+  assert.ok(keys.length >= 8, `expected the ambient keys, found ${keys.length}`);
+
+  for (const k of keys) {
+    // `.detail`, `.length` and any rounded number are all readings, not
+    // identities. A count changes as he works; a price changes constantly.
+    assert.ok(!/\.detail/.test(k), `key uses rendered text: ${k}`);
+    assert.ok(!/\.length/.test(k), `key uses a count: ${k}`);
+    assert.ok(!/Math\.round/.test(k), `key uses a rounded reading: ${k}`);
+  }
+});

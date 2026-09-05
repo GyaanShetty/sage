@@ -245,7 +245,9 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
         .lt("dueAt", new Date().toISOString()).order("dueAt", { ascending: true }).limit(5);
       if (data?.length) {
         push({
-          key: `task:overdue:${data.length}:${tzDay()}`,
+          // Not the count: finishing one overdue task changed the count, and
+          // the reminder was then announced again as if it were new.
+          key: `task:overdue:${tzDay()}`,
           urgency: "soon",
           domain: "task",
           text: data.length === 1
@@ -273,7 +275,7 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
         .order("dueAt", { ascending: true }).limit(5);
       if (today?.length) {
         push({
-          key: `task:today:${today.length}:${tzDay()}`,
+          key: `task:today:${tzDay()}`,
           urgency: "notice",
           domain: "task",
           text: today.length === 1
@@ -330,7 +332,9 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
         const debt = slept.reduce((a, d) => a + (goals.sleepHours - (d.sleepHours as number)), 0);
         if (debt > 5) {
           push({
-            key: `health:sleep:${Math.round(debt)}:${tzDay()}`,
+            // Sleep debt moves as the day's readings land; the subject is the
+          // debt, not its current size.
+          key: `health:sleep:${tzDay()}`,
             urgency: "notice",
             domain: "health",
             text: `You are about ${debt.toFixed(0)} hours down on sleep this week.`,
@@ -346,7 +350,7 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
       const due = dueOf(await listConcepts());
       if (!due.length) return;
       push({
-        key: `study:explain:${due.length}:${tzDay()}`,
+        key: `study:explain:${tzDay()}`,
         urgency: "notice",
         domain: "study",
         text: due.length === 1
@@ -409,7 +413,18 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
         }
 
         push({
-          key: `anomaly:${a.detail.slice(0, 40)}:${tzDay()}`,
+          /*
+           * The anomaly's own key, not its rendered text.
+           *
+           * `detail` is a sentence with the live value in it — "BTC ₹81,157,
+           * up 4.3%" — so it changed on every poll, which changed this key on
+           * every poll, which meant the client never recognised it as already
+           * said. The result was SAGE announcing the same anomaly every four
+           * minutes, forever, flashing the sitrep pane each time.
+           *
+           * A dedupe key must identify the *thing*, never its current value.
+           */
+          key: `anomaly:${a.key}:${tzDay()}`,
           urgency: "notice",
           domain: isMarket ? "market" : "system",
           text: a.detail,

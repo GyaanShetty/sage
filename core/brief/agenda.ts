@@ -7,6 +7,7 @@ import { trainingSummary } from "@/core/health/hevy";
 import { getPositions } from "@/core/portfolio/store";
 import { TZ } from "@/lib/config";
 import { listOutlookMail } from "@/infrastructure/integrations/outlook";
+import { type RankedMail, gatherMail, rankMail } from "@/core/mail/triage";
 import { findOpportunities } from "@/core/career/inbox";
 
 /**
@@ -67,7 +68,15 @@ export interface DayPicture {
   openCount: number;
 
   /** The rest of his world */
-  unread: { from: string; subject: string }[];
+  unread: { from: string; subject: string; account: "gmail" | "outlook" }[];
+  /**
+   * The few messages that actually need him, with a reason each.
+   *
+   * Separate from `unread`, which is a count and a sample. This is the answer
+   * to "is there anything in my mail" — which is what he asks, and what a
+   * count has never told him.
+   */
+  importantMail: RankedMail[];
   /** Internship mail, forms and interviews found in Outlook, soonest deadline
    *  first. Empty when Outlook is not connected. */
   opportunities: { subject: string; from: string; deadline: string | null; kinds: string[] }[];
@@ -127,9 +136,11 @@ export async function buildDayPicture(): Promise<DayPicture> {
   const dayEnd = endOfToday(TZ);
   const { weekday, date, dow } = fmtParts(TZ);
 
-  const [rawEvents, emails, opportunities, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }, budget] = await Promise.all([
+  const [rawEvents, mail, opportunities, markets, weather, training, positions, { data: taskRows }, { data: reminderRows }, { data: goalRows }, budget] = await Promise.all([
     upcomingEvents(10).catch(() => null),
-    listUnreadEmails(6).catch(() => null),
+    // Both mailboxes, in one shape. Replaces a Gmail-only call that returned
+    // six subjects with no way to tell which of them mattered.
+    gatherMail(15).catch(() => [] as Awaited<ReturnType<typeof gatherMail>>),
     // Outlook is optional: not connected returns null and the brief simply
     // does not mention it, rather than failing to generate.
     listOutlookMail(40).then((m) => (m ? findOpportunities(m) : [])).catch(() => []),
@@ -161,6 +172,13 @@ export async function buildDayPicture(): Promise<DayPicture> {
       .limit(3),
     budgetPicture(),
   ]);
+
+  /*
+   * Ranked after the parallel gather rather than inside it: the ranker needs
+   * the whole set to judge relative importance, and running it on an empty
+   * inbox would spend a model call to be told there is nothing.
+   */
+  const importantMail = mail.length ? await rankMail(mail, 4).catch(() => [] as RankedMail[]) : [];
 
   // ── Calendar ────────────────────────────────────────────────────────────
   const events: AgendaEvent[] = (rawEvents ?? [])
@@ -250,7 +268,8 @@ export async function buildDayPicture(): Promise<DayPicture> {
     tasks: tasks.slice(0, 12),
     overdue, dueToday, headline,
     openCount: tasks.length,
-    unread: (emails ?? []).map((e) => ({ from: e.from, subject: e.subject })),
+    unread: mail.map((e) => ({ from: e.fromName || e.fromAddress, subject: e.subject, account: e.account })),
+    importantMail,
     opportunities: opportunities.map((o) => ({
       subject: o.subject, from: o.from, deadline: o.deadline, kinds: o.kinds,
     })),
@@ -376,8 +395,26 @@ export function describeDay(d: DayPicture): string {
       lines.push(`CAREER MAIL: ${undated.map((o) => `${o.from} — "${o.subject}"`).join("; ")}`);
     }
   }
+  /*
+   * What the mail *says*, not how much of it there is.
+   *
+   * This read "4 unread emails waiting", which is a number he already knew
+   * and could not act on. The ranked lines name the sender, the subject and
+   * why it matters — the count stays as a second line, because "and eleven
+   * others" is the part that tells him whether to open the mailbox at all.
+   */
+  if (d.importantMail.length) {
+    lines.push(
+      "MAIL THAT NEEDS HIM:\n" +
+      d.importantMail
+        .map((m) => `  · ${m.account === "outlook" ? "Outlook" : "Gmail"} — ${m.from}: "${m.subject}" (${m.urgency}) — ${m.why}`)
+        .join("\n"),
+    );
+  }
   if (d.unread.length) {
-    lines.push(`EMAIL: ${d.unread.length} unread — ${d.unread.slice(0, 3).map((e) => `${e.from} on "${e.subject}"`).join("; ")}`);
+    const g = d.unread.filter((e) => e.account === "gmail").length;
+    const o = d.unread.length - g;
+    lines.push(`EMAIL: ${d.unread.length} unread (${g} Gmail, ${o} Outlook) — ${d.unread.slice(0, 3).map((e) => `${e.from} on "${e.subject}"`).join("; ")}`);
   }
 
   if (d.markets.length) {

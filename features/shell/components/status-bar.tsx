@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Search, Volume2, VolumeX } from "lucide-react";
-import { APP_NAME, fmt } from "@/lib/config";
+import { APP_MOTTO, APP_NAME, fmt } from "@/lib/config";
 import { SageMark } from "@/components/ui/sage-mark";
 import { sound } from "@/lib/sound";
 import { useShellStore } from "@/features/shell/store";
@@ -21,7 +21,7 @@ export function StatusBar() {
   }, []);
 
   return (
-    <header className="flex min-h-12 shrink-0 items-center gap-3 border-b border-[var(--rule-strong)] bg-background/90 px-4 pt-[var(--sat)] backdrop-blur-xl md:min-h-[54px] md:gap-4 md:px-6">
+    <header className="relative flex min-h-12 shrink-0 items-center gap-3 border-b border-[var(--rule-strong)] bg-background/90 px-4 pt-[var(--sat)] backdrop-blur-xl md:min-h-[54px] md:gap-4 md:px-6">
       <div className="flex items-center gap-3">
         <SageMark size={22} online />
         <span className="brand-title text-[13px] md:text-[15px]">{APP_NAME}</span>
@@ -29,6 +29,16 @@ export function StatusBar() {
       <span className="rail hidden sm:flex">
         <span className="k">MISSION CONTROL</span>
         <span className="v">v0.2</span>
+      </span>
+      {/*
+        The motto, centred, from his identity sheet.
+        Absolutely positioned rather than placed in the flow: centring it with
+        margins would mean it moves whenever the wordmark or the controls
+        change width, and a motto that drifts as the clock ticks over from
+        09:59 to 10:00 is worse than none.
+      */}
+      <span className="brand-motto pointer-events-none absolute left-1/2 hidden -translate-x-1/2 lg:block">
+        {APP_MOTTO}
       </span>
       <span className="mx-auto" />
       {/* The palette was keyboard-only, which meant it did not exist at all on

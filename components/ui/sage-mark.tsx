@@ -3,20 +3,56 @@
 import { cn } from "@/lib/utils";
 
 /**
- * SAGE identity mark — a crowned queen, with a cross set in the diamond at
- * her brow.
+ * The SAGE mark — a crowned, armoured figure with a cross set in the diamond
+ * at its brow, standing on steps.
  *
- * Drawn as vector paths rather than traced from the source PNG, so it takes
- * `currentColor` and stays crisp at 14px in the status bar and at 512px as
- * the app icon. Every coordinate sits on a 100-unit grid, which is why the
- * two wings are exactly symmetrical about x = 50 — a traced outline never is,
- * and that asymmetry shows first at the small size, which is where the mark
- * is used most.
+ * Redrawn from Gyaan's artwork rather than traced from it: the upload has
+ * never reached the repository, so this is a vector reconstruction on a
+ * 100-unit grid. Every coordinate is symmetric about x = 50, which a traced
+ * outline never is — and that asymmetry shows first at 14px in the status bar,
+ * which is where the mark is used most.
  *
- * The animation hooks the old diamond had are kept: `.sage-mark__seg`
- * breathes on hover and `--online` glows, so the status bar behaves exactly
- * as it did.
+ * Built from real shapes with real holes (`fill-rule="evenodd"`) rather than
+ * by painting background-coloured patches over it. The previous version cut
+ * its cross with `fill: var(--background)`, which meant the mark was only
+ * correct on SAGE's own background and became a solid blob anywhere else — on
+ * a launcher tile, in a notification, on anything light.
+ *
+ * The animation hooks are unchanged: `.sage-mark__seg` breathes on hover and
+ * `--online` glows, so the status bar behaves exactly as it did.
  */
+
+/** The head: a narrow armoured mask, widest at the brow, with a diamond cut
+ *  at the brow and a visor slot either side. */
+const HEAD = `
+M 50 1 L 56 19 L 61.5 26 L 59 47 L 50 63 L 41 47 L 38.5 26 L 44 19 Z
+M 50 21.5 L 58.5 30 L 50 38.5 L 41.5 30 Z
+M 41.5 40 L 47.5 47.5 L 45 51.5 L 40 43.5 Z
+M 58.5 40 L 52.5 47.5 L 55 51.5 L 60 43.5 Z
+`;
+
+const CROSS = `
+M 48.2 25.2 L 51.8 25.2 L 51.8 28.4 L 55 28.4 L 55 31.6 L 51.8 31.6
+L 51.8 34.8 L 48.2 34.8 L 48.2 31.6 L 45 31.6 L 45 28.4 L 48.2 28.4 Z
+`;
+
+/* The wings sweep up and out, tips clearing the spire — which is what makes
+   this read as a crown rather than as wings on a bird. */
+const WING_R = `M 56.5 30 C 66 22, 76 13, 88 3 C 86 21, 78 40, 65.5 53 L 59 43 Z`;
+const WING_L = `M 43.5 30 C 34 22, 24 13, 12 3 C 14 21, 22 40, 34.5 53 L 41 43 Z`;
+const SPIKE_R = `M 54.5 14 L 63 8 L 60.5 30 Z`;
+const SPIKE_L = `M 45.5 14 L 37 8 L 39.5 30 Z`;
+
+/** Narrow at the waist, concave out to sharp points, standing on two steps. */
+const ROBE = `
+M 43 54 L 57 54 L 58.5 66
+C 63 72, 70 80, 74 88 L 80 97 L 20 97 L 26 88
+C 30 80, 37 72, 41.5 66 Z
+M 48.8 63 L 51.2 63 L 52.1 97 L 47.9 97 Z
+M 27.5 87.5 L 72.5 87.5 L 73.9 90.3 L 26.1 90.3 Z
+M 24.2 92.4 L 75.8 92.4 L 77.2 95.2 L 22.8 95.2 Z
+`;
+
 export function SageMark({
   size = 22,
   online = false,
@@ -36,27 +72,17 @@ export function SageMark({
       aria-hidden
     >
       <g fill="currentColor" className="sage-mark__seg">
-        {/* Left wing of the crown, sweeping down to the collar. */}
-        <path d="M14 12 L31 34 L38 30 L50 44 L34 44 L20 26 Z" className="s s-tl" />
-        {/* Right wing, mirrored about x = 50. */}
-        <path d="M86 12 L69 34 L62 30 L50 44 L66 44 L80 26 Z" className="s s-tr" />
-        {/* Centre spire. */}
-        <path d="M50 6 L60 28 L50 38 L40 28 Z" />
-        {/* Collar: the V the two wings meet in. */}
-        <path d="M32 42 L68 42 L50 62 Z" />
-        {/* Stem, waisted like a chess queen rather than straight-sided. */}
-        <path d="M43 58 H57 Q60 72 63 84 H37 Q40 72 43 58 Z" />
-        {/* Two-step base. */}
-        <path d="M35 86 H65 L67 92 H33 Z" />
-        <path d="M31 94 H69 L71 99 H29 Z" />
+        <path d={WING_L} className="s s-tl" />
+        <path d={WING_R} className="s s-tr" />
+        <path d={SPIKE_L} />
+        <path d={SPIKE_R} />
+        <path d={HEAD} fillRule="evenodd" />
+        <path d={CROSS} className="sage-mark__core" />
+        <path d={ROBE} fillRule="evenodd" />
       </g>
-      {/* The cross is cut from the ground rather than drawn in a second
-          colour, so the mark survives being placed on any background. */}
-      <path
-        d="M47 20 h6 v5 h5 v6 h-5 v5 h-6 v-5 h-5 v-6 h5 z"
-        fill="var(--background, #08090b)"
-        className="sage-mark__core"
-      />
     </svg>
   );
 }
+
+/** The geometry, for the icon generator and anywhere else that needs it. */
+export const MARK_PATHS = { HEAD, CROSS, WING_L, WING_R, SPIKE_L, SPIKE_R, ROBE };

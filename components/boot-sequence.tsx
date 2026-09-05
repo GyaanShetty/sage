@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { SageMark } from "@/components/ui/sage-mark";
+import { SageSigil } from "@/components/ui/sage-sigil";
 import { sound } from "@/lib/sound";
 
 const LINES = [
@@ -53,7 +53,7 @@ export function BootSequence() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SageMark size={44} online={step >= LINES.length} />
+            <SageSigil size={150} words={step >= 2} />
           </motion.div>
           <div className="boot-lines">
             {LINES.slice(0, step).map((l, i) => (

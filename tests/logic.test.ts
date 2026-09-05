@@ -3877,3 +3877,27 @@ test("no ambient dedupe key is built from a value that moves", async () => {
     assert.ok(!/Math\.round/.test(k), `key uses a rounded reading: ${k}`);
   }
 });
+
+/*
+ * The mark's geometry lives twice — once in the client component, once in the
+ * icon generator, which runs in plain Node and cannot import a "use client"
+ * module. Duplication is the right call there and a silent drift is the price,
+ * so the two are checked against each other: change the mark in one place and
+ * this fails until the icons are regenerated.
+ */
+test("the app icons are drawn from the same geometry as the mark", async () => {
+  const fs = await import("node:fs");
+  const component = fs.readFileSync("components/ui/sage-mark.tsx", "utf8");
+  const generator = fs.readFileSync("scripts/make-icons.mjs", "utf8");
+
+  const paths = (src: string) =>
+    Object.fromEntries(
+      [...src.matchAll(/^const (HEAD|CROSS|WING_L|WING_R|SPIKE_L|SPIKE_R|ROBE) = `([^`]+)`/gm)]
+        .map(([, name, d]) => [name, d.replace(/\s+/g, " ").trim()]),
+    );
+
+  const a = paths(component);
+  const b = paths(generator);
+  assert.equal(Object.keys(a).length, 7, "expected seven shapes in the component");
+  assert.deepEqual(a, b, "the icon generator has drifted from the mark — rerun scripts/make-icons.mjs");
+});

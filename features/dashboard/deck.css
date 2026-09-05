@@ -78,7 +78,10 @@
  * — which is exactly how the band looked. This is the same rule the wall
  * depends on, and it has to be restated for every track.
  */
-.deck-band > *, .deck-cols > * { min-height: 0; }
+/* And they fill the row they are in. A grid row sized from its tallest item
+   leaves every shorter pane floating with dead space under it, which is what
+   made the band read as six unrelated boxes rather than one row. */
+.deck-band > *, .deck-cols > * { min-height: 0; height: 100%; }
 
 /* Below the breakpoint everything stacks and scrolls, the same bargain the
    wall makes: a phone is already the constraint. */
@@ -101,6 +104,7 @@
   .deck-band {
     flex: 1;
     grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
   }
 }
 

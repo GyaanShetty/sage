@@ -67,7 +67,7 @@ export const PALETTE_ACTIONS: PaletteAction[] = [
   { id: "nav-workspace", label: "Workspace", icon: FolderKanban, group: "Navigate", href: "/workspace" },
   { id: "nav-knowledge", label: "Knowledge", icon: BookOpen, group: "Navigate", href: "/knowledge" },
   { id: "nav-graph", label: "Mind Graph", icon: Network, group: "Navigate", href: "/graph" },
-  { id: "nav-wall", label: "The Wall", hint: "every pane, max density", icon: LayoutGrid, group: "Navigate", href: "/wall", keywords: "dashboard dense maximal all panes everything" },
+  { id: "nav-deck", label: "Deck", hint: "the mark, and an ask bar", icon: LayoutGrid, group: "Navigate", href: "/deck", keywords: "hero sigil logo ask centre" },
   { id: "nav-board", label: "Boards", hint: "whiteboard · canvas", icon: PenLine, group: "Navigate", href: "/board", keywords: "whiteboard canvas draw sticky note mind map diagram arrow sketch obsidian" },
   { id: "nav-agents", label: "Research Agent", icon: Bot, group: "Navigate", href: "/agents" },
   { id: "nav-automations", label: "Automations", icon: Zap, group: "Navigate", href: "/automations" },

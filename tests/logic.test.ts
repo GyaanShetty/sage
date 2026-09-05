@@ -3901,3 +3901,70 @@ test("the app icons are drawn from the same geometry as the mark", async () => {
   assert.equal(Object.keys(a).length, 7, "expected seven shapes in the component");
   assert.deepEqual(a, b, "the icon generator has drifted from the mark — rerun scripts/make-icons.mjs");
 });
+
+/*
+ * The radial plot's seam.
+ *
+ * A cyclic chart exists precisely because its axis wraps — Sunday sits beside
+ * Monday, 23:00 beside 00:00. Getting the wrap wrong produces a chart that
+ * looks fine and is subtly rotated, or one that spirals past its own start,
+ * and neither is visible without counting spokes against known data.
+ */
+test("spokeAngle wraps at the seam instead of spiralling", async () => {
+  const { spokeAngle, polar } = await import("../components/instruments");
+
+  assert.equal(spokeAngle(0, 7), 0);
+  assert.equal(spokeAngle(7, 7), 0, "one full turn is back at the start");
+  assert.equal(spokeAngle(8, 7), spokeAngle(1, 7), "and past the end wraps, not spirals");
+  assert.equal(spokeAngle(-1, 7), spokeAngle(6, 7), "negative indices wrap backwards");
+  assert.equal(spokeAngle(3, 12), 90);
+  assert.equal(spokeAngle(0, 0), 0, "no slices is not a division by zero");
+
+  // 0° must be twelve o'clock, not three — every label position depends on it.
+  const top = polar(50, 50, 10, 0);
+  assert.ok(Math.abs(top.x - 50) < 1e-9 && Math.abs(top.y - 40) < 1e-9, `expected top, got ${JSON.stringify(top)}`);
+  const right = polar(50, 50, 10, 90);
+  assert.ok(Math.abs(right.x - 60) < 1e-9 && Math.abs(right.y - 50) < 1e-9);
+});
+
+/*
+ * The history series.
+ *
+ * Its whole job is to make a quiet day and a dead pane look different, and
+ * both of its failure modes are invisible: a sparse series draws a chart whose
+ * x-axis is not time, and a series stepped by subtracting 86,400,000 drops or
+ * doubles a day at a boundary — which surfaces as a chart one column short a
+ * fortnight later.
+ */
+test("densify fills every day, including the ones with nothing in them", async () => {
+  const { densify, values, byWeekday, dayKey } = await import("../core/history");
+
+  const today = dayKey(new Date());
+  const series = densify([{ at: new Date(), value: 5 }], 14);
+
+  assert.equal(series.length, 14, "one point per day, not one per event");
+  assert.equal(series[series.length - 1].day, today, "the last point is today");
+  assert.equal(series[series.length - 1].value, 5);
+  assert.ok(series.slice(0, 13).every((p) => p.value === 0), "quiet days are zero, not absent");
+
+  // Strictly increasing, no repeats — the bug a naive 86.4e6 step produces.
+  const days = series.map((p) => p.day);
+  assert.equal(new Set(days).size, 14, "no duplicated or skipped days");
+  assert.deepEqual([...days].sort(), days, "and they are in order");
+
+  // Several events on one day sum rather than overwrite.
+  const now = new Date();
+  const two = densify([{ at: now, value: 3 }, { at: now, value: 4 }], 3);
+  assert.equal(two[2].value, 7);
+
+  // No value means count the row.
+  assert.equal(densify([{ at: now }, { at: now }], 2)[1].value, 2);
+
+  assert.deepEqual(values(densify([], 3)), [0, 0, 0], "no history at all is still a dense series");
+
+  // Monday first: a chart whose first spoke is a weekend reads wrong however
+  // correct its numbers are. 2026-09-07 is a Monday.
+  const wd = byWeekday([{ day: "2026-09-07", value: 9 }]);
+  assert.equal(wd[0], 9, `Monday must land in slot 0, got ${JSON.stringify(wd)}`);
+  assert.equal(byWeekday([{ day: "2026-09-13", value: 4 }])[6], 4, "and Sunday in slot 6");
+});

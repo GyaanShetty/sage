@@ -479,3 +479,91 @@
   .pf-wall .wall-row { grid-template-columns: 1fr; }
   .pf-wall .pane { min-height: 190px; }
 }
+
+/* ── pages ──────────────────────────────────────────────────────────────
+   The wall in five, so each pane is twice the size and has room for a chart.
+   The shell holds the tabs above a wall that still owns the rest of the
+   frame — the tabs are chrome, not a row. */
+
+.wall-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--rule);
+  min-height: 0;
+}
+
+.wall-tabs {
+  flex: none;
+  display: flex;
+  gap: 1px;
+  background: var(--rule);
+}
+.wall-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 0;
+  color: var(--subtle);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  cursor: pointer;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+.wall-tabs button em {
+  font-style: normal;
+  font-size: 8px;
+  opacity: 0.55;
+}
+.wall-tabs button:hover { color: var(--foreground); background: var(--panel-hi); }
+.wall-tabs button.on {
+  color: var(--signal);
+  background: var(--signal-faint);
+  /* An inset line rather than a border, so the tab strip's height does not
+     change between states and shift the whole wall by a pixel. */
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+@media (min-width: 1400px) {
+  .wall-shell { flex: 1; height: 100%; min-height: 0; overflow: hidden; }
+  .wall-shell > .wall { flex: 1; min-height: 0; }
+}
+
+/* The shell owns the frame the wall used to. */
+main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
+@media (min-width: 1400px) {
+  main.hud-grid:has(.wall-shell) { display: flex; flex-direction: column; }
+  main.hud-grid:has(.wall-shell) > *,
+  main.hud-grid :has(> .wall-shell) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
+}
+
+/*
+ * A row that sizes to whatever it holds.
+ *
+ * The original five rows carry hand-tuned column templates, which is right
+ * when the row's contents never change. Once pages compose their own rows the
+ * template is a promise about a pane count nobody is keeping — a five-pane row
+ * under a seven-column template stops two thirds of the way across and leaves
+ * a grey band, which is exactly what it did.
+ */
+@media (min-width: 1400px) {
+  .wall-row.wall-auto {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    /* Column flow means `grid-auto-rows` no longer sizes the track, so the
+       single row falls back to its content height and every pane in it
+       overflows. The row has to be pinned explicitly. */
+    grid-template-rows: minmax(0, 1fr);
+    /* And it takes a share of the wall's height. Every numbered row declares
+       its own flex; without one this row is sized by its content, which on a
+       column of lists means it grows past the wall and every pane in it
+       overflows. */
+    flex: 1;
+  }
+}

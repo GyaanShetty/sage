@@ -254,7 +254,15 @@ export function MemoryTile({ n }: { n?: number }) {
 
 /* ── EXAMS · /exam ────────────────────────────────────────────────────── */
 export function ExamTile({ n }: { n?: number }) {
-  const [ex, setEx] = useState<{ name: string; date: string }[] | null>(null);
+  /*
+   * `subject` and `at`, which is what the Exam type has always been
+   * (core/exam/index.ts). This read `name` and `date`, so every paper showed
+   * `NaN` days — `new Date(undefined)` is NaN and it rendered straight to the
+   * screen. Third time a tile has read a field the type never had, after
+   * Career's status/stage and the mail box/view parameter, which is why there
+   * is now a test for it.
+   */
+  const [ex, setEx] = useState<{ subject: string; at: string }[] | null>(null);
   useLive(
     () => fetch("/api/exam").then((r) => r.json()).then((j) => setEx(asArray(j?.data?.exams, j?.data))).catch(() => setEx([])),
     { everyMs: 3_600_000 },
@@ -265,8 +273,16 @@ export function ExamTile({ n }: { n?: number }) {
       {!ex && <div className="tile-wait">ACQUIRING…</div>}
       {ex?.length === 0 && <Empty reason="No papers scheduled" action="Add an exam" href="/exam" />}
       {ex?.slice(0, 5).map((e, i) => {
-        const d = daysTo(e.date);
-        return <Row key={i} k={e.name} v={`${d}D`} tone={d <= 7 ? "down" : d <= 21 ? "signal" : undefined} />;
+        const d = daysTo(e.at);
+        return (
+          <Row
+            key={i}
+            k={e.subject}
+            // A malformed date is shown as unknown rather than as NaN days.
+            v={Number.isFinite(d) ? `${d}D` : "—"}
+            tone={Number.isFinite(d) ? (d <= 7 ? "down" : d <= 21 ? "signal" : undefined) : "muted"}
+          />
+        );
       })}
     </Pane>
   );

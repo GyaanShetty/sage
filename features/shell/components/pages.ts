@@ -48,7 +48,7 @@ export const PAGES: Item[] = [
   { href: "/memory", label: "Memory", icon: Brain, group: "MIND" },
   { href: "/graph", label: "Mind Graph", icon: Network, group: "MIND" },
   { href: "/board", label: "Boards", icon: PenLine, hint: "draw · note · attach", group: "MIND" },
-  { href: "/wall", label: "The Wall", icon: LayoutGrid, hint: "every pane, max density", group: "MIND" },
+  { href: "/deck", label: "Deck", icon: LayoutGrid, hint: "the mark, and an ask bar", group: "MIND" },
   { href: "/health", label: "Health", icon: Activity, group: "MIND" },
 
   { href: "/settings", label: "Settings", icon: Settings, group: "MIND" },

@@ -123,7 +123,7 @@ export function DeckView({
         <TileGuard name="INBOX"><InboxTile n={9} /></TileGuard>
         <TileGuard name="HEALTH"><HealthTile n={10} /></TileGuard>
 
-        <Pane n={13} title="Quick Access" status={<Link href="/wall" className="deck-more">FULL WALL →</Link>}>
+        <Pane n={13} title="Quick Access" status={<Link href="/dashboard" className="deck-more">FULL WALL →</Link>}>
           <div className="deck-quick">
             {QUICK.map(({ href, label, Icon }) => (
               <Link key={href} href={href}>

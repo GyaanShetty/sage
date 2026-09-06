@@ -1184,12 +1184,22 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 /* ── MAGNIFY ──────────────────────────────────────────────────────────────
    Any pane opens at a size you can actually read. On a wall this dense every
    figure is a glance; this is where you go when the glance was not enough. */
+/*
+ * The pane controls, visible without hovering first.
+ *
+ * They were --faint until the header was hovered, which on a wall of thirty
+ * panes means nobody discovers them: you cannot hover something you do not
+ * know is there. Now legible at rest, and a larger hit area so they can be
+ * hit on a touchscreen that has no hover at all.
+ */
 .pane-zoom {
-  flex: none; background: none; border: 0; cursor: pointer; padding: 0 2px;
-  font-family: var(--mono); font-size: 10px; line-height: 1; color: var(--faint);
+  flex: none; background: none; border: 0; cursor: pointer; padding: 2px 4px;
+  font-family: var(--mono); font-size: 12px; line-height: 1; color: var(--muted);
   transition: color 0.15s var(--ease);
 }
-.pane-hd:hover .pane-zoom { color: var(--subtle); }
+/* --muted on the panel is about 6.5:1; --subtle was 2.97:1, which is below
+   the 4.5:1 floor and is why these still read as absent. */
+.pane-hd:hover .pane-zoom { color: var(--foreground); }
 .pane-zoom:hover { color: var(--signal); }
 
 /* The magnified copy overrides the container-query sizes with fixed ones —
@@ -1271,14 +1281,35 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   font-family: var(--mono); letter-spacing: 0.18em; text-transform: uppercase;
   text-decoration: none;
 }
-.empty-r { font-size: 8px; color: var(--faint); }
-.empty-a { font-size: 8.5px; color: var(--signal-dim); }
+/*
+ * An empty pane is a door, and the handle has to be visible.
+ *
+ * This was 8px in --faint, which is #2a2b30 on a #0c0d0f panel — a contrast
+ * ratio around 1.4:1, effectively invisible, and it shrank to 6.5px on the
+ * wall. Half the panes on his screen were saying something useful that could
+ * not be read. The reason is now muted text at a readable size and the action
+ * is an actual button.
+ */
+.empty-r { font-size: 11px; color: var(--muted); letter-spacing: 0.12em; }
+.empty-a {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 4px 9px;
+  font-size: 10px;
+  color: var(--signal);
+  border: 1px solid var(--signal-dim);
+  border-radius: 2px;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+.empty.is-link:hover .empty-a { background: var(--signal); color: var(--background); }
 .empty.is-link:hover .empty-a { color: var(--signal); }
 .empty.is-link:hover .empty-r { color: var(--subtle); }
 @media (min-width: 1400px) {
-  .wall .empty { padding: clamp(3px, 4cqh, 10px) 9px; gap: clamp(1px, 1.5cqh, 4px); }
-  .wall .empty-r { font-size: clamp(6.5px, 3.2cqh, 8px); }
-  .wall .empty-a { font-size: clamp(7px, 3.4cqh, 8.5px); }
+  /* Floors raised: nothing on the wall is allowed below 9px, because below
+     that it is decoration rather than information. */
+  .wall .empty { padding: clamp(6px, 4cqh, 12px) 10px; gap: clamp(3px, 1.5cqh, 6px); }
+  .wall .empty-r { font-size: clamp(9.5px, 3.6cqh, 12px); }
+  .wall .empty-a { font-size: clamp(9px, 3.4cqh, 11px); }
 }
 .pane-mag .empty { padding: 22px 4px; gap: 8px; }
 .pane-mag .empty-r { font-size: 12px; }

@@ -249,235 +249,87 @@ export function CommandView({
     <div className="wall">
       {/* ── ROW 1 ─────────────────────────────────────────────────────────
           The map leads, at the width it earns. */}
+      {/*
+        Each tile declares how much room it needs; the grid fits the rest
+        around it. `t-lg` is a chart with an axis, `t-md` a list, `t-sm` a
+        figure — and dense packing backfills whatever a large tile leaves
+        behind, so there is no hole to stare at.
+      */}
       {page === "overview" && (
-      <div className="wall-row wall-r1">
-        <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map" frame noZoom>
-          <AtlasMap lat={12.9352} lon={77.6245} compact />
-          <span className="deck-map-marks" aria-hidden>
-            <Crosshair /><Crosshair /><Crosshair /><Crosshair />
-          </span>
-        </Pane>
-        <TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard>
-        <TileGuard name="KEYMETRICS">
-          <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
-        </TileGuard>
-        <TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard>
-      </div>
-      )}
-
-      {/* ── ROW 2 ───────────────────────────────────────────────────────── */}
-      {page === "body" && (
-      <div className="wall-row wall-r2">
-        <TileGuard name="BIO"><BioTile n={4} /></TileGuard>
-        <TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard>
-        <TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard>
-        <div className="wall-stack">
-          <TileGuard name="ACTIVITY"><ActivityTile n={7} /></TileGuard>
-          <Pane
-            n={8}
-            title="Focus Cycle"
-            status={
-              <span className="fc-btns">
-                <button onClick={() => setFocusRun((r) => !r)}>{focusRun ? "PAUSE" : "START"}</button>
-                <button onClick={() => { setFocusRun(false); setFocusSec(25 * 60); }}>RESET</button>
-              </span>
-            }
-            live={focusRun}
-          >
-            <div className="fring">
-              <svg viewBox="0 0 92 92">
-                <circle cx="46" cy="46" r={fr} fill="none" stroke="var(--rule)" strokeWidth="2.5" />
-                <circle cx="46" cy="46" r={fr} fill="none" stroke="var(--signal)" strokeWidth="2.5" strokeDasharray={fc} strokeDashoffset={fc * (1 - fpct)} transform="rotate(-90 46 46)" strokeLinecap="round" />
-              </svg>
-              <div>
-                <div className="ft2 num">{pad(Math.floor(focusSec / 60))}:{pad(focusSec % 60)}</div>
-                <div className="fk">DEEP WORK · POMODORO</div>
-              </div>
-            </div>
+        <div className="wall-pack">
+          <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x3" frame noZoom>
+            <AtlasMap lat={12.9352} lon={77.6245} compact />
+            <span className="deck-map-marks" aria-hidden>
+              <Crosshair /><Crosshair /><Crosshair /><Crosshair />
+            </span>
           </Pane>
-        </div>
-        <TileGuard name="MISSION">
-          <MissionTile
-            n={9}
-            open={open}
-            events={todays.length}
-            agentRunning={agentRunning}
-            memories={stats.memories}
-            runs={stats.runs}
-            weather={weather ? `${weather.temp}° ${weather.label}` : null}
-          />
-        </TileGuard>
-      </div>
-      )}
-
-      {/* ── ROW 3 ───────────────────────────────────────────────────────── */}
-      {page === "work" && (
-      <div className="wall-row wall-r3">
-        <TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard>
-        <Pane
-          n={11}
-          title="Deadlines"
-          status={<span className="fc-btns"><button onClick={() => setTaskModal(true)}>OPEN</button></span>}
-          live={open > 0}
-          edit={
-            <PaneForm
-              endpoint="/api/task"
-              submitLabel="ADD"
-              /* A new directive has to come back through the server render
-                 that produced the list; refetching here would give the pane a
-                 second, disagreeing copy. */
-              onDone={() => window.location.reload()}
-              fields={[
-                { name: "title", label: "Directive", required: true },
-                { name: "dueAt", label: "Due", type: "datetime" },
-              ]}
-            />
-          }
-        >
-          {tasks.map((t) => (
-            <div className={`task${t.status === "done" ? " done" : ""}`} key={t.id} onClick={() => toggleTask(t)}>
-              <span className="box" />
-              <span className="tx">{t.title}</span>
-              <span className="rank">{t.dueAt ? fmt(t.dueAt, { day: "2-digit", month: "short" }).toUpperCase() : "—"}</span>
-            </div>
-          ))}
-          {tasks.length === 0 && <div className="tile-wait">NO OPEN DIRECTIVES</div>}
-        </Pane>
-        <TileGuard name="GITHUB"><GithubTile n={13} /></TileGuard>
-        <TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard>
-        <TileGuard name="CODE"><CodeTile n={24} /></TileGuard>
-        <TileGuard name="PUSH"><PushTile n={25} /></TileGuard>
-      </div>
-      )}
-
-      {/* ── ROW 4 ─────────────────────────────────────────────────────────
-          Nine narrow columns. Each pane's body scrolls inside itself, so a
-          long agenda cannot push the wall past the bottom of the screen. */}
-      {page === "overview" && (
-      <div className="wall-row wall-r4">
-        <TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard>
-        <TileGuard name="SKY"><SkyTile n={16} /></TileGuard>
-        <TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard>
-        <TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard>
-        <Pane n={19} title="What Now">
-          <NextAction />
-          <div className="askbox wall-ask">
-            <span className="sig" />
-            <input
-              value={ask}
-              onChange={(e) => setAsk(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { doAsk(ask); setAsk(""); } }}
-              placeholder="Ask Sage…"
-            />
+          <div className="t-4x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
+          <div className="t-4x3">
+            <TileGuard name="MISSION">
+              <MissionTile n={9} open={open} events={todays.length} agentRunning={agentRunning}
+                memories={stats.memories} runs={stats.runs}
+                weather={weather ? `${Math.round(weather.temp)}°` : null} />
+            </TileGuard>
           </div>
-          <div className="sageout">{asking ? "…" : askOut}</div>
-        </Pane>
-        <Pane n={20} title="Gita" status={`अध्याय ${gita.src}`} className="gita">
-          <button className="nxt" onClick={() => setGi((g) => (g + 1) % GITA.length)}>NEXT →</button>
-          <div className="dev">{gita.dev}</div>
-          <div className="tr">{gita.tr}</div>
-          <div className="en">{gita.en}</div>
-        </Pane>
-        <Pane n={21} title={`${now.toLocaleString("en", { month: "long" })} ${Y}`}>
-          <div className="cal">
-            {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((d) => <div className="dh" key={d}>{d}</div>)}
-            {Array.from({ length: lead }).map((_, i) => <div className="d out" key={`p${i}`}>{prevDim - lead + 1 + i}</div>)}
-            {Array.from({ length: dim }).map((_, i) => (
-              <div className={`d${i + 1 === now.getDate() ? " today" : ""}`} key={i}>
-                {pad(i + 1)}
-                {evDays.has(i + 1) && <span className="ev" />}
-              </div>
-            ))}
+          <div className="t-4x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard></div>
+          <div className="t-12x2">
+            <TileGuard name="KEYMETRICS">
+              <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+            </TileGuard>
           </div>
-        </Pane>
-        <TileGuard name="CAREER"><CareerTile n={26} /></TileGuard>
-        <TileGuard name="INBOX"><InboxTile n={27} /></TileGuard>
-      </div>
-      )}
-
-      {/* ── ROW 5 · work ─────────────────────────────────────────────── */}
-      {page === "work" && (
-      <div className="wall-row wall-auto">
-        <TileGuard name="EXAM"><ExamTile n={30} /></TileGuard>
-        <TileGuard name="CAREER2"><CareerTile n={26} /></TileGuard>
-        <TileGuard name="TASKRHYTHM"><TaskRhythmTile n={35} /></TileGuard>
-        <TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard>
-        <TileGuard name="FOCUSHIST"><FocusTile n={37} /></TileGuard>
-      </div>
-      )}
-
-      {/* ── OVERVIEW · the trends row ─────────────────────────────────
-          Two rows made each one four hundred pixels tall with its content in
-          the top third — a bigger pane holding the same one number reads as
-          emptier, not fuller. These fill the space with the only thing that
-          honestly can: what has actually been happening. */}
-      {page === "overview" && (
-        <div className="wall-row wall-auto">
-          <TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard>
-          <TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard>
-          <TileGuard name="OVFOCUS"><FocusTile n={37} /></TileGuard>
-          <TileGuard name="OVMEM"><MemoryGrowthTile n={43} /></TileGuard>
-          <TileGuard name="OVAGENTS"><AgentRunsTile n={48} /></TileGuard>
         </div>
       )}
 
-      {/* ── MARKETS ──────────────────────────────────────────────────────
-          The money page: what it is worth, what it is made of, what it
-          costs to live. */}
       {page === "markets" && (
-      <>
-        <div className="wall-row wall-auto">
-          <TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard>
-          <TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard>
-          <TileGuard name="SPEND"><SpendTile n={33} /></TileGuard>
+        <div className="wall-pack">
+          <div className="t-6x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="SPENDTREND"><SpendTrendTile n={38} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="SPENDSHAPE"><SpendShapeTile n={39} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="SPEND"><SpendTile n={33} /></TileGuard></div>
+          <div className="t-12x2"><TileGuard name="BUDGET"><BudgetTile n={42} /></TileGuard></div>
         </div>
-        <div className="wall-row wall-auto">
-          <TileGuard name="SPENDTREND"><SpendTrendTile n={38} /></TileGuard>
-          <TileGuard name="SPENDSHAPE"><SpendShapeTile n={39} /></TileGuard>
-          <TileGuard name="BUDGET"><BudgetTile n={42} /></TileGuard>
-        </div>
-      </>
       )}
 
-      {/* ── BODY ─────────────────────────────────────────────────────────
-          What the machine is doing, and what it has been doing. */}
       {page === "body" && (
-      <>
-        <div className="wall-row wall-auto">
-          <TileGuard name="BIO"><BioTile n={4} /></TileGuard>
-          <TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard>
-          <TileGuard name="STEPS"><StepsTile n={40} /></TileGuard>
+        <div className="wall-pack">
+          <div className="t-4x3"><TileGuard name="STEPS"><StepsTile n={40} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="BIO"><BioTile n={4} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="WEATHERWEEK"><WeatherWeekTile n={44} /></TileGuard></div>
         </div>
-        <div className="wall-row wall-auto">
-          <TileGuard name="SKY"><SkyTile n={16} /></TileGuard>
-          <TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard>
-          <TileGuard name="WEATHERWEEK"><WeatherWeekTile n={44} /></TileGuard>
-        </div>
-      </>
       )}
 
-      {/* ── MIND ─────────────────────────────────────────────────────────
-          What SAGE knows, and whether he is still feeding it. */}
+      {page === "work" && (
+        <div className="wall-pack">
+          <div className="t-4x3"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
+          <div className="t-12x2"><TileGuard name="TASKRHYTHM"><TaskRhythmTile n={35} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="FOCUSHIST"><FocusTile n={37} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CAREER"><CareerTile n={26} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CODE"><CodeTile n={24} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="GITHUB"><GithubTile n={13} /></TileGuard></div>
+        </div>
+      )}
+
       {page === "mind" && (
-      <>
-        <div className="wall-row wall-auto">
-          <TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard>
-          <TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard>
-          <TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard>
+        <div className="wall-pack">
+          <div className="t-4x3"><TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard></div>
+          <div className="t-6x2"><TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard></div>
+          <div className="t-6x2"><TileGuard name="READING"><ReadingTile n={47} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={48} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
         </div>
-        <div className="wall-row wall-auto">
-          <TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard>
-          <TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard>
-          <TileGuard name="READING"><ReadingTile n={47} /></TileGuard>
-          <TileGuard name="AGENTRUNS"><AgentRunsTile n={48} /></TileGuard>
-        </div>
-        <div className="wall-row wall-auto">
-          <TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard>
-          <TileGuard name="GROWTH"><GrowthTile n={29} /></TileGuard>
-          <TileGuard name="CALIBRATION"><CalibrationTile n={34} /></TileGuard>
-          <TileGuard name="FEEDS2"><FeedsTile n={12} /></TileGuard>
-        </div>
-      </>
       )}
 
       <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">

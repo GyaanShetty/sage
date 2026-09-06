@@ -3968,3 +3968,42 @@ test("densify fills every day, including the ones with nothing in them", async (
   assert.equal(wd[0], 9, `Monday must land in slot 0, got ${JSON.stringify(wd)}`);
   assert.equal(byWeekday([{ day: "2026-09-13", value: 4 }])[6], 4, "and Sunday in slot 6");
 });
+
+/*
+ * Exam copy must not name a duration.
+ *
+ * Each phase spans a range of days — `build` is eleven to twenty-one — and the
+ * headline is printed beside a strip showing the real count. A hardcoded
+ * length is therefore wrong for most of its own band, and wrong *next to the
+ * correct number*, which is how "12 days to ISA1 — Three weeks" happened.
+ */
+test("no exam headline hardcodes a length that its band does not guarantee", async () => {
+  const src = (await import("node:fs")).readFileSync("core/exam/index.ts", "utf8")
+    // Block comments only: a naive // strip eats https:// in URLs.
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const headlines = [...src.matchAll(/headline:\s*"([^"]+)"/g)].map((m) => m[1]);
+  assert.ok(headlines.length >= 5, `expected the phase headlines, found ${headlines.length}`);
+
+  /*
+   * A *bound* is fine and a *distance* is not.
+   *
+   * "Inside ten days" is true everywhere in a four-to-ten-day band — it
+   * describes the band. "Three weeks" asserts how far away the exam is, which
+   * is only true at one point in an eleven-to-twenty-one-day band and is
+   * printed next to the real number. So the test allows a bounding word and
+   * rejects a bare length.
+   */
+  const BOUNDED = /\b(inside|under|within|less than|fewer than|over|more than|past)\s+$/i;
+  const LENGTH = /\b(one|two|three|four|five|six|seven|eight|nine|ten|\d+)\s+(day|days|week|weeks|month|months)\b/gi;
+
+  for (const h of headlines) {
+    for (const m of h.matchAll(LENGTH)) {
+      const before = h.slice(0, m.index);
+      assert.ok(
+        BOUNDED.test(before),
+        `headline states a distance its band cannot promise: "${h}" — say a bound, or leave the number to the strip`,
+      );
+    }
+  }
+});

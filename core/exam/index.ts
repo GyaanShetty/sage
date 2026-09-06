@@ -82,7 +82,15 @@ const PHASE_COPY: Record<Phase, { headline: string; focus: string }> = {
     focus: "Cover the syllabus once, badly and quickly, so you know where the holes are before they matter.",
   },
   build: {
-    headline: "Three weeks. This is the part people waste.",
+    /*
+     * No duration in the copy.
+     *
+     * This band is eleven to twenty-one days, and the headline said "Three
+     * weeks" for all of it — printed directly beside a strip showing the real
+     * count, so at twelve days SAGE contradicted itself in the same sentence.
+     * The number is the strip's job; this line's job is what to do with it.
+     */
+    headline: "This is the part people waste.",
     focus: "Learn the material you have not seen. Everything after this window is retrieval, not first contact — so anything genuinely new needs to land now.",
   },
   test: {

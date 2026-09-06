@@ -567,3 +567,90 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
     flex: 1;
   }
 }
+
+/* ══ the packed wall ═════════════════════════════════════════════════════
+ *
+ * Tiles take the space they require; the layout fits the rest around them.
+ *
+ * Every layout before this imposed a shape and made the tiles live in it —
+ * equal cells, or hand-tuned column templates per row. That starves a map and
+ * wastes three hundred pixels on a world clock at the same time, which is how
+ * one screen manages to read as both cramped and empty.
+ *
+ * So: one twelve-column grid, tiles declaring a span, and `dense` packing so a
+ * small tile backfills the hole a large one leaves rather than the hole
+ * staying open. Rows divide the viewport exactly, which is what "fill the
+ * screen" means mechanically — and it is why no row needs a flex value any
+ * more.
+ */
+
+.wall-pack {
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  min-height: 0;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-flow: dense;
+}
+.wall-pack > * { min-width: 0; min-height: 0; }
+
+/* Below the breakpoint the spans collapse and the page scrolls, the same
+   bargain the wall already made: a phone is the constraint, not the layout. */
+@media (max-width: 1399px) {
+  .wall-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wall-pack > * { grid-column: span 2 !important; grid-row: auto !important; min-height: 200px; }
+  .wall-pack > .t-3x2 { grid-column: span 1 !important; }
+}
+
+@media (min-width: 1400px) {
+  .wall-pack {
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+    /*
+     * Rows are created as needed and share the height equally.
+     *
+     * A fixed `repeat(6, …)` looked tidier and was wrong: the spans on a page
+     * rarely tile a 12×6 rectangle exactly, so dense packing pushed the
+     * leftovers into an implicit seventh row — which, with no auto-row size,
+     * was zero pixels tall. Three panes had `clientHeight: 0` and reported as
+     * overflowing while being invisible.
+     *
+     * Letting the row count follow the content and sizing every row to an
+     * equal share of a fixed height means a page needing eight rows simply
+     * gets shorter ones, and nothing is ever squeezed to nothing.
+     */
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  /*
+   * Spans are thirds, halves, quarters and the full width — nothing else.
+   *
+   * Arbitrary spans do not tile a twelve-column grid, and dense packing can
+   * only backfill a hole something else happens to fit; it cannot invent a
+   * tile. The result was a ragged right edge with real gaps in it. Restricting
+   * the vocabulary to divisors of twelve, and composing each page from bands
+   * that sum to twelve, means the grid is always exactly full.
+   *
+   * The second number is height in rows: two for a list or a strip, three for
+   * a chart that needs an axis and a legend.
+   */
+  .wall-pack > .t-3x2  { grid-column: span 3;  grid-row: span 2; }
+  .wall-pack > .t-4x2  { grid-column: span 4;  grid-row: span 2; }
+  .wall-pack > .t-4x3  { grid-column: span 4;  grid-row: span 3; }
+  .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
+  .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
+  .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
+}
+
+/* The shell owns the frame; the packed grid fills what is left under the
+   tabs. */
+@media (min-width: 1400px) {
+  .wall-shell > .wall-pack { flex: 1; min-height: 0; }
+}
+
+/* A sized cell is a wrapper, not the pane itself — tiles do not take a
+   className, and threading one through thirty of them to place a grid item is
+   the wrong direction for that dependency to run. The pane fills the wrapper. */
+.wall-pack > div { display: flex; flex-direction: column; min-height: 0; }
+.wall-pack > div > * { flex: 1; min-height: 0; }

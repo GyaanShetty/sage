@@ -792,6 +792,25 @@
 .cc-addform { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .cc-addform input { flex: 1; min-width: 140px; background: var(--panel); border: 1px solid var(--border-glass); color: var(--foreground); font-size: 13px; padding: 9px 12px; outline: none; border-radius: 6px; }
 .cc-addform input:focus { border-color: var(--live-dim); }
+/* Opportunities strip — the mail with clocks on it, above the pipeline.
+   Scrolls horizontally rather than wrapping: the row must not push the board
+   off the screen on a week with a dozen finds. */
+.cc-opps { margin-bottom: 14px; }
+.cc-oppshead { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
+.cc-oppscount { color: var(--live); font-weight: 600; }
+.cc-oppswarn { margin-left: auto; color: #ff9f0a; text-decoration: none; }
+.cc-oppswarn:hover { text-decoration: underline; }
+.cc-oppsrow { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.cc-opp { flex: 0 0 260px; display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--border-glass); border-radius: 8px; background: var(--glass); }
+.cc-oppkinds { display: flex; flex-wrap: wrap; gap: 4px; }
+.cc-oppkind { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; padding: 2px 5px; border-radius: 3px; color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); }
+.cc-oppsrc { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--muted); margin-left: auto; }
+.cc-oppsubj { font-size: 12.5px; line-height: 1.35; color: var(--foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cc-oppfrom { font-family: var(--mono); font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-oppbtns { display: flex; gap: 6px; margin-top: auto; }
+.cc-oppbtns .cc-btn { padding: 6px 9px; }
+@media (max-width: 520px) { .cc-opp { flex-basis: 82vw; } }
+
 .cc-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-items: start; }
 .cc-col { min-width: 0; }
 .cc-colhead { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 8px 4px; border-bottom: 1px solid var(--border-glass); margin-bottom: 8px; }

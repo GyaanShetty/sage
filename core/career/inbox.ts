@@ -166,3 +166,44 @@ export function findOpportunities(mail: MailLike[], minScore = 0.45): Opportunit
       return b.score - a.score || b.receivedAt.localeCompare(a.receivedAt);
     });
 }
+
+/**
+ * A Gmail row as a MailLike.
+ *
+ * `listGmail` carries the id and date this needs; `searchGmail` carries
+ * neither, which is why the opportunities feed uses the former. The snippet
+ * becomes the preview rather than the body — it is short, so the link
+ * extraction below will usually find nothing in a Gmail row, and a missing
+ * link is the honest outcome of only having a snippet.
+ */
+export function fromGmail(m: { id?: string; subject: string; from: string; snippet: string; date: string }): MailLike {
+  return {
+    id: m.id ?? `gmail:${m.date}:${m.subject}`,
+    subject: m.subject || "(no subject)",
+    from: m.from,
+    preview: m.snippet,
+    receivedAt: m.date,
+  };
+}
+
+/**
+ * A company guessed from the sender.
+ *
+ * A guess, and treated as one: it prefills the add form for you to confirm
+ * rather than being written into the pipeline as fact. The mail domain is the
+ * best available signal and is still wrong for anything sent through a job
+ * board, which is exactly why nothing here saves on its own.
+ */
+export function companyFromSender(from: string): string {
+  const at = from.lastIndexOf("@");
+  const domain = (at >= 0 ? from.slice(at + 1) : from).replace(/[>\s]/g, "").toLowerCase();
+  const parts = domain.split(".").filter((p) => !["com", "co", "in", "org", "net", "io", "edu", "ac", "www", "mail", "email"].includes(p));
+  const name = parts[0] ?? domain;
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : "";
+}
+
+/** Loose enough to catch "Amazon SDE Intern" against a tracked "Amazon". */
+export function alreadyTracked(o: { subject: string; from: string }, apps: { company: string }[]): boolean {
+  const hay = `${o.subject} ${o.from}`.toLowerCase();
+  return apps.some((a) => a.company.length > 2 && hay.includes(a.company.toLowerCase()));
+}

@@ -99,7 +99,7 @@ const scanSchema = z.object({
  *  Only adds companies not already tracked; updates stage if further along. */
 /** The Gmail query, and the same vocabulary as a regex for Outlook. Kept side
  *  by side so the two mailboxes cannot drift into looking for different mail. */
-const RECRUITING_QUERY =
+export const RECRUITING_QUERY =
   'newer_than:60d (application OR applied OR internship OR interview OR "online assessment" OR OA OR "assessment" OR shortlisted OR "moving forward" OR offer OR "regret to inform" OR "not to move forward")';
 
 export const RECRUITING_WORDS =

@@ -4037,3 +4037,42 @@ test("the career scan reads Outlook as well as Gmail", async () => {
   }
   assert.equal(RECRUITING_WORDS.test("your amazon order has shipped"), false, "and it does not match ordinary mail");
 });
+
+test("the opportunities feed reads both mailboxes and never invents a company", async () => {
+  const { fromGmail, findOpportunities, companyFromSender, alreadyTracked } = await import("@/core/career/inbox");
+
+  // A Gmail row carries id and date only on listGmail; fromGmail is the adapter
+  // that makes one usable as MailLike at all.
+  const g = fromGmail({
+    id: "g1",
+    subject: "Interview invitation — SDE Intern",
+    from: "careers@acme.com",
+    snippet: "Please book a slot before 12 September 2026.",
+    date: "2026-09-01T04:00:00.000Z",
+  });
+  assert.equal(g.id, "g1");
+  assert.equal(g.receivedAt, "2026-09-01T04:00:00.000Z");
+  assert.equal(g.preview, "Please book a slot before 12 September 2026.");
+
+  // A row without an id still gets a stable one rather than colliding on undefined.
+  const a = fromGmail({ subject: "S", from: "f@x.com", snippet: "", date: "2026-09-01T00:00:00.000Z" });
+  const b = fromGmail({ subject: "T", from: "f@x.com", snippet: "", date: "2026-09-01T00:00:00.000Z" });
+  assert.notEqual(a.id, b.id);
+
+  assert.ok(findOpportunities([g]).length === 1, "an interview invitation is an opportunity");
+
+  assert.equal(companyFromSender("careers@acme.com"), "Acme");
+  assert.equal(companyFromSender("Placement Cell <placements@nitk.ac.in>"), "Nitk");
+
+  // Dedupe: something already in the pipeline must not also sit in the strip.
+  const opp = { ...findOpportunities([g])[0], source: "gmail" as const };
+  assert.equal(alreadyTracked(opp, [{ company: "Acme" }]), true);
+  assert.equal(alreadyTracked(opp, [{ company: "Zeta" }]), false);
+
+  // The route must read Gmail *and* Outlook. Gmail-only is the exact bug this
+  // whole line of work exists to fix, so it is asserted rather than trusted.
+  const route = readFileSync("app/api/career/opportunities/route.ts", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(route, /listGmail\(/);
+  assert.match(route, /listOutlookMail\(/);
+  assert.match(route, /catch\(\(\) => null\)/);
+});

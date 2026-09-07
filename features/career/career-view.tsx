@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Briefcase, Plus, RefreshCw, Trash2, ChevronLeft, ChevronRight, Sparkles, Loader2, Calendar, X,
-  Paperclip, FileText, Download, Save, Maximize2,
+  Paperclip, FileText, Download, Save, Maximize2, ExternalLink, Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@/features/dashboard/command.css";
 import { Acquiring } from "@/components/ui/acquiring";
 import { asArray } from "@/lib/as-array";
+import { companyFromSender, alreadyTracked } from "@/core/career/inbox";
 
 const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as const;
 type Stage = (typeof STAGES)[number];
@@ -26,6 +27,19 @@ interface App { id: string; company: string; role: string; stage: Stage; deadlin
 interface Prep { overview: string; recentNews: string[]; likelyQuestions: string[]; yourFit: string; tips: string[] }
 interface Insight { id: string; daysInStage: number; stale: boolean; daysToDeadline: number | null }
 interface Funnel { total: number; interviewRate: number; offerRate: number; medianDaysToInterview: number | null }
+interface Opp {
+  id: string; kinds: string[]; subject: string; from: string; receivedAt: string;
+  links: string[]; deadline: string | null; score: number; source: "gmail" | "outlook";
+}
+
+/** Everything the strip needs to say about a mail, in the order it matters. */
+const KIND_META: Record<string, { label: string; color: string }> = {
+  deadline: { label: "DEADLINE", color: "#ff3b30" },
+  interview: { label: "INTERVIEW", color: "#f4f5f7" },
+  form: { label: "FORM", color: "#7b8cff" },
+  internship: { label: "INTERNSHIP", color: "#54c98a" },
+};
+
 
 export function CareerView() {
   const [apps, setApps] = useState<App[] | null>(null);
@@ -42,6 +56,9 @@ export function CareerView() {
   const [noteDraft, setNoteDraft] = useState("");
   const [uploading, setUploading] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
+  const [opps, setOpps] = useState<Opp[] | null>(null);
+  const [boxes, setBoxes] = useState<{ gmail: boolean; outlook: boolean }>({ gmail: true, outlook: true });
+  const [dismissed, setDismissed] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/career").then((r) => r.json()).catch(() => null);
@@ -50,6 +67,26 @@ export function CareerView() {
     setInsights(Object.fromEntries(((j?.insights ?? []) as Insight[]).map((i) => [i.id, i])));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  /**
+   * The opportunities feed, loaded separately from the board.
+   *
+   * Two live mailboxes are slower than one database read, and the pipeline
+   * must not wait on them to paint.
+   */
+  const loadOpps = useCallback(async () => {
+    const j = await fetch("/api/career/opportunities").then((r) => r.json()).catch(() => null);
+    setOpps(asArray(j?.data?.opportunities));
+    setBoxes({ gmail: j?.data?.gmail !== false, outlook: j?.data?.outlook !== false });
+  }, []);
+  useEffect(() => { loadOpps(); }, [loadOpps]);
+
+  /** Track prefills the add form — it never saves a guess silently. */
+  const track = (o: Opp) => {
+    setNc({ company: companyFromSender(o.from), role: o.subject.slice(0, 80) });
+    setAdding(true);
+    setDismissed((d) => [...d, o.id]);
+  };
 
   const scan = async () => {
     setScanning(true);
@@ -160,6 +197,68 @@ export function CareerView() {
         )}
       </AnimatePresence>
 
+      {/*
+        Opportunities — above the pipeline, because these are the ones with
+        clocks on them. Extracted from mail by rules in core/career/inbox.ts,
+        never generated: a hallucinated deadline in a career tracker is a wrong
+        answer that looks exactly like a right one.
+      */}
+      {(() => {
+        const live = (opps ?? []).filter((o) => !dismissed.includes(o.id) && !alreadyTracked(o, apps ?? []));
+        const missing = [!boxes.gmail && "Gmail", !boxes.outlook && "Outlook"].filter(Boolean) as string[];
+        if (opps === null) return <div className="cc-opps"><Acquiring label="INBOX" /></div>;
+        if (live.length === 0 && missing.length === 0) return null;
+        return (
+          <div className="cc-opps">
+            <div className="cc-oppshead">
+              <Inbox className="size-3.5" />
+              <span>OPPORTUNITIES IN YOUR MAIL</span>
+              <span className="cc-oppscount">{live.length}</span>
+              {missing.length > 0 && (
+                <a className="cc-oppswarn" href="/settings">{missing.join(" and ")} not connected →</a>
+              )}
+            </div>
+            <div className="cc-oppsrow">
+              {live.map((o) => {
+                const days = o.deadline
+                  ? Math.round((new Date(o.deadline).getTime() - Date.now()) / 86400000)
+                  : null;
+                return (
+                  <div key={o.id} className="cc-opp">
+                    <div className="cc-oppkinds">
+                      {o.kinds.filter((k) => KIND_META[k]).map((k) => (
+                        <span key={k} className="cc-oppkind" style={{ ["--c" as string]: KIND_META[k].color }}>{KIND_META[k].label}</span>
+                      ))}
+                      <span className="cc-oppsrc">{o.source.toUpperCase()}</span>
+                    </div>
+                    <div className="cc-oppsubj">{o.subject}</div>
+                    <div className="cc-oppfrom">{o.from}</div>
+                    {o.deadline && days !== null && (
+                      <div className={cn("cc-deadline", days >= 0 && days <= 3 && "urgent", days < 0 && "passed")}>
+                        <Calendar className="size-3" />
+                        {new Date(o.deadline).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        {days >= 0 && days <= 3 && <b>{days === 0 ? " · TODAY" : days === 1 ? " · TOMORROW" : ` · ${days}D`}</b>}
+                        {days < 0 && <b> · PASSED</b>}
+                      </div>
+                    )}
+                    <div className="cc-oppbtns">
+                      <button onClick={() => track(o)} className="cc-btn cc-scan">Track →</button>
+                      {o.links[0] && (
+                        <a href={o.links[0]} target="_blank" rel="noreferrer" className="cc-btn" title={o.links[0]}>
+                          <ExternalLink className="size-3.5" /> Open
+                        </a>
+                      )}
+                      <button onClick={() => setDismissed((d) => [...d, o.id])} className="cc-btn cc-del" title="Not an opportunity"><X className="size-3.5" /></button>
+                    </div>
+                  </div>
+                );
+              })}
+              {live.length === 0 && <p className="cc-empty">Nothing waiting in the mailboxes that are connected.</p>}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="cc-board">
         {STAGES.map((s, si) => (
           <div key={s} className="cc-col">
@@ -213,7 +312,7 @@ export function CareerView() {
       </div>
 
       {apps && apps.length === 0 && (
-        <div className="cc-zero"><Briefcase className="size-6 opacity-40" /><p>No applications yet. Hit <b>Scan inbox</b> and SAGE will build your pipeline from Gmail.</p></div>
+        <div className="cc-zero"><Briefcase className="size-6 opacity-40" /><p>No applications yet. Hit <b>Scan inbox</b> and SAGE will build your pipeline from Gmail and Outlook.</p></div>
       )}
 
       {/* detail drawer — notes + attachments */}

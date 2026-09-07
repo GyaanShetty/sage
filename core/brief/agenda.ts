@@ -1,5 +1,5 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
-import { listUnreadEmails } from "@/infrastructure/integrations/google";
+import { listGmail } from "@/infrastructure/integrations/google";
 import { upcomingEvents } from "@/core/calendar";
 import { getMarkets } from "@/infrastructure/markets";
 import { getWeather } from "@/infrastructure/weather";
@@ -8,7 +8,8 @@ import { getPositions } from "@/core/portfolio/store";
 import { TZ } from "@/lib/config";
 import { listOutlookMail } from "@/infrastructure/integrations/outlook";
 import { type RankedMail, gatherMail, rankMail } from "@/core/mail/triage";
-import { findOpportunities } from "@/core/career/inbox";
+import { findOpportunities, fromGmail } from "@/core/career/inbox";
+import { RECRUITING_QUERY } from "@/core/career/scan";
 
 /**
  * The shape of the day, assembled once.
@@ -77,8 +78,8 @@ export interface DayPicture {
    * count has never told him.
    */
   importantMail: RankedMail[];
-  /** Internship mail, forms and interviews found in Outlook, soonest deadline
-   *  first. Empty when Outlook is not connected. */
+  /** Internship mail, forms and interviews found across Gmail and Outlook,
+   *  soonest deadline first. Empty when neither mailbox is connected. */
   opportunities: { subject: string; from: string; deadline: string | null; kinds: string[] }[];
   markets: { symbol: string; change24h: number | null }[];
   portfolio: { value: number; pnl: number; movers: { symbol: string; change24h: number | null }[] } | null;
@@ -141,9 +142,15 @@ export async function buildDayPicture(): Promise<DayPicture> {
     // Both mailboxes, in one shape. Replaces a Gmail-only call that returned
     // six subjects with no way to tell which of them mattered.
     gatherMail(15).catch(() => [] as Awaited<ReturnType<typeof gatherMail>>),
-    // Outlook is optional: not connected returns null and the brief simply
-    // does not mention it, rather than failing to generate.
-    listOutlookMail(40).then((m) => (m ? findOpportunities(m) : [])).catch(() => []),
+    // Both mailboxes again, because the placement mail arrives on the
+    // university account. Either being absent contributes nothing rather than
+    // failing the brief.
+    Promise.all([
+      listGmail(RECRUITING_QUERY, 25).catch(() => null),
+      listOutlookMail(40).catch(() => null),
+    ])
+      .then(([g, o]) => findOpportunities([...(g ?? []).map(fromGmail), ...(o ?? [])]))
+      .catch(() => []),
     getMarkets().catch(() => null),
     getWeather().catch(() => null),
     trainingSummary(30).catch(() => null),

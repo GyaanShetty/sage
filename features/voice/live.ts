@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { APP_NAME, HUMAN_RULES, moodClause, OWNER, TZ } from "@/lib/config";
 import { useShellStore } from "@/features/shell/store";
+import { capturePage } from "@/features/voice/page-context";
 
 export type LiveState = "off" | "connecting" | "listening" | "speaking";
 
@@ -87,6 +88,16 @@ const LIVE_TOOLS = [
       {
         name: "get_briefing",
         description: "Fetch the user's open tasks, upcoming calendar events, and unread email — use when asked about their day, plan, schedule, or inbox.",
+        parameters: { type: "OBJECT" as const, properties: {} },
+      },
+      {
+        name: "read_mail",
+        description: "The important mail across BOTH Gmail and Outlook, ranked by what actually needs the user, each with why it matters. Use for 'read my mail', 'any important emails', 'anything I need to answer'.",
+        parameters: { type: "OBJECT" as const, properties: {} },
+      },
+      {
+        name: "read_screen",
+        description: "What is on the user's screen right now — the page they are looking at and the panes on it. Use when they say 'what am I looking at', 'read this', 'what does that say', or ask about something they can see but have not named.",
         parameters: { type: "OBJECT" as const, properties: {} },
       },
       {
@@ -259,6 +270,19 @@ export function useLiveVoice() {
               (async () => {
                 const responses = await Promise.all(
                   m.toolCall!.functionCalls!.map(async (fc) => {
+                    // Two tools are answered in the browser, because their
+                    // answer only exists there: where the wheel goes, and what
+                    // is currently rendered on the screen.
+                    if (fc.name === "read_screen") {
+                      const ctx = capturePage();
+                      return {
+                        id: fc.id,
+                        name: "read_screen",
+                        response: ctx && ctx.panes.length
+                          ? { ok: true, result: `He is on the ${ctx.name} screen. It shows:\n${ctx.panes.map((t) => `- ${t}`).join("\n")}` }
+                          : { ok: true, result: "The screen has nothing readable on it right now." },
+                      };
+                    }
                     // `navigate` is handled client-side — spin the wheel / route.
                     if (fc.name === "navigate") {
                       const page = String((fc.args as { page?: string })?.page ?? "");

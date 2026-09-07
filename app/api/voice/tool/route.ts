@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { buildDayPicture, describeDay } from "@/core/brief/agenda";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
 import { fmt } from "@/lib/config";
+import { describeMail, gatherMail, rankMail } from "@/core/mail/triage";
 
 /** Executes function calls made by the realtime voice session. */
 export async function POST(req: Request) {
@@ -57,6 +58,17 @@ export async function POST(req: Request) {
         // disagree with each other.
         const picture = await buildDayPicture();
         return NextResponse.json({ ok: true, result: describeDay(picture) });
+      }
+      case "read_mail": {
+        // The same triage the morning brief uses, so what SAGE says when asked
+        // out loud cannot disagree with what it said at six.
+        const items = await gatherMail(15).catch(() => []);
+        if (!items.length) {
+          return NextResponse.json({ ok: true, result: "Nothing in the connected mailboxes — or neither Gmail nor Outlook is connected yet." });
+        }
+        const ranked = await rankMail(items, 4).catch(() => []);
+        if (!ranked.length) return NextResponse.json({ ok: true, result: `Nothing in the last ${items.length} messages needs him.` });
+        return NextResponse.json({ ok: true, result: describeMail(ranked) });
       }
       default:
         return NextResponse.json({ ok: false, error: `unknown tool ${name}` });

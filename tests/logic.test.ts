@@ -4076,3 +4076,43 @@ test("the opportunities feed reads both mailboxes and never invents a company", 
   assert.match(route, /listOutlookMail\(/);
   assert.match(route, /catch\(\(\) => null\)/);
 });
+
+test("SAGE can read the screen and the mail, on every page", async () => {
+  const { pageName, describePage, capturePage } = await import("@/features/voice/page-context");
+
+  assert.equal(pageName("/career"), "Career");
+  assert.equal(pageName("/"), "Mission Control");
+  assert.equal(pageName("/board/interview-prep"), "Interview Prep");
+  assert.equal(pageName("/markets?tab=fx"), "Markets");
+
+  // Server-side there is no document, and the capture must be a no-op rather
+  // than a throw — a voice turn from Siri has no screen at all.
+  assert.equal(capturePage(), null);
+  assert.equal(describePage(null), "");
+  assert.equal(describePage({ path: "/x", name: "X", panes: [] }), "");
+
+  const block = describePage({ path: "/career", name: "Career", panes: ["OPPORTUNITIES 3", "APPLIED 2"] });
+  assert.match(block, /Career screen \(\/career\)/);
+  assert.match(block, /- OPPORTUNITIES 3/);
+
+  const strip = (f: string) => readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // The turn must actually put the page in front of the model, and both voice
+  // paths must send one — "it should read from every page" is the requirement,
+  // and a captured page that never leaves the browser reads nothing.
+  assert.match(strip("core/voice/turn.ts"), /describePage\(page\)/);
+  for (const f of ["features/voice/components/voice-overlay.tsx", "features/dashboard/components/bands.tsx"]) {
+    assert.match(strip(f), /page: capturePage\(\)/, `${f} sends the page`);
+  }
+
+  // Mail: one triage, reachable from the typed/classic path and the live one.
+  assert.match(strip("core/tools/native.ts"), /read_mail: tool\(/);
+  assert.match(strip("core/tools/native.ts"), /gatherMail\(/);
+  assert.match(strip("app/api/voice/tool/route.ts"), /case "read_mail"/);
+  assert.match(strip("features/voice/live.ts"), /name: "read_mail"/);
+  assert.match(strip("features/voice/live.ts"), /name: "read_screen"/);
+
+  // career_mail was Outlook-only, which made it blind to the university
+  // mailbox the placement mail actually arrives in.
+  assert.match(strip("core/tools/native.ts"), /listGmail\(RECRUITING_QUERY/);
+});

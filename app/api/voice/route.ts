@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { runVoiceTurnDetailed } from "@/core/voice/turn";
+import type { PageContext } from "@/features/voice/page-context";
 
 export const maxDuration = 60;
 
 /** Web voice turn (live/classic assistant). Cookie-gated by middleware. */
 export async function POST(req: Request) {
-  const { text, mood } = (await req.json().catch(() => ({}))) as {
+  const { text, mood, page } = (await req.json().catch(() => ({}))) as {
     text?: string;
     mood?: "formal" | "balanced" | "playful";
+    page?: PageContext | null;
   };
   if (!text?.trim()) return NextResponse.json({ ok: false, error: "Empty" }, { status: 400 });
 
   try {
-    const { text: reply, actions } = await runVoiceTurnDetailed(text.trim(), mood ?? "playful");
+    const { text: reply, actions } = await runVoiceTurnDetailed(text.trim(), mood ?? "playful", page);
     return NextResponse.json({ ok: true, data: { text: reply, actions } });
   } catch (err) {
     // An unhandled throw here returned Next's HTML error page, which made the

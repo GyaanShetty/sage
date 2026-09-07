@@ -5,13 +5,15 @@ import { embedText, toVectorLiteral } from "@/infrastructure/embeddings";
 import { searchKnowledge } from "@/core/knowledge/search";
 import { webSearch } from "@/infrastructure/search/tavily";
 import { proxyFetch } from "@/infrastructure/http/fetch";
-import { createGmailDraft, listUnreadEmails, listUpcomingEvents, searchGmail } from "@/infrastructure/integrations/google";
+import { createGmailDraft, listGmail, listUnreadEmails, listUpcomingEvents, searchGmail } from "@/infrastructure/integrations/google";
 import { githubSummary } from "@/infrastructure/integrations/github";
 import { OWNER } from "@/lib/config";
 import { getNowPlaying, spotifyControl, spotifyPlaySearch } from "@/infrastructure/integrations/spotify";
 import { whereIs, describeWhere } from "@/core/location";
 import { listOutlookMail } from "@/infrastructure/integrations/outlook";
-import { findOpportunities } from "@/core/career/inbox";
+import { findOpportunities, fromGmail } from "@/core/career/inbox";
+import { RECRUITING_QUERY } from "@/core/career/scan";
+import { describeMail, gatherMail, rankMail } from "@/core/mail/triage";
 
 /**
  * Native tools, MCP-shaped (name + description + JSON-schema input + execute).
@@ -250,16 +252,40 @@ export const nativeTools = {
   }),
 
   /**
-   * Where he is, and what that means for what is next.
+   * The mail that actually needs him, out loud.
    *
-   * SAGE could reason about his calendar and his tasks but had no idea where
-   * he was standing, so "how long until I should leave" and "am I at the gym"
-   * were unanswerable. The fix is always reported with its age: an assistant
-   * that states a six-hour-old position as current will confidently tell him
-   * to leave for somewhere he is already sitting.
+   * Both mailboxes, ranked by the same triage the morning brief uses — one
+   * ranking, so what SAGE says when asked matches what it said at 6am rather
+   * than being a second opinion that disagrees with the first.
    */
+  read_mail: tool({
+    description:
+      "The important mail across BOTH Gmail and Outlook, ranked by what needs the user. Use for 'read my " +
+      "mail', 'any important emails', 'what came in', 'anything I need to answer'. Returns why each one " +
+      "matters. Prefer this over unread_emails, which is Gmail-only and unranked.",
+    inputSchema: z.object({
+      limit: z.number().int().min(1).max(10).optional().describe("How many to return. Default 5."),
+    }),
+    execute: async ({ limit }) => {
+      const items = await gatherMail(15).catch(() => []);
+      if (!items.length) {
+        return { ok: true, count: 0, note: "Nothing in the connected mailboxes, or neither is connected (Settings)." };
+      }
+      const ranked = await rankMail(items, limit ?? 5).catch(() => []);
+      return {
+        ok: true,
+        scanned: items.length,
+        count: ranked.length,
+        spoken: describeMail(ranked),
+        items: ranked.map((m) => ({
+          account: m.account, from: m.from, subject: m.subject, why: m.why, urgency: m.urgency,
+        })),
+      };
+    },
+  }),
+
   /**
-   * Opportunities sitting in the Outlook inbox.
+   * Opportunities sitting in either inbox.
    *
    * Every field here is extracted from the message, never generated about it —
    * a hallucinated deadline in a career tracker is a wrong answer that looks
@@ -267,13 +293,19 @@ export const nativeTools = {
    */
   career_mail: tool({
     description:
-      "Internship mail, application forms, interview invitations and deadlines found in the user's Outlook " +
-      "inbox. Use for 'any internship emails', 'what deadlines do I have', 'did anyone reply about the " +
+      "Internship mail, application forms, interview invitations and deadlines found across the user's " +
+      "Gmail AND Outlook mailboxes. Use for 'any internship emails', 'what deadlines do I have', 'did anyone reply about the " +
       "application'. Deadlines are quoted from the message; if one is null the message did not state a date.",
     inputSchema: z.object({}),
     execute: async () => {
-      const mail = await listOutlookMail(40);
-      if (!mail) return { ok: false, error: "Outlook is not connected (Settings → Outlook → Connect)." };
+      // Both mailboxes: his placement mail arrives on the university account,
+      // so Outlook-only made this tool blind to the mail it exists to find.
+      const [gmail, outlook] = await Promise.all([
+        listGmail(RECRUITING_QUERY, 25).catch(() => null),
+        listOutlookMail(40).catch(() => null),
+      ]);
+      if (!gmail && !outlook) return { ok: false, error: "Neither mailbox is connected (Settings → Connect Google, or Settings → Outlook)." };
+      const mail = [...(gmail ?? []).map(fromGmail), ...(outlook ?? [])];
       const opportunities = findOpportunities(mail);
       if (!opportunities.length) return { ok: true, count: 0, note: "Nothing that looks like an opportunity in the recent inbox." };
       return {
@@ -287,6 +319,15 @@ export const nativeTools = {
     },
   }),
 
+  /**
+   * Where he is, and what that means for what is next.
+   *
+   * SAGE could reason about his calendar and his tasks but had no idea where
+   * he was standing, so "how long until I should leave" and "am I at the gym"
+   * were unanswerable. The fix is always reported with its age: an assistant
+   * that states a six-hour-old position as current will confidently tell him
+   * to leave for somewhere he is already sitting.
+   */
   where_am_i: tool({
     description:
       "Where the user is right now: their last known position, the saved place they are at or nearest to, " +

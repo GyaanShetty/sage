@@ -5,6 +5,7 @@ import { PlacesPanel } from "./places-panel";
 import { ExpandableCell } from "./expandable-cell";
 import { TZ } from "@/lib/config";
 import { useLive } from "@/lib/live";
+import { capturePage } from "@/features/voice/page-context";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -149,13 +150,13 @@ export function ConsoleBand({ stats }: { stats: { open: number; notes: number; m
         print("directive deployed: " + arg);
       } else if (cmd === "ask" && arg) {
         print("…thinking");
-        const res = await fetch("/api/voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: arg }) });
+        const res = await fetch("/api/voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: arg, page: capturePage() }) });
         const json = await res.json();
         print(json?.data?.text ?? "no response");
       } else {
         // any unknown input goes to the brain
         print("…thinking");
-        const res = await fetch("/api/voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: v }) });
+        const res = await fetch("/api/voice", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text: v, page: capturePage() }) });
         const json = await res.json();
         print(json?.data?.text ?? "no response");
       }

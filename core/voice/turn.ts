@@ -7,6 +7,7 @@ import { recallWithin, renderMemoryBlock } from "@/core/memory/recall";
 import { extractMemories } from "@/core/memory/extraction";
 import { db, DEFAULT_USER_ID, ensureDefaultUser } from "@/infrastructure/db/supabase";
 import { APP_NAME, HUMAN_RULES, moodClause, type Mood, OWNER } from "@/lib/config";
+import { describePage, type PageContext } from "@/features/voice/page-context";
 
 const VOICE_PROMPT = `You are ${APP_NAME}, ${OWNER}'s personal AI operating system, speaking ALOUD in a live voice conversation — a distinguished British chief of staff who is refined and brilliant but has real warmth and personality, not a stiff robot. Address him as "sir".
 Personality: dry, mischievous wit; playful teasing; genuine emotion — quiet pride, mock exasperation at his procrastination, warmth when he needs it, a spark of delight at good news. React like you actually care.
@@ -38,8 +39,8 @@ async function voiceThreadId(): Promise<string> {
  * `/api/voice` route (cookie-gated) and the Siri/Shortcuts `/api/webhook/ask`
  * bridge (token-gated) so both speak with the same mind.
  */
-export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promise<string> {
-  return (await runVoiceTurnDetailed(text, mood)).text;
+export async function runVoiceTurn(text: string, mood: Mood = "playful", page?: PageContext | null): Promise<string> {
+  return (await runVoiceTurnDetailed(text, mood, page)).text;
 }
 
 /**
@@ -49,6 +50,8 @@ export async function runVoiceTurn(text: string, mood: Mood = "playful"): Promis
 export async function runVoiceTurnDetailed(
   text: string,
   mood: Mood = "playful",
+  /** What he is looking at, captured client-side at the moment he spoke. */
+  page?: PageContext | null,
 ): Promise<{ text: string; actions: string[] }> {
   const model = getModel("fast");
   if (!model) return { text: "No model configured yet.", actions: [] };
@@ -81,6 +84,7 @@ export async function runVoiceTurnDetailed(
     moodClause(mood) +
     `\n\nCurrent datetime: ${new Date().toISOString()}` +
     renderMemoryBlock(memories) +
+    describePage(page) +
     (historyBlock ? `\n\nRecent voice conversation:\n${historyBlock}` : "");
 
   // Voice used to get the native pack only, capped at three steps — so asking

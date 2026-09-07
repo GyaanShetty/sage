@@ -10,6 +10,7 @@ import { sound } from "@/lib/sound";
 import { speakLowLatency, hasMoreToSay, speakRest } from "@/lib/speak";
 import { APP_NAME } from "@/lib/config";
 import { useShellStore } from "@/features/shell/store";
+import { capturePage } from "@/features/voice/page-context";
 
 type Msg = { role: "you" | "sage"; text: string; actions?: string[] };
 
@@ -167,7 +168,7 @@ export function VoiceOverlay() {
     const res = await fetch("/api/voice", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text, mood: useShellStore.getState().mood }),
+      body: JSON.stringify({ text, mood: useShellStore.getState().mood, page: capturePage() }),
     });
     const json = await res.json();
     const reply: string = json?.data?.text ?? "Something went wrong.";

@@ -10,7 +10,7 @@ import { AtlasMap } from "@/features/atlas/atlas-map";
 import { PlayingTile } from "./tiles";
 import { TileGuard } from "@/components/tile-guard";
 import {
-  AgentLogTile, GithubTile, BioTile, PortfolioTile, ExamTile,
+  AgentLogTile, GithubTile, BioTile, PortfolioTile, ExamTile, SystemTile,
 } from "./page-tiles";
 import {
   MarketsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, FeedsTile,
@@ -28,7 +28,10 @@ import {
   AgentRunsTile, MemoryGrowthTile, ReadingTile, ReviewTrendTile, JournalTile,
   StepsTile, CorpusTile,
 } from "./chart-tiles";
-import { BudgetTile, WeatherWeekTile } from "./ops-tiles";
+import {
+  BudgetTile, WeatherWeekTile, SkillsTile, DecisionsTile, MachineryTile,
+  ModelLoadTile, KeysTile,
+} from "./ops-tiles";
 import { BriefBlock } from "./brief-block";
 import { fmt, TZ } from "@/lib/config";
 
@@ -255,32 +258,49 @@ export function CommandView({
         figure — and dense packing backfills whatever a large tile leaves
         behind, so there is no hole to stare at.
       */}
+      {/*
+        Terminal density, at a size that can still be read.
+        Twenty-nine panes was unreadable and six was empty; this is sixteen to
+        eighteen a page, mostly quarter-width, which at 1600px is about
+        385x200 each — enough for a title, a figure and four rows, which is
+        what these panes actually contain.
+      */}
       {page === "overview" && (
         <div className="wall-pack">
-          <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x3" frame noZoom>
+          <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x3" frame noZoom>
             <AtlasMap lat={12.9352} lon={77.6245} compact />
             <span className="deck-map-marks" aria-hidden>
               <Crosshair /><Crosshair /><Crosshair /><Crosshair />
             </span>
           </Pane>
-          <div className="t-4x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
-          <div className="t-4x3">
+          <div className="t-6x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
+
+          <div className="t-3x2">
             <TileGuard name="MISSION">
               <MissionTile n={9} open={open} events={todays.length} agentRunning={agentRunning}
                 memories={stats.memories} runs={stats.runs}
                 weather={weather ? `${Math.round(weather.temp)}°` : null} />
             </TileGuard>
           </div>
-          <div className="t-4x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard></div>
-          <div className="t-12x2">
-            <TileGuard name="KEYMETRICS">
-              <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
-            </TileGuard>
-          </div>
+          <div className="t-3x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="KEYMETRICS">
+            <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+          </TileGuard></div>
+          <div className="t-3x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
+
+          <div className="t-6x2"><TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="OVFOCUS"><FocusTile n={37} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="BIO"><BioTile n={4} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
         </div>
       )}
 
@@ -288,10 +308,20 @@ export function CommandView({
         <div className="wall-pack">
           <div className="t-6x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
           <div className="t-6x3"><TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard></div>
+
           <div className="t-4x3"><TileGuard name="SPENDTREND"><SpendTrendTile n={38} /></TileGuard></div>
           <div className="t-4x3"><TileGuard name="SPENDSHAPE"><SpendShapeTile n={39} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="SPEND"><SpendTile n={33} /></TileGuard></div>
-          <div className="t-12x2"><TileGuard name="BUDGET"><BudgetTile n={42} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="MEMGROWTH2"><MemoryGrowthTile n={43} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="SPEND"><SpendTile n={33} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="BUDGET"><BudgetTile n={42} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="GROWTH"><GrowthTile n={29} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="KEYS"><KeysTile n={47} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="CALIBRATION"><CalibrationTile n={34} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="MACHINERY"><MachineryTile n={45} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="MODELLOAD"><ModelLoadTile n={46} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SYSTEM"><SystemTile n={23} /></TileGuard></div>
         </div>
       )}
 
@@ -300,35 +330,60 @@ export function CommandView({
           <div className="t-4x3"><TileGuard name="STEPS"><StepsTile n={40} /></TileGuard></div>
           <div className="t-4x3"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
           <div className="t-4x3"><TileGuard name="BIO"><BioTile n={4} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="WEATHERWEEK"><WeatherWeekTile n={44} /></TileGuard></div>
+
+          <div className="t-6x2"><TileGuard name="WEATHERWEEK"><WeatherWeekTile n={44} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="ACTIVITY"><ActivityTile n={7} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="TASKRHYTHM2"><TaskRhythmTile n={35} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="FOCUS2"><FocusTile n={37} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="JOURNAL2"><JournalTile n={46} /></TileGuard></div>
+
+          <div className="t-6x2"><TileGuard name="READING2"><ReadingTile n={47} /></TileGuard></div>
+          <div className="t-6x2"><TileGuard name="REVIEWTREND2"><ReviewTrendTile n={45} /></TileGuard></div>
         </div>
       )}
 
       {page === "work" && (
         <div className="wall-pack">
-          <div className="t-4x3"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
-          <div className="t-12x2"><TileGuard name="TASKRHYTHM"><TaskRhythmTile n={35} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="FOCUSHIST"><FocusTile n={37} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard></div>
+
           <div className="t-3x2"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
           <div className="t-3x2"><TileGuard name="CAREER"><CareerTile n={26} /></TileGuard></div>
           <div className="t-3x2"><TileGuard name="CODE"><CodeTile n={24} /></TileGuard></div>
           <div className="t-3x2"><TileGuard name="GITHUB"><GithubTile n={13} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="PUSH"><PushTile n={25} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SKILLS"><SkillsTile n={41} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="DECISIONS"><DecisionsTile n={43} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard></div>
+
+          <div className="t-6x2"><TileGuard name="TASKRHYTHM"><TaskRhythmTile n={35} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="FOCUSHIST"><FocusTile n={37} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="AGENTRUNS2"><AgentRunsTile n={48} /></TileGuard></div>
         </div>
       )}
 
       {page === "mind" && (
         <div className="wall-pack">
-          <div className="t-4x3"><TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard></div>
-          <div className="t-6x2"><TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard></div>
-          <div className="t-6x2"><TileGuard name="READING"><ReadingTile n={47} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={48} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard></div>
+
+          <div className="t-4x2"><TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="READING"><ReadingTile n={47} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={48} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="REVIEW2"><ReviewTile n={31} /></TileGuard></div>
+
+          <div className="t-3x2"><TileGuard name="GROWTH2"><GrowthTile n={29} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CALIBRATION2"><CalibrationTile n={34} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SKILLS2"><SkillsTile n={41} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="DECISIONS2"><DecisionsTile n={43} /></TileGuard></div>
         </div>
       )}
 

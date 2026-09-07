@@ -1532,3 +1532,65 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .chartfill { flex: 1; min-height: 0; display: grid; place-items: center; padding: 4px; }
 .chartrow { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; min-height: 0; }
 .chartrow > * { min-width: 0; min-height: 0; }
+
+/* ══ instrument motion ═══════════════════════════════════════════════════
+ *
+ * Charts arrive rather than appearing.
+ *
+ * Not decoration: a bar that grows from its baseline tells you which way is
+ * zero, and a line that draws left to right tells you which way is time. Both
+ * are things a static chart makes you work out. It runs once on mount and
+ * never loops — a dashboard that is permanently in motion is one you stop
+ * being able to read, and a looping animation on a number that has not
+ * changed is a lie about activity.
+ *
+ * Everything here is off under prefers-reduced-motion, which is the whole
+ * reason it is grouped in one place.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  /* Bars grow from the baseline. */
+  .inst-bars rect,
+  .inst-heat rect {
+    animation: inst-grow 0.5s var(--ease) both;
+  }
+  /* The histogram and the diverging rows are divs, not SVG, so they grow on
+     the axis their own CSS lays them out along. */
+  .hist .hist-b { animation: inst-grow 0.5s var(--ease) both; transform-origin: center bottom; }
+  /* The diverging bar grows out of the zero line, which is its inner edge —
+     so the origin flips with the sign. Growing both from the left would make
+     a loss appear to travel across zero before settling. */
+  .dvg-track i { animation: inst-wipe 0.5s var(--ease) both; }
+  .dvg-track i.up { transform-origin: left center; }
+  .dvg-track i.dn { transform-origin: right center; }
+
+  /* Lines draw. The dash length is deliberately far longer than any path
+     here, so one keyframe covers every chart without measuring each. */
+  .inst-area path[stroke],
+  .inst-line path[stroke],
+  .bd-edge {
+    animation: inst-draw 0.85s var(--ease) both;
+  }
+  .inst-area path[fill] { animation: inst-fade 0.85s var(--ease) both; }
+
+  /* Rings and gauges sweep once. */
+  .inst-gauge path[stroke]:nth-child(2),
+  .inst-radial path { animation: inst-fade 0.6s var(--ease) both; }
+  .inst-radial path:nth-child(n+3) { animation-delay: calc((var(--i, 0) + 1) * 30ms); }
+}
+
+@keyframes inst-grow {
+  from { transform: scaleY(0); transform-origin: center bottom; }
+  to   { transform: scaleY(1); transform-origin: center bottom; }
+}
+@keyframes inst-draw {
+  from { stroke-dasharray: 4000; stroke-dashoffset: 4000; }
+  to   { stroke-dasharray: 4000; stroke-dashoffset: 0; }
+}
+@keyframes inst-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes inst-wipe {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}

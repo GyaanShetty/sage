@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getModel } from "@/infrastructure/llm";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { searchGmail } from "@/infrastructure/integrations/google";
+import { listOutlookMail } from "@/infrastructure/integrations/outlook";
 
 export const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as const;
 export type Stage = (typeof STAGES)[number];
@@ -25,7 +26,9 @@ export interface Application {
   notes?: string | null;
   attachments?: Attachment[];
   history?: StageChange[];
-  source: "gmail" | "manual";
+  /** Which mailbox it was found in, or entered by hand. Outlook joined the
+   *  scan when the pipeline stopped being Gmail-only. */
+  source: "gmail" | "outlook" | "manual";
   updatedAt: string;
 }
 
@@ -94,15 +97,47 @@ const scanSchema = z.object({
 
 /** Scan Gmail for recruiting emails and reconcile them into the pipeline.
  *  Only adds companies not already tracked; updates stage if further along. */
+/** The Gmail query, and the same vocabulary as a regex for Outlook. Kept side
+ *  by side so the two mailboxes cannot drift into looking for different mail. */
+const RECRUITING_QUERY =
+  'newer_than:60d (application OR applied OR internship OR interview OR "online assessment" OR OA OR "assessment" OR shortlisted OR "moving forward" OR offer OR "regret to inform" OR "not to move forward")';
+
+export const RECRUITING_WORDS =
+  /\b(applicat(ion|ions)|applied|internship|interview|online assessment|assessment|shortlist(ed)?|moving forward|offer|regret to inform|not to move forward|placement|recruit(ment|er)?|hiring|campus drive|aptitude)\b/i;
+
 export async function scanInbox(): Promise<{ added: number; updated: number }> {
   const model = getModel("smart");
   if (!model) return { added: 0, updated: 0 };
 
-  const emails = await searchGmail(
-    'newer_than:60d (application OR applied OR internship OR interview OR "online assessment" OR OA OR "assessment" OR shortlisted OR "moving forward" OR offer OR "regret to inform" OR "not to move forward")',
-    25,
-  ).catch(() => null);
-  if (!emails?.length) return { added: 0, updated: 0 };
+  /*
+   * Both mailboxes.
+   *
+   * This searched Gmail and nothing else, which made the whole Career pipeline
+   * blind to the account the mail actually arrives in: placement mail goes to
+   * his university address, on Outlook. Connecting Outlook would have changed
+   * nothing here — the scan would still have been reading the wrong inbox.
+   *
+   * Gmail is filtered server-side by its own query language. Graph has no
+   * equivalent available under Mail.Read, so Outlook is fetched and filtered
+   * locally against the same vocabulary — more rows over the wire, and the
+   * same result.
+   */
+  const [gmail, outlook] = await Promise.all([
+    searchGmail(RECRUITING_QUERY, 25).catch(() => null),
+    listOutlookMail(50).catch(() => null),
+  ]);
+
+  const fromOutlook = (outlook ?? [])
+    .filter((m) => RECRUITING_WORDS.test(`${m.subject} ${m.preview}`))
+    .slice(0, 25)
+    .map((m) => ({
+      from: m.fromName && m.from ? `${m.fromName} <${m.from}>` : m.from || m.fromName,
+      subject: m.subject,
+      snippet: m.preview,
+    }));
+
+  const emails = [...(gmail ?? []), ...fromOutlook];
+  if (!emails.length) return { added: 0, updated: 0 };
 
   const { object } = await generateObject({
     model,
@@ -118,7 +153,12 @@ export async function scanInbox(): Promise<{ added: number; updated: number }> {
   for (const a of object.applications) {
     const match = existing.find((e) => e.company.toLowerCase() === a.company.toLowerCase());
     if (!match) {
-      await upsertApplication({ ...a, source: "gmail" });
+      // `source` records where it was found. With two mailboxes in play,
+      // "gmail" on every row would be a fact SAGE made up.
+      const seen = emails.find((e) =>
+        `${e.from} ${e.subject}`.toLowerCase().includes(a.company.toLowerCase()));
+      const viaOutlook = !!seen && fromOutlook.includes(seen as (typeof fromOutlook)[number]);
+      await upsertApplication({ ...a, source: viaOutlook ? "outlook" : "gmail" });
       added++;
     } else if (a.stage !== "applied" && stageRank(a.stage) > stageRank(match.stage) && match.stage !== "offer") {
       await upsertApplication({ id: match.id, stage: a.stage, deadline: a.deadline ?? match.deadline });

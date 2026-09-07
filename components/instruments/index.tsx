@@ -40,7 +40,7 @@ export function BarStrip({
   const max = Math.max(...data, 1);
   const w = 100 / data.length;
   return (
-    <svg className="inst" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ height }}>
+    <svg className="inst inst-bars" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ height }}>
       {data.map((v, i) => {
         const h = Math.max((v / max) * height, 0.6);
         return (
@@ -115,7 +115,7 @@ export function Wave({ data, height = 30, tone = DOWN }: { data: number[]; heigh
     .map((v, i) => `${i ? "L" : "M"}${(i * step).toFixed(2)},${(height - ((v - min) / span) * height * 0.9 - height * 0.05).toFixed(2)}`)
     .join(" ");
   return (
-    <svg className="inst" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ height }}>
+    <svg className="inst inst-line" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ height }}>
       <path d={d} fill="none" stroke={tone} strokeWidth="1" vectorEffect="non-scaling-stroke" />
     </svg>
   );
@@ -179,7 +179,7 @@ export function Nodes({
 }: { nodes: { x: number; y: number; w?: number }[]; edges: [number, number][]; height?: number }) {
   if (!nodes.length) return <Empty label="NO GRAPH" />;
   return (
-    <svg className="inst" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ height }}>
+    <svg className="inst inst-nodes" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ height }}>
       {edges.map(([a, b], i) => {
         const p = nodes[a], q = nodes[b];
         if (!p || !q) return null;
@@ -281,7 +281,7 @@ export function Line({
     xs.map((v, i) => `${(i / (xs.length - 1)) * 100},${28 - ((v - min) / rng) * 26}`).join(" ");
 
   return (
-    <svg className="inst" viewBox="0 0 100 30" preserveAspectRatio="none" style={{ height }} aria-hidden>
+    <svg className="inst inst-line" viewBox="0 0 100 30" preserveAspectRatio="none" style={{ height }} aria-hidden>
       <line x1="0" y1="15" x2="100" y2="15" stroke={GRID} strokeWidth="0.3" />
       {b && <polyline points={path(b)} fill="none" stroke={MARK} strokeWidth="0.7" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
       <polyline points={path(a)} fill="none" stroke={SIGNAL} strokeWidth="1" vectorEffect="non-scaling-stroke" />

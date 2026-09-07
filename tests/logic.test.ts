@@ -4007,3 +4007,33 @@ test("no exam headline hardcodes a length that its band does not guarantee", asy
     }
   }
 });
+
+/*
+ * The career scan must read both mailboxes.
+ *
+ * It searched Gmail and nothing else, which made the whole pipeline blind to
+ * the account the mail actually arrives in — placement mail goes to his
+ * university address, on Outlook. Connecting Outlook would have changed
+ * nothing, because the scan was reading the wrong inbox, and that failure is
+ * completely silent: no error, just an empty Career page beside a full one.
+ *
+ * Source-matching, because the alternative is a live mailbox.
+ */
+test("the career scan reads Outlook as well as Gmail", async () => {
+  const src = (await import("node:fs")).readFileSync("core/career/scan.ts", "utf8")
+    // Block comments only: a naive // strip eats https:// in URLs.
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+
+  assert.ok(/searchGmail\s*\(/.test(src), "Gmail is still searched");
+  assert.ok(/listOutlookMail\s*\(/.test(src), "Outlook must be read too, not just Gmail");
+
+  // The two mailboxes must look for the same mail. Gmail filters server-side
+  // with its query language; Outlook has no equivalent under Mail.Read, so it
+  // is filtered locally — and the two vocabularies drifting apart would mean
+  // one inbox quietly finding fewer applications than the other.
+  const { RECRUITING_WORDS } = await import("../core/career/scan");
+  for (const word of ["internship", "interview", "assessment", "offer", "shortlisted", "applied"]) {
+    assert.ok(RECRUITING_WORDS.test(`Re: your ${word} with us`), `Outlook filter misses "${word}"`);
+  }
+  assert.equal(RECRUITING_WORDS.test("your amazon order has shipped"), false, "and it does not match ordinary mail");
+});

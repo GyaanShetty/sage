@@ -4116,3 +4116,23 @@ test("SAGE can read the screen and the mail, on every page", async () => {
   // mailbox the placement mail actually arrives in.
   assert.match(strip("core/tools/native.ts"), /listGmail\(RECRUITING_QUERY/);
 });
+
+test("the exam countdown is a desk cell, not a band across the wall", async () => {
+  const { existsSync } = await import("node:fs");
+  const strip = (f: string) => readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // It rides on /api/desk, so the strip stays one request for one row.
+  assert.match(strip("app/api/desk/route.ts"), /exam: countdown \?/);
+  assert.match(strip("features/shell/components/desk-strip.tsx"), /desk-exam/);
+
+  // The old full-width band is gone from the pages and from the tree — a
+  // component nobody renders is a component that rots.
+  assert.equal(existsSync("features/dashboard/components/exam-strip.tsx"), false);
+  for (const f of ["app/(shell)/dashboard/page.tsx", "app/(shell)/deck/page.tsx"]) {
+    assert.doesNotMatch(readFileSync(f, "utf8"), /ExamStrip/, `${f} still renders the old band`);
+  }
+
+  // Still conditional: outside exam mode the cell must not render at all.
+  assert.match(strip("app/api/desk/route.ts"), /inExamMode\(exams\)/);
+  assert.match(strip("features/shell/components/desk-strip.tsx"), /d\?\.exam && \(/);
+});

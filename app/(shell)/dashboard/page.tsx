@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { CommandView } from "@/features/dashboard/components/command-view";
-import { ExamStrip } from "@/features/dashboard/components/exam-strip";
 import { loadDeck } from "@/features/dashboard/load";
 
 /**
@@ -21,8 +20,6 @@ export default async function DashboardPage() {
   const data = await loadDeck();
   return (
     <div>
-      {/* Above everything, and only when a paper is close. */}
-      <ExamStrip />
       <CommandView {...data} />
     </div>
   );

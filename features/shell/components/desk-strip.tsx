@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { TZ } from "@/lib/config";
 import { useLive } from "@/lib/live";
 
@@ -19,6 +20,9 @@ import { useLive } from "@/lib/live";
 interface Desk {
   openTasks: number; events: number; committedMin: number;
   agentRuns: number; alerts: number; uplinkMs: number;
+  /** The soonest paper, only while it is close enough to matter. Null the
+   *  rest of the time — a countdown that is always there is furniture. */
+  exam: { subject: string; days: number; phase: string } | null;
 }
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -63,6 +67,20 @@ export function DeskStrip() {
       {cell(d ? pad(d.agentRuns) : "··", "AGENT RUNS")}
       {cell(d ? pad(d.alerts) : "··", "ALERTS", d && d.alerts ? "down" : undefined)}
       {cell(d ? `${d.uplinkMs}MS` : "··", "UPLINK", d && d.uplinkMs < 800 ? "up" : "down")}
+      {/*
+        The exam countdown, moved out of the full-width strip it used to
+        occupy above the wall. Same reading, one cell, and a link because the
+        thing you want after seeing the number is the paper itself.
+      */}
+      {d?.exam && (
+        <Link href="/exam" className="desk-cell desk-exam" title={`${d.exam.days} days to ${d.exam.subject}`}>
+          {/* Coloured by the exam's own phase rather than a second set of day
+              thresholds here — two places deciding what "close" means is how
+              the strip and the exam page end up disagreeing. */}
+          <span className={`desk-v${d.exam.phase === "eve" ? " down" : d.exam.phase === "test" ? " signal" : ""}`}>{pad(d.exam.days)}</span>
+          <span className="desk-k">D TO {d.exam.subject.toUpperCase().slice(0, 10)}</span>
+        </Link>
+      )}
       <div className="desk-cell wide">
         <span className="desk-v clock">{clock || "--:--:--"}</span>
         <span className="desk-k">IST · KOLKATA</span>

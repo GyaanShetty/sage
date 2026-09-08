@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { startOfTodayUtc, endOfTodayUtc } from "@/lib/config";
+import { listExams, nextExam, countdownFor, inExamMode } from "@/core/exam";
 
 /**
  * The numbers along the top of the screen.
@@ -22,7 +23,7 @@ export async function GET() {
   const began = Date.now();
   const today = { from: startOfTodayUtc(), to: endOfTodayUtc() };
 
-  const [tasks, events, runs, alerts, notes, memories] = await Promise.all([
+  const [tasks, events, runs, alerts, notes, memories, exams] = await Promise.all([
     db.from("Task").select("id", { count: "exact", head: true })
       .eq("userId", DEFAULT_USER_ID).neq("status", "done").neq("status", "cancelled"),
     listUpcomingEvents(20).catch(() => null),
@@ -32,7 +33,15 @@ export async function GET() {
       .eq("userId", DEFAULT_USER_ID).eq("type", "alert.raised").gte("createdAt", today.from),
     db.from("Note").select("id", { count: "exact", head: true }).eq("userId", DEFAULT_USER_ID),
     db.from("Memory").select("id", { count: "exact", head: true }).eq("userId", DEFAULT_USER_ID),
+    // The exam countdown rides along here rather than in its own strip. It
+    // used to be a full-width band across the top of the wall, which spent a
+    // row of screen on one number; as a cell it sits beside the other figures
+    // and costs nothing, and it is now visible on every page rather than two.
+    listExams().catch(() => []),
   ]);
+
+  const soonest = nextExam(exams);
+  const countdown = soonest && inExamMode(exams) ? countdownFor(soonest) : null;
 
   // Events today, and how much of the day they claim.
   const start = new Date(today.from).getTime(), end = new Date(today.to).getTime();
@@ -56,6 +65,7 @@ export async function GET() {
       notes: notes.count ?? 0,
       memories: memories.count ?? 0,
       uplinkMs: Date.now() - began,
+      exam: countdown ? { subject: countdown.exam.subject, days: Math.max(0, countdown.days), phase: countdown.phase } : null,
     },
   });
 }

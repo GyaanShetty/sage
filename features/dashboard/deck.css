@@ -282,5 +282,4 @@ main.hud-grid:has(.deck) { padding-bottom: 0; overflow: hidden; }
   main.hud-grid:has(.deck) { display: flex; flex-direction: column; }
   main.hud-grid:has(.deck) > *,
   main.hud-grid :has(> .deck) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
-  main.hud-grid .xs-strip { flex: none; }
 }

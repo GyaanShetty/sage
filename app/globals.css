@@ -839,6 +839,10 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   font-family: var(--mono); font-size: 6.5px; letter-spacing: 0.22em;
   text-transform: uppercase; color: var(--subtle); white-space: nowrap;
 }
+/* The exam countdown, when a paper is close. A link, so it is underlined on
+   hover the way the rest of the strip is not — the only cell you can open. */
+.desk-exam { text-decoration: none; border-bottom: 2px solid var(--live-dim); }
+.desk-exam:hover { background: var(--glass); }
 @media (max-width: 640px) { .desk-cell { min-width: 70px; padding: 4px 9px; } .desk-v { font-size: 14px; } }
 
 /* ── function-key rail ──
@@ -1271,8 +1275,6 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   main.hud-grid:has(.wall) { padding-bottom: 0; overflow: hidden; display: flex; flex-direction: column; }
   main.hud-grid:has(.wall) > *,
   main.hud-grid :has(> .wall) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
-  /* The exam banner is a strip and keeps its own height; only the wall grows. */
-  main.hud-grid .xs-strip { flex: none; }
 }
 
 /* Empty states that offer the next move. */

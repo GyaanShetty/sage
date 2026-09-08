@@ -92,7 +92,7 @@
 
 /* 02 markets */
 .mk-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); margin-bottom: 8px; }
-.mk-cell { background: var(--panel); padding: 7px 9px; min-width: 0; }
+.mk-cell { background: var(--panel); padding: 7px 9px; min-width: 0; overflow: hidden; }
 .mk-h { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); text-transform: uppercase; }
 .mk-p { font-family: var(--mono); font-size: 13px; color: var(--foreground); font-variant-numeric: tabular-nums; margin: 2px 0; }
 .mk-c { font-family: var(--mono); font-size: 9px; }
@@ -238,6 +238,24 @@
      tracks did — without this a pane's body reports its content height and
      the internal scroller never engages. */
   .wall .pane-body > * { min-height: 0; }
+
+  /* …but min-height: 0 also lets a flex child shrink *below its content*, and
+     a shrunk box does not clip — it spills. That is what put the crypto grid
+     on top of the EQUITIES caption in pane 02: it asked for 166px, flex gave
+     it 115, and the remaining 51px of text drew straight over the rows below.
+     Worse, because every child had shrunk, the body's scrollHeight equalled
+     its clientHeight, so the scroller that was supposed to catch this never
+     engaged.
+
+     These atoms are fixed blocks of text; none of them has anything to give.
+     Pinning them means a pane with more content than height scrolls, which is
+     what the body was already set up to do. Instruments are deliberately not
+     in this list — taking the leftover height is exactly their job. */
+  .wall .pane-body > .mk-grid,
+  .wall .pane-body > .tile-cap,
+  .wall .pane-body > .trow,
+  .wall .pane-body > .tstat,
+  .wall .pane-body > .tile-wait { flex: none; }
 
   /* Header */
   .wall .pane-t { font-size: clamp(7px, 4.4cqh, 10px); }

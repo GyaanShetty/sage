@@ -9,6 +9,7 @@ interface Alert { level: "info" | "warn" | "high"; icon: string; text: string }
 /** Proactive situation report strip — SAGE surfaces what needs attention. */
 export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
+  const [read, setRead] = useState<string | null>(null);
   const [at, setAt] = useState("");
 
   /**
@@ -26,7 +27,7 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
     const load = () =>
       fetch("/api/sitrep")
         .then((r) => r.json())
-        .then((j) => { setAlerts(asArray(j.data)); setAt(j.at ?? ""); })
+        .then((j) => { setAlerts(asArray(j.data)); setRead(typeof j.read === "string" ? j.read : null); setAt(j.at ?? ""); })
         .catch(() => setAlerts([]));
 
     const start = () => { if (!timer) timer = setInterval(load, 30_000); };
@@ -56,6 +57,13 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
       <div className="cell sitrep-cell">
         {worst && <Hazard tone={worst} />}
         <div className="bh"><span className="t">Sitrep</span><span className="i">SIT</span><span className="r">{at}</span></div>
+        {/*
+          The read sits above the chips, because it is the thing that says
+          which chip to look at. It is absent rather than filled with a
+          placeholder when there is no model — a status board that pads itself
+          teaches you to skim it.
+        */}
+        {read && <p className="sitrep-read">{read}</p>}
         <div className="sitrep-row compact">
           {alerts.map((a, i) => (
             <div className={`sitrep-chip ${a.level}`} key={i}>
@@ -72,6 +80,7 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
     <section className="section" id="sitrep" style={{ paddingBottom: 0 }}>
       <div className="sectitle"><span className="sn">00</span><h2>Sitrep</h2><span className="line" /><span className="tag">{at} IST · WHAT NEEDS YOU</span></div>
       {worst && <Hazard tone={worst} />}
+      {read && <p className="sitrep-read">{read}</p>}
       <div className="sitrep-row">
         {alerts.map((a, i) => (
           <div className={`sitrep-chip ${a.level}`} key={i}>

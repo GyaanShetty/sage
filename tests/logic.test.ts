@@ -4136,3 +4136,53 @@ test("the exam countdown is a desk cell, not a band across the wall", async () =
   assert.match(strip("app/api/desk/route.ts"), /inExamMode\(exams\)/);
   assert.match(strip("features/shell/components/desk-strip.tsx"), /d\?\.exam && \(/);
 });
+
+test("a pane's fixed text cannot be squeezed into the text below it", async () => {
+  const css = readFileSync("features/dashboard/wall.css", "utf8");
+
+  // min-height: 0 lets a flex child shrink below its content, and a shrunk box
+  // spills rather than clipping — which is how the crypto grid ended up drawn
+  // over the EQUITIES rows. These atoms hold fixed text and must not shrink.
+  for (const sel of [".mk-grid", ".tile-cap", ".trow", ".tstat", ".tile-wait"]) {
+    assert.match(css, new RegExp(`\\.wall \\.pane-body > \\${sel}`), `${sel} is not pinned`);
+  }
+  assert.match(css, /\.mk-cell \{[^}]*overflow: hidden/);
+});
+
+test("one reminder is announced once, and late is said out loud", async () => {
+  const ticker = readFileSync("components/reminder-ticker.tsx", "utf8");
+  const toaster = readFileSync("components/toaster.tsx", "utf8");
+
+  // Two paths announce a fired reminder and they do not share an id, so the
+  // dedupe has to key on what they do share: the text.
+  assert.match(toaster, /const key = t\.body \|\| t\.title;/);
+  assert.match(toaster, /now - last < DEDUPE_MS/);
+
+  // The ticker used to bail whenever the tab was hidden, cancelling the one
+  // poll that is supposed to survive it.
+  assert.doesNotMatch(ticker, /visibilityState === "hidden"/);
+
+  // And it closes in as a reminder approaches, so delivery is not up to a
+  // minute late by construction.
+  assert.match(ticker, /closing \? CLOSE_MS : EVERY_MS/);
+  assert.match(ticker, /lateMin/);
+});
+
+test("the sitrep gets a read, and the read may not invent a fact", async () => {
+  const { readKey } = await import("@/core/sitrep/read");
+
+  // Content-addressed, so polling an unchanged board costs nothing.
+  const a = [{ level: "high", text: "2 tasks overdue" }];
+  assert.equal(readKey(a), readKey([{ level: "high", text: "2 tasks overdue" }]));
+  assert.notEqual(readKey(a), readKey([{ level: "high", text: "3 tasks overdue" }]));
+
+  const src = readFileSync("core/sitrep/read.ts", "utf8");
+  assert.match(src, /never introduce a number, name, time or deadline that is not in them/i);
+
+  // The strip must degrade to exactly what it was when there is no model.
+  assert.match(src, /if \(!model\) return null;/);
+
+  // The route feeds the read only the lines it is returning.
+  const route = readFileSync("app/api/sitrep/route.ts", "utf8");
+  assert.match(route, /const read = await readSitrep\(top\);/);
+});

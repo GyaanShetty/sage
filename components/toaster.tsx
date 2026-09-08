@@ -24,7 +24,7 @@ function describe(ev: SystemEvent): { title: string; body?: string; kind: "info"
   const p = ev.payload ?? {};
   switch (ev.type) {
     case "reminder.fired":
-      return { title: "REMINDER", body: String(p.text ?? ""), kind: "alert" };
+      return { title: "⏰ REMINDER", body: String(p.text ?? ""), kind: "alert" };
     case "memory.extracted":
       return { title: "MEMORY COMMITTED", body: String(p.content ?? p.summary ?? "New memory learned"), kind: "info" };
     case "automation.completed":
@@ -42,6 +42,9 @@ function describe(ev: SystemEvent): { title: string; body?: string; kind: "info"
 
 const SEEN_KEY = "sage-toast-seen";
 
+/** How long the same message stays muted after being shown once. */
+const DEDUPE_MS = 10 * 60_000;
+
 /**
  * Live overlay layer: slide-in toasts for system activity (reminders,
  * memories, briefs). Fires real browser notifications for reminders when
@@ -52,7 +55,34 @@ export function Toaster() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seenRef = useRef<string>("");
 
+  /**
+   * Recently shown toasts, by content, so the same thing cannot be said twice.
+   *
+   * A fired reminder reaches this component down two paths — the ticker
+   * announces what /api/reminders/tick just fired, and the events poll sees
+   * the reminder.fired row it wrote — so every reminder was toasted at least
+   * twice, and three identical "Stretch in 15 minutes" cards stacked up on
+   * screen. Both paths are worth keeping (the ticker is immediate, the events
+   * poll covers what fired while this tab was closed); what was missing is
+   * that they are announcing the same event.
+   *
+   * Keyed by the body rather than by id, because the two paths do not share an
+   * id — the whole reason the duplicate got through — and not by the title
+   * either, since the ticker appends how late a reminder was and the events
+   * poll cannot know that. The body is what the two paths agree on.
+   */
+  const shownRef = useRef<Map<string, number>>(new Map());
+
   const push = useCallback((t: Omit<Toast, "id">) => {
+    const key = t.body || t.title;
+    const now = Date.now();
+    const last = shownRef.current.get(key);
+    if (last !== undefined && now - last < DEDUPE_MS) return;
+    // Forget old keys so a genuinely repeated reminder later in the day still
+    // gets through; this is a dedupe window, not a permanent mute.
+    for (const [k, at] of shownRef.current) if (now - at > DEDUPE_MS) shownRef.current.delete(k);
+    shownRef.current.set(key, now);
+
     const id = crypto.randomUUID();
     sound.tick();
     setToasts((prev) => [...prev.slice(-3), { ...t, id }]);

@@ -4,6 +4,8 @@ import { getWeather } from "@/infrastructure/weather";
 import { getMarkets } from "@/infrastructure/markets";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { fmt, tzHour } from "@/lib/config";
+import { listExams, nextExam, countdownFor, inExamMode } from "@/core/exam";
+import { readSitrep } from "@/core/sitrep/read";
 
 /**
  * No cache, and no revalidate window.
@@ -22,12 +24,18 @@ export async function GET() {
   const alerts: Alert[] = [];
   const now = Date.now();
 
-  const [{ data: tasks }, events, weather, coins, { data: health }] = await Promise.all([
+  const [{ data: tasks }, events, weather, coins, { data: health }, { data: reminder }, { data: apps }, exams] = await Promise.all([
     db.from("Task").select("title, dueAt, status, createdAt, priority").eq("userId", DEFAULT_USER_ID).neq("status", "done").neq("status", "cancelled").limit(50),
     listUpcomingEvents(8).catch(() => null),
     getWeather().catch(() => null),
     getMarkets().catch(() => null),
     db.from("Event").select("payload").eq("userId", DEFAULT_USER_ID).eq("type", "health.report").gte("createdAt", new Date(now - 36 * 3600e3).toISOString()).order("createdAt", { ascending: false }).limit(1).maybeSingle(),
+    // Three more things the board could already have known and did not. All
+    // are indexed reads against data SAGE holds — nothing here reaches out to
+    // a network, because this route is polled.
+    db.from("Reminder").select("text, remindAt").eq("userId", DEFAULT_USER_ID).eq("status", "pending").gt("remindAt", new Date(now).toISOString()).order("remindAt", { ascending: true }).limit(1).maybeSingle(),
+    db.from("Event").select("payload").eq("userId", DEFAULT_USER_ID).eq("type", "career.application").limit(100),
+    listExams().catch(() => []),
   ]);
 
   // Overdue & stale tasks
@@ -53,13 +61,52 @@ export async function GET() {
   const steps = Number((health?.payload as { steps?: number } | null)?.steps ?? NaN);
   if (!Number.isNaN(steps) && steps < 2000 && tzHour() >= 18) alerts.push({ level: "info", icon: "◈", text: `Only ${Math.round(steps).toLocaleString("en-IN")} steps today — a short walk?` });
 
+  // A reminder inside the hour, which is the window in which knowing changes
+  // what you do next.
+  if (reminder) {
+    const mins = Math.round((new Date(reminder.remindAt as string).getTime() - now) / 60e3);
+    if (mins >= 0 && mins <= 60) alerts.push({ level: "warn", icon: "⏰", text: `"${reminder.text}" in ${mins} min` });
+  }
+
+  // The soonest application deadline still ahead. These are quoted from mail,
+  // never generated — see core/career/inbox.ts.
+  const deadlines = (apps ?? [])
+    .map((r) => (r.payload ?? {}) as { company?: string; deadline?: string | null })
+    .filter((a): a is { company: string; deadline: string } => !!a.deadline && !!a.company && new Date(a.deadline).getTime() > now)
+    .sort((a, b) => a.deadline.localeCompare(b.deadline));
+  if (deadlines.length) {
+    const days = Math.ceil((new Date(deadlines[0].deadline).getTime() - now) / 864e5);
+    if (days <= 7) alerts.push({ level: days <= 2 ? "high" : "warn", icon: "⚑", text: `${deadlines[0].company} closes in ${days} day${days === 1 ? "" : "s"}` });
+  }
+
+  // The exam, while one is close enough to be driving the week.
+  const soonestExam = nextExam(exams);
+  if (soonestExam && inExamMode(exams)) {
+    const c = countdownFor(soonestExam);
+    alerts.push({ level: c.days <= 3 ? "high" : "info", icon: "◵", text: `${c.days} day${c.days === 1 ? "" : "s"} to ${c.exam.subject}` });
+  }
+
   if (!alerts.length) alerts.push({ level: "info", icon: "✓", text: `All quiet. ${(tasks ?? []).length} open task${(tasks ?? []).length === 1 ? "" : "s"}, nothing pressing.` });
 
   // rank: high → warn → info
   const order = { high: 0, warn: 1, info: 2 } as const;
   alerts.sort((a, b) => order[a.level] - order[b.level]);
+  const top = alerts.slice(0, 6);
+
+  /**
+   * The read: what a chief of staff would say about the board.
+   *
+   * Every fact in `top` came from the rules above. The model gets those lines
+   * and nothing else, and is forbidden to add to them — so the worst it can do
+   * is phrase the ranking badly, never state a deadline that does not exist.
+   * It is cached on the content of the board, so polling a board that has not
+   * changed costs nothing, and it is null rather than blocking when there is
+   * no model or the call is slow.
+   */
+  const read = await readSitrep(top);
+
   return NextResponse.json(
-    { ok: true, data: alerts.slice(0, 6), at: fmt(new Date(), { hour: "2-digit", minute: "2-digit", hour12: false }) },
+    { ok: true, data: top, read, at: fmt(new Date(), { hour: "2-digit", minute: "2-digit", hour12: false }) },
     { headers: { "cache-control": "no-store" } },
   );
 }

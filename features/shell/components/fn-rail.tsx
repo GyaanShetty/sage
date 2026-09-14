@@ -33,6 +33,9 @@ const KEYS: { fn: number; href: string; label: string }[] = [
   { fn: 11, href: "/mail", label: "WIRE" },
   { fn: 12, href: "/calendar", label: "CALENDAR" },
   { fn: 13, href: "/markets", label: "MARKETS" },
+  // The semester deserves a key: it is checked daily during term and buried
+  // in a launcher group otherwise.
+  { fn: 14, href: "/study", label: "STUDY" },
 ];
 
 /** Every key must point at a page that exists — a dead key is worse than none. */

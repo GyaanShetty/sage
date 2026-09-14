@@ -9,6 +9,15 @@ import { cn } from "@/lib/utils";
 import "./decisions.css";
 import { TZ } from "@/lib/config";
 
+/*
+ * The shared control styles (.cc-btn, .sectitle, .eis-*) live in
+ * features/dashboard/command.css. A CSS import in Next is global once some
+ * loaded route pulls it in, so this page looked correct for as long as you
+ * arrived from one that already had — and was unstyled on a hard load. The
+ * import belongs where the classes are used.
+ */
+import "@/features/dashboard/command.css";
+
 /**
  * The decision journal.
  *

@@ -4364,3 +4364,30 @@ test("the study page is a real route, reachable from the launcher", async () => 
   // The skill ledger stays: levels and syllabus answer different questions.
   assert.match(pages, /href: "\/education"/);
 });
+
+test("client components never import the database through a back door", async () => {
+  const { readdirSync, readFileSync: rf } = await import("node:fs");
+
+  // core/study/model.ts is the browser-safe half. If it ever grows a database
+  // import, every client component that uses completion() or pace() drags
+  // Supabase — and node:async_hooks — into the browser bundle. That is not
+  // hypothetical: the first version of this module did exactly that, and the
+  // build printed UnhandledSchemeError for a dozen node: schemes.
+  const model = rf("core/study/model.ts", "utf8");
+  assert.doesNotMatch(model, /infrastructure\/db/, "model.ts must stay database-free");
+  assert.doesNotMatch(model, /from "\.\/subjects"/, "and must not point back at the server half");
+
+  // The study page may only reach for the pure half.
+  const view = rf("features/study/study-view.tsx", "utf8");
+  assert.match(view, /"@\/core\/study\/model"/);
+  assert.doesNotMatch(view, /"@\/core\/study\/subjects"/);
+
+  // And the general rule, checked across every client component that touches
+  // this feature: "use client" and a direct db import cannot coexist.
+  for (const f of readdirSync("features/study")) {
+    if (!f.endsWith(".tsx")) continue;
+    const src = rf(`features/study/${f}`, "utf8");
+    if (!src.startsWith('"use client"')) continue;
+    assert.doesNotMatch(src, /infrastructure\/db\/supabase/, `${f} is a client component`);
+  }
+});

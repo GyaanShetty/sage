@@ -582,7 +582,9 @@ function UnitEditor({
         <textarea
           value={bulk}
           onChange={(e) => setBulk(e.target.value)}
-          placeholder={"PASTE OR TYPE UNITS\n1. Processes\n2. Memory Management"}
+          // One line, because the box is one row until you type in it — a
+          // three-line placeholder in a one-line box is just clipped text.
+          placeholder="PASTE THE SYLLABUS — LINES, COMMAS, NUMBERED, ANY SHAPE"
           rows={bulk ? 3 : 1}
           onKeyDown={(e) => {
             // Enter adds when it is a single line; Shift+Enter always newlines.

@@ -4366,16 +4366,44 @@ test("the study page is a real route, reachable from the launcher", async () => 
 });
 
 test("client components never import the database through a back door", async () => {
-  const { readdirSync, readFileSync: rf } = await import("node:fs");
+  const { readdirSync, readFileSync: rf, existsSync } = await import("node:fs");
 
   // core/study/model.ts is the browser-safe half. If it ever grows a database
   // import, every client component that uses completion() or pace() drags
   // Supabase — and node:async_hooks — into the browser bundle. That is not
   // hypothetical: the first version of this module did exactly that, and the
   // build printed UnhandledSchemeError for a dozen node: schemes.
-  const model = rf("core/study/model.ts", "utf8");
-  assert.doesNotMatch(model, /infrastructure\/db/, "model.ts must stay database-free");
-  assert.doesNotMatch(model, /from "\.\/subjects"/, "and must not point back at the server half");
+  /*
+   * Followed transitively, because checking one hop is what let this through
+   * the first time: model.ts stopped importing the database directly and
+   * started importing core/history, which imports it — so the bundle pulled
+   * Supabase anyway and the build failed on node:assert.
+   */
+  const seen = new Set<string>();
+  const resolve = (spec: string): string | null => {
+    if (!spec.startsWith("@/")) return null;
+    const base = spec.slice(2);
+    for (const ext of [".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+      if (existsSync(base + ext)) return base + ext;
+    }
+    return null;
+  };
+  const walk = (file: string): string[] => {
+    if (seen.has(file)) return [];
+    seen.add(file);
+    const src = rf(file, "utf8");
+    if (/infrastructure\/db\/supabase/.test(src)) return [file];
+    const out: string[] = [];
+    for (const m of src.matchAll(/from "(@\/[^"]+)"/g)) {
+      const next = resolve(m[1]);
+      if (next) out.push(...walk(next).map((f) => `${file} -> ${f}`));
+    }
+    return out;
+  };
+
+  const leaks = walk("core/study/model.ts");
+  assert.deepEqual(leaks, [], `model.ts reaches the database: ${leaks.join(", ")}`);
+  assert.doesNotMatch(rf("core/study/model.ts", "utf8"), /from "\.\/subjects"/, "and must not point back at the server half");
 
   // The study page may only reach for the pure half.
   const view = rf("features/study/study-view.tsx", "utf8");
@@ -4389,5 +4417,40 @@ test("client components never import the database through a back door", async ()
     const src = rf(`features/study/${f}`, "utf8");
     if (!src.startsWith('"use client"')) continue;
     assert.doesNotMatch(src, /infrastructure\/db\/supabase/, `${f} is a client component`);
+  }
+});
+
+test("every tile span class on a wall actually exists", async () => {
+  const { readdirSync } = await import("node:fs");
+  const css = readFileSync("features/dashboard/wall.css", "utf8");
+
+  // A tile with a class the grid does not define gets no span at all: one
+  // column, one row, and its content crushed. That is what happened to the
+  // study page's first band, where four t-3x3 tiles collapsed into a strip
+  // — and nothing failed, because CSS does not complain about a class it has
+  // never heard of.
+  const defined = new Set([...css.matchAll(/\.wall-pack > \.(t-\d+x\d+)/g)].map((m) => m[1]));
+  assert.ok(defined.size >= 6, "the grid defines spans");
+
+  const dirs = ["features/dashboard/components", "features/study"];
+  const used = new Set<string>();
+  for (const dir of dirs) {
+    for (const f of readdirSync(dir)) {
+      if (!f.endsWith(".tsx")) continue;
+      for (const m of readFileSync(`${dir}/${f}`, "utf8").matchAll(/className="(t-\d+x\d+)"/g)) {
+        used.add(m[1]);
+      }
+    }
+  }
+  assert.ok(used.size > 0, "walls use span classes");
+
+  const missing = [...used].filter((c) => !defined.has(c));
+  assert.deepEqual(missing, [], `span classes used but never defined: ${missing.join(", ")}`);
+
+  // Spans must divide twelve, or a band cannot tile and the wall gets a
+  // ragged right edge that dense packing can only backfill, never invent.
+  for (const c of defined) {
+    const cols = Number(c.slice(2).split("x")[0]);
+    assert.equal(12 % cols, 0, `${c} does not divide twelve`);
   }
 });

@@ -12,7 +12,9 @@
    Every control is on the row it acts on. The alternative — a mode, or a
    panel — means holding in your head which unit you selected, which is the
    sort of thing a list of twenty chapters is bad at. */
-.sv-units { display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+.sv-units { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.sv-unit-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 1px; }
+.sv-unit-list::-webkit-scrollbar { display: none; }
 
 .sv-unit {
   display: flex; align-items: center; gap: 5px;
@@ -57,9 +59,10 @@
 .sv-unit .sv-weight:has(b:not(:empty)) { opacity: 1; }
 .sv-unit:not(:hover) .sv-weight b { color: var(--subtle); }
 
+.sv-hint em { font-style: normal; color: var(--muted); }
 .sv-hint { margin: 4px 6px; font-size: 10.5px; line-height: 1.45; color: var(--subtle); }
 
-.sv-bulk { margin-top: 6px; border-top: 1px solid var(--rule); padding-top: 6px; }
+.sv-bulk { flex: 0 0 auto; margin-top: 6px; border-top: 1px solid var(--rule); padding-top: 6px; }
 .sv-bulk textarea {
   width: 100%; resize: vertical; background: var(--panel); color: var(--foreground);
   border: 1px solid var(--border-glass); border-radius: 4px; padding: 6px 8px;

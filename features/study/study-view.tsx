@@ -479,7 +479,19 @@ function UnitEditor({
   const [confirming, setConfirming] = useState<string | null>(null);
 
   const id = subject.id;
-  const preview = parseUnitNames(bulk);
+
+  /*
+   * What will actually be added, not what was typed.
+   *
+   * The server skips names already in the syllabus, so a paste containing a
+   * chapter you already have would have promised "ADD 3 UNITS" and added two.
+   * A button that overstates by one is the kind of small lie that makes you
+   * stop reading the counts.
+   */
+  const have = new Set(subject.units.map((u) => u.name.toLowerCase()));
+  const parsed = parseUnitNames(bulk);
+  const preview = parsed.filter((n) => !have.has(n.toLowerCase()));
+  const dupes = parsed.length - preview.length;
 
   const rename = (unitId: string) => {
     const name = draft.trim();
@@ -491,6 +503,10 @@ function UnitEditor({
 
   return (
     <div className="sv-units">
+      {/* The list scrolls; the paste box does not. A syllabus of twenty pushed
+          the input off the bottom of the pane, so the one control you need
+          while setting a subject up was the one you had to scroll to find. */}
+      <div className="sv-unit-list">
       {subject.units.length === 0 && (
         <p className="sv-hint">Paste the syllabus below — numbered lines, commas, whatever shape it is in.</p>
       )}
@@ -560,6 +576,8 @@ function UnitEditor({
         </div>
       ))}
 
+      </div>
+
       <div className="sv-bulk">
         <textarea
           value={bulk}
@@ -575,7 +593,12 @@ function UnitEditor({
           }}
         />
         <div className="sv-bulk-foot">
-          {preview.length > 1 && <span className="sv-hint">{preview.length} units: {preview.slice(0, 3).join(" · ")}{preview.length > 3 ? " …" : ""}</span>}
+          {(preview.length > 1 || dupes > 0) && (
+            <span className="sv-hint">
+              {preview.length ? `${preview.length} units: ${preview.slice(0, 3).join(" · ")}${preview.length > 3 ? " …" : ""}` : "nothing new here"}
+              {dupes > 0 && <em> · {dupes} already in the syllabus</em>}
+            </span>
+          )}
           <button
             disabled={busy || !preview.length}
             onClick={() => { void post({ action: "unit.bulk", subjectId: id, text: bulk }); setBulk(""); }}

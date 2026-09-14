@@ -4690,4 +4690,10 @@ test("the syllabus can be edited without leaving the pane", async () => {
 
   // The old adder is gone rather than left alongside the new one.
   assert.doesNotMatch(view, /function UnitAdd\(/);
+
+  // The button counts what will actually be added. The server skips names
+  // already in the syllabus, so counting the paste would overstate by one for
+  // every chapter you already have.
+  assert.match(view, /const preview = parsed\.filter\(\(n\) => !have\.has\(n\.toLowerCase\(\)\)\)/);
+  assert.match(view, /already in the syllabus/);
 });

@@ -7,11 +7,18 @@
  * the click, and the navigation was restarted by each one until it simply
  * never finished.
  *
- * The fallback in components/nav-guard.tsx guarantees the click lands. This is
- * the other half: while a navigation is pending, live panels stop *starting*
- * new work. It cannot recall the requests already in flight, but it stops the
- * wall adding to them, which is what lets the client-side navigation win and
- * keeps the fallback for the cases that really need it.
+ * The fallback in components/nav-guard.tsx is what guarantees the click lands.
+ * This is a smaller, unproven companion: while a navigation is pending, live
+ * panels stop *starting* new work, so the wall adds no new interruptions to
+ * the render the navigation is waiting on.
+ *
+ * Honest about its evidence: measured on a machine with no database, where
+ * every API call takes four to seven seconds, it changed none of the fifteen
+ * link timings — the fallback was already carrying them. It is kept because
+ * the reasoning holds and the cost is one skipped poll on a page being left
+ * behind, not because a test showed it working. If navigation still feels
+ * slow on real latency, this is the first thing to re-measure rather than the
+ * first thing to trust.
  *
  * A module-level flag rather than context on purpose: useLive is called from
  * seventy places and must be able to ask this question without re-rendering

@@ -21,6 +21,7 @@ import { FrameRail } from "@/components/frame-rail";
 import { DeskStrip } from "@/features/shell/components/desk-strip";
 import { FnRail } from "@/features/shell/components/fn-rail";
 import { FitPage } from "@/components/fit-page";
+import { NavGuard } from "@/components/nav-guard";
 
 export default function ShellLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -55,6 +56,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <FitPage />
       <GestureNav />
       <ErrorReporter />
+      <NavGuard />
     </div>
   );
 }

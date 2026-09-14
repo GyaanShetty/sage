@@ -4226,3 +4226,31 @@ test("every link on the wall goes somewhere that exists, and can be hit", async 
   const go = css.slice(css.indexOf(".pane-go {"));
   assert.match(go.slice(0, go.indexOf("}")), /min-height: 20px/);
 });
+
+test("a click on a link always ends in a navigation", async () => {
+  const src = readFileSync("components/nav-guard.tsx", "utf8");
+
+  // A route change is a React transition, and any state update landing while
+  // it renders restarts it. Thirty tiles answering their fetches restarted it
+  // forever, so the URL never moved and the click looked inert. The guard
+  // finishes what the transition could not.
+  assert.match(src, /window\.location\.assign\(href\)/);
+  assert.match(src, /window\.location\.pathname === from/);
+
+  // Only after giving client-side navigation a fair chance to win.
+  assert.match(src, /GRACE_MS = \d+/);
+
+  // The clicks the browser owns are left to the browser.
+  for (const guard of [/metaKey/, /ctrlKey/, /shiftKey/, /altKey/, /download/, /e\.button !== 0/]) {
+    assert.match(src, guard, `nav guard must not hijack ${guard}`);
+  }
+  // Same-page and external hrefs are not navigations.
+  assert.match(src, /href\.startsWith\("\/"\)/);
+  assert.match(src, /to === from/);
+
+  // Capture phase, so it still sees a click whose bubbling is stopped.
+  assert.match(src, /addEventListener\("click", onClick, true\)/);
+
+  // And it has to be mounted, or none of the above happens.
+  assert.match(readFileSync("app/(shell)/layout.tsx", "utf8"), /<NavGuard \/>/);
+});

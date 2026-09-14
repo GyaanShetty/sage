@@ -4186,3 +4186,43 @@ test("the sitrep gets a read, and the read may not invent a fact", async () => {
   const route = readFileSync("app/api/sitrep/route.ts", "utf8");
   assert.match(route, /const read = await readSitrep\(top\);/);
 });
+
+test("every link on the wall goes somewhere that exists, and can be hit", async () => {
+  const { readdirSync, existsSync } = await import("node:fs");
+
+  // Which routes actually exist, read off the filesystem rather than a list
+  // someone has to remember to update.
+  const shell = "app/(shell)";
+  const routes = new Set(
+    readdirSync(shell, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && existsSync(`${shell}/${d.name}/page.tsx`))
+      .map((d) => `/${d.name}`),
+  );
+
+  const files = readdirSync("features/dashboard/components").filter((f) => f.endsWith(".tsx"));
+  const dead: string[] = [];
+  for (const f of files) {
+    const src = readFileSync(`features/dashboard/components/${f}`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const m of src.matchAll(/href="(\/[a-z0-9-]*)"/g)) {
+      const href = m[1];
+      if (href.startsWith("/api")) continue;
+      if (!routes.has(href)) dead.push(`${f} → ${href}`);
+    }
+  }
+  // /wire was linked from two tiles and has never been a route, so both of
+  // them landed on the 404.
+  assert.deepEqual(dead, [], `dead links on the wall: ${dead.join(", ")}`);
+
+  const css = readFileSync("app/globals.css", "utf8");
+
+  // The live header sweep is decoration that travels across the status link.
+  // Without pointer-events: none it swallows the click, so the link worked or
+  // did nothing depending on where a 4.5s animation had got to.
+  const sweep = css.slice(css.indexOf(".pane:has(.pane-s.live) .pane-hd::after"));
+  assert.match(sweep.slice(0, sweep.indexOf("}")), /pointer-events: none/);
+
+  // Container queries shrink status text to ~6px. The link needs a hit box
+  // that does not shrink with the type.
+  const go = css.slice(css.indexOf(".pane-go {"));
+  assert.match(go.slice(0, go.indexOf("}")), /min-height: 20px/);
+});

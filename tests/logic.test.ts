@@ -4254,3 +4254,113 @@ test("a click on a link always ends in a navigation", async () => {
   // And it has to be mounted, or none of the above happens.
   assert.match(readFileSync("app/(shell)/layout.tsx", "utf8"), /<NavGuard \/>/);
 });
+
+test("a subject knows how much is left, and how far behind it is", async () => {
+  const s = await import("@/core/study/subjects");
+
+  const units = [
+    { id: "a", name: "Processes", weight: 1, doneAt: "2026-09-01T00:00:00Z" },
+    { id: "b", name: "Memory", weight: 3, doneAt: null },
+    { id: "c", name: "Files", weight: 1, doneAt: null },
+  ];
+
+  // Weighted, because a three-week unit is not one tick of five.
+  assert.equal(s.completion({ units }), 1 / 5);
+  assert.equal(s.completion({ units: [] }), 0, "no syllabus is not division by zero");
+
+  // Pace: the share of syllabus done minus the share of the run-up elapsed.
+  const subject = { units, createdAt: "2026-09-01T00:00:00Z" };
+  const halfway = s.pace(subject, "2026-09-11T00:00:00Z", new Date("2026-09-06T00:00:00Z"));
+  assert.ok(halfway !== null && Math.abs(halfway - (0.2 - 0.5)) < 1e-9, "half the time, a fifth done");
+
+  // Unanswerable questions are answered with null, not with zero.
+  assert.equal(s.pace(subject, null), null, "no exam date, no pace");
+  assert.equal(s.pace({ units: [], createdAt: "2026-09-01T00:00:00Z" }, "2026-10-01T00:00:00Z"), null);
+  assert.equal(
+    s.pace(subject, "2026-09-11T00:00:00Z", new Date("2026-08-01T00:00:00Z")),
+    null,
+    "before the run-up begins there is nothing to be behind on",
+  );
+
+  // Time is kept apart from progress: minutes come from sessions only.
+  const sessions = [
+    { id: "1", subjectId: "x", unitId: "a", minutes: 60, at: "2026-09-05T10:00:00Z" },
+    { id: "2", subjectId: "x", unitId: "a", minutes: 30, at: "2026-09-05T18:00:00Z" },
+    { id: "3", subjectId: "x", unitId: "b", minutes: 45, at: "2026-09-06T10:00:00Z" },
+  ];
+  const byUnit = s.minutesByUnit(sessions, units);
+  assert.deepEqual(byUnit.map((r) => r.minutes), [90, 45, 0]);
+
+  // Dense and zero-filled, so a gap is as wide as the time it took.
+  assert.deepEqual(s.minutesByDay(sessions, ["2026-09-04", "2026-09-05", "2026-09-06"]), [0, 90, 45]);
+
+  assert.equal(s.scheduledMinutes({ slots: [
+    { id: "1", weekday: 2, startMin: 1080, minutes: 90 },
+    { id: "2", weekday: 4, startMin: 1080, minutes: 60 },
+  ] }), 150);
+
+  assert.equal(s.clockOf(1110), "18:30");
+  assert.equal(s.clockOf(0), "00:00");
+});
+
+test("the next study slot is the next one, not the first in the list", async () => {
+  const { nextSlot } = await import("@/core/study/subjects");
+
+  const slots = [
+    { id: "mon", weekday: 1, startMin: 9 * 60, minutes: 60 },
+    { id: "wed", weekday: 3, startMin: 18 * 60, minutes: 90 },
+  ];
+
+  // Wednesday 12:00 → Wednesday 18:00 is six hours away, Monday is five days.
+  const wedNoon = new Date("2026-09-09T12:00:00");
+  assert.equal(nextSlot(slots, wedNoon)?.slot.id, "wed");
+  assert.equal(nextSlot(slots, wedNoon)?.inMinutes, 360);
+
+  // Wednesday 19:00 → today's slot has passed, so Monday is next.
+  assert.equal(nextSlot(slots, new Date("2026-09-09T19:00:00"))?.slot.id, "mon");
+
+  assert.equal(nextSlot([], new Date()), null);
+});
+
+test("SAGE can read, log against and set up a subject", async () => {
+  const src = readFileSync("core/tools/domain.ts", "utf8");
+
+  for (const name of ["subject_status", "log_subject_session", "mark_unit", "plan_study"]) {
+    assert.match(src, new RegExp(`${name}: tool\\(`), `${name} is missing`);
+  }
+
+  const body = src.slice(src.indexOf("subject_status: tool("), src.indexOf("log_expense: tool("));
+
+  // Hours spent is not progress. The tool names the two separately so the
+  // model cannot quietly report one as the other.
+  assert.match(body, /hoursLogged/);
+  assert.match(body, /syllabusDone/);
+  assert.match(body, /unitsDone/);
+
+  // Ticking a unit is what moves the percentage — said in the description so
+  // the model does not offer hours as evidence of progress.
+  assert.match(body, /This is what moves the percentage: hours logged never do/);
+
+  // An unmatched unit name has to be reported, not silently dropped, or a
+  // session lands on the subject while the user believes it landed on a unit.
+  assert.match(body, /unitMatched/);
+
+  // Setting up must not duplicate a unit that is already in the syllabus.
+  assert.match(body, /Never duplicate a unit that is already in the syllabus/);
+
+  // And the tools have to be reachable from voice and chat, which both take
+  // the domain pack.
+  assert.match(readFileSync("core/voice/turn.ts", "utf8"), /domainTools/);
+  assert.match(readFileSync("app/api/chat/route.ts", "utf8"), /nativeTools/);
+});
+
+test("the study page is a real route, reachable from the launcher", async () => {
+  const { existsSync } = await import("node:fs");
+  assert.ok(existsSync("app/(shell)/study/page.tsx"), "the route exists");
+
+  const pages = readFileSync("features/shell/components/pages.ts", "utf8");
+  assert.match(pages, /href: "\/study"/, "and the launcher knows about it");
+
+  // The skill ledger stays: levels and syllabus answer different questions.
+  assert.match(pages, /href: "\/education"/);
+});

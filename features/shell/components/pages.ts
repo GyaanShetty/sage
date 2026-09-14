@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot, PenLine, LayoutGrid,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
-  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, type LucideIcon,
+  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, Sparkles, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -42,7 +42,8 @@ export const PAGES: Item[] = [
 
   { href: "/knowledge", label: "Knowledge", icon: BookOpen, hint: "sources · papers", group: "MIND" },
   { href: "/read", label: "Read", icon: FileText, hint: "research", group: "MIND" },
-  { href: "/education", label: "Education", icon: GraduationCap, hint: "study", group: "MIND" },
+  { href: "/study", label: "Study", icon: GraduationCap, hint: "subjects · units · hours", group: "MIND" },
+  { href: "/education", label: "Skills", icon: Sparkles, hint: "the 0-5 ledger", group: "MIND" },
   { href: "/explain", label: "Explain", icon: Lightbulb, hint: "feynman loop", group: "MIND" },
   { href: "/exam", label: "Exams", icon: Timer, hint: "countdown · practice", group: "MIND" },
   { href: "/memory", label: "Memory", icon: Brain, group: "MIND" },

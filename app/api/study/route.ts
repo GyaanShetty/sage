@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import {
   listSubjects, upsertSubject, deleteSubject,
-  putUnit, removeUnit, putSlot, removeSlot,
+  putUnit, removeUnit, putSlot, removeSlot, addUnits, reorderUnit,
   logSession, listSessions, deleteSession, slotsToTasks,
   type Subject,
 } from "@/core/study/subjects";
@@ -40,6 +40,8 @@ type Body = Partial<Subject> & {
   slotId?: string;
   session?: { unitId?: string | null; minutes?: number; note?: string; at?: string };
   sessionId?: string;
+  text?: string;
+  delta?: number;
 };
 
 export async function POST(req: Request) {
@@ -50,6 +52,16 @@ export async function POST(req: Request) {
       if (!body.subjectId || !body.unit) return bad("subjectId and unit required");
       const s = await putUnit(body.subjectId, body.unit);
       return s ? ok(s) : bad("Couldn't save that unit");
+    }
+    case "unit.bulk": {
+      if (!body.subjectId || !body.text) return bad("subjectId and text required");
+      const res = await addUnits(body.subjectId, body.text);
+      return res.subject ? ok(res) : bad("Couldn't add those units");
+    }
+    case "unit.move": {
+      if (!body.subjectId || !body.unitId) return bad("subjectId and unitId required");
+      const s = await reorderUnit(body.subjectId, body.unitId, body.delta ?? -1);
+      return s ? ok(s) : bad("Couldn't move that unit");
     }
     case "unit.remove": {
       if (!body.subjectId || !body.unitId) return bad("subjectId and unitId required");

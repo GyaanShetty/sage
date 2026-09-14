@@ -271,3 +271,65 @@ export function splitByNow<T extends { startsAt: Date; endsAt: Date }>(
   const upcoming = slots.filter((s) => s.startsAt.getTime() > now.getTime());
   return { past, current, upcoming };
 }
+
+/**
+ * A pasted syllabus, split into unit names.
+ *
+ * Nobody types a syllabus one chapter at a time. They have it in a PDF, a
+ * WhatsApp message or a course page, and they paste it — so the input has to
+ * accept the shapes it actually arrives in: lines, commas, semicolons, and
+ * the numbering that comes with it.
+ *
+ *   "1. Processes\n2. Memory Management"  → ["Processes", "Memory Management"]
+ *   "Processes, Memory, Files"            → three units
+ *   "Unit I – Processes"                  → ["Processes"]
+ *
+ * Leading numbers and bullets are stripped because they are the list's own
+ * scaffolding, not part of the name — and a unit called "3." sorts and reads
+ * badly forever. Blank entries and duplicates within the paste are dropped;
+ * duplicates against what is already there are the caller's business, since
+ * only the caller knows what is already there.
+ */
+export function parseUnitNames(input: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of input.split(/[\n;,]+/)) {
+    const name = raw
+      // "1." "1)" "(1)" "- " "• " "Unit 3 —" "Chapter IV:" and friends.
+      .replace(/^\s*[-•*–—]?\s*/, "")
+      .replace(/^\s*\(?\d{1,2}\)?[.)]?\s*/, "")
+      .replace(/^\s*(unit|chapter|module|ch\.?|u\.?)\s*[-:–—]?\s*[0-9ivxIVX]*\s*[-:–—]?\s*/i, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!name) continue;
+
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name.slice(0, 80));
+  }
+  return out;
+}
+
+/**
+ * Move a unit one place up or down.
+ *
+ * Order is the syllabus's order, which is information: unit three follows unit
+ * two because the course says so, and a list that cannot be reordered forces
+ * you to delete and retype three chapters to fix one mistake.
+ *
+ * Returns a new array; out-of-range moves return the original untouched rather
+ * than wrapping, because a unit at the top that jumps to the bottom on an
+ * extra click is a worse surprise than a click that does nothing.
+ */
+export function moveUnit(units: Unit[], id: string, delta: number): Unit[] {
+  const i = units.findIndex((u) => u.id === id);
+  if (i < 0) return units;
+  const j = i + delta;
+  if (j < 0 || j >= units.length) return units;
+
+  const next = [...units];
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}

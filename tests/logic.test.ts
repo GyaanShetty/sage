@@ -4621,10 +4621,73 @@ test("the deck's quick access fills its rows", async () => {
   const css = readFileSync("features/dashboard/deck.css", "utf8");
 
   const count = [...view.matchAll(/\{ href: "\/[a-z-]+", label: "[^"]+", Icon: \w+ \}/g)].length;
-  const cols = Number(css.match(/\.deck-quick \{[^}]*repeat\((\d+),/s)?.[1] ?? 0);
+  // [^]* rather than the s flag: the test file targets a lower ES level and
+  // the dotAll flag is a compile error there.
+  const cols = Number(css.match(/\.deck-quick \{[^]*?repeat\((\d+),/)?.[1] ?? 0);
 
   // A ragged last row in a grid of destinations reads as a missing link, not
   // as a full set. Keep the count a multiple of the columns.
   assert.ok(cols > 0, "the grid declares its columns");
   assert.equal(count % cols, 0, `${count} quick links do not fill rows of ${cols}`);
+});
+
+test("a pasted syllabus becomes units, in the shapes syllabuses arrive in", async () => {
+  const { parseUnitNames, moveUnit } = await import("@/core/study/model");
+
+  // Numbered lines — the commonest paste.
+  assert.deepEqual(
+    parseUnitNames("1. Processes\n2. Memory Management\n3. File Systems"),
+    ["Processes", "Memory Management", "File Systems"],
+  );
+
+  // Commas and semicolons, and the bullets people paste from slides.
+  assert.deepEqual(parseUnitNames("Processes, Memory; Files"), ["Processes", "Memory", "Files"]);
+  assert.deepEqual(parseUnitNames("• Trees\n- Graphs\n* Hashing"), ["Trees", "Graphs", "Hashing"]);
+
+  // "Unit III — Deadlocks" is one unit called Deadlocks, not one called
+  // "Unit III — Deadlocks", which would sort and read badly forever.
+  assert.deepEqual(parseUnitNames("Unit I - Processes\nUnit II: Memory"), ["Processes", "Memory"]);
+  assert.deepEqual(parseUnitNames("Chapter 4 — Indexing"), ["Indexing"]);
+
+  // Blanks and repeats inside one paste are dropped.
+  assert.deepEqual(parseUnitNames("Trees\n\n trees \nGraphs"), ["Trees", "Graphs"]);
+  assert.deepEqual(parseUnitNames("   "), []);
+  assert.deepEqual(parseUnitNames(""), []);
+
+  // A name that is only scaffolding must not become an empty unit.
+  assert.deepEqual(parseUnitNames("1.\n2."), []);
+
+  // Reordering swaps neighbours and refuses to wrap: a unit at the top that
+  // leaps to the bottom on an extra click is a worse surprise than a click
+  // that does nothing.
+  const u = (id: string) => ({ id, name: id, weight: 1, doneAt: null });
+  const units = [u("a"), u("b"), u("c")];
+  assert.deepEqual(moveUnit(units, "b", -1).map((x) => x.id), ["b", "a", "c"]);
+  assert.deepEqual(moveUnit(units, "b", 1).map((x) => x.id), ["a", "c", "b"]);
+  assert.deepEqual(moveUnit(units, "a", -1).map((x) => x.id), ["a", "b", "c"]);
+  assert.deepEqual(moveUnit(units, "c", 1).map((x) => x.id), ["a", "b", "c"]);
+  assert.deepEqual(moveUnit(units, "nope", 1).map((x) => x.id), ["a", "b", "c"]);
+
+  // Bulk add is one write, and skips names already in the syllabus.
+  const src = readFileSync("core/study/subjects.ts", "utf8");
+  const bulk = src.slice(src.indexOf("export async function addUnits"), src.indexOf("export async function reorderUnit"));
+  assert.match(bulk, /have\.has\(n\.toLowerCase\(\)\)/, "case-insensitive dedupe against what exists");
+  assert.equal((bulk.match(/upsertSubject\(/g) ?? []).length, 1, "one write, not one per unit");
+});
+
+test("the syllabus can be edited without leaving the pane", async () => {
+  const view = readFileSync("features/study/study-view.tsx", "utf8");
+
+  // Add, rename, reweight, reorder, remove — all on the row, none behind a
+  // mode or a modal.
+  for (const action of ['action: "unit.bulk"', 'action: "unit.move"', 'action: "unit.remove"', "unit: { id: unitId, name }"]) {
+    assert.ok(view.includes(action), `missing ${action}`);
+  }
+
+  // Deleting asks twice, and deleting a subject says what goes with it.
+  assert.match(view, /SURE\?/);
+  assert.match(view, /units and its history/);
+
+  // The old adder is gone rather than left alongside the new one.
+  assert.doesNotMatch(view, /function UnitAdd\(/);
 });

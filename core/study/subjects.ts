@@ -9,7 +9,7 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { trashRow } from "@/core/ops/trash";
 import type { Subject, Session, Unit, Slot } from "./model";
-import { clockOf, slotsOn, splitByNow } from "./model";
+import { clockOf, moveUnit, parseUnitNames, slotsOn, splitByNow } from "./model";
 
 export * from "./model";
 
@@ -102,6 +102,40 @@ export async function putUnit(
     });
   }
   return upsertSubject({ id: subjectId, units });
+}
+
+/**
+ * A whole syllabus in one paste.
+ *
+ * One write rather than one per unit: twenty chapters used to be twenty round
+ * trips, each reading and rewriting the subject, and a failure halfway left
+ * half a syllabus. Names already present are skipped rather than duplicated,
+ * matched case-insensitively — "Memory management" pasted under "Memory
+ * Management" is the same chapter.
+ */
+export async function addUnits(subjectId: string, input: string): Promise<{ subject: Subject | null; added: number; skipped: number }> {
+  const subjects = await listSubjects(true);
+  const subject = subjects.find((s) => s.id === subjectId);
+  if (!subject) return { subject: null, added: 0, skipped: 0 };
+
+  const have = new Set(subject.units.map((u) => u.name.toLowerCase()));
+  const names = parseUnitNames(input).filter((n) => !have.has(n.toLowerCase()));
+  const skipped = parseUnitNames(input).length - names.length;
+  if (!names.length) return { subject, added: 0, skipped };
+
+  const units = [
+    ...subject.units,
+    ...names.map((name) => ({ id: crypto.randomUUID(), name, weight: 1, doneAt: null })),
+  ];
+  return { subject: await upsertSubject({ id: subjectId, units }), added: names.length, skipped };
+}
+
+/** Move a unit up or down the syllabus. */
+export async function reorderUnit(subjectId: string, unitId: string, delta: number): Promise<Subject | null> {
+  const subjects = await listSubjects(true);
+  const subject = subjects.find((s) => s.id === subjectId);
+  if (!subject) return null;
+  return upsertSubject({ id: subjectId, units: moveUnit(subject.units, unitId, delta) });
 }
 
 export async function removeUnit(subjectId: string, unitId: string): Promise<Subject | null> {

@@ -22,7 +22,7 @@ import { Area, BarRows, Diverging, Donut, Gauge, Heat, Histogram, Radial, Stack 
 import { asArray } from "@/lib/as-array";
 import { lastDays } from "@/lib/config";
 import {
-  burnUp, completion, minutesByDay, minutesByUnit, minutesByWeekday, nextSlot, pace,
+  burnUp, completion, minutesByDay, minutesByUnit, minutesByWeekday, nextSlot, pace, parseUnitNames,
   scheduledMinutes, weeklyActual, clockOf, WEEKDAYS,
   type Session, type Subject, type Unit,
 } from "@/core/study/model";
@@ -270,31 +270,9 @@ function SubjectWall({
         </Pane></TileGuard></div>
 
         <div className="t-3x3"><TileGuard name="UNITS"><Pane
-          n={2} title="Units" status={`${subject.units.length} TOTAL`}
-          edit={<UnitAdd subjectId={subject.id} post={post} busy={busy} />}
+          n={2} title="Units" status={`${subject.units.filter((u) => u.doneAt).length}/${subject.units.length}`}
         >
-          {subject.units.length === 0
-            ? <Empty reason="No units yet — add the chapters and this page can measure them" />
-            : (
-              <div className="sv-units">
-                {subject.units.map((u) => (
-                  <button
-                    key={u.id}
-                    className={`sv-unit${u.doneAt ? " done" : ""}`}
-                    disabled={busy}
-                    onClick={() => void post({
-                      action: "unit", subjectId: subject.id,
-                      unit: { id: u.id, doneAt: u.doneAt ? null : new Date().toISOString() },
-                    })}
-                    title={u.doneAt ? "Mark as not done" : "Mark as done"}
-                  >
-                    <i style={{ borderColor: tone, background: u.doneAt ? tone : "transparent" }} />
-                    <span className="sv-unit-n">{u.name}</span>
-                    {u.weight > 1 && <em>×{u.weight}</em>}
-                  </button>
-                ))}
-              </div>
-            )}
+          <UnitEditor subject={subject} tone={tone} post={post} busy={busy} />
         </Pane></TileGuard></div>
 
         <div className="t-3x3"><TileGuard name="WHERE"><Pane n={3} title="Time per unit" status="MINUTES">
@@ -427,14 +405,30 @@ function SubjectWall({
             <input className="sv-num" type="number" min={0} max={60} defaultValue={subject.targetHoursPerWeek}
               onBlur={(e) => void post({ id: subject.id, targetHoursPerWeek: Number(e.target.value) })} />
           } />
+          <Row k="Name" v={
+            <input className="sv-txt wide" defaultValue={subject.name}
+              onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== subject.name) void post({ id: subject.id, name: v }); }} />
+          } />
           <Row k="Code" v={
             <input className="sv-txt" defaultValue={subject.code ?? ""} placeholder="CS3501"
               onBlur={(e) => void post({ id: subject.id, code: e.target.value })} />
+          } />
+          <Row k="Colour" v={
+            <span className="sv-tones">
+              {["signal", "amber", "cyan", "green", "plain"].map((t) => (
+                <button key={t} className={subject.tone === t ? "on" : ""} title={t}
+                  style={{ background: TONE_VAR[t] }}
+                  onClick={() => void post({ id: subject.id, tone: t })} />
+              ))}
+            </span>
           } />
           <Row k="Scheduled" v={`${(scheduledMinutes(subject) / 60).toFixed(1)}H / WEEK`} />
           <Row k="Actual" v={`${(weekly / 60).toFixed(1)}H / WEEK`} tone={weekly >= targetMin ? "up" : "down"} />
           <Row k="Units done" v={`${subject.units.filter((u) => u.doneAt).length} of ${subject.units.length}`} />
           {exam && <Row k="Exam" v={new Date(exam.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />}
+          {/* Deleting a subject takes its sessions' meaning with it, so it
+              asks twice and says what is at stake rather than just "sure?". */}
+          <Row k="Remove" v={<DeleteSubject subject={subject} busy={busy} />} />
           {/* One canvas per subject — mind maps, worked problems, the diagram
               that finally made it click. Made on demand rather than up front,
               so a subject you never draw for does not accumulate an empty
@@ -459,22 +453,161 @@ function SubjectWall({
 
 /* ── the three little editors ────────────────────────────────────────────── */
 
-function UnitAdd({ subjectId, post, busy }: { subjectId: string; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
-  const [name, setName] = useState("");
-  const [weight, setWeight] = useState(1);
-  const add = () => {
-    if (!name.trim()) return;
-    void post({ action: "unit", subjectId, unit: { name, weight } });
-    setName("");
-    setWeight(1);
+/**
+ * The syllabus, editable in place.
+ *
+ * The old version could only add, one chapter at a time, from inside the
+ * magnify modal — so setting up a subject meant twenty round trips through an
+ * overlay, and a typo in chapter three could not be fixed at all.
+ *
+ * Everything is here now and nothing is hidden behind a mode: tick to mark
+ * done, click the name to rename it, arrows to reorder, × to remove. The
+ * weight stepper is beside the name rather than in a settings panel, because
+ * "this chapter is worth three of those" is a thought you have while reading
+ * the list, not later.
+ *
+ * The paste box is the part that matters most. Nobody types a syllabus — they
+ * have it in a PDF or a message and paste it, numbering and all, so the box
+ * takes lines, commas and semicolons and strips the list's own scaffolding.
+ */
+function UnitEditor({
+  subject, tone, post, busy,
+}: { subject: Subject; tone: string; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [bulk, setBulk] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const id = subject.id;
+  const preview = parseUnitNames(bulk);
+
+  const rename = (unitId: string) => {
+    const name = draft.trim();
+    setEditing(null);
+    const was = subject.units.find((u) => u.id === unitId)?.name;
+    if (!name || name === was) return;
+    void post({ action: "unit", subjectId: id, unit: { id: unitId, name } });
   };
+
   return (
-    <div className="sv-add">
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="UNIT NAME"
-        onKeyDown={(e) => e.key === "Enter" && add()} />
-      <input type="number" min={1} max={9} value={weight} onChange={(e) => setWeight(Number(e.target.value))} title="Weight" />
-      <button onClick={add} disabled={busy}>ADD UNIT</button>
+    <div className="sv-units">
+      {subject.units.length === 0 && (
+        <p className="sv-hint">Paste the syllabus below — numbered lines, commas, whatever shape it is in.</p>
+      )}
+
+      {subject.units.map((u, i) => (
+        <div className={`sv-unit${u.doneAt ? " done" : ""}`} key={u.id}>
+          <button
+            className="sv-tick"
+            disabled={busy}
+            title={u.doneAt ? "Mark as not done" : "Mark as done"}
+            onClick={() => void post({
+              action: "unit", subjectId: id,
+              unit: { id: u.id, doneAt: u.doneAt ? null : new Date().toISOString() },
+            })}
+          >
+            <i style={{ borderColor: tone, background: u.doneAt ? tone : "transparent" }} />
+          </button>
+
+          {editing === u.id ? (
+            <input
+              className="sv-rename"
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => rename(u.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") rename(u.id);
+                if (e.key === "Escape") setEditing(null);
+              }}
+            />
+          ) : (
+            <button
+              className="sv-unit-n"
+              title="Rename"
+              onClick={() => { setEditing(u.id); setDraft(u.name); }}
+            >
+              {u.name}
+            </button>
+          )}
+
+          {/* Weight: a chapter worth three of another counts for three. */}
+          <span className="sv-weight" title="Weight — how much of the syllabus this is">
+            <button disabled={busy || u.weight <= 1}
+              onClick={() => void post({ action: "unit", subjectId: id, unit: { id: u.id, weight: u.weight - 1 } })}>−</button>
+            <b>{u.weight}</b>
+            <button disabled={busy || u.weight >= 9}
+              onClick={() => void post({ action: "unit", subjectId: id, unit: { id: u.id, weight: u.weight + 1 } })}>+</button>
+          </span>
+
+          <span className="sv-move">
+            <button disabled={busy || i === 0} title="Move up"
+              onClick={() => void post({ action: "unit.move", subjectId: id, unitId: u.id, delta: -1 })}>↑</button>
+            <button disabled={busy || i === subject.units.length - 1} title="Move down"
+              onClick={() => void post({ action: "unit.move", subjectId: id, unitId: u.id, delta: 1 })}>↓</button>
+          </span>
+
+          {/* Two-step delete. A syllabus you retyped because of a stray click
+              is a worse outcome than one extra click. */}
+          {confirming === u.id ? (
+            <button className="sv-del confirm" disabled={busy}
+              onClick={() => { setConfirming(null); void post({ action: "unit.remove", subjectId: id, unitId: u.id }); }}
+              onMouseLeave={() => setConfirming(null)}
+            >SURE?</button>
+          ) : (
+            <button className="sv-del" title="Remove" disabled={busy} onClick={() => setConfirming(u.id)}>×</button>
+          )}
+        </div>
+      ))}
+
+      <div className="sv-bulk">
+        <textarea
+          value={bulk}
+          onChange={(e) => setBulk(e.target.value)}
+          placeholder={"PASTE OR TYPE UNITS\n1. Processes\n2. Memory Management"}
+          rows={bulk ? 3 : 1}
+          onKeyDown={(e) => {
+            // Enter adds when it is a single line; Shift+Enter always newlines.
+            if (e.key === "Enter" && !e.shiftKey && !bulk.includes("\n")) {
+              e.preventDefault();
+              if (preview.length) { void post({ action: "unit.bulk", subjectId: id, text: bulk }); setBulk(""); }
+            }
+          }}
+        />
+        <div className="sv-bulk-foot">
+          {preview.length > 1 && <span className="sv-hint">{preview.length} units: {preview.slice(0, 3).join(" · ")}{preview.length > 3 ? " …" : ""}</span>}
+          <button
+            disabled={busy || !preview.length}
+            onClick={() => { void post({ action: "unit.bulk", subjectId: id, text: bulk }); setBulk(""); }}
+          >
+            ADD {preview.length > 1 ? `${preview.length} UNITS` : "UNIT"}
+          </button>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function DeleteSubject({ subject, busy }: { subject: Subject; busy: boolean }) {
+  const [armed, setArmed] = useState(false);
+  const units = subject.units.length;
+
+  if (!armed) {
+    return <button className="sv-linkbtn danger" disabled={busy} onClick={() => setArmed(true)}>DELETE →</button>;
+  }
+  return (
+    <span className="sv-confirm">
+      <em>{units ? `${units} units and its history` : "this subject"}</em>
+      <button className="sv-linkbtn" onClick={() => setArmed(false)}>KEEP</button>
+      <button
+        className="sv-linkbtn danger"
+        disabled={busy}
+        onClick={async () => {
+          await fetch(`/api/study?id=${subject.id}`, { method: "DELETE" }).catch(() => {});
+          window.location.href = "/study";
+        }}
+      >DELETE</button>
+    </span>
   );
 }
 

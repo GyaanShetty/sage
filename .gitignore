@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Throwaway browser-check scripts. They have to sit at the repo root to
+# resolve playwright-core, so they cannot live in a scratch directory — and
+# none of them is worth keeping once its question is answered. Root only, and
+# the real config files at the root are named explicitly: an ignore broad
+# enough to catch a future eslint.config.mjs is worse than the litter.
+/*.mjs
+!/eslint.config.mjs
+!/postcss.config.mjs
+!/next.config.mjs

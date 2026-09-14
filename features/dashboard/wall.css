@@ -617,7 +617,7 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
 @media (max-width: 1399px) {
   .wall-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wall-pack > * { grid-column: span 2 !important; grid-row: auto !important; min-height: 200px; }
-  .wall-pack > .t-3x2 { grid-column: span 1 !important; }
+  .wall-pack > .t-3x2, .wall-pack > .t-3x3 { grid-column: span 1 !important; }
 }
 
 @media (min-width: 1400px) {
@@ -654,6 +654,10 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
    * a chart that needs an axis and a legend.
    */
   .wall-pack > .t-3x2  { grid-column: span 3;  grid-row: span 2; }
+  /* Three wide and three tall: a quarter-width tile with room for a gauge
+     over a figure, or a syllabus list. Three divides twelve, so four of
+     these tile a band exactly. */
+  .wall-pack > .t-3x3  { grid-column: span 3;  grid-row: span 3; }
   .wall-pack > .t-4x2  { grid-column: span 4;  grid-row: span 2; }
   .wall-pack > .t-4x3  { grid-column: span 4;  grid-row: span 3; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }

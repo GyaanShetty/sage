@@ -34,7 +34,13 @@
  * without one.
  */
 
-import { dayKey } from "@/core/history";
+/*
+ * tzDay, not core/history's dayKey — they compute the identical string, but
+ * core/history also imports the database, and an import pulls the whole
+ * module. Reaching for the one in lib/config keeps this file loadable in a
+ * browser, which is the entire point of the split.
+ */
+import { tzDay } from "@/lib/config";
 
 export interface Unit {
   id: string;
@@ -110,7 +116,7 @@ export function scheduledMinutes(subject: Pick<Subject, "slots">): number {
 export function minutesByDay(sessions: Session[], days: string[]): number[] {
   const acc = new Map<string, number>();
   for (const s of sessions) {
-    const k = dayKey(s.at);
+    const k = tzDay(s.at);
     acc.set(k, (acc.get(k) ?? 0) + Math.max(0, s.minutes || 0));
   }
   return days.map((d) => acc.get(d) ?? 0);

@@ -170,7 +170,7 @@ function Overview({
           <Heat days={heat} weeks={12} />
         </Pane></TileGuard></div>
 
-        <div className="t-6x2"><TileGuard name="BALANCE"><Pane n={7} title="Balance" status="MINUTES">
+        <div className="t-4x2"><TileGuard name="BALANCE"><Pane n={7} title="Balance" status="MINUTES">
           <Stack parts={per.map((p) => ({ label: p.subject.name, value: p.minutes, tone: TONE_VAR[p.subject.tone] }))} height={14} />
           <div className="st-legend">
             {per.map((p) => (
@@ -179,7 +179,7 @@ function Overview({
           </div>
         </Pane></TileGuard></div>
 
-        <div className="t-6x2"><TileGuard name="TARGET"><Pane n={8} title="Planned against actual" status="HOURS / WEEK">
+        <div className="t-4x2"><TileGuard name="TARGET"><Pane n={8} title="Planned against actual" status="HOURS / WEEK">
           <BarRows rows={per.map((p) => ({
             label: p.subject.name.slice(0, 14),
             value: Math.round(p.weekly / 60),
@@ -188,7 +188,23 @@ function Overview({
           }))} />
         </Pane></TileGuard></div>
 
-        <div className="t-12x2"><TileGuard name="TABLE"><Pane n={9} title="Every subject" status={`${subjects.length} TRACKED`}>
+        <div className="t-4x2"><TileGuard name="WEEKDAY"><Pane n={9} title="Which days" status="ALL SUBJECTS">
+          <Radial data={minutesByWeekday(sessions)} labels={[...WEEKDAYS]} />
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="LENGTHS"><Pane n={10} title="Session lengths" status={`${sessions.length} SESSIONS`}>
+          {sessions.length
+            ? <Histogram values={sessions.map((s) => s.minutes)} height={70} />
+            : <Empty reason="No sessions logged yet" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="CUMULATIVE"><Pane n={11} title="Hours, cumulative" status="30 DAYS">
+          {/* The shape of a term: flat stretches are the weeks that got away. */}
+          <Area data={allMinutes.reduce<number[]>((acc, v) => [...acc, (acc[acc.length - 1] ?? 0) + v], [])}
+            height={70} baseline={false} />
+        </Pane></TileGuard></div>
+
+        <div className="t-12x2"><TileGuard name="TABLE"><Pane n={12} title="Every subject" status={`${subjects.length} TRACKED`}>
           <div className="sv-table">
             <div className="sv-th"><span>SUBJECT</span><span>UNITS</span><span>DONE</span><span>LOGGED</span><span>PER WK</span><span>TARGET</span><span>PACE</span><span>EXAM</span></div>
             {per.map((p) => {

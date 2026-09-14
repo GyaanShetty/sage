@@ -259,9 +259,12 @@
 
 /* ── quick access ───────────────────────────────────────────────────────── */
 
+/* Three across, because there are nine of these. At four the last row held
+   one tile beside an empty box, which reads as a missing link rather than a
+   full set. */
 .deck-quick {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-rows: minmax(0, 1fr);
   gap: 1px;
   background: var(--rule);

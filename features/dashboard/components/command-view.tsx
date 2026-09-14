@@ -26,7 +26,7 @@ import { NextAction } from "./next-action";
 import {
   SpendTrendTile, SpendShapeTile, TaskRhythmTile, TaskWeekdayTile, FocusTile,
   AgentRunsTile, MemoryGrowthTile, ReadingTile, ReviewTrendTile, JournalTile,
-  StepsTile, CorpusTile,
+  StepsTile, CorpusTile, StudyTile,
 } from "./chart-tiles";
 import {
   BudgetTile, WeatherWeekTile, SkillsTile, DecisionsTile, MachineryTile,
@@ -368,6 +368,10 @@ export function CommandView({
 
       {page === "mind" && (
         <div className="wall-pack">
+          {/* The semester, on the wall you already look at. Same /api/study
+              the study page reads, so the two cannot disagree. */}
+          <div className="t-3x3"><TileGuard name="STUDY"><StudyTile n={49} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
           <div className="t-6x3"><TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard></div>
           <div className="t-6x3"><TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard></div>
 

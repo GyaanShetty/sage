@@ -581,6 +581,45 @@ export const domainTools = {
     },
   }),
 
+  study_today: tool({
+    description:
+      "Today's study timetable: which slots are set aside for which subject, which have passed, which is " +
+      "happening now, and what is still ahead. Use for 'what am I studying today', 'what's next', 'am I " +
+      "missing a session'. Pairs with subject_status, which says how each subject is doing overall.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const st = await import("@/core/study/subjects");
+      const subjects = await st.listSubjects();
+      if (!subjects.length) return { ok: true, slots: 0, note: "No subjects are being tracked yet." };
+
+      const today = st.slotsOn(subjects);
+      if (!today.length) {
+        return { ok: true, slots: 0, note: "Nothing is timetabled for today." };
+      }
+
+      const { past, current, upcoming } = st.splitByNow(today);
+      const say = (x: { subject: string; slot: { minutes: number }; startsAt: Date }) =>
+        `${x.subject} at ${x.startsAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} for ${x.slot.minutes}m`;
+
+      // Whether the passed slots were actually sat is a separate question from
+      // whether they were scheduled, and the two are reported separately —
+      // a timetable is an intention, and sessions are the record.
+      const sessions = await st.listSessions(undefined, 1);
+      const loggedToday = sessions.reduce((n, x) => n + x.minutes, 0);
+
+      return {
+        ok: true,
+        slots: today.length,
+        now: current ? say(current) : null,
+        next: upcoming[0] ? say(upcoming[0]) : null,
+        upcoming: upcoming.map(say),
+        alreadyPassed: past.map(say),
+        scheduledMinutes: today.reduce((n, x) => n + x.slot.minutes, 0),
+        loggedMinutesToday: loggedToday,
+      };
+    },
+  }),
+
   log_expense: tool({
     description:
       "Record something the user spent money on, said out loud — 'I spent 400 on lunch', 'paid the electricity bill, 2100'. Amounts are in rupees.",

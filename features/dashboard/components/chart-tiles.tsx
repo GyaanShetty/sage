@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Pane, Empty } from "@/components/pane";
+import { Pane, Empty, Row, Stat } from "@/components/pane";
 import { Area, Radial, Heat, Gauge, Histogram, Stack, BarStrip } from "@/components/instruments";
 import { useLive } from "@/lib/live";
+import { asArray } from "@/lib/as-array";
+import { tzDay } from "@/lib/config";
+import Link from "next/link";
+// The browser-safe half of the study model — never core/study/subjects, which
+// imports the database.
+import { completion, clockOf, type Subject } from "@/core/study/model";
+
+/** The same small link the other walls use for a pane's status. */
+function Go({ href, children }: { href: string; children: React.ReactNode }) {
+  return <Link className="pane-go" href={href}>{children}</Link>;
+}
 
 /**
  * Panes that draw their own history.
@@ -204,6 +215,65 @@ export function CorpusTile({ n }: { n?: number }) {
       {!loaded && <div className="tile-wait">ACQUIRING…</div>}
       {loaded && total === 0 && <Empty reason="Nothing recorded in 90 days" action="Open memory" href="/memory" />}
       {loaded && total > 0 && <Stack parts={parts} height={14} />}
+    </Pane>
+  );
+}
+
+/* ── STUDY ────────────────────────────────────────────────────────────────
+   The semester on the wall: what is timetabled today, and how far through
+   each syllabus you are. Reads the same /api/study the study page reads, so
+   the two cannot disagree. */
+
+// The shape comes from the model rather than being restated here: a local
+// copy drifts the moment a field is added, and this tile shares its
+// arithmetic with the study page, so it must share the type too.
+type StudySubject = Subject;
+
+export function StudyTile({ n }: { n?: number }) {
+  const [subjects, setSubjects] = useState<StudySubject[] | null>(null);
+  const [minutesToday, setMinutesToday] = useState(0);
+
+  useLive(
+    () => fetch("/api/study?days=7").then((r) => r.json()).then((j) => {
+      setSubjects(asArray<StudySubject>(j?.data?.subjects));
+      const today = tzDay();
+      setMinutesToday(
+        asArray<{ at: string; minutes: number }>(j?.data?.sessions)
+          .filter((s) => tzDay(s.at) === today)
+          .reduce((t, s) => t + s.minutes, 0),
+      );
+    }).catch(() => setSubjects([])),
+    { everyMs: 300_000 },
+  );
+
+  if (subjects === null) return <Pane n={n} title="Study" status="…"><div className="tile-wait">ACQUIRING…</div></Pane>;
+  if (!subjects.length) {
+    return (
+      <Pane n={n} title="Study" status="NONE">
+        <Empty reason="No subjects tracked yet" action="Set up study" href="/study" />
+      </Pane>
+    );
+  }
+
+  const weekday = new Date().getDay();
+  const todaySlots = subjects.flatMap((s) =>
+    s.slots.filter((sl) => sl.weekday === weekday).map((sl) => ({ subject: s.name, ...sl })),
+  ).sort((a, b) => a.startMin - b.startMin);
+  const scheduled = todaySlots.reduce((t, s) => t + s.minutes, 0);
+
+  return (
+    <Pane n={n} title="Study" status={<Go href="/study">{`${subjects.length} SUBJECTS`}</Go>} live={minutesToday > 0}>
+      <div className="km">
+        <Stat v={`${Math.round(minutesToday)}M`} k="TODAY" tone={minutesToday > 0 ? "up" : undefined} />
+        <Stat v={scheduled ? `${scheduled}M` : "—"} k="PLANNED" />
+        <Stat v={`${Math.round((subjects.reduce((t, s) => t + completion(s), 0) / subjects.length) * 100)}%`} k="SYLLABUS" />
+      </div>
+      {subjects.slice(0, 5).map((s) => (
+        <Row key={s.id} k={s.name.slice(0, 18)} v={`${Math.round(completion(s) * 100)}%`} />
+      ))}
+      {todaySlots.length > 0 && (
+        <div className="tile-cap">TODAY · {todaySlots.map((s) => `${s.subject.slice(0, 8)} ${clockOf(s.startMin)}`).join(" · ")}</div>
+      )}
     </Pane>
   );
 }

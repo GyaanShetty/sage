@@ -57,6 +57,20 @@
 .sv-txt { text-align: right; width: 90px; }
 .sv-num:focus, .sv-txt:focus { outline: none; border-bottom-color: var(--signal); }
 
+.sv-tasks {
+  display: block; width: 100%; margin-top: 8px; padding: 7px 9px;
+  background: none; border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--muted); cursor: pointer;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em;
+}
+.sv-tasks:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.sv-tasks:disabled { opacity: 0.5; cursor: default; }
+
+.sv-linkbtn {
+  background: none; border: 0; color: var(--signal); cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; padding: 0;
+}
+
 /* The comparison table: one row per subject, numbers right-aligned. */
 .sv-table { display: flex; flex-direction: column; font-family: var(--mono); font-size: 10.5px; }
 .sv-th, .sv-tr {

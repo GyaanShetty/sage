@@ -9,6 +9,7 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { trashRow } from "@/core/ops/trash";
 import type { Subject, Session, Unit, Slot } from "./model";
+import { clockOf, slotsOn, splitByNow } from "./model";
 
 export * from "./model";
 
@@ -56,6 +57,7 @@ export async function upsertSubject(
     slots: input.slots ?? [],
     targetHoursPerWeek: Math.max(0, Math.min(60, input.targetHoursPerWeek ?? 4)),
     examId: input.examId ?? null,
+    boardId: input.boardId ?? null,
     archivedAt: null,
     createdAt: now,
     updatedAt: now,
@@ -187,4 +189,62 @@ export async function listSessions(subjectId?: string, days = 120): Promise<Sess
 
 export async function deleteSession(id: string): Promise<void> {
   await trashRow("Event", id);
+}
+
+/**
+ * Today's remaining slots, as tasks.
+ *
+ * The timetable is an intention and the task list is where intentions go to
+ * be argued with, so a slot that never reaches it mostly does not happen.
+ *
+ * Idempotent by title within the day: pressing the button twice, or a cron
+ * running alongside a click, must not produce two identical directives. The
+ * title carries the subject and the clock time, which is exactly the
+ * granularity at which a duplicate would be wrong — two different subjects at
+ * the same hour are two real tasks, and the same subject twice is not.
+ *
+ * Only slots still ahead. Filing a task for a session that finished at nine
+ * this morning is how a task list stops being read.
+ */
+export async function slotsToTasks(now = new Date()): Promise<{ created: number; skipped: number; titles: string[] }> {
+  const subjects = await listSubjects();
+  const today = slotsOn(subjects, now);
+  const { upcoming, current } = splitByNow(today, now);
+  const due = current ? [current, ...upcoming] : upcoming;
+  if (!due.length) return { created: 0, skipped: 0, titles: [] };
+
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const { data: existing } = await db
+    .from("Task")
+    .select("title")
+    .eq("userId", DEFAULT_USER_ID)
+    .eq("source", "study")
+    .gte("createdAt", startOfDay.toISOString());
+  const seen = new Set((existing ?? []).map((t) => String(t.title)));
+
+  let created = 0, skipped = 0;
+  const titles: string[] = [];
+
+  for (const s of due) {
+    const clock = clockOf(s.slot.startMin);
+    const title = `Study ${s.subject} — ${clock}`;
+    if (seen.has(title)) { skipped += 1; continue; }
+
+    const { error } = await db.from("Task").insert({
+      id: crypto.randomUUID(),
+      userId: DEFAULT_USER_ID,
+      title,
+      priority: 1,
+      dueAt: s.startsAt.toISOString(),
+      source: "study",
+    });
+    if (error) continue;
+    created += 1;
+    seen.add(title);
+    titles.push(title);
+  }
+
+  return { created, skipped, titles };
 }

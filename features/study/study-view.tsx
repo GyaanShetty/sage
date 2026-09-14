@@ -324,6 +324,29 @@ function SubjectWall({
                       </>}
                     />
                   ))}
+                <button
+                  className="sv-tasks"
+                  disabled={busy}
+                  onClick={async () => {
+                    const j = await fetch("/api/study", {
+                      method: "POST", headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ action: "tasks" }),
+                    }).then((r) => r.json()).catch(() => null);
+                    const d = j?.data;
+                    window.dispatchEvent(new CustomEvent("sage:toast", {
+                      detail: {
+                        title: "STUDY → TASKS",
+                        body: d?.created
+                          ? `${d.created} filed${d.skipped ? `, ${d.skipped} already there` : ""}`
+                          : d?.skipped
+                            ? "Already filed for today"
+                            : "Nothing left on today's timetable",
+                      },
+                    }));
+                  }}
+                >
+                  FILE TODAY&apos;S SLOTS AS TASKS →
+                </button>
                 {next && (
                   <div className="sv-next">
                     NEXT · {WEEKDAYS[next.slot.weekday]} {clockOf(next.slot.startMin)} —{" "}
@@ -412,6 +435,22 @@ function SubjectWall({
           <Row k="Actual" v={`${(weekly / 60).toFixed(1)}H / WEEK`} tone={weekly >= targetMin ? "up" : "down"} />
           <Row k="Units done" v={`${subject.units.filter((u) => u.doneAt).length} of ${subject.units.length}`} />
           {exam && <Row k="Exam" v={new Date(exam.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />}
+          {/* One canvas per subject — mind maps, worked problems, the diagram
+              that finally made it click. Made on demand rather than up front,
+              so a subject you never draw for does not accumulate an empty
+              board. */}
+          <Row k="Board" v={
+            subject.boardId
+              ? <a className="pane-go" href={`/board/${subject.boardId}`}>OPEN →</a>
+              : <button className="sv-linkbtn" disabled={busy} onClick={async () => {
+                  const j = await fetch("/api/board", {
+                    method: "POST", headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ title: `${subject.name} — notes` }),
+                  }).then((r) => r.json()).catch(() => null);
+                  const id = j?.data?.id;
+                  if (id) await post({ id: subject.id, boardId: id });
+                }}>CREATE →</button>
+          } />
         </Pane></TileGuard></div>
       </div>
     </div>

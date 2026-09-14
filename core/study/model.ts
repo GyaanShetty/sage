@@ -75,6 +75,8 @@ export interface Subject {
   targetHoursPerWeek: number;
   /** The paper this is building towards, by exam id. */
   examId?: string | null;
+  /** A canvas for this subject — mind maps, worked problems, diagrams. */
+  boardId?: string | null;
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;

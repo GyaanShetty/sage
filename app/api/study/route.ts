@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import {
   listSubjects, upsertSubject, deleteSubject,
   putUnit, removeUnit, putSlot, removeSlot,
-  logSession, listSessions, deleteSession,
+  logSession, listSessions, deleteSession, slotsToTasks,
   type Subject,
 } from "@/core/study/subjects";
 import { listExams } from "@/core/exam";
@@ -65,6 +65,10 @@ export async function POST(req: Request) {
       if (!body.subjectId || !body.slotId) return bad("subjectId and slotId required");
       const s = await removeSlot(body.subjectId, body.slotId);
       return s ? ok(s) : bad("Couldn't remove that slot");
+    }
+    case "tasks": {
+      const res = await slotsToTasks();
+      return ok(res);
     }
     case "session": {
       if (!body.subjectId || !body.session?.minutes) return bad("subjectId and minutes required");

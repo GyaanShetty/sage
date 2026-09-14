@@ -4500,3 +4500,29 @@ test("the timetable becomes today's actual times", async () => {
   // the range would make the line restart from zero.
   assert.deepEqual(burnUp(units, ["2026-09-10"]), [80]);
 });
+
+test("today's slots become tasks once, not twice", async () => {
+  const src = readFileSync("core/study/subjects.ts", "utf8");
+  const body = src.slice(src.indexOf("export async function slotsToTasks"));
+
+  // Idempotent by title within the day: a second press, or a cron racing a
+  // click, must not file the same directive twice.
+  assert.match(body, /\.eq\("source", "study"\)/);
+  assert.match(body, /gte\("createdAt", startOfDay/);
+  assert.match(body, /if \(seen\.has\(title\)\)/);
+
+  // Only what is still ahead. A task for a session that ended this morning is
+  // how a task list stops being read.
+  assert.match(body, /splitByNow\(today, now\)/);
+  assert.match(body, /current \? \[current, \.\.\.upcoming\] : upcoming/);
+
+  // Tasks carry the slot's real start time, so they sort with everything else.
+  assert.match(body, /dueAt: s\.startsAt\.toISOString\(\)/);
+
+  // Event rows and Task rows both need an explicit id in this schema.
+  assert.match(body, /id: crypto\.randomUUID\(\)/);
+
+  // And the page can reach it.
+  assert.match(readFileSync("app/api/study/route.ts", "utf8"), /case "tasks"/);
+  assert.match(readFileSync("features/study/study-view.tsx", "utf8"), /action: "tasks"/);
+});

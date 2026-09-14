@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "../command.css";
 import "../wall.css";
-import { sound } from "@/lib/sound";
 import { ExpandModal } from "@/components/expand-modal";
 import { TaskManager } from "./task-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
@@ -18,11 +17,9 @@ import {
   ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
 import { Pane } from "@/components/pane";
-import { PaneForm } from "@/components/pane-form";
 import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
 import { SitrepBand } from "./sitrep-band";
-import { NextAction } from "./next-action";
 import {
   SpendTrendTile, SpendShapeTile, TaskRhythmTile, TaskWeekdayTile, FocusTile,
   AgentRunsTile, MemoryGrowthTile, ReadingTile, ReviewTrendTile, JournalTile,
@@ -33,7 +30,7 @@ import {
   ModelLoadTile, KeysTile,
 } from "./ops-tiles";
 import { BriefBlock } from "./brief-block";
-import { fmt, TZ } from "@/lib/config";
+import { TZ } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
 export type PageId = "overview" | "markets" | "body" | "work" | "mind";
@@ -55,9 +52,17 @@ export interface LogRow { type: string; createdAt: string }
 export interface Stats { memories: number; sources: number; runs: number; notes: number }
 export interface WeatherRow { temp: number; high: number; low: number; label: string; wind: number; place: string; aqi?: number | null }
 
-const pad = (n: number) => String(n).padStart(2, "0");
 
-/* ─── Gita rotator (design element from the prototype) ─── */
+/*
+ * The verses, kept but not currently rendered.
+ *
+ * A pane showed these on the deck, which the wall replaced. The rotator that
+ * used to cycle them was still running on every dashboard — a timer updating
+ * state nothing reads — and that is gone. The text stays because it is his,
+ * and because retyping Devanagari to bring the pane back would be a silly
+ * price for deleting nine unused kilobytes.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept deliberately; see above
 const GITA = [
   { dev: "कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ॥", tr: "karmaṇy-evādhikāras te mā phaleṣu kadācana", en: "Your right is to the work alone, never to its fruits. Let not the fruits be your motive, nor attachment to inaction.", src: "2.47" },
   { dev: "योगस्थः कुरु कर्माणि सङ्गं त्यक्त्वा धनञ्जय ।\nसिद्ध्यसिद्ध्योः समो भूत्वा समत्वं योग उच्यते ॥", tr: "yoga-sthaḥ kuru karmāṇi saṅgaṁ tyaktvā dhanañjaya", en: "Established in yoga, perform action, abandoning attachment — balanced in success and failure. That equanimity is called yoga.", src: "2.48" },
@@ -105,12 +110,8 @@ export function CommandView({
   weather: WeatherRow | null;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
-  const [gi, setGi] = useState(0);
-  const [ask, setAsk] = useState("");
-  const [askOut, setAskOut] = useState<string | null>(null);
-  const [asking, setAsking] = useState(false);
   const [focusSec, setFocusSec] = useState(25 * 60);
-  const [focusRun, setFocusRun] = useState(false);
+  const [focusRun] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
 
   /*
@@ -148,11 +149,6 @@ export function CommandView({
   const open = tasks.filter((t) => t.status !== "done").length;
   const todays = (events ?? []).filter((e) => new Date(e.start).toDateString() === now.toDateString());
 
-  /* gita rotation */
-  useEffect(() => {
-    const t = setInterval(() => setGi((g) => (g + 1) % GITA.length), 45000);
-    return () => clearInterval(t);
-  }, []);
 
   /* focus timer */
   useEffect(() => {
@@ -161,58 +157,6 @@ export function CommandView({
     return () => clearInterval(t);
   }, [focusRun]);
 
-  /* real AI ask (voice brain, text-in text-out) */
-  const doAsk = useCallback(async (q: string) => {
-    if (!q.trim() || asking) return;
-    setAsking(true);
-    setAskOut("…");
-    try {
-      const res = await fetch("/api/voice", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: q }),
-      });
-      // Read as text first: an error page is not JSON, and parsing it blindly
-      // turned every server-side failure into a misleading "link error".
-      const raw = await res.text();
-      let json: { ok?: boolean; error?: string; data?: { text?: string } } | null = null;
-      try { json = JSON.parse(raw); } catch { /* not JSON — handled below */ }
-
-      if (json?.data?.text) setAskOut(json.data.text);
-      else if (json?.error) setAskOut(json.error);
-      else if (!res.ok) setAskOut(`SAGE returned ${res.status}. ${raw.slice(0, 120)}`);
-      else setAskOut("No response.");
-    } catch (err) {
-      setAskOut(err instanceof Error ? `Couldn't reach SAGE: ${err.message}` : "Link error — try again.");
-    } finally {
-      setAsking(false);
-    }
-  }, [asking]);
-
-  const toggleTask = async (task: TaskRow) => {
-    const status = task.status === "done" ? "todo" : "done";
-    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
-    if (status === "done") {
-      sound.blip();
-      window.dispatchEvent(new CustomEvent("sage:toast", { detail: { title: "DIRECTIVE COMPLETE", body: task.title, kind: "alert" } }));
-    }
-    await fetch(`/api/task/${task.id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-  };
-
-  /* focus ring geometry */
-  const fr = 40, fc = 2 * Math.PI * fr;
-  const fpct = 1 - focusSec / (25 * 60);
-  const gita = GITA[gi];
-
-  /* calendar grid */
-  const Y = now.getFullYear(), M = now.getMonth();
-  const first = new Date(Y, M, 1), dim = new Date(Y, M + 1, 0).getDate();
-  const lead = (first.getDay() + 6) % 7, prevDim = new Date(Y, M, 0).getDate();
-  const evDays = new Set((events ?? []).map((e) => { const d = new Date(e.start); return d.getMonth() === M ? d.getDate() : -1; }));
 
   /* Week / day-of-year / quarter, in IST.
      Deriving these from toISOString would put late-evening glances on

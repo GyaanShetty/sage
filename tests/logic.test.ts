@@ -4526,3 +4526,92 @@ test("today's slots become tasks once, not twice", async () => {
   assert.match(readFileSync("app/api/study/route.ts", "utf8"), /case "tasks"/);
   assert.match(readFileSync("features/study/study-view.tsx", "utf8"), /action: "tasks"/);
 });
+
+test("a route that renders shared styles loads them", async () => {
+  const { readFileSync: rf, existsSync, readdirSync } = await import("node:fs");
+
+  /*
+   * A CSS import in Next is global once any loaded route pulls it in, which
+   * makes this class of bug invisible in normal use: the Eisenhower matrix on
+   * /workspace looked right for as long as you arrived from the dashboard,
+   * which had already loaded command.css. Hard-load /workspace and the
+   * quadrants collapse into a run-on list.
+   *
+   * Checked per ROUTE by walking each page's import graph, not per file. A
+   * component is perfectly fine using a class its parent's stylesheet
+   * defines, and a per-file rule would demand a pile of redundant imports to
+   * satisfy a check rather than a user.
+   */
+  const CSS = ["features/dashboard/command.css", "features/dashboard/wall.css"];
+
+  // Only prefixes that belong to exactly one stylesheet prove anything. A
+  // name like desk-cell lives in globals.css too, which the root layout
+  // always loads, so it is not evidence of a missing import.
+  const globals = rf("app/globals.css", "utf8");
+  const owns: Record<string, Set<string>> = {};
+  for (const css of CSS) {
+    const set = new Set<string>();
+    for (const m of rf(css, "utf8").matchAll(/\.([a-z][a-z0-9-]{2,})[\s,{:.[]/g)) {
+      // Tailwind generates its own utilities; command.css happening to
+      // mention .ml-auto does not make it the owner of that class.
+      const util = /^(m[ltrbxy]?|p[ltrbxy]?|w|h|min|max|gap|flex|grid|text|bg|border|rounded|opacity|z|inset|top|left|right|bottom|space|size)-/;
+      if (!util.test(m[1]) && !new RegExp(`\\.${m[1]}[\\s,{:.\\[]`).test(globals)) set.add(m[1]);
+    }
+    owns[css] = set;
+  }
+
+  const resolve = (spec: string, from: string): string | null => {
+    let base: string;
+    if (spec.startsWith("@/")) base = spec.slice(2);
+    else if (spec.startsWith(".")) {
+      const dir = from.split("/").slice(0, -1).join("/");
+      base = `${dir}/${spec}`.replace(/\/\.\//g, "/");
+      while (base.includes("/../")) base = base.replace(/[^/]+\/\.\.\//, "");
+    } else return null;
+    if (base.endsWith(".css")) return existsSync(base) ? base : null;
+    for (const ext of [".tsx", ".ts", "/index.tsx", "/index.ts"]) {
+      if (existsSync(base + ext)) return base + ext;
+    }
+    return null;
+  };
+
+  const shell = "app/(shell)";
+  const routes = readdirSync(shell, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && existsSync(`${shell}/${d.name}/page.tsx`))
+    .map((d) => `${shell}/${d.name}/page.tsx`);
+
+  const offenders: string[] = [];
+  for (const page of routes) {
+    const seen = new Set<string>();
+    const css = new Set<string>();
+    const classes = new Set<string>();
+
+    const walk = (file: string) => {
+      if (seen.has(file) || seen.size > 400) return;
+      seen.add(file);
+      const src = rf(file, "utf8");
+      for (const m of src.matchAll(/className="([^"{]+)"/g)) {
+        for (const t of m[1].split(/\s+/)) classes.add(t);
+      }
+      for (const m of src.matchAll(/(?:from|import) "([^"]+)"/g)) {
+        const next = resolve(m[1], file);
+        if (!next) continue;
+        if (next.endsWith(".css")) css.add(next);
+        else walk(next);
+      }
+    };
+    walk(page);
+    // The shell layout is loaded on every one of these routes.
+    walk(`${shell}/layout.tsx`);
+
+    for (const sheet of CSS) {
+      if (css.has(sheet)) continue;
+      const needs = [...classes].filter((c) => owns[sheet].has(c));
+      if (needs.length) {
+        offenders.push(`${page.replace(shell, "")} renders ${needs.slice(0, 3).join(", ")} but never loads ${sheet.split("/").pop()}`);
+      }
+    }
+  }
+
+  assert.deepEqual(offenders, [], `unstyled on a hard load:\n  ${offenders.join("\n  ")}`);
+});

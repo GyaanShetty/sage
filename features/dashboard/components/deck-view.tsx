@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Mail, Terminal, NotebookPen, HardDrive, PenLine, CalendarDays, LineChart } from "lucide-react";
+import { FileText, Mail, Terminal, NotebookPen, HardDrive, PenLine, CalendarDays, LineChart, GraduationCap } from "lucide-react";
 import "../command.css";
 import "../wall.css";
 import "../deck.css";
@@ -38,6 +38,7 @@ const QUICK: { href: string; label: string; Icon: typeof FileText }[] = [
   { href: "/mail", label: "Mail", Icon: Mail },
   { href: "/code", label: "Terminal", Icon: Terminal },
   { href: "/knowledge", label: "Notes", Icon: NotebookPen },
+  { href: "/study", label: "Study", Icon: GraduationCap },
   { href: "/portfolio", label: "Assets", Icon: HardDrive },
   { href: "/board", label: "Boards", Icon: PenLine },
   { href: "/calendar", label: "Calendar", Icon: CalendarDays },

@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { speakRest } from "@/lib/speak";
+/*
+ * This button is mounted by the shell layout, so it appears on every route —
+ * but .vc-continue is defined in command.css, which most routes never load.
+ * On those it rendered as unstyled text in the corner.
+ */
+import "@/features/dashboard/command.css";
 
 /**
  * Skip to the next part of a long answer.

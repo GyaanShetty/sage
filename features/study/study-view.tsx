@@ -25,7 +25,7 @@ import {
   completion, minutesByDay, minutesByUnit, minutesByWeekday, nextSlot, pace,
   scheduledMinutes, weeklyActual, clockOf, WEEKDAYS,
   type Session, type Subject, type Unit,
-} from "@/core/study/subjects";
+} from "@/core/study/model";
 import "@/features/dashboard/wall.css";
 import "@/features/dashboard/command.css";
 import "./study.css";

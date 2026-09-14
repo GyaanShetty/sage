@@ -3,18 +3,24 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
-import { SageSigil } from "@/components/ui/sage-sigil";
 import { APP_NAME } from "@/lib/config";
 
 /**
- * The centre column: the mark, and the one place you can just say what you
- * want.
+ * The centre: a wordmark and the one place you can just say what you want.
  *
- * Every other pane on this screen answers a question you did not ask — the
- * markets moved, a task is due, an agent finished. This column is the
- * opposite: it is the only part of the dashboard that waits for you. That is
- * why it gets the mark and the space, and why the chips are verbs rather than
- * destinations.
+ * It used to be a 264px sigil over a tagline over a quote, filling the tallest
+ * column on the screen to say nothing you did not already know — you are
+ * looking at SAGE; it does not need four lines and an illustration to tell you
+ * so. All of that is gone. What is left is the name, set as a wordmark, and
+ * the ask bar.
+ *
+ * The name is drawn in the brand face at weight 900 with the letters spaced
+ * wide and a hard shadow behind them — an arcade marquee rather than a logo
+ * treatment. It costs one line of type where the sigil cost a column, and the
+ * space that frees goes to the panes, which is the point: every other pane
+ * answers a question you did not ask, and this is the only part of the screen
+ * that waits for you to ask one. It does not need to be the biggest thing on
+ * it to be that.
  */
 
 const CHIPS: { label: string; ask: string }[] = [
@@ -23,11 +29,6 @@ const CHIPS: { label: string; ask: string }[] = [
   { label: "Read my mail", ask: "What is in my mail that actually needs me, from both accounts?" },
   { label: "Draft report", ask: "Draft a short status report on where I am this week." },
 ];
-
-const QUOTE = {
-  line: "Information is abundant. Clarity is rare.",
-  tail: "Let's find what matters.",
-};
 
 export function DeckHero() {
   const [ask, setAsk] = useState("");
@@ -43,12 +44,11 @@ export function DeckHero() {
 
   return (
     <div className="deck-hero">
-      <SageSigil size={264} className="deck-sigil" />
-
-      <div className="deck-id">
-        <h2>{APP_NAME}</h2>
-        <p>Your operational assistant</p>
-      </div>
+      {/* aria-label so a screen reader gets the name once, not letter by
+          letter as the spacing would otherwise have it read. */}
+      <h2 className="deck-word" aria-label={APP_NAME}>
+        <span aria-hidden>{APP_NAME}</span>
+      </h2>
 
       <form
         className="deck-ask"
@@ -73,13 +73,6 @@ export function DeckHero() {
           <button key={c.label} onClick={() => send(c.ask)}>{c.label}</button>
         ))}
       </div>
-
-      <blockquote className="deck-quote">
-        <span className="q" aria-hidden>&ldquo;</span>
-        <em>{QUOTE.line}</em>
-        <b>{QUOTE.tail}</b>
-        <span className="q r" aria-hidden>&rdquo;</span>
-      </blockquote>
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { AgentLogTile, BioTile, PortfolioTile } from "./page-tiles";
 import {
   MarketsTile, KeyMetricsTile, HealthTile, MissionTile, FeedsTile, InboxTile,
 } from "./wall-tiles";
-import { MachineryTile, ModelLoadTile } from "./ops-tiles";
+import { MachineryTile } from "./ops-tiles";
 import { BriefBlock } from "./brief-block";
 import { NextAction } from "./next-action";
 import { DeckHero } from "./deck-hero";
@@ -84,9 +84,15 @@ export function DeckView({
           <TileGuard name="MACHINERY"><MachineryTile n={11} /></TileGuard>
         </div>
 
-        {/* ── CENTRE ───────────────────────────────────────────────────── */}
+        {/* ── CENTRE ─────────────────────────────────────────────────────
+            A pane above, a pane below: the grid closes around the wordmark
+            instead of leaving a column-tall hole in the middle of it. */}
         <div className="deck-col is-centre">
+          <TileGuard name="INBOX"><InboxTile n={9} /></TileGuard>
           <DeckHero />
+          <Pane n={8} title="What Now">
+            <NextAction />
+          </Pane>
         </div>
 
         {/* ── RIGHT ────────────────────────────────────────────────────── */}
@@ -116,11 +122,6 @@ export function DeckView({
       <div className="deck-band">
         <TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard>
 
-        <Pane n={8} title="What Now">
-          <NextAction />
-        </Pane>
-
-        <TileGuard name="INBOX"><InboxTile n={9} /></TileGuard>
         <TileGuard name="HEALTH"><HealthTile n={10} /></TileGuard>
 
         <Pane n={13} title="Quick Access" status={<Link href="/dashboard" className="deck-more">FULL WALL →</Link>}>

@@ -328,8 +328,11 @@ export function FeedsTile({ n }: { n?: number }) {
     }
   };
 
+  // The status was a link to /wire, which is not a route: clicking "See all"
+  // landed on the 404. Everything this pane holds is one ⤢ away, so the status
+  // says how much there is instead of pointing at nowhere.
   return (
-    <Pane n={n} title="Feeds" status={<Go href="/wire">See all</Go>}>
+    <Pane n={n} title="Feeds" status={items ? `${items.length} IN WATCHLIST` : "…"} live={!!items?.length}>
       <div className="feed-add">
         <input
           value={url}

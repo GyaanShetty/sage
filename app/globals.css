@@ -949,8 +949,25 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 .gn-hover { outline: 1px solid var(--signal); outline-offset: -1px; }
 
 /* ── page tiles ── */
-.pane-go { color: inherit; text-decoration: none; }
+/*
+ * A link you can actually hit.
+ *
+ * The wall's container queries shrink header status text to about 6px, which
+ * is the right size to read at a glance and a hopeless size to click: these
+ * came out 7px tall and 25px wide, so "SEE ALL" and "CLEAR" mostly did
+ * nothing because the pointer missed them. The padding is cancelled by an
+ * equal negative margin, so the hit area grows to a usable ~20px without
+ * moving anything in the header.
+ */
+.pane-go {
+  color: inherit; text-decoration: none;
+  display: inline-flex; align-items: center; min-height: 20px;
+  padding: 6px 7px; margin: -6px -7px;
+}
 .pane-go:hover { color: var(--signal); }
+
+/* Same problem, same fix, for the action inside an empty pane. */
+.empty.is-link { min-height: 34px; }
 
 .sig-row { display: flex; gap: 7px; padding: 3px 8px; border-bottom: 1px solid var(--rule); align-items: baseline; }
 .sig-row:last-child { border-bottom: 0; }
@@ -1150,6 +1167,12 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   content: ""; position: absolute; inset: 0; width: 45%;
   background: linear-gradient(90deg, transparent, var(--signal-faint), transparent);
   animation: sage-sweep 4.5s var(--ease) infinite;
+  /* Decoration, and it travels across the header — including over the status
+     link. Without this it swallows the click whenever the sweep happens to be
+     under the cursor, so the same link worked or did nothing depending on
+     where a 4.5-second animation had got to. Every other overlay in this file
+     already carries this line; this one was missed. */
+  pointer-events: none;
 }
 
 /* Live status text breathes. */

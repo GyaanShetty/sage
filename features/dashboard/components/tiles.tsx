@@ -201,7 +201,9 @@ export function WireTile({ n, source = "hindu" }: { n?: number; source?: string 
   return (
     <Pane n={n} title="Wire" status={items ? `${items.length} ITEMS` : "…"} live={!!items?.length}>
       {!items && <div className="tile-wait">ACQUIRING…</div>}
-      {items?.length === 0 && <Empty reason="No headlines" action="Open the wire" href="/wire" />}
+      {/* No /wire route exists — this offered a door into a 404. The headlines
+          come from the feed sources, and Settings is where those are set. */}
+      {items?.length === 0 && <Empty reason="No headlines from this source" action="Check feed sources" href="/settings" />}
       {items?.slice(0, 8).map((it, i) => (
         <a className="wire-row" key={i} href={it.link} target="_blank" rel="noreferrer">
           <span className="wire-n">{pad(i + 1)}</span>

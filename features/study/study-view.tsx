@@ -22,7 +22,7 @@ import { Area, BarRows, Diverging, Donut, Gauge, Heat, Histogram, Radial, Stack 
 import { asArray } from "@/lib/as-array";
 import { lastDays } from "@/lib/config";
 import {
-  completion, minutesByDay, minutesByUnit, minutesByWeekday, nextSlot, pace,
+  burnUp, completion, minutesByDay, minutesByUnit, minutesByWeekday, nextSlot, pace,
   scheduledMinutes, weeklyActual, clockOf, WEEKDAYS,
   type Session, type Subject, type Unit,
 } from "@/core/study/model";
@@ -371,7 +371,19 @@ function SubjectWall({
               ))}
         </Pane></TileGuard></div>
 
-        <div className="t-6x3"><TileGuard name="SETTINGS"><Pane n={13} title="Subject" status="SETTINGS">
+        <div className="t-3x3"><TileGuard name="BURNUP"><Pane n={13} title="Syllabus burn-up" status="UNITS DONE">
+          {/*
+            Units ticked over time, from each unit's own doneAt. A step up per
+            unit, weighted the same way the percentage is — so this chart and
+            the gauge in pane 01 cannot disagree, because they are the same
+            arithmetic over the same field.
+          */}
+          {subject.units.some((u) => u.doneAt)
+            ? <Area data={burnUp(subject.units, days30)} height={110} tone={tone} baseline={false} />
+            : <Empty reason="Tick a unit and this fills in" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-3x3"><TileGuard name="SETTINGS"><Pane n={14} title="Subject" status="SETTINGS">
           <Row k="Weekly target" v={
             <input className="sv-num" type="number" min={0} max={60} defaultValue={subject.targetHoursPerWeek}
               onBlur={(e) => void post({ id: subject.id, targetHoursPerWeek: Number(e.target.value) })} />

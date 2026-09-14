@@ -198,6 +198,26 @@ export function nextSlot(slots: Slot[], now = new Date()): { slot: Slot; inMinut
   return best;
 }
 
+/**
+ * Weighted units finished, cumulatively, across a run of days.
+ *
+ * Same numerator and denominator as completion(), so the chart and the
+ * percentage cannot drift apart — they are one calculation read two ways.
+ * A unit finished before the window starts counts from the first day, or the
+ * line would appear to start from zero every time you widen the range.
+ */
+export function burnUp(units: Unit[], days: string[]): number[] {
+  const total = units.reduce((n, u) => n + Math.max(0, u.weight || 1), 0);
+  if (!total) return days.map(() => 0);
+
+  return days.map((day) => {
+    const done = units
+      .filter((u) => u.doneAt && tzDay(u.doneAt) <= day)
+      .reduce((n, u) => n + Math.max(0, u.weight || 1), 0);
+    return Math.round((done / total) * 100);
+  });
+}
+
 /** "18:30" from 1110. */
 export function clockOf(startMin: number): string {
   const h = Math.floor(startMin / 60) % 24;
@@ -207,3 +227,45 @@ export function clockOf(startMin: number): string {
 
 export const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
+
+/**
+ * Today's study slots, as concrete times.
+ *
+ * The timetable is a standing weekly intention; a day needs it as actual
+ * clock times so it can sit beside calendar events and be turned into tasks.
+ * Returned in the order they occur, and only for the day asked about.
+ */
+export function slotsOn(
+  subjects: { id: string; name: string; slots: Slot[] }[],
+  when = new Date(),
+): { subjectId: string; subject: string; slot: Slot; startsAt: Date; endsAt: Date }[] {
+  const weekday = when.getDay();
+  const out: { subjectId: string; subject: string; slot: Slot; startsAt: Date; endsAt: Date }[] = [];
+
+  for (const s of subjects) {
+    for (const slot of s.slots) {
+      if (slot.weekday !== weekday) continue;
+      const startsAt = new Date(when);
+      startsAt.setHours(Math.floor(slot.startMin / 60), slot.startMin % 60, 0, 0);
+      const endsAt = new Date(startsAt.getTime() + slot.minutes * 60_000);
+      out.push({ subjectId: s.id, subject: s.name, slot, startsAt, endsAt });
+    }
+  }
+  return out.sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+}
+
+/**
+ * Which slots a day still has ahead of it, and which have passed.
+ *
+ * "Passed" means the slot's end time is behind us, not its start — you are not
+ * late for something you are in the middle of.
+ */
+export function splitByNow<T extends { startsAt: Date; endsAt: Date }>(
+  slots: T[],
+  now = new Date(),
+): { past: T[]; current: T | null; upcoming: T[] } {
+  const past = slots.filter((s) => s.endsAt.getTime() <= now.getTime());
+  const current = slots.find((s) => s.startsAt.getTime() <= now.getTime() && s.endsAt.getTime() > now.getTime()) ?? null;
+  const upcoming = slots.filter((s) => s.startsAt.getTime() > now.getTime());
+  return { past, current, upcoming };
+}

@@ -4454,3 +4454,49 @@ test("every tile span class on a wall actually exists", async () => {
     assert.equal(12 % cols, 0, `${c} does not divide twelve`);
   }
 });
+
+test("the timetable becomes today's actual times", async () => {
+  const { slotsOn, splitByNow, burnUp } = await import("@/core/study/model");
+
+  const subjects = [
+    { id: "os", name: "OS", slots: [
+      { id: "a", weekday: 2, startMin: 18 * 60, minutes: 90 },
+      { id: "b", weekday: 4, startMin: 19 * 60, minutes: 60 },
+    ] },
+    { id: "db", name: "DBMS", slots: [{ id: "c", weekday: 2, startMin: 9 * 60, minutes: 60 }] },
+  ];
+
+  // A Tuesday: the two Tuesday slots, in time order, across both subjects.
+  const tue = new Date("2026-09-08T12:00:00");
+  const today = slotsOn(subjects, tue);
+  assert.deepEqual(today.map((s) => `${s.subject} ${s.slot.id}`), ["DBMS c", "OS a"]);
+  assert.equal(today[1].startsAt.getHours(), 18);
+  assert.equal(today[1].endsAt.getHours(), 19);
+  assert.equal(today[1].endsAt.getMinutes(), 30);
+
+  // A Wednesday has none of them.
+  assert.equal(slotsOn(subjects, new Date("2026-09-09T12:00:00")).length, 0);
+
+  // Mid-session counts as current, not as missed: you are not late for
+  // something you are in the middle of.
+  const mid = splitByNow(slotsOn(subjects, tue), new Date("2026-09-08T18:30:00"));
+  assert.equal(mid.current?.slot.id, "a");
+  assert.equal(mid.past.length, 1);
+  assert.equal(mid.upcoming.length, 0);
+
+  const before = splitByNow(slotsOn(subjects, tue), new Date("2026-09-08T08:00:00"));
+  assert.equal(before.upcoming.length, 2);
+  assert.equal(before.current, null);
+
+  // Burn-up shares its arithmetic with completion(), weights included.
+  const units = [
+    { id: "a", name: "One", weight: 1, doneAt: "2026-09-02T00:00:00Z" },
+    { id: "b", name: "Two", weight: 3, doneAt: "2026-09-04T00:00:00Z" },
+    { id: "c", name: "Three", weight: 1, doneAt: null },
+  ];
+  assert.deepEqual(burnUp(units, ["2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"]), [0, 20, 20, 80]);
+
+  // A unit finished before the window counts from its first day, or widening
+  // the range would make the line restart from zero.
+  assert.deepEqual(burnUp(units, ["2026-09-10"]), [80]);
+});

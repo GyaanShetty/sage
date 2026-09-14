@@ -1,0 +1,80 @@
+/* ── the study wall ───────────────────────────────────────────────────────
+   Only what the dashboard's wall.css does not already provide: the syllabus
+   list, the little editors, and the comparison table. Everything else — the
+   grid, the panes, the tabs — is the same machinery the dashboard uses, so
+   the two screens stay in step when either is changed. */
+
+.study .wall-tabs button { --c: var(--signal); }
+.study .wall-tabs button.on { color: var(--c); border-bottom-color: var(--c); }
+.wall-tab-add { margin-left: auto; color: var(--muted); }
+
+/* Units: a checklist that is also the progress bar's source of truth. */
+.sv-units { display: flex; flex-direction: column; gap: 1px; }
+.sv-unit {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 5px 8px; background: none; border: 0; cursor: pointer; text-align: left;
+  font-size: 12px; color: var(--foreground);
+}
+.sv-unit:hover { background: var(--glass); }
+.sv-unit i { flex: 0 0 auto; width: 10px; height: 10px; border: 1px solid; border-radius: 2px; }
+.sv-unit-n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-unit.done .sv-unit-n { color: var(--muted); text-decoration: line-through; }
+.sv-unit em { font-family: var(--mono); font-size: 9px; color: var(--subtle); font-style: normal; }
+.sv-unit-tag { font-family: var(--mono); font-size: 9px; color: var(--subtle); font-style: normal; margin-left: 6px; }
+
+.sv-hero { display: flex; align-items: center; gap: 14px; height: 100%; }
+.sv-hero-side { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.sv-next {
+  margin-top: 6px; padding: 5px 8px; font-family: var(--mono); font-size: 9.5px;
+  letter-spacing: 0.12em; color: var(--live); border-top: 1px solid var(--rule);
+}
+
+.sv-x {
+  margin-left: 8px; background: none; border: 0; color: var(--subtle); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0 2px;
+}
+.sv-x:hover { color: var(--danger); }
+
+/* The editors live inside the magnified pane, where there is room to type. */
+.sv-add { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.sv-add input, .sv-add select {
+  background: var(--panel); border: 1px solid var(--border-glass); color: var(--foreground);
+  padding: 7px 9px; font-size: 12px; font-family: inherit; border-radius: 4px; min-width: 0;
+}
+.sv-add input[type="number"] { width: 74px; }
+.sv-add input:not([type]), .sv-add input[type="text"] { flex: 1; min-width: 140px; }
+.sv-add button {
+  background: none; border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; padding: 7px 12px; border-radius: 4px;
+}
+.sv-add button:hover { color: var(--signal); border-color: var(--signal); }
+
+.sv-num, .sv-txt {
+  background: none; border: 0; border-bottom: 1px solid var(--rule); color: var(--foreground);
+  font-family: var(--mono); font-size: 11px; text-align: right; width: 70px; padding: 1px 2px;
+}
+.sv-txt { text-align: right; width: 90px; }
+.sv-num:focus, .sv-txt:focus { outline: none; border-bottom-color: var(--signal); }
+
+/* The comparison table: one row per subject, numbers right-aligned. */
+.sv-table { display: flex; flex-direction: column; font-family: var(--mono); font-size: 10.5px; }
+.sv-th, .sv-tr {
+  display: grid; grid-template-columns: 2fr repeat(7, minmax(0, 1fr));
+  gap: 6px; padding: 4px 8px; align-items: center;
+}
+.sv-th { color: var(--subtle); font-size: 8.5px; letter-spacing: 0.16em; border-bottom: 1px solid var(--rule); }
+.sv-tr { border-bottom: 1px solid var(--rule); }
+.sv-tr:hover { background: var(--glass); }
+.sv-tr span:not(:first-child), .sv-th span:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.sv-tr .up { color: var(--up); }
+.sv-tr .down { color: var(--down); }
+
+.st-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-family: var(--mono); font-size: 9px; color: var(--muted); }
+.st-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.st-legend i { width: 7px; height: 7px; display: inline-block; }
+
+@media (max-width: 900px) {
+  .sv-th, .sv-tr { grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr)); }
+  .sv-th span:nth-child(n + 6), .sv-tr span:nth-child(n + 6) { display: none; }
+}

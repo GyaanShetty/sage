@@ -372,6 +372,215 @@ export const domainTools = {
     },
   }),
 
+  /**
+   * The semester, as SAGE sees it.
+   *
+   * Kept separate from study_status, which reads the skill ledger — a level
+   * per topic, on a scale with no end. This reads the finite half: units that
+   * run out, a timetable, and a paper with a date on it.
+   */
+  subject_status: tool({
+    description:
+      "How a subject (or every subject) is going: how much of the syllabus is done, hours logged, hours a " +
+      "week against the target, whether it is ahead of or behind the run-up to its exam, and when the next " +
+      "study slot is. Use for 'how's OS going', 'what am I behind on', 'what should I study tonight', " +
+      "'how much of the syllabus is left'.",
+    inputSchema: z.object({
+      subject: z.string().max(60).optional().describe("Name or code. Omit for every subject."),
+    }),
+    execute: async ({ subject }) => {
+      const st = await import("@/core/study/subjects");
+      const { listExams } = await import("@/core/exam");
+
+      const [subjects, exams] = await Promise.all([st.listSubjects(), listExams().catch(() => [])]);
+      if (!subjects.length) return { ok: true, count: 0, note: "No subjects are being tracked yet." };
+
+      const wanted = subject
+        ? subjects.filter((s) =>
+            s.name.toLowerCase().includes(subject.toLowerCase()) ||
+            (s.code ?? "").toLowerCase() === subject.toLowerCase())
+        : subjects;
+      if (!wanted.length) return { ok: false, error: `No subject matching "${subject}".` };
+
+      const sessions = await st.listSessions(undefined, 120);
+
+      return {
+        ok: true,
+        count: wanted.length,
+        subjects: wanted.map((s) => {
+          const mine = sessions.filter((x) => x.subjectId === s.id);
+          const exam = exams.find((e) => e.id === s.examId) ?? null;
+          const drift = st.pace(s, exam?.at ?? null);
+          const next = st.nextSlot(s.slots);
+          return {
+            name: s.name,
+            code: s.code ?? null,
+            syllabusDone: `${Math.round(st.completion(s) * 100)}%`,
+            unitsDone: s.units.filter((u) => u.doneAt).length,
+            unitsTotal: s.units.length,
+            // Named so the model cannot mistake one for the other: hours spent
+            // is not progress, and saying so is half this tool's job.
+            hoursLogged: Math.round((mine.reduce((n, x) => n + x.minutes, 0) / 60) * 10) / 10,
+            hoursPerWeek: Math.round((st.weeklyActual(mine) / 60) * 10) / 10,
+            targetHoursPerWeek: s.targetHoursPerWeek,
+            // Null when there is no exam date or no syllabus — an unanswerable
+            // question, not a zero.
+            paceVsExam: drift === null ? null : `${drift >= 0 ? "+" : ""}${Math.round(drift * 100)}%`,
+            examInDays: exam ? Math.ceil((new Date(exam.at).getTime() - Date.now()) / 86_400_000) : null,
+            nextSlot: next
+              ? `${st.WEEKDAYS[next.slot.weekday]} ${st.clockOf(next.slot.startMin)} (${next.inMinutes < 60 ? `${next.inMinutes}m` : `${Math.round(next.inMinutes / 60)}h`} away)`
+              : null,
+            unfinishedUnits: s.units.filter((u) => !u.doneAt).map((u) => u.name).slice(0, 8),
+          };
+        }),
+      };
+    },
+  }),
+
+  log_subject_session: tool({
+    description:
+      "Record time spent on a subject, said out loud — 'I did an hour of OS on paging', 'forty minutes of " +
+      "DBMS'. Matches the subject by name or code. Optionally against one unit, which is what makes the " +
+      "per-unit charts work. Never invents the minutes: if he did not say how long, ask.",
+    inputSchema: z.object({
+      subject: z.string().max(60),
+      minutes: z.number().int().min(1).max(600),
+      unit: z.string().max(80).optional().describe("Unit/chapter name, matched loosely"),
+      note: z.string().max(300).optional().describe("What was actually covered"),
+    }),
+    execute: async ({ subject, minutes, unit, note }) => {
+      const st = await import("@/core/study/subjects");
+      const subjects = await st.listSubjects();
+
+      const hit = subjects.find((s) => s.name.toLowerCase() === subject.toLowerCase())
+        ?? subjects.find((s) => (s.code ?? "").toLowerCase() === subject.toLowerCase())
+        ?? subjects.find((s) => s.name.toLowerCase().includes(subject.toLowerCase()));
+      if (!hit) {
+        return {
+          ok: false,
+          error: `No subject called "${subject}". Tracked: ${subjects.map((s) => s.name).join(", ") || "none yet"}.`,
+        };
+      }
+
+      const matched = unit
+        ? hit.units.find((u) => u.name.toLowerCase().includes(unit.toLowerCase())) ?? null
+        : null;
+
+      const session = await st.logSession({
+        subjectId: hit.id,
+        unitId: matched?.id ?? null,
+        minutes,
+        ...(note ? { note } : {}),
+      });
+      if (!session) return { ok: false, error: "Couldn't save that session." };
+
+      return {
+        ok: true,
+        subject: hit.name,
+        minutes,
+        unit: matched?.name ?? null,
+        // Said plainly so SAGE can pass it on rather than implying the unit
+        // was recorded when the name did not match anything.
+        unitMatched: unit ? !!matched : null,
+      };
+    },
+  }),
+
+  mark_unit: tool({
+    description:
+      "Tick a unit of a subject as done, or untick it — 'I finished the paging chapter', 'mark deadlocks " +
+      "done'. This is what moves the percentage: hours logged never do.",
+    inputSchema: z.object({
+      subject: z.string().max(60),
+      unit: z.string().max(80),
+      done: z.boolean().default(true),
+    }),
+    execute: async ({ subject, unit, done }) => {
+      const st = await import("@/core/study/subjects");
+      const subjects = await st.listSubjects();
+
+      const hit = subjects.find((s) => s.name.toLowerCase().includes(subject.toLowerCase()));
+      if (!hit) return { ok: false, error: `No subject called "${subject}".` };
+
+      const target = hit.units.find((u) => u.name.toLowerCase().includes(unit.toLowerCase()));
+      if (!target) {
+        return { ok: false, error: `No unit matching "${unit}" in ${hit.name}. Units: ${hit.units.map((u) => u.name).join(", ") || "none yet"}.` };
+      }
+
+      const updated = await st.putUnit(hit.id, { id: target.id, doneAt: done ? new Date().toISOString() : null });
+      if (!updated) return { ok: false, error: "Couldn't update that unit." };
+
+      return {
+        ok: true, subject: hit.name, unit: target.name, done,
+        syllabusDone: `${Math.round(st.completion(updated) * 100)}%`,
+      };
+    },
+  }),
+
+  plan_study: tool({
+    description:
+      "Add a subject, or add units and timetable slots to one — 'track Operating Systems', 'add units " +
+      "processes, memory, files to OS', 'put OS on Tuesdays at 6 for 90 minutes'. Use when he is setting " +
+      "up what he is studying rather than recording what he did.",
+    inputSchema: z.object({
+      subject: z.string().max(60),
+      code: z.string().max(20).optional(),
+      targetHoursPerWeek: z.number().int().min(0).max(60).optional(),
+      units: z.array(z.string().max(80)).max(30).optional().describe("Unit names, in syllabus order"),
+      slot: z.object({
+        weekday: z.number().int().min(0).max(6).describe("0 = Sunday"),
+        startMin: z.number().int().min(0).max(1439).describe("Minutes from midnight: 18:30 is 1110"),
+        minutes: z.number().int().min(5).max(600),
+      }).optional(),
+    }),
+    execute: async ({ subject, code, targetHoursPerWeek, units, slot }) => {
+      const st = await import("@/core/study/subjects");
+      const existing = await st.listSubjects();
+
+      let target = existing.find((s) => s.name.toLowerCase() === subject.toLowerCase())
+        ?? existing.find((s) => s.name.toLowerCase().includes(subject.toLowerCase()));
+      const created = !target;
+
+      if (!target) {
+        target = await st.upsertSubject({
+          name: subject,
+          ...(code ? { code } : {}),
+          ...(targetHoursPerWeek !== undefined ? { targetHoursPerWeek } : {}),
+        }) ?? undefined;
+        if (!target) return { ok: false, error: "Couldn't create that subject." };
+      } else if (code || targetHoursPerWeek !== undefined) {
+        target = await st.upsertSubject({
+          id: target.id,
+          ...(code ? { code } : {}),
+          ...(targetHoursPerWeek !== undefined ? { targetHoursPerWeek } : {}),
+        }) ?? target;
+      }
+
+      let added = 0;
+      for (const name of units ?? []) {
+        // Never duplicate a unit that is already in the syllabus.
+        if (target.units.some((u) => u.name.toLowerCase() === name.toLowerCase())) continue;
+        const next = await st.putUnit(target.id, { name });
+        if (next) { target = next; added += 1; }
+      }
+
+      if (slot) {
+        const next = await st.putSlot(target.id, slot);
+        if (next) target = next;
+      }
+
+      return {
+        ok: true,
+        subject: target.name,
+        created,
+        unitsAdded: added,
+        unitsTotal: target.units.length,
+        slots: target.slots.length,
+        weeklyScheduled: `${(st.scheduledMinutes(target) / 60).toFixed(1)}h`,
+      };
+    },
+  }),
+
   log_expense: tool({
     description:
       "Record something the user spent money on, said out loud — 'I spent 400 on lunch', 'paid the electricity bill, 2100'. Amounts are in rupees.",

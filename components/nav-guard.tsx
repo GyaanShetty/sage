@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { navStarted } from "@/lib/nav-busy";
 
 /**
  * The click always lands.
@@ -44,6 +45,7 @@ export function NavGuard() {
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let endNav: (() => void) | null = null;
 
     const onClick = (e: MouseEvent) => {
       // Let the browser have the clicks it owns: new tab, save, middle-click.
@@ -60,6 +62,11 @@ export function NavGuard() {
       const to = href.split("#")[0].split("?")[0];
       if (to === from) return;
 
+      // Quieten the wall for the duration: fewer updates landing mid-render
+      // means the client-side navigation has a chance to finish on its own.
+      if (endNav) endNav();
+      endNav = navStarted();
+
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         // Still here? Then the transition never committed. Go properly.
@@ -73,11 +80,17 @@ export function NavGuard() {
     return () => {
       document.removeEventListener("click", onClick, true);
       if (timer) clearTimeout(timer);
+      if (endNav) endNav();
     };
-  }, []);
+  }, [pathname]);
 
-  // A committed navigation clears any pending fallback: the effect re-runs on
-  // pathname, and its cleanup cancels the timer.
+  /**
+   * Arrival releases everything.
+   *
+   * The listener effect above is keyed on the pathname, so a committed
+   * navigation tears it down — cancelling the fallback timer and ending the
+   * pause — and sets it up again for the page just arrived at.
+   */
   useEffect(() => undefined, [pathname]);
 
   return null;

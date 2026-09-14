@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { navPending } from "@/lib/nav-busy";
 
 /**
  * Making the dashboard feel live.
@@ -89,7 +90,16 @@ export function useLive(load: () => void | Promise<unknown>, opts: LiveOptions =
   ref.current = load;
 
   useEffect(() => {
-    const run = () => void ref.current();
+    /**
+     * Not while the app is trying to change page.
+     *
+     * Each refresh sets state, and state landing mid-navigation restarts the
+     * render the navigation is waiting on. Skipping a poll costs a panel one
+     * cycle of staleness on the page being left behind; not skipping it cost
+     * the navigation itself. The timer keeps its rhythm — the next tick after
+     * arrival refreshes as usual.
+     */
+    const run = () => { if (!navPending()) void ref.current(); };
 
     let timer: ReturnType<typeof setInterval> | null = null;
     const stop = () => { if (timer) { clearInterval(timer); timer = null; } };

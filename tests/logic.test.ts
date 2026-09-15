@@ -4725,3 +4725,52 @@ test("the study page's daily actions are on the page, not behind an overlay", as
   // shown, so -0.4% does not render as "0% BEHIND".
   assert.match(view, /const word = shown === 0 \? "ON TRACK"/);
 });
+
+test("every wall tab tiles its bands twelve wide", async () => {
+  const src = readFileSync("features/dashboard/components/command-view.tsx", "utf8");
+
+  /*
+   * A band that does not sum to twelve cannot close: dense packing backfills
+   * what fits and leaves a ragged edge with dead space beside it. The MIND
+   * tab shipped as 12, 18, 9 and looked, correctly, unfinished.
+   *
+   * Row-spans are checked too. Mixing a three-row tile into a band of
+   * two-row tiles is the other half of the same fault — the band's height
+   * comes from its tallest member and the short ones grow airy gaps.
+   */
+  const tabs = [...src.matchAll(/page === "(\w+)" && \(/g)].map((m) => m[1]);
+  assert.ok(tabs.length >= 5, "found the tab blocks");
+
+  const problems: string[] = [];
+  for (const tab of tabs) {
+    const start = src.indexOf(`page === "${tab}" && (`);
+    const end = src.indexOf('{page === "', start + 10);
+    const block = src.slice(start, end > 0 ? end : undefined);
+
+    // Anywhere in the class list, not only at its start: the atlas map
+    // carries `wall-map t-6x3`, and anchoring to the quote skipped it — which
+    // made this check accuse the overview, which tiles correctly.
+    const tiles = [...block.matchAll(/className="[^"]*\bt-(\d+)x(\d+)\b/g)]
+      .map((m) => ({ w: Number(m[1]), h: Number(m[2]) }));
+    if (!tiles.length) continue;
+
+    let width = 0;
+    let heights = new Set<number>();
+    for (const t of tiles) {
+      width += t.w;
+      heights.add(t.h);
+      if (width === 12) {
+        if (heights.size > 1) problems.push(`${tab}: a band mixes row-spans ${[...heights].join("/")}`);
+        width = 0;
+        heights = new Set();
+      } else if (width > 12) {
+        problems.push(`${tab}: a band overshoots twelve (${width})`);
+        width = 0;
+        heights = new Set();
+      }
+    }
+    if (width !== 0) problems.push(`${tab}: trailing band is ${width} wide, not 12`);
+  }
+
+  assert.deepEqual(problems, [], `walls that cannot tile:\n  ${problems.join("\n  ")}`);
+});

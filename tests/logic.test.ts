@@ -4697,3 +4697,31 @@ test("the syllabus can be edited without leaving the pane", async () => {
   assert.match(view, /const preview = parsed\.filter\(\(n\) => !have\.has\(n\.toLowerCase\(\)\)\)/);
   assert.match(view, /already in the syllabus/);
 });
+
+test("the study page's daily actions are on the page, not behind an overlay", async () => {
+  const raw = readFileSync("features/study/study-view.tsx", "utf8");
+  // Comments mention window.prompt to explain why it is not used; stripping
+  // them is the difference between checking the code and checking the prose.
+  const view = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+
+  // Logging time is the thing done every day. It was behind the magnify
+  // control — the rarest interaction guarding the commonest.
+  assert.match(view, /QUICK_MINUTES = \[15, 25, 45, 60, 90\]/);
+  assert.match(view, /<QuickLog subject=\{subject\}/);
+
+  // Nothing can be reached only through window.prompt: an installed PWA can
+  // suppress it, which would leave the only route to a new subject silently
+  // doing nothing.
+  assert.doesNotMatch(view, /window\.prompt/);
+
+  // The exam link must exist, or pace, the countdown and the days-to-exam
+  // figure have exactly one possible state: the message explaining why they
+  // are empty.
+  assert.match(view, /function ExamLink\(/);
+  assert.match(view, /examId: e\.target\.value/);
+  assert.match(view, /"\/api\/exam"/);
+
+  // A reading may not argue with itself: the word comes from the number
+  // shown, so -0.4% does not render as "0% BEHIND".
+  assert.match(view, /const word = shown === 0 \? "ON TRACK"/);
+});

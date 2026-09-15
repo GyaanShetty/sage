@@ -380,12 +380,26 @@ function SubjectWall({
           alert={drift !== null && drift < -0.2 ? "signal" : undefined}>
           {drift === null
             ? <Empty reason="Pace needs both an exam date and units to measure" />
-            : (
-              <>
-                <Stat v={`${drift >= 0 ? "+" : ""}${Math.round(drift * 100)}%`} k={drift >= 0 ? "AHEAD" : "BEHIND"} tone={drift >= 0 ? "up" : "down"} />
-                <Diverging rows={[{ label: "SYLLABUS", value: Math.round(drift * 100) }]} />
-              </>
-            )}
+            : (() => {
+              /*
+               * The word comes from the number shown, not the number behind
+               * it. A drift of -0.4% rounds to 0% and was labelled BEHIND —
+               * "0% BEHIND" is a reading that argues with itself, and on the
+               * day you set an exam it is the first thing the pane says.
+               */
+              const shown = Math.round(drift * 100);
+              const word = shown === 0 ? "ON TRACK" : shown > 0 ? "AHEAD" : "BEHIND";
+              return (
+                <>
+                  <Stat
+                    v={`${shown > 0 ? "+" : ""}${shown}%`}
+                    k={word}
+                    tone={shown === 0 ? undefined : shown > 0 ? "up" : "down"}
+                  />
+                  <Diverging rows={[{ label: "SYLLABUS", value: shown }]} />
+                </>
+              );
+            })()}
         </Pane></TileGuard></div>
 
         <div className="t-4x2"><TileGuard name="TARGET"><Pane n={8} title="This week" status={`TARGET ${subject.targetHoursPerWeek}H`}>

@@ -45,6 +45,21 @@ export function StudyView() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [tab, setTab] = useState<string>("all");
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+
+  /*
+   * The tab survives a reload.
+   *
+   * Read in an effect rather than during render: localStorage during render
+   * makes the server and client disagree and React throws the whole tree
+   * away. Same pattern as the dashboard's tabs.
+   */
+  useEffect(() => {
+    const saved = localStorage.getItem("sage-study-tab");
+    if (saved) setTab(saved);
+  }, []);
+  useEffect(() => { try { localStorage.setItem("sage-study-tab", tab); } catch {} }, [tab]);
 
   const load = useCallback(async () => {
     const j = await fetch("/api/study?days=120").then((r) => r.json()).catch(() => null);
@@ -82,7 +97,30 @@ export function StudyView() {
             <em>{i + 1}</em> {s.name.toUpperCase()}
           </button>
         ))}
-        <button className="wall-tab-add" onClick={() => void addSubject(post)}>+ SUBJECT</button>
+        {/* An inline field, not window.prompt — a browser dialog in the
+            middle of a terminal is jarring, and in an installed PWA it can be
+            suppressed outright, which makes the only way to add a subject
+            silently do nothing. */}
+        {adding ? (
+          <form
+            className="wall-tab-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const v = name.trim();
+              if (v) { void post({ name: v }); setName(""); }
+              setAdding(false);
+            }}
+          >
+            <input
+              autoFocus value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="SUBJECT NAME" aria-label="New subject name"
+              onKeyDown={(e) => { if (e.key === "Escape") { setAdding(false); setName(""); } }}
+              onBlur={() => { if (!name.trim()) setAdding(false); }}
+            />
+          </form>
+        ) : (
+          <button className="wall-tab-add" onClick={() => setAdding(true)}>+ SUBJECT</button>
+        )}
       </div>
 
       {tab === "all"
@@ -92,17 +130,12 @@ export function StudyView() {
               subject={current}
               sessions={sessions.filter((x) => x.subjectId === current.id)}
               exam={exams.find((e) => e.id === current.examId) ?? null}
+              exams={exams}
               days30={days30} days84={days84} post={post} busy={busy}
             />
           : null}
     </div>
   );
-}
-
-async function addSubject(post: (b: Record<string, unknown>) => Promise<void>) {
-  const name = window.prompt("Subject name (e.g. Operating Systems)")?.trim();
-  if (!name) return;
-  await post({ name });
 }
 
 /* ── every subject at once ───────────────────────────────────────────────── */
@@ -235,9 +268,9 @@ function Overview({
 /* ── one subject, in depth ───────────────────────────────────────────────── */
 
 function SubjectWall({
-  subject, sessions, exam, days30, days84, post, busy,
+  subject, sessions, exam, exams, days30, days84, post, busy,
 }: {
-  subject: Subject; sessions: Session[]; exam: Exam | null;
+  subject: Subject; sessions: Session[]; exam: Exam | null; exams: Exam[];
   days30: string[]; days84: string[];
   post: (b: Record<string, unknown>) => Promise<void>; busy: boolean;
 }) {
@@ -283,10 +316,10 @@ function SubjectWall({
 
         <div className="t-3x3"><TileGuard name="SCHEDULE"><Pane
           n={4} title="Timetable" status={`${(scheduledMinutes(subject) / 60).toFixed(1)}H/WK`}
-          edit={<SlotAdd subjectId={subject.id} post={post} busy={busy} />}
         >
+          <SlotAdd subjectId={subject.id} post={post} busy={busy} />
           {subject.slots.length === 0
-            ? <Empty reason="No slots — a subject with no time set aside usually gets none" />
+            ? <p className="sv-hint">A subject with no time set aside usually gets none.</p>
             : (
               <>
                 {subject.slots
@@ -373,19 +406,26 @@ function SubjectWall({
             : <Empty reason="No sessions logged yet" />}
         </Pane></TileGuard></div>
 
-        <div className="t-6x3"><TileGuard name="LOG"><Pane
-          n={12} title="Sessions" status={hours(totalMin)}
-          edit={<SessionAdd subject={subject} post={post} busy={busy} />}
-        >
-          {sessions.length === 0
-            ? <Empty reason="Nothing logged yet — SAGE can log these by voice too" />
-            : sessions.slice(0, 14).map((s) => (
-                <Row key={s.id}
-                  k={<>{new Date(s.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                    {s.unitId && <em className="sv-unit-tag">{subject.units.find((u) => u.id === s.unitId)?.name ?? ""}</em>}</>}
-                  v={`${s.minutes}M`}
-                />
-              ))}
+        <div className="t-6x3"><TileGuard name="LOG"><Pane n={12} title="Sessions" status={hours(totalMin)}>
+          {/*
+            Logging time is the thing you do every day, and it used to be
+            behind the magnify overlay — the rarest interaction on the pane
+            guarding the commonest. It is inline now, with the usual lengths
+            as one click each, because "45" is nearly always the answer and
+            typing it is a tax on doing the thing at all.
+          */}
+          <QuickLog subject={subject} post={post} busy={busy} />
+          <div className="sv-log">
+            {sessions.length === 0
+              ? <p className="sv-hint">Nothing logged yet — SAGE can take these by voice too: &ldquo;I did an hour of {subject.name} on paging&rdquo;.</p>
+              : sessions.slice(0, 12).map((x) => (
+                  <Row key={x.id}
+                    k={<>{new Date(x.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      {x.unitId && <em className="sv-unit-tag">{subject.units.find((u) => u.id === x.unitId)?.name ?? ""}</em>}</>}
+                    v={`${x.minutes}M`}
+                  />
+                ))}
+          </div>
         </Pane></TileGuard></div>
 
         <div className="t-3x3"><TileGuard name="BURNUP"><Pane n={13} title="Syllabus burn-up" status="UNITS DONE">
@@ -425,7 +465,14 @@ function SubjectWall({
           <Row k="Scheduled" v={`${(scheduledMinutes(subject) / 60).toFixed(1)}H / WEEK`} />
           <Row k="Actual" v={`${(weekly / 60).toFixed(1)}H / WEEK`} tone={weekly >= targetMin ? "up" : "down"} />
           <Row k="Units done" v={`${subject.units.filter((u) => u.doneAt).length} of ${subject.units.length}`} />
-          {exam && <Row k="Exam" v={new Date(exam.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} />}
+          {/*
+            The paper this is building towards.
+            Nothing could set this before, so "against the clock", the
+            days-to-exam figure and the whole pace column were unreachable —
+            a feature that could only ever display the message explaining why
+            it had nothing to show.
+          */}
+          <Row k="Exam" v={<ExamLink subject={subject} exams={exams} post={post} busy={busy} />} />
           {/* Deleting a subject takes its sessions' meaning with it, so it
               asks twice and says what is at stake rather than just "sure?". */}
           <Row k="Remove" v={<DeleteSubject subject={subject} busy={busy} />} />
@@ -613,6 +660,70 @@ function UnitEditor({
   );
 }
 
+function ExamLink({
+  subject, exams, post, busy,
+}: { subject: Subject; exams: Exam[]; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [creating, setCreating] = useState(false);
+  const [date, setDate] = useState("");
+  const linked = exams.find((e) => e.id === subject.examId) ?? null;
+
+  if (linked && !creating) {
+    return (
+      <span className="sv-confirm">
+        <b className="sv-examdate">{new Date(linked.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</b>
+        <button className="sv-linkbtn" disabled={busy} onClick={() => setCreating(true)}>CHANGE</button>
+      </span>
+    );
+  }
+
+  // Papers already in /exam, offered by name — a subject usually has one
+  // waiting there rather than needing a new one.
+  const candidates = exams.filter((e) => !e.doneAt);
+
+  return (
+    <span className="sv-examset">
+      {candidates.length > 0 && (
+        <select
+          className="sv-txt"
+          value={subject.examId ?? ""}
+          disabled={busy}
+          onChange={(e) => { if (e.target.value) void post({ id: subject.id, examId: e.target.value }); setCreating(false); }}
+        >
+          <option value="">— link a paper —</option>
+          {candidates.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.subject} · {new Date(e.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </option>
+          ))}
+        </select>
+      )}
+      <input
+        className="sv-txt"
+        type="date"
+        value={date}
+        disabled={busy}
+        onChange={(e) => setDate(e.target.value)}
+      />
+      <button
+        className="sv-linkbtn"
+        disabled={busy || !date}
+        onClick={async () => {
+          // Create the paper in /exam, then point the subject at it — one
+          // exam record, so the countdown on the dashboard and the pace here
+          // are the same date rather than two that can disagree.
+          const j = await fetch("/api/exam", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ subject: subject.name, at: new Date(`${date}T09:00`).toISOString(), syllabus: subject.units.map((u) => u.name).join("\n") }),
+          }).then((r) => r.json()).catch(() => null);
+          const id = j?.data?.id ?? j?.data;
+          if (typeof id === "string") await post({ id: subject.id, examId: id });
+          setCreating(false);
+        }}
+      >SET</button>
+    </span>
+  );
+}
+
 function DeleteSubject({ subject, busy }: { subject: Subject; busy: boolean }) {
   const [armed, setArmed] = useState(false);
   const units = subject.units.length;
@@ -656,24 +767,51 @@ function SlotAdd({ subjectId, post, busy }: { subjectId: string; post: (b: Recor
   );
 }
 
-function SessionAdd({ subject, post, busy }: { subject: Subject; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
-  const [minutes, setMinutes] = useState(45);
-  const [unitId, setUnitId] = useState<string>("");
-  const [note, setNote] = useState("");
-  const add = () => {
-    void post({ action: "session", subjectId: subject.id, session: { minutes, unitId: unitId || null, note } });
-    setNote("");
+/**
+ * Logging time, in one click where possible.
+ *
+ * The lengths are the ones a study session actually is — a pomodoro, half an
+ * hour, an hour — so the common case is a single tap and the uncommon one is
+ * still there in the box. The unit selector is optional and remembers nothing
+ * on purpose: attributing time to the wrong chapter quietly corrupts the only
+ * chart that says where the effort went.
+ */
+const QUICK_MINUTES = [15, 25, 45, 60, 90];
+
+function QuickLog({
+  subject, post, busy,
+}: { subject: Subject; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [unitId, setUnitId] = useState("");
+  const [custom, setCustom] = useState("");
+
+  const log = (minutes: number) => {
+    if (!minutes || minutes < 1) return;
+    void post({ action: "session", subjectId: subject.id, session: { minutes, unitId: unitId || null } });
+    setCustom("");
   };
+
   return (
-    <div className="sv-add">
-      <input type="number" min={1} max={600} step={5} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} title="Minutes" />
-      <select value={unitId} onChange={(e) => setUnitId(e.target.value)}>
-        <option value="">— whole subject —</option>
-        {subject.units.map((u: Unit) => <option key={u.id} value={u.id}>{u.name}</option>)}
-      </select>
-      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="WHAT YOU COVERED"
-        onKeyDown={(e) => e.key === "Enter" && add()} />
-      <button onClick={add} disabled={busy}>LOG</button>
+    <div className="sv-quick">
+      <div className="sv-quick-row">
+        {QUICK_MINUTES.map((m) => (
+          <button key={m} disabled={busy} onClick={() => log(m)} title={`Log ${m} minutes`}>{m}M</button>
+        ))}
+        <input
+          type="number" min={1} max={600} placeholder="…"
+          value={custom}
+          disabled={busy}
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") log(Number(custom)); }}
+        />
+        <button className="go" disabled={busy || !custom} onClick={() => log(Number(custom))}>LOG</button>
+      </div>
+      {subject.units.length > 0 && (
+        <select value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled={busy}>
+          <option value="">against the whole subject</option>
+          {subject.units.map((u: Unit) => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      )}
     </div>
   );
 }
+

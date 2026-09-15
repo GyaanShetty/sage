@@ -80,6 +80,42 @@
 .sv-bulk-foot button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
 .sv-bulk-foot button:disabled { opacity: 0.4; cursor: default; }
 
+/* One-click session lengths. The commonest action on the page, so it sits at
+   the top of the pane rather than behind the magnify control. */
+.sv-quick { display: flex; flex-direction: column; gap: 5px; padding-bottom: 7px; margin-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.sv-quick-row { display: flex; gap: 4px; align-items: center; }
+.sv-quick button {
+  flex: 1; background: var(--panel); border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--muted); cursor: pointer; padding: 6px 0;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+}
+.sv-quick button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.sv-quick button:disabled { opacity: 0.4; cursor: default; }
+.sv-quick input {
+  width: 48px; background: var(--panel); border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--foreground); font-family: var(--mono); font-size: 10px; padding: 6px 4px; text-align: center;
+}
+.sv-quick .go { flex: 0 0 auto; padding: 6px 9px; }
+.sv-quick select {
+  background: none; border: 0; border-bottom: 1px solid var(--rule); color: var(--muted);
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em; padding: 2px 0; width: 100%;
+}
+.sv-log { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.sv-log::-webkit-scrollbar { display: none; }
+
+/* Adding a subject: an inline field in the tab strip. */
+.wall-tab-form { display: flex; align-items: center; margin-left: auto; padding: 0 8px; }
+.wall-tab-form input {
+  background: var(--panel); border: 1px solid var(--signal-dim); border-radius: 4px;
+  color: var(--foreground); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  padding: 6px 9px; width: 170px;
+}
+.wall-tab-form input:focus { outline: none; }
+
+.sv-examset { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.sv-examset select, .sv-examset input { font-size: 10px; }
+.sv-examdate { font-family: var(--mono); font-weight: 400; }
+
 .sv-tones { display: inline-flex; gap: 4px; }
 .sv-tones button { width: 12px; height: 12px; border: 1px solid transparent; border-radius: 2px; cursor: pointer; padding: 0; }
 .sv-tones button.on { border-color: var(--foreground); }

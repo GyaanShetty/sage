@@ -22,24 +22,37 @@ import { PAGES } from "./pages";
  * row at F5.
  */
 
-/** href → the label on the key. Order is the order along the rail. */
-const KEYS: { fn: number; href: string; label: string }[] = [
-  { fn: 5, href: "/dashboard", label: "DESK" },
-  { fn: 6, href: "/ops", label: "OPS" },
-  { fn: 7, href: "/workspace", label: "TASKS" },
-  { fn: 8, href: "/sitrep", label: "SIGNALS" },
-  { fn: 9, href: "/memory", label: "MEMORY" },
-  { fn: 10, href: "/health", label: "BIO" },
-  { fn: 11, href: "/mail", label: "WIRE" },
-  { fn: 12, href: "/calendar", label: "CALENDAR" },
-  { fn: 13, href: "/markets", label: "MARKETS" },
-  // The semester deserves a key: it is checked daily during term and buried
-  // in a launcher group otherwise.
-  { fn: 14, href: "/study", label: "STUDY" },
+/*
+ * The keys, by destination only.
+ *
+ * The labels used to be written here by hand, and five of the ten disagreed
+ * with the wheel: F5 said DESK for a page the wheel called Dashboard, F7 said
+ * TASKS for Workspace, F10 BIO for Health, F11 WIRE for Mail, F8 SIGNALS for
+ * Sitrep. Three naming systems for the same ten pages — the breadcrumb, the
+ * wheel and the rail — so nothing you learned in one place helped you in
+ * another.
+ *
+ * The label now comes from PAGES, which the wheel and the launcher already
+ * read. A page renamed once is renamed everywhere, and a key cannot drift
+ * from the thing it opens.
+ */
+const KEYS: { fn: number; href: string }[] = [
+  { fn: 5, href: "/dashboard" },
+  { fn: 6, href: "/ops" },
+  { fn: 7, href: "/workspace" },
+  { fn: 8, href: "/sitrep" },
+  { fn: 9, href: "/memory" },
+  { fn: 10, href: "/health" },
+  { fn: 11, href: "/mail" },
+  { fn: 12, href: "/calendar" },
+  { fn: 13, href: "/markets" },
+  { fn: 14, href: "/study" },
 ];
 
 /** Every key must point at a page that exists — a dead key is worse than none. */
-export const FN_KEYS = KEYS.filter((k) => PAGES.some((p) => p.href === k.href));
+export const FN_KEYS = KEYS
+  .map((k) => ({ ...k, label: PAGES.find((p) => p.href === k.href)?.label.toUpperCase() ?? "" }))
+  .filter((k) => k.label);
 
 export function FnRail() {
   const router = useRouter();

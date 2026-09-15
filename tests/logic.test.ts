@@ -4774,3 +4774,82 @@ test("every wall tab tiles its bands twelve wide", async () => {
 
   assert.deepEqual(problems, [], `walls that cannot tile:\n  ${problems.join("\n  ")}`);
 });
+
+test("mail arrives as words, not as entities", async () => {
+  const { decodeEntities, plainText } = await import("@/lib/entities");
+
+  // The exact strings from the morning brief.
+  assert.equal(decodeEntities("You&#39;re receiving this"), "You're receiving this");
+  assert.equal(decodeEntities("Here&#39;s Subash Hegde&#39;s new photo"), "Here's Subash Hegde's new photo");
+  assert.equal(decodeEntities("Now&#39;s the time"), "Now's the time");
+
+  // Hex and named forms, and the curly quotes mail is full of.
+  assert.equal(decodeEntities("it&#x2019;s"), "it’s");
+  assert.equal(decodeEntities("a &amp; b"), "a & b");
+  assert.equal(decodeEntities("&ldquo;quoted&rdquo;"), "“quoted”");
+  assert.equal(decodeEntities("caf&eacute;"), "café");
+
+  // &amp; is decoded last, or a literal "&amp;lt;" becomes "<" — a different
+  // string from the one that was sent.
+  assert.equal(decodeEntities("&amp;lt;"), "&lt;");
+
+  // An entity nobody knows is left alone rather than guessed at: inventing a
+  // character is a silent edit to someone's words.
+  assert.equal(decodeEntities("&notarealentity;"), "&notarealentity;");
+
+  // Cheap exits and junk input.
+  assert.equal(decodeEntities("no entities here"), "no entities here");
+  assert.equal(decodeEntities(""), "");
+  // A NUL entity is junk and goes; an out-of-range one is left exactly as it
+  // arrived, because deleting text you failed to parse is worse than showing
+  // it unparsed.
+  assert.equal(decodeEntities("&#0;"), "");
+  assert.equal(decodeEntities("&#99999999;"), "&#99999999;");
+
+  assert.equal(plainText("<p>Hello&nbsp;&amp; welcome</p>"), "Hello & welcome");
+
+  // Decoding happens where mail enters, so every reader downstream — the
+  // brief, the panes, triage, the voice reply — gets it once.
+  const strip = (f: string) => readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(strip("infrastructure/integrations/google.ts"), /snippet: decodeEntities\(/);
+  assert.match(strip("infrastructure/integrations/outlook.ts"), /preview: decodeEntities\(/);
+});
+
+test("one name per page, everywhere it appears", async () => {
+  const rail = readFileSync("features/shell/components/fn-rail.tsx", "utf8");
+
+  /*
+   * Five of the ten function keys used to disagree with the wheel — DESK for
+   * a page called Dashboard, TASKS for Workspace, BIO for Health, WIRE for
+   * Mail, SIGNALS for Sitrep. Three naming systems for ten pages means
+   * nothing learned in one place helps in another.
+   */
+  assert.doesNotMatch(rail, /\{ fn: \d+, href: "[^"]+", label: "/, "labels must not be hand-written on the rail");
+  assert.match(rail, /PAGES\.find\(\(p\) => p\.href === k\.href\)\?\.label/);
+
+  // Every key still points at a page that exists.
+  const pages = readFileSync("features/shell/components/pages.ts", "utf8");
+  const known = new Set([...pages.matchAll(/href: "(\/[a-z-]+)"/g)].map((m) => m[1]));
+  const targets = [...rail.matchAll(/\{ fn: \d+, href: "(\/[a-z-]+)" \}/g)].map((m) => m[1]);
+  assert.ok(targets.length >= 8, "the rail has its keys");
+  assert.deepEqual(targets.filter((h) => !known.has(h)), [], "a key points at a page the wheel does not know");
+});
+
+test("nothing in the wheel leads to a page that does not exist", async () => {
+  const { readdirSync, existsSync } = await import("node:fs");
+  const shell = "app/(shell)";
+  const routes = new Set(
+    readdirSync(shell, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && existsSync(`${shell}/${d.name}/page.tsx`))
+      .map((d) => `/${d.name}`),
+  );
+
+  const pages = readFileSync("features/shell/components/pages.ts", "utf8");
+  const dead = [...pages.matchAll(/\{ href: "(\/[a-z-]+)", label: "([^"]+)"/g)]
+    .filter((m) => !routes.has(m[1]))
+    .map((m) => `${m[2]} → ${m[1]}`);
+
+  // A wheel entry with a subtitle and no route is a dead click, and the
+  // subtitle makes it look deliberate.
+  assert.deepEqual(dead, [], `wheel entries with no page: ${dead.join(", ")}`);
+});

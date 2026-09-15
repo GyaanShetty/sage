@@ -1,5 +1,6 @@
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { proxyFetch } from "@/infrastructure/http/fetch";
+import { decodeEntities } from "@/lib/entities";
 import { TZ } from "@/lib/config";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -274,7 +275,7 @@ export async function listUnreadEmails(maxResults = 5): Promise<EmailSummary[] |
       id: msg.id,
       from: header("From"),
       subject: header("Subject"),
-      snippet: detail.snippet ?? "",
+      snippet: decodeEntities(detail.snippet ?? ""),
       important: detail.labelIds?.includes("IMPORTANT") ?? false,
     });
   }
@@ -413,7 +414,7 @@ export async function getGmailMessage(id: string): Promise<EmailFull | null> {
     to: header("To"),
     subject: header("Subject"),
     date: m.internalDate ? new Date(Number(m.internalDate)).toISOString() : "",
-    snippet: m.snippet ?? "",
+    snippet: decodeEntities(m.snippet ?? ""),
     body: extractBody(m.payload).slice(0, 20_000),
     labelIds: m.labelIds ?? [],
     unread: (m.labelIds ?? []).includes("UNREAD"),
@@ -487,7 +488,7 @@ export async function listGmail(query: string, maxResults = 25): Promise<(EmailS
         id: msg.id,
         from: header("From"),
         subject: header("Subject"),
-        snippet: d.snippet ?? "",
+        snippet: decodeEntities(d.snippet ?? ""),
         date: d.internalDate ? new Date(Number(d.internalDate)).toISOString() : "",
         unread: (d.labelIds ?? []).includes("UNREAD"),
         important: (d.labelIds ?? []).includes("IMPORTANT"),

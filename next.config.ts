@@ -54,6 +54,25 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
   },
 
+  /**
+   * The URL a page's name implies should reach it.
+   *
+   * The wheel calls /education "Skills", so typing /skills is the obvious
+   * move and used to 404 — the label and the address disagreed, which reads
+   * as a dead entry rather than a renamed one. Same for /boards against the
+   * route /board.
+   *
+   * Redirects rather than renamed routes: the existing addresses are in
+   * bookmarks, in the launcher and in links SAGE has already written into
+   * notes, and breaking those to tidy a name is a bad trade.
+   */
+  async redirects() {
+    return [
+      { source: "/skills", destination: "/education", permanent: false },
+      { source: "/boards", destination: "/board", permanent: false },
+    ];
+  },
+
   // The server's name and version is free reconnaissance.
   poweredByHeader: false,
 };

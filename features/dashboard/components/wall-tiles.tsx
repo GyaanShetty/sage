@@ -6,6 +6,8 @@ import { Pane, Row, Stat, Empty } from "@/components/pane";
 import { PaneForm } from "@/components/pane-form";
 import { Wave, BarStrip } from "@/components/instruments";
 import { useLive } from "@/lib/live";
+import { useFeed, isStale } from "@/lib/feed";
+import { Fresh } from "@/components/fresh";
 import { asArray } from "@/lib/as-array";
 import { TZ } from "@/lib/config";
 
@@ -257,12 +259,25 @@ export function MissionTile({
   const [btc, setBtc] = useState<number | null>(null);
   const [unread, setUnread] = useState<number | null>(null);
   const [budget, setBudget] = useState<{ spent: number; total: number } | null>(null);
+  /*
+   * The temperature is fetched here, not taken from the server prop.
+   *
+   * The prop is the reading at page render; the Outside pane on the Body tab
+   * refetches /api/weather every fifteen minutes. So the two drifted apart and
+   * the same metric read 20° on one tab and 25° on another. One source, one
+   * number — a dashboard that contradicts itself is worse than one that omits
+   * the figure.
+   */
+  const [temp, setTemp] = useState<number | null>(null);
 
   useLive(() => fetch("/api/markets").then((r) => r.json())
     .then((j) => setBtc(asArray<Coin>(j?.data).find((c) => c.symbol === "BTC")?.price ?? null)).catch(() => {}),
     { everyMs: 120_000 });
   useLive(() => fetch("/api/mail?box=unread").then((r) => r.json())
     .then((j) => setUnread(asArray(j?.data?.messages).length)).catch(() => {}), { everyMs: 300_000 });
+  useLive(() => fetch("/api/weather").then((r) => r.json())
+    .then((j) => setTemp(typeof j?.data?.temp === "number" ? j.data.temp : null)).catch(() => {}),
+    { everyMs: 900_000 });
   useLive(() => fetch("/api/budget").then((r) => r.json())
     .then((j) => {
       const st = j?.data?.status;
@@ -278,7 +293,11 @@ export function MissionTile({
       <Row k="Inbox" v={unread != null ? `${unread} unread` : "—"} />
       <Row k="Memory" v={`${memories.toLocaleString("en-IN")} held`} />
       <Row k="Agent" v={agentRunning ? "Running" : `${runs} runs`} tone={agentRunning ? "signal" : "muted"} />
-      {weather && <Row k="Outside" v={weather.toUpperCase()} />}
+      {/* Falls back to the server-rendered prop only until the live fetch
+          lands, so the first paint is not a dash. */}
+      {(temp !== null || weather) && (
+        <Row k="Outside" v={temp !== null ? `${Math.round(temp)}°` : weather!.toUpperCase()} />
+      )}
       <Row k="Sage" v="Nominal" tone="muted" />
     </Pane>
   );
@@ -418,13 +437,18 @@ export function ClocksTile({ n }: { n?: number }) {
    Moon phase drawn from the illuminated fraction the sky endpoint already
    computes, plus sunrise and sunset. */
 export function SkyTile({ n }: { n?: number }) {
-  const [sky, setSky] = useState<{
+  /*
+   * useFeed, not a bare setState: a failed refresh used to blank the pane, so
+   * the same component showed a full reading on one tab and an empty disc
+   * with dashes on another. The last good sky is kept and labelled with the
+   * time it arrived.
+   */
+  const feed = useFeed<{
     moon: { phase: number; illum: number; name: string };
     sun?: { sunrise: string; sunset: string };
     iss?: { alt: number; vel: number };
-  } | null>(null);
-
-  useLive(() => fetch("/api/sky").then((r) => r.json()).then((j) => setSky(j?.data ?? null)).catch(() => {}), { everyMs: 900_000 });
+  }>("/api/sky", { everyMs: 900_000 });
+  const sky = feed.data;
 
   const clock = (iso?: string) => (iso
     ? new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso))
@@ -435,7 +459,7 @@ export function SkyTile({ n }: { n?: number }) {
   const waxing = (sky?.moon.phase ?? 0) < 0.5;
 
   return (
-    <Pane n={n} title="Sky" status={sky ? "LIVE" : "…"} live={!!sky}>
+    <Pane n={n} title="Sky" status={<Fresh feed={feed} />} live={!!sky && !isStale(feed.at)}>
       <div className="moonrow">
         <svg className="moon" viewBox="0 0 40 40" aria-hidden>
           <circle cx="20" cy="20" r="16" fill="var(--hairbg)" />

@@ -311,27 +311,28 @@ export function CommandView({
       )}
 
       {page === "mind" && (
+        /*
+         * Bands of twelve, every tile in a band the same height.
+         *
+         * This tab was 12, then 18, then 9 columns wide — the spans did not
+         * tile, so dense packing backfilled what it could and left ragged
+         * edges with dead gaps in the middle. A band has to sum to twelve and
+         * its tiles have to share a row-span, or the grid cannot close.
+         */
         <div className="wall-pack">
-          {/* The semester, on the wall you already look at. Same /api/study
-              the study page reads, so the two cannot disagree. */}
           <div className="t-3x3"><TileGuard name="STUDY"><StudyTile n={49} /></TileGuard></div>
           <div className="t-3x3"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
           <div className="t-6x3"><TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard></div>
+
           <div className="t-6x3"><TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard></div>
 
-          <div className="t-4x2"><TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard></div>
           <div className="t-4x2"><TileGuard name="READING"><ReadingTile n={47} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={44} /></TileGuard></div>
 
-          <div className="t-3x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={48} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="REVIEW2"><ReviewTile n={31} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="GROWTH2"><GrowthTile n={29} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="CALIBRATION2"><CalibrationTile n={34} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="SKILLS2"><SkillsTile n={41} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="DECISIONS2"><DecisionsTile n={43} /></TileGuard></div>
+          <div className="t-12x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
         </div>
       )}
 

@@ -196,11 +196,15 @@ function Overview({
         </Pane></TileGuard></div>
 
         <div className="t-6x2"><TileGuard name="DAILY"><Pane n={5} title="Minutes a day" status="30 DAYS" live>
-          <Area data={allMinutes} height={70} />
+          {sessions.length
+            ? <Area data={allMinutes} height={70} />
+            : <Empty reason="Nothing logged in the last 30 days — open a subject tab to log time" />}
         </Pane></TileGuard></div>
 
         <div className="t-6x2"><TileGuard name="HEAT"><Pane n={6} title="Study heat" status="12 WEEKS">
-          <Heat days={heat} weeks={12} />
+          {sessions.length
+            ? <Heat days={heat} weeks={12} />
+            : <Empty reason="No study logged in the last 12 weeks — open a subject tab to log time" />}
         </Pane></TileGuard></div>
 
         <div className="t-4x2"><TileGuard name="BALANCE"><Pane n={7} title="Balance" status="MINUTES">
@@ -233,8 +237,10 @@ function Overview({
 
         <div className="t-6x2"><TileGuard name="CUMULATIVE"><Pane n={11} title="Hours, cumulative" status="30 DAYS">
           {/* The shape of a term: flat stretches are the weeks that got away. */}
-          <Area data={allMinutes.reduce<number[]>((acc, v) => [...acc, (acc[acc.length - 1] ?? 0) + v], [])}
-            height={70} baseline={false} />
+          {sessions.length
+            ? <Area data={allMinutes.reduce<number[]>((acc, v) => [...acc, (acc[acc.length - 1] ?? 0) + v], [])}
+                height={70} baseline={false} />
+            : <Empty reason="The curve starts with your first logged session — open a subject tab to log time" />}
         </Pane></TileGuard></div>
 
         <div className="t-12x2"><TileGuard name="TABLE"><Pane n={12} title="Every subject" status={`${subjects.length} TRACKED`}>
@@ -369,11 +375,15 @@ function SubjectWall({
         </Pane></TileGuard></div>
 
         <div className="t-6x2"><TileGuard name="DAILY"><Pane n={5} title="Minutes a day" status="30 DAYS" live>
-          <Area data={daily} height={72} tone={tone} />
+          {sessions.length
+            ? <Area data={daily} height={72} tone={tone} />
+            : <Empty reason={`Nothing logged against ${subject.name} yet`} action="Log a session" href="#study-log" />}
         </Pane></TileGuard></div>
 
         <div className="t-6x2"><TileGuard name="CUMULATIVE"><Pane n={6} title="Hours, cumulative" status="30 DAYS">
-          <Area data={cumulative} height={72} tone={tone} baseline={false} />
+          {sessions.length
+            ? <Area data={cumulative} height={72} tone={tone} baseline={false} />
+            : <Empty reason="The curve starts with your first logged session" action="Log a session" href="#study-log" />}
         </Pane></TileGuard></div>
 
         <div className="t-4x2"><TileGuard name="PACE"><Pane n={7} title="Against the clock" status={exam ? "VS EXAM" : "NO EXAM SET"}
@@ -805,7 +815,7 @@ function QuickLog({
   };
 
   return (
-    <div className="sv-quick">
+    <div className="sv-quick" id="study-log">
       <div className="sv-quick-row">
         {QUICK_MINUTES.map((m) => (
           <button key={m} disabled={busy} onClick={() => log(m)} title={`Log ${m} minutes`}>{m}M</button>

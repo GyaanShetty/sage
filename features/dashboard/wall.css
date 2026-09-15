@@ -676,3 +676,24 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
    the wrong direction for that dependency to run. The pane fills the wrapper. */
 .wall-pack > div { display: flex; flex-direction: column; min-height: 0; }
 .wall-pack > div > * { flex: 1; min-height: 0; }
+
+
+/* ── phones ───────────────────────────────────────────────────────────────
+   Below this a two-column wall puts two 7px numbers side by side, which is
+   not a dense readout — it is an unreadable one. One column, and the type
+   goes back up to a size a phone can actually show. */
+@media (max-width: 620px) {
+  .wall-pack { grid-template-columns: 1fr; }
+  .wall-pack > *, .wall-pack > .t-3x2 { grid-column: span 1 !important; min-height: 168px; }
+
+  .wall .pane-t { font-size: 11px; }
+  .wall .pane-s { font-size: 9px; }
+  .wall .trow-k, .wall .trow-v { font-size: 11px; }
+  .wall .tstat-v { font-size: 20px; }
+  .wall .tstat-k { font-size: 8px; }
+  .wall .tile-cap { font-size: 8px; }
+
+  /* The wheel handle gutter is not needed once the wall is a single
+     column — the handle overlaps the page margin, not a pane. */
+  main.hud-grid { padding-left: 8px; }
+}

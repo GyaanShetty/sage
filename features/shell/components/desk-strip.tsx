@@ -66,7 +66,10 @@ export function DeskStrip() {
       {cell(d ? commitment(d.committedMin) : "··", "COMMITTED")}
       {cell(d ? pad(d.agentRuns) : "··", "AGENT RUNS")}
       {cell(d ? pad(d.alerts) : "··", "ALERTS", d && d.alerts ? "down" : undefined)}
-      {cell(d ? `${d.uplinkMs}MS` : "··", "UPLINK", d && d.uplinkMs < 800 ? "up" : "down")}
+      {/* Time the desk query itself took, server-side — not a network ping.
+          Key Metrics shows the browser's round trip separately, and the two
+          disagreeing is expected once they are labelled apart. */}
+      {cell(d ? `${d.uplinkMs}MS` : "··", "DESK QUERY", d && d.uplinkMs < 800 ? "up" : "down")}
       {/*
         The exam countdown, moved out of the full-width strip it used to
         occupy above the wall. Same reading, one cell, and a link because the

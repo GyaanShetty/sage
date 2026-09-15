@@ -139,7 +139,16 @@ export function KeyMetricsTile({
         <Stat v={pad(open)} k="Tasks" />
         <Stat v={signals != null ? pad(signals) : "—"} k="Signals" />
         <Stat v={`${Math.floor(focusMin / 60)}H${pad(focusMin % 60)}`} k="Focus" />
-        <Stat v={latency != null ? `${latency}MS` : "—"} k="Latency" tone={latency != null && latency < 600 ? "up" : "signal"} />
+        {/*
+          Named for what it measures, not "latency".
+          Three different millisecond figures were on screen at once — this
+          one, the header's UPLINK, and the sitrep's — all labelled as though
+          they were the same measurement. This is a round trip to SAGE's own
+          health endpoint from this browser; UPLINK is how long the desk
+          figures took to gather server-side. Different questions, different
+          answers, and now different words.
+        */}
+        <Stat v={latency != null ? `${latency}MS` : "—"} k="Ping · this device" tone={latency != null && latency < 600 ? "up" : "signal"} />
         <Stat v={v ? `${v.healthyKeys}/${v.keys.length}` : "—"} k="Keys" />
         <Stat v={v ? (v.healthyKeys === v.keys.length ? "OK" : "DEG") : "—"} k="Models" tone={v && v.healthyKeys < v.keys.length ? "down" : "up"} />
       </div>

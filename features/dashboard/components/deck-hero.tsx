@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { APP_NAME } from "@/lib/config";
+import { AsciiMark } from "@/components/ascii/mark";
 
 /**
  * The centre: a wordmark and the one place you can just say what you want.
@@ -44,10 +45,14 @@ export function DeckHero() {
 
   return (
     <div className="deck-hero">
-      {/* aria-label so a screen reader gets the name once, not letter by
-          letter as the spacing would otherwise have it read. */}
+      {/*
+        The name in block glyphs, assembling out of noise on arrival.
+        aria-label on the <pre> carries the word for a screen reader; the art
+        itself is six lines of box-drawing characters and reads as gibberish
+        aloud.
+      */}
       <h2 className="deck-word" aria-label={APP_NAME}>
-        <span aria-hidden>{APP_NAME}</span>
+        <AsciiMark label={APP_NAME} />
       </h2>
 
       <form

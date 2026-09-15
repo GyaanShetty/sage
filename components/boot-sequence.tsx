@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { SageSigil } from "@/components/ui/sage-sigil";
+import { AsciiMark } from "@/components/ascii/mark";
+import { AsciiMeter } from "@/components/ascii/motifs";
 import { sound } from "@/lib/sound";
 
 const LINES = [
@@ -53,7 +54,10 @@ export function BootSequence() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
-            <SageSigil size={150} words={step >= 2} />
+            {/* The wordmark assembles out of noise while the checks run — the
+                boot screen is the one place a decrypt effect is literally
+                what is happening. */}
+            <AsciiMark className="boot-mark" />
           </motion.div>
           <div className="boot-lines">
             {LINES.slice(0, step).map((l, i) => (
@@ -67,7 +71,9 @@ export function BootSequence() {
               </motion.div>
             ))}
           </div>
-          <div className="boot-bar"><motion.span initial={{ width: "0%" }} animate={{ width: `${(step / LINES.length) * 100}%` }} transition={{ ease: "easeOut" }} /></div>
+          {/* This one is determinate — it counts real checks — so it gets the
+              filled meter rather than the indeterminate sweep. */}
+          <AsciiMeter value={step / LINES.length} width={28} className="boot-meter" />
         </motion.div>
       )}
     </AnimatePresence>

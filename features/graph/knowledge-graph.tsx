@@ -7,6 +7,13 @@ interface GNode { id: string; label: string; kind: string; group: string; weight
 interface GEdge { a: string; b: string }
 interface Sim extends GNode { x: number; y: number; vx: number; vy: number }
 
+/** A stable small integer from a node id — same graph shape every reload. */
+function hashOf(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return Math.abs(h);
+}
+
 const COLOR: Record<string, string> = { memory: "#f4f5f7", note: "#e8e9ec", source: "#ff3b30" };
 
 export function KnowledgeGraph() {
@@ -56,9 +63,27 @@ export function KnowledgeGraph() {
         // Reuse a prior position if this node already existed, so live updates
         // grow the graph smoothly instead of reshuffling everything.
         const prev = prevPos.get(n.id);
+        /*
+         * Jitter, or the ring never breaks.
+         *
+         * Nodes were seeded on a perfect circle and every force here is
+         * symmetric — equal repulsion between equal neighbours, a centre pull
+         * that is the same in all directions. A symmetric arrangement under
+         * symmetric forces stays symmetric forever, so the simulation ran and
+         * the layout never moved: a ring of dots, which reads as a force
+         * layout that failed to start.
+         *
+         * The offset is derived from the node's id rather than Math.random,
+         * so the graph settles into the same shape on every reload instead of
+         * rearranging itself each time you open the page.
+         */
+        const h = hashOf(n.id);
+        const jx = ((h % 1000) / 1000 - 0.5) * R * 0.55;
+        const jy = (((h >> 10) % 1000) / 1000 - 0.5) * R * 0.55;
+
         const s: Sim = prev
           ? { ...n, x: prev.x, y: prev.y, vx: 0, vy: 0 }
-          : { ...n, x: cx + Math.cos(ang) * R, y: cy + Math.sin(ang) * R, vx: 0, vy: 0 };
+          : { ...n, x: cx + Math.cos(ang) * R + jx, y: cy + Math.sin(ang) * R + jy, vx: 0, vy: 0 };
         byId.set(n.id, s); return s;
       });
       edges = pendingEdges
@@ -159,8 +184,22 @@ export function KnowledgeGraph() {
         ctx.fillStyle = col; ctx.globalAlpha = near ? 1 : 0.85; ctx.fill();
         ctx.globalAlpha = 0.12; ctx.beginPath(); ctx.arc(n.x, n.y, r + 6, 0, Math.PI * 2); ctx.fillStyle = col; ctx.fill();
         ctx.globalAlpha = 1;
-        if (near || n.weight > 1.6) {
-          ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = near ? "#eef2f2" : "rgba(238,242,242,0.5)"; ctx.textAlign = "center";
+        /*
+         * Labels, on a graph small enough to read.
+         *
+         * The rule was `near || weight > 1.6`, and almost nothing reaches
+         * 1.6 — so a graph of thirty nodes drew thirty unlabelled dots and
+         * you had to hover each one to learn what it was. A mind map whose
+         * nodes are anonymous is a screensaver.
+         *
+         * Above sixty nodes the labels would overlap into mush, so there the
+         * old weight gate still applies and hovering is the way in.
+         */
+        const labelled = near || nodes.length <= 60 || n.weight > 1.6;
+        if (labelled) {
+          ctx.font = "10px 'JetBrains Mono', monospace";
+          ctx.fillStyle = near ? "#eef2f2" : `rgba(238,242,242,${Math.min(0.78, 0.4 + n.weight * 0.2)})`;
+          ctx.textAlign = "center";
           ctx.fillText(n.label.slice(0, near ? 40 : 18), n.x, n.y - r - 6);
         }
       }

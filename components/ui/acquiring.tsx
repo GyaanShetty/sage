@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AsciiScan, AsciiSpinner } from "@/components/ascii/motifs";
 
 /**
  * SAGE's loading state.
@@ -39,7 +40,7 @@ export function Acquiring({
   return (
     <div className={`acq ${className ?? ""}`} role="status" aria-live="polite">
       <div className="rail">
-        <span className="sig-dot on" />
+        <AsciiSpinner />
         <span className="k">ACQUIRING</span>
         <span className="v">{label}</span>
         <span className="sep" />
@@ -47,7 +48,10 @@ export function Acquiring({
             a counter that appears instantly makes every fetch feel laboured. */}
         <span className="v">{ms > 1200 ? `${(ms / 1000).toFixed(1)}s` : ""}</span>
       </div>
-      <div className="acq-scan" aria-hidden="true"><i /></div>
+      {/* The sweep is characters now rather than a CSS bar — same honesty
+          about being indeterminate, in the alphabet the rest of the screen
+          is written in. */}
+      <div className="acq-scan" aria-hidden="true"><AsciiScan width={26} /></div>
     </div>
   );
 }

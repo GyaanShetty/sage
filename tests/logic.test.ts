@@ -4853,3 +4853,32 @@ test("nothing in the wheel leads to a page that does not exist", async () => {
   // subtitle makes it look deliberate.
   assert.deepEqual(dead, [], `wheel entries with no page: ${dead.join(", ")}`);
 });
+
+test("the font tokens are declared where the fonts exist", async () => {
+  const css = readFileSync("app/globals.css", "utf8");
+
+  /*
+   * next/font puts --font-mono-f on <body>. A custom property that references
+   * an undefined variable is invalid at computed-value time: it resolves to
+   * the empty string and inherits that way, and is NOT re-evaluated further
+   * down where the variable does exist.
+   *
+   * So --mono declared on :root expanded to nothing on every element in the
+   * application. Pane titles, row labels, the desk figures and every number
+   * meant to be tabular fell back to ui-sans-serif — a terminal that never
+   * rendered in a terminal face. Nothing in the type system, the linter, the
+   * build or the tests can see a font; it took measuring one.
+   */
+  const rootBlock = css.slice(css.indexOf(":root {"), css.indexOf("}", css.indexOf(":root {")));
+  for (const token of ["--mono:", "--disp:", "--brand:"]) {
+    assert.ok(!rootBlock.includes(token), `${token} must not be declared on :root — the font variables are not there`);
+  }
+
+  const bodyBlock = css.slice(css.indexOf("body {"), css.indexOf("}", css.indexOf("body {")));
+  assert.match(bodyBlock, /--mono: var\(--font-mono-f\)/);
+  assert.match(bodyBlock, /--disp: var\(--font-disp\)/);
+
+  // And a real fallback stack, so a failed webfont still lands on something
+  // fixed-width rather than on whatever the body happens to inherit.
+  assert.match(bodyBlock, /--mono:[^;]*monospace/);
+});

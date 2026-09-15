@@ -73,8 +73,33 @@
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1); /* spring-like, no bounce */
   --radius: 0;
+  /*
+   * The font tokens live on body, not here. See below.
+   */
+}
+
+/*
+ * Font tokens, declared where the fonts actually are.
+ *
+ * next/font puts --font-mono-f, --font-disp and --font-brand on <body>. These
+ * three were declared on :root, one level above — and a custom property whose
+ * value references an undefined variable is invalid at computed-value time,
+ * which resolves to the empty string and inherits that way to every
+ * descendant. It does not get re-evaluated further down where the font
+ * variable does exist.
+ *
+ * So `font-family: var(--mono)` was expanding to nothing on every element in
+ * the application: pane titles, row labels, the desk figures, every number
+ * meant to be tabular. All of it fell back to ui-sans-serif. The terminal has
+ * not been rendering in a terminal face at all.
+ *
+ * Found by measuring the computed font of the ASCII art and not believing the
+ * answer. Declaring them on body puts the reference and the definition on the
+ * same element, which is the only place the substitution can succeed.
+ */
+body {
   --disp: var(--font-disp), sans-serif;
-  --mono: var(--font-mono-f), monospace;
+  --mono: var(--font-mono-f), ui-monospace, SFMono-Regular, Menlo, monospace;
   --brand: var(--font-brand), var(--font-disp), sans-serif;
 }
 

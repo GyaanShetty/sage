@@ -3,6 +3,7 @@ import { proxyFetch } from "@/infrastructure/http/fetch";
 import { keysFor } from "@/core/ops/keys";
 import { getSetting } from "@/core/ops/settings";
 import { appUrl } from "./google";
+import { decodeEntities } from "@/lib/entities";
 
 /**
  * Outlook, via Microsoft Graph.
@@ -239,10 +240,10 @@ interface GraphMessage {
 function toMessage(m: GraphMessage): OutlookMessage {
   return {
     id: m.id,
-    subject: m.subject ?? "(no subject)",
+    subject: decodeEntities(m.subject ?? "(no subject)"),
     from: m.from?.emailAddress?.address ?? "",
     fromName: m.from?.emailAddress?.name ?? m.from?.emailAddress?.address ?? "",
-    preview: m.bodyPreview ?? "",
+    preview: decodeEntities(m.bodyPreview ?? ""),
     receivedAt: m.receivedDateTime,
     unread: m.isRead === false,
     webLink: m.webLink,

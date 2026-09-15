@@ -154,18 +154,20 @@
  * whole word left of centre by half a gap — the classic tracking-and-centring
  * mistake, and very visible on four letters.
  */
-.deck-word {
+.deck-word { display: flex; justify-content: center;
   margin: 0;
   font-family: var(--font-brand), var(--font-disp), system-ui, sans-serif;
   font-weight: 900;
-  font-size: clamp(30px, 4.6vw, 76px);
+  /* The h2 no longer carries type — it holds the ASCII plate, which sizes
+     itself. Leaving 76px here made the <pre> inherit it and render a
+     wordmark fifteen hundred pixels wide. */
+  font-size: 0;
   line-height: 0.92;
   letter-spacing: 0.14em;
   text-indent: 0.14em;
   color: var(--foreground);
-  text-shadow:
-    3px 3px 0 var(--signal),
-    6px 6px 0 rgba(255, 59, 48, 0.28);
+  /* No chromatic offset: at block-glyph scale the red/white split reads as
+     a rendering fault rather than an effect. The art carries its own weight. */
 }
 
 /* The ask bar: the only control on this screen that waits for you. */
@@ -297,4 +299,12 @@ main.hud-grid:has(.deck) { padding-bottom: 0; overflow: hidden; }
   main.hud-grid:has(.deck) { display: flex; flex-direction: column; }
   main.hud-grid:has(.deck) > *,
   main.hud-grid :has(> .deck) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
+}
+
+
+/* The hero plate is the one place the mark is meant to be large. */
+.deck-word .ascii-mark {
+  font-size: clamp(6px, 1.35vw, 16px);
+  color: var(--foreground);
+  text-shadow: 0 0 24px rgba(255, 59, 48, 0.22);
 }

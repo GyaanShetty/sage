@@ -1621,3 +1621,31 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
+
+/* ── ASCII ────────────────────────────────────────────────────────────────
+   Monospace, pre-wrapped, non-selectable: the glyphs only line up in a mono
+   face, and a wordmark that drag-selects into a mess of box-drawing
+   characters is a footgun. */
+.ascii-mark, .asc-rain {
+  font-family: var(--mono), ui-monospace, monospace;
+  white-space: pre;
+  margin: 0;
+  user-select: none;
+  line-height: 1.02;
+  letter-spacing: 0;
+}
+.ascii-mark {
+  font-size: clamp(5px, 1.05vw, 12px);
+  color: var(--foreground);
+}
+.asc-spin, .asc-scan, .asc-wave, .asc-meter {
+  font-family: var(--mono), ui-monospace, monospace;
+  user-select: none;
+  white-space: pre;
+}
+.asc-spin { color: var(--live); }
+.asc-scan { color: var(--signal-dim); letter-spacing: -0.5px; font-size: 9px; }
+.asc-wave { color: var(--live); font-size: 10px; letter-spacing: -0.5px; }
+.asc-meter { color: var(--signal); font-size: 11px; letter-spacing: -0.5px; }
+.asc-rain { color: var(--signal-dim); font-size: 10px; opacity: 0.5; pointer-events: none; }
+.boot-meter { display: block; margin-top: 14px; }

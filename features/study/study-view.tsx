@@ -297,7 +297,7 @@ function SubjectWall({
   return (
     <div className="wall">
       <div className="wall-pack">
-        <div className="t-3x3"><TileGuard name="PROGRESS"><Pane n={1} title={subject.name} status={subject.code ?? "SYLLABUS"} live>
+        <div className="t-3x4"><TileGuard name="PROGRESS"><Pane n={1} title={subject.name} status={subject.code ?? "SYLLABUS"} live>
           <div className="sv-hero">
             <Gauge value={Math.round(done * 100)} max={100} label="DONE" unit="%" tone={tone} size={104} />
             <div className="sv-hero-side">
@@ -308,19 +308,19 @@ function SubjectWall({
           </div>
         </Pane></TileGuard></div>
 
-        <div className="t-3x3"><TileGuard name="UNITS"><Pane
+        <div className="t-3x4"><TileGuard name="UNITS"><Pane
           n={2} title="Units" status={`${subject.units.filter((u) => u.doneAt).length}/${subject.units.length}`}
         >
           <UnitEditor subject={subject} tone={tone} post={post} busy={busy} />
         </Pane></TileGuard></div>
 
-        <div className="t-3x3"><TileGuard name="WHERE"><Pane n={3} title="Time per unit" status="MINUTES">
+        <div className="t-3x4"><TileGuard name="WHERE"><Pane n={3} title="Time per unit" status="MINUTES">
           {byUnit.some((r) => r.minutes > 0)
             ? <BarRows rows={byUnit.map((r) => ({ label: r.unit.name.slice(0, 14), value: r.minutes, tone: r.unit.doneAt ? "ok" : "warm" }))} />
             : <Empty reason="No sessions logged against a unit yet" />}
         </Pane></TileGuard></div>
 
-        <div className="t-3x3"><TileGuard name="SCHEDULE"><Pane
+        <div className="t-3x4"><TileGuard name="SCHEDULE"><Pane
           n={4} title="Timetable" status={`${(scheduledMinutes(subject) / 60).toFixed(1)}H/WK`}
         >
           <SlotAdd subjectId={subject.id} post={post} busy={busy} />
@@ -656,7 +656,12 @@ function UnitEditor({
           // One line, because the box is one row until you type in it — a
           // three-line placeholder in a one-line box is just clipped text.
           placeholder="PASTE THE SYLLABUS — LINES, COMMAS, NUMBERED, ANY SHAPE"
-          rows={bulk ? 3 : 1}
+          // Grow to what was pasted. At a fixed three rows a five-line
+          // syllabus was scrolled and sliced through the middle of line two,
+          // so you could not read back the thing you were about to add. The
+          // cap keeps a forty-chapter paste from eating the list above; past
+          // it the box scrolls, which is the right behaviour at that size.
+          rows={Math.min(9, Math.max(1, bulk ? bulk.split("\n").length : 1))}
           onKeyDown={(e) => {
             // Enter adds when it is a single line; Shift+Enter always newlines.
             if (e.key === "Enter" && !e.shiftKey && !bulk.includes("\n")) {
@@ -676,7 +681,9 @@ function UnitEditor({
             disabled={busy || !preview.length}
             onClick={() => { void post({ action: "unit.bulk", subjectId: id, text: bulk }); setBulk(""); }}
           >
-            ADD {preview.length > 1 ? `${preview.length} UNITS` : "UNIT"}
+            {parsed.length && !preview.length
+              ? "ALREADY ADDED"
+              : `ADD ${preview.length > 1 ? `${preview.length} UNITS` : "UNIT"}`}
           </button>
         </div>
       </div>

@@ -13,7 +13,12 @@
    panel — means holding in your head which unit you selected, which is the
    sort of thing a list of twenty chapters is bad at. */
 .sv-units { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+/* The list keeps a floor of roughly three rows. It is flex: 1, so without
+   one a grown paste box squeezed the syllabus you were adding to down to a
+   single visible line — you could not see what you already had while typing
+   what you did not. */
 .sv-unit-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 1px; }
+.sv-unit-list:not(:empty) { min-height: 56px; }
 .sv-unit-list::-webkit-scrollbar { display: none; }
 
 .sv-unit {
@@ -67,6 +72,10 @@
   width: 100%; resize: vertical; background: var(--panel); color: var(--foreground);
   border: 1px solid var(--border-glass); border-radius: 4px; padding: 6px 8px;
   font: inherit; font-size: 11.5px; line-height: 1.4;
+  /* The rows attribute grows the box to the paste; this stops it growing
+     past the pane and scrolls instead. Without the cap a long syllabus
+     pushed the add button out of the bottom of the tile. */
+  max-height: 124px; overflow-y: auto;
 }
 .sv-bulk textarea:focus { outline: none; border-color: var(--signal-dim); }
 .sv-bulk textarea::placeholder { color: var(--subtle); font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; }

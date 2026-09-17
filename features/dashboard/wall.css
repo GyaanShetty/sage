@@ -687,21 +687,15 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
   .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
   .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
-}
 
-/*
- * Wide screens get more tiles to a band, not wider tiles.
- *
- * The wall fills its viewport exactly, so a tile's width tracks the screen
- * while its height does not: the readouts that measure 298x193 at 1900 go to
- * 408x158 at 2560 and are letterboxes again. The fix is the column count, not
- * the tile — at a sixth each the twelve readouts are two bands, at a twelfth
- * each they are one, which both narrows them and gives every remaining band a
- * larger share of the height.
- */
-@media (min-width: 2200px) {
-  .wall-pack > .t-2x3 { grid-column: span 1; }
-  .wall-pack > .t-2x2 { grid-column: span 1; }
+  /*
+   * There was a rule here that gave wide screens MORE tiles to a band, on the
+   * theory that a tile whose width tracks the viewport needs more columns to
+   * stay square. The arithmetic was right and the result was unusable: at a
+   * twelfth each the readouts came out 163px wide, and a 163px tile renders
+   * "Log an expense" as "LOG AN EXPEN". Squareness is not worth a tile you
+   * cannot read. Twelve columns, at every width.
+   */
 
   /*
    * Empty tiles used to collapse to half a row, so the wall's rhythm came

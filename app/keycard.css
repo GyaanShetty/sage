@@ -435,3 +435,13 @@
 .wall-pack .pane-body:has(> .trow) {
   display: flex; flex-direction: column; justify-content: space-between;
 }
+
+/* ── FILLING THE TILE ───────────────────────────────────────────────────────
+   Tiles whose content is a fixed block — three clock faces, a moon — were
+   stacking to their natural height at the top of a box the grid had made
+   twice that tall. The content has not changed; it just sits in the middle of
+   the tile it was given instead of clinging to the ceiling. */
+.wall-pack .clocks {
+  height: 100%; align-items: center; justify-content: space-evenly; padding-top: 0;
+}
+.wall-pack .clk svg { width: clamp(44px, 3.4vw, 68px); height: clamp(44px, 3.4vw, 68px); }

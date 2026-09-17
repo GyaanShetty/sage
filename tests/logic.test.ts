@@ -4882,3 +4882,18 @@ test("the font tokens are declared where the fonts exist", async () => {
   // fixed-width rather than on whatever the body happens to inherit.
   assert.match(bodyBlock, /--mono:[^;]*monospace/);
 });
+
+test("the pane fade is gated on real overflow, not applied to every pane", () => {
+  const css = readFileSync("app/keycard.css", "utf8");
+  // A mask on every .pane-body dims content that fits: a collapsed tile is
+  // 54px tall, so a 20px fade covered better than a third of it and both of
+  // its elements sat inside the band. The class comes from lib/overflow.ts
+  // and only lands on a body that really does have something below the fold.
+  const masked = [...css.matchAll(/^([^{@\n][^{\n]*)\{[^}]*mask-image:\s*linear-gradient/gm)]
+    .map((m) => m[1].trim())
+    .filter((sel) => sel.includes(".pane-body"));
+  assert.ok(masked.length > 0, "the fade rule has gone missing entirely");
+  for (const sel of masked) {
+    assert.ok(sel.includes(".is-cut"), `${sel} fades pane bodies unconditionally`);
+  }
+});

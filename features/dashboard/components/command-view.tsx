@@ -242,26 +242,36 @@ export function CommandView({
           {/* Sitrep is the one tile on the wall that is prose, and it was
               truncating mid-sentence in a quarter tile. It reads first and it
               is the widest thing in the band. */}
-          <div className="t-6x2"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
-          <div className="t-3x2">
+          <div className="t-6x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <div className="t-3x3">
             <TileGuard name="MISSION">
               <MissionTile n={9} open={open} events={todays.length} agentRunning={agentRunning}
                 memories={stats.memories} runs={stats.runs}
                 weather={weather ? `${Math.round(weather.temp)}°` : null} />
             </TileGuard>
           </div>
-          <div className="t-3x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
 
           {/* Thirds, not quarters — the band changes shape rather than
               repeating the one above it at a different fill. */}
           <div className="t-6x2"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-6x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
+          <div className="t-6x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
 
+          {/*
+           * The three tiles most often waiting on a connector, kept in one
+           * band on purpose.
+           *
+           * A tile that collapses in a band whose neighbours do not leaves
+           * the row half used and dense packing cannot always find something
+           * to fill it — which is how the wall ended up with an empty
+           * bottom-right quadrant. Grouped, they collapse together into one
+           * clean strip and the band simply gets shorter.
+           */}
           <div className="t-4x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
           <div className="t-4x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
         </div>
       )}
 

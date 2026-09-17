@@ -673,6 +673,27 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
   .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
   .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
+
+  /*
+   * A tile with nothing to say gets half the room.
+   *
+   * The wall was thirteen identical 456x154 rectangles, and a third of its
+   * AREA was tiles whose entire content is one line saying nothing has
+   * happened yet — a full quarter-tile spent on "no agent has run", the same
+   * size as the map. That is what made it read as a boring grid: not the
+   * spans, the fact that every cell cost the same whether or not it had
+   * anything in it.
+   *
+   * So the rhythm comes from the data. Panes with something to show keep
+   * their band; panes waiting on a connector or a first entry shrink to a
+   * strip, and dense packing closes up behind them. Connect Spotify and the
+   * Now Playing tile grows back on its own.
+   *
+   * Deliberately narrow: `> .empty:only-child` means the pane resolved to an
+   * empty state and nothing else. A pane with one empty section among real
+   * content keeps its full size.
+   */
+  .wall-pack > *:has(.pane-body > .empty:only-child) { grid-row: span 1; }
 }
 
 /* The shell owns the frame; the packed grid fills what is left under the

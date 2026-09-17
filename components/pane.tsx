@@ -180,6 +180,7 @@ export function Row({ k, v, tone }: { k: ReactNode; v: ReactNode; tone?: "up" | 
 export function Empty({ reason, action, href }: { reason: string; action?: string; href?: string }) {
   const body = (
     <>
+      <span className="empty-rule" aria-hidden>{"░▒▓"}{"▒░·".repeat(6)}</span>
       <span className="empty-r">{reason}</span>
       {action && <span className="empty-a">{action} →</span>}
     </>

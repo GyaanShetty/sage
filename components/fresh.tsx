@@ -14,10 +14,11 @@
  * sends you looking in the wrong place.
  */
 
+import { AsciiSpinner } from "@/components/ascii/motifs";
 import { freshLabel, isStale, type Feed } from "@/lib/feed";
 
 export function Fresh<T>({ feed, maxAgeMs }: { feed: Feed<T>; maxAgeMs?: number }) {
-  if (feed.loading && !feed.data) return <span className="fresh">…</span>;
+  if (feed.loading && !feed.data) return <span className="fresh"><AsciiSpinner /></span>;
 
   if (!feed.data) {
     return <span className="fresh bad" title="The request failed — this is not an empty state">NO SIGNAL</span>;

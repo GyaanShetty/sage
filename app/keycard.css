@@ -332,8 +332,17 @@
 
 .dh-mark { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .dh-mark .ascii-mark {
-  margin: 0; font-size: 9px; line-height: 1.03; color: var(--foreground);
-  text-shadow: 0 0 22px var(--signal-glow);
+  margin: 0; font-size: 11px; line-height: 1.02; color: var(--foreground);
+  /*
+   * A 22px blur of 60%-opacity signal under white block glyphs turned the
+   * wordmark into a pink smear — the letterforms are one-pixel box-drawing
+   * strokes and a halo that wide swallows them. A tight halo plus a hard
+   * offset shadow gives the arcade-marquee read the glow was reaching for
+   * while leaving the strokes actually legible.
+   */
+  text-shadow:
+    2px 2px 0 hsl(var(--hue) 100% 59% / .55),
+    0 0 6px hsl(var(--hue) 100% 59% / .35);
 }
 .dh-tag {
   display: flex; align-items: center; gap: 9px;
@@ -342,14 +351,22 @@
 }
 .dh-tag .asc-scan { color: var(--signal); letter-spacing: 0; }
 
-.dh-stats { position: relative; z-index: 1; display: flex; gap: 26px; flex: none; }
-.dh-stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+/* These were 21px numbers with 8px labels pushed into the right-hand corner
+   of a 1900px band, which made the one row of live readings on the wall the
+   smallest type on it. They are the reason the band exists; they get the
+   size. */
+.dh-stats { position: relative; z-index: 1; display: flex; gap: 34px; flex: none; align-items: flex-end; }
+.dh-stat {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  padding-left: 34px; border-left: 1px solid var(--rule);
+}
+.dh-stat:first-child { border-left: 0; padding-left: 0; }
 .dh-stat b {
-  font-family: var(--mono); font-size: 21px; font-weight: 400; line-height: 1;
-  color: var(--foreground); font-variant-numeric: tabular-nums;
+  font-family: var(--mono); font-size: 38px; font-weight: 300; line-height: .92;
+  color: var(--foreground); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
 }
 .dh-stat b.is-signal { color: var(--signal); }
-.dh-stat span { font-family: var(--mono); font-size: 8px; letter-spacing: .2em; color: var(--subtle); }
+.dh-stat span { font-family: var(--mono); font-size: 9px; letter-spacing: .24em; color: var(--muted); }
 
 /* The hero is the first thing to go when there is no room for it: below the
    wall breakpoint the page stacks and scrolls, and a decorative band at the
@@ -358,7 +375,8 @@
   .dash-hero { padding: 14px 16px; gap: 14px; flex-wrap: wrap; }
   .dh-rain, .dh-sweep { display: none; }
   .dh-stats { gap: 16px; }
-  .dh-stat b { font-size: 16px; }
+  .dh-stat { padding-left: 16px; }
+  .dh-stat b { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .dh-sweep { animation: none; opacity: 0; } }
 
@@ -369,3 +387,43 @@
 .wall-pack { gap: 11px; padding: 11px; }
 .wall-pack.has-hero { gap: 12px; }
 .pane-body { padding: 2px 2px 4px; }
+
+/* ── THE CUT ────────────────────────────────────────────────────────────────
+   A pane body that overflows was being sliced dead through the middle of
+   whatever element happened to sit on the fold — a row of chips cut in half
+   at the waist reads as a rendering fault, not as "there is more below".
+
+   The mask costs nothing when the content fits: the faded band is empty. It
+   only becomes visible at the exact moment there is something under it, and
+   then it says so. */
+.pane-body {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+          mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+}
+/* Anything that draws to its own edge — a map, a chart canvas — must not be
+   faded off at the bottom. */
+.wall-map .pane-body, .pane-body:has(> .leaflet-container) {
+  -webkit-mask-image: none; mask-image: none;
+}
+
+/* A pane whose whole body is one block should hand that block the full
+   height, so the block can decide how to use it, rather than leaving a void
+   under a top-aligned lump. Tiles that genuinely want to sit at the top opt
+   out by having more than one child. */
+.wall-pack .pane-body > .wall-cell:only-child { height: 100%; min-height: 0; }
+
+/* Feeds and friends: a short block plus a door, with the tile sized by the
+   grid around them. Pushing the door to the bottom edge turns the void into
+   the space between two things instead of a gap under one. */
+.wall-pack .pane-body:has(> .empty:last-child):not(:has(> .empty:only-child)) {
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+
+/* A table of readings fills the tile it is given rather than stacking to its
+   natural height and leaving a void under the last row. The rows are direct
+   children of the body — there is no list wrapper — so the body becomes the
+   column and the rows share what is left. Only on the wall, where the box is
+   sized by the grid rather than by the content. */
+.wall-pack .pane-body:has(> .trow) {
+  display: flex; flex-direction: column; justify-content: space-between;
+}

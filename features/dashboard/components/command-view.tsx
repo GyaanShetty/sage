@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { DashHero } from "@/features/dashboard/components/dash-hero";
 import "../command.css";
 import "../wall.css";
 import { ExpandModal } from "@/components/expand-modal";
@@ -147,6 +148,9 @@ export function CommandView({
 
   const now = new Date();
   const open = tasks.filter((t) => t.status !== "done").length;
+  // Overdue rather than a generic "alerts" count: a number on the hero has to
+  // mean something you can act on, and this one names the thing that is late.
+  const overdue = tasks.filter((t) => t.status !== "done" && t.dueAt && Date.parse(t.dueAt) < Date.now()).length;
   const todays = (events ?? []).filter((e) => new Date(e.start).toDateString() === now.toDateString());
 
 
@@ -210,7 +214,23 @@ export function CommandView({
         what these panes actually contain.
       */}
       {page === "overview" && (
-        <div className="wall-pack">
+        <div className="wall-pack has-hero">
+          {/* The band the eye lands on before it starts reading numbers. It
+              pays for its height by taking eight tiles off this wall — the
+              biometrics, sky, clocks, spend, focus and task-rhythm readouts
+              all already exist on Body, Work and Markets, and having them
+              here as well is what made the overview a wall of everything
+              rather than an overview of anything. */}
+          <div className="t-12x2">
+            <DashHero
+              open={open}
+              events={todays.length}
+              overdue={overdue}
+              agentRunning={agentRunning}
+              weather={weather ? `${Math.round(weather.temp)}°` : null}
+            />
+          </div>
+
           <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x3" frame noZoom>
             <AtlasMap lat={12.9352} lon={77.6245} compact />
             <span className="deck-map-marks" aria-hidden>
@@ -234,23 +254,14 @@ export function CommandView({
 
           {/* Thirds, not quarters — the band changes shape rather than
               repeating the one above it at a different fill. */}
-          <div className="t-4x2"><TileGuard name="KEYMETRICS">
+          <div className="t-6x2"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-4x2"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="BIO"><BioTile n={4} /></TileGuard></div>
-
-          <div className="t-6x2"><TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="OVFOCUS"><FocusTile n={37} /></TileGuard></div>
-
-          <div className="t-6x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
           <div className="t-6x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
+
+          <div className="t-4x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
         </div>
       )}
 

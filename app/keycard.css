@@ -262,10 +262,12 @@
 /* The 404's mark: small enough to leave room for the doors below it. */
 .nf-mark { font-size: 7px; line-height: 1.05; color: var(--signal); opacity: .8; margin: 0 0 4px; }
 
-/* ── COLLAPSED TILES ────────────────────────────────────────────────────────
-   A tile that shrank because it has nothing to say gets a strip layout: the
-   reason and the door on one line, no dither rule, no wasted column. It has
-   half the height, so it cannot keep the stacked form. */
+/* ── QUIET TILES ────────────────────────────────────────────────────────────
+   A tile whose whole body is an empty state keeps its size — the grid has to
+   tile exactly — but stops competing with the panes that have readings on
+   them. The reason and the door sit as one strip at the top rather than a
+   stack floating in the middle of a void, and the card is dimmed until the
+   pointer is on it. */
 .wall-pack > *:has(.pane-body > .empty:only-child) .empty {
   flex-direction: row; align-items: center; gap: 10px; padding: 7px 9px;
 }
@@ -275,10 +277,7 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .wall-pack > *:has(.pane-body > .empty:only-child) .empty-a { flex: none; }
-
-/* A quieter card for the quiet tiles: still a keycard, but it should not
-   compete with the panes that have readings on them. */
-.wall-pack > *:has(.pane-body > .empty:only-child) .pane { opacity: .72; }
+.wall-pack > *:has(.pane-body > .empty:only-child) .pane { opacity: .66; }
 .wall-pack > *:has(.pane-body > .empty:only-child) .pane:hover { opacity: 1; }
 
 /* The pane title was 10px of --signal at 0.16em, which on the wall is a dark

@@ -681,25 +681,21 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
   .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
 
   /*
-   * A tile with nothing to say gets half the room.
+   * Empty tiles used to collapse to half a row, so the wall's rhythm came
+   * from the data. It was a good idea that does not survive contact with a
+   * grid that has to tile exactly at a fixed height.
    *
-   * The wall was thirteen identical 456x154 rectangles, and a third of its
-   * AREA was tiles whose entire content is one line saying nothing has
-   * happened yet — a full quarter-tile spent on "no agent has run", the same
-   * size as the map. That is what made it read as a boring grid: not the
-   * spans, the fact that every cell cost the same whether or not it had
-   * anything in it.
+   * A tile that shrinks while its neighbours do not leaves the row half
+   * used, and dense packing cannot always find something to fill it. I
+   * grouped the usually-empty tiles into one band to make them collapse
+   * together — and then one of them (Feeds) got data, stayed full height,
+   * and punched the hole straight back. Any arrangement that depends on
+   * which tiles happen to be empty today is a hole waiting for tomorrow.
    *
-   * So the rhythm comes from the data. Panes with something to show keep
-   * their band; panes waiting on a connector or a first entry shrink to a
-   * strip, and dense packing closes up behind them. Connect Spotify and the
-   * Now Playing tile grows back on its own.
-   *
-   * Deliberately narrow: `> .empty:only-child` means the pane resolved to an
-   * empty state and nothing else. A pane with one empty section among real
-   * content keeps its full size.
+   * So the grid tiles exactly, always. Empty tiles stay their full size and
+   * earn their keep instead by being quiet: dimmed, with the reason and the
+   * door laid out as a strip rather than a stack. See app/keycard.css.
    */
-  .wall-pack > *:has(.pane-body > .empty:only-child) { grid-row: span 1; }
 }
 
 /* The shell owns the frame; the packed grid fills what is left under the

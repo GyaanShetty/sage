@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AsciiMark } from "@/components/ascii/mark";
 import type { Metadata } from "next";
 import { SageMark } from "@/components/ui/sage-mark";
 
@@ -39,6 +40,11 @@ export default function NotFound() {
       }}
     >
       <div style={{ maxWidth: 460, width: "100%", display: "grid", gap: 16 }}>
+        {/* The 404 is the one screen with nothing to read, which makes it
+            the right place for the mark at full size. It assembles out of
+            noise the same way the cold boot does. */}
+        <AsciiMark className="nf-mark" />
+
         <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--signal, #ff3b30)" }}>
           <SageMark size={26} />
           <span style={{ fontSize: 11, letterSpacing: "0.22em" }}>SAGE · 404</span>

@@ -236,3 +236,28 @@
   background: radial-gradient(120% 80% at 50% 0%, var(--signal-faint), transparent 60%);
 }
 .wall-pack > *, .deck > * { position: relative; z-index: 1; }
+
+/* ── ASCII SKELETON ─────────────────────────────────────────────────────── */
+
+.asc-skel { display: flex; flex-direction: column; gap: 8px; padding: 10px 2px; }
+.asc-skel-t {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .14em; color: var(--signal);
+  display: flex; align-items: center; gap: 7px;
+}
+.asc-skel-scan { font-family: var(--mono); font-size: 9px; color: var(--subtle); letter-spacing: .04em; }
+.asc-skel-rows { display: flex; flex-direction: column; gap: 6px; margin-top: 2px; }
+.asc-skel-row {
+  height: 7px;
+  background: repeating-linear-gradient(90deg, var(--glass) 0 3px, transparent 3px 6px);
+  border-left: 1px solid var(--rule-strong);
+}
+
+/* The dither rule above an empty state's copy — a mark that the pane is
+   working and has nothing, rather than a pane that failed to draw. */
+.empty-rule {
+  display: block; font-family: var(--mono); font-size: 9px; letter-spacing: .06em;
+  color: var(--faint); margin-bottom: 7px; overflow: hidden; white-space: nowrap;
+}
+
+/* The 404's mark: small enough to leave room for the doors below it. */
+.nf-mark { font-size: 7px; line-height: 1.05; color: var(--signal); opacity: .8; margin: 0 0 4px; }

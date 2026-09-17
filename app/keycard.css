@@ -396,9 +396,18 @@
    The mask costs nothing when the content fits: the faded band is empty. It
    only becomes visible at the exact moment there is something under it, and
    then it says so. */
-.pane-body {
-  -webkit-mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
-          mask-image: linear-gradient(#000 calc(100% - 20px), transparent);
+/*
+ * Only on a body that really does overflow — lib/overflow.ts puts the class
+ * on. Applying it to every pane instead was dimming data that fitted: a
+ * collapsed tile is 54px tall, so the band covered better than a third of it
+ * and both of its elements sat inside.
+ *
+ * 14px rather than 20: enough to read as a fade, small enough that the last
+ * line under it is still a line rather than a smudge.
+ */
+.pane-body.is-cut {
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
+          mask-image: linear-gradient(#000 calc(100% - 14px), transparent);
 }
 /* Anything that draws to its own edge — a map, a chart canvas — must not be
    faded off at the bottom. */

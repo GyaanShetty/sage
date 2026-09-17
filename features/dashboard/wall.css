@@ -15,12 +15,12 @@
    cannot fit scrolls inside itself instead of pushing on its neighbours. That
    is what makes a fixed-height wall possible at all. */
 
-.wall { display: flex; flex-direction: column; gap: 1px; background: var(--rule); min-height: 0; }
-.wall-row { display: grid; gap: 1px; min-height: 0; }
+.wall { display: flex; flex-direction: column; gap: 8px; background: transparent; min-height: 0; }
+.wall-row { display: grid; gap: 8px; min-height: 0; }
 .wall-row > * { min-width: 0; min-height: 0; }
 
 /* A cell holding two stacked panes — 07 Activity over 08 Focus. */
-.wall-stack { display: flex; flex-direction: column; gap: 1px; min-height: 0; }
+.wall-stack { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .wall-stack > * { min-height: 0; }
 
 /* Stacked and scrolling: phones, and laptops at normal zoom. */
@@ -604,8 +604,14 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
 
 .wall-pack {
   display: grid;
-  gap: 1px;
-  background: var(--rule);
+  /* Real gutters, not hairlines. The 1px rule grid made the wall one welded
+     sheet — correct for an instrument panel, and the thing that stopped the
+     keycards reading as cards at all: a slab cannot lift off a surface it is
+     flush against. The canvas shows through now, so each pane has an edge,
+     a shadow and somewhere to tip into. */
+  gap: 8px;
+  padding: 8px;
+  background: transparent;
   min-height: 0;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   grid-auto-flow: dense;

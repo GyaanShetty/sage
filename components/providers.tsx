@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MotionConfig } from "framer-motion";
+import { startTilt } from "@/lib/tilt";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -11,6 +12,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
       }),
   );
+
+  // One pointer listener for every keycard on the page, started once here
+  // rather than per pane. Idempotent, and a no-op under reduced motion.
+  useEffect(() => startTilt(), []);
 
   return (
     <QueryClientProvider client={queryClient}>

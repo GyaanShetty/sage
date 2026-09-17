@@ -18,6 +18,8 @@
  * would.
  */
 
+import { useEffect, useRef } from "react";
+
 import { noiseGlyph, useAsciiFrame } from "@/lib/ascii-clock";
 
 /* Lines kept as data rather than a template literal so trailing spaces — which
@@ -40,12 +42,26 @@ export function AsciiMark({
   lines = SAGE,
   className,
   label = "SAGE",
-}: { lines?: string[]; className?: string; label?: string }) {
+  onSettled,
+}: {
+  lines?: string[]; className?: string; label?: string;
+  /** Fired once, when the last cell has resolved. The boot screen waits on
+      this rather than on a timer it guessed — the mark finishing IS the
+      event, and a timer that disagrees either cuts it off or idles after. */
+  onSettled?: () => void;
+}) {
   const frame = useAsciiFrame();
 
   const width = Math.max(...lines.map((l) => l.length));
   const done = width * SPEED + lines.length * ROW_LAG + 6;
   const settled = frame > done;
+
+  const fired = useRef(false);
+  useEffect(() => {
+    if (!settled || fired.current) return;
+    fired.current = true;
+    onSettled?.();
+  }, [settled, onSettled]);
 
   return (
     <pre className={`ascii-mark${className ? ` ${className}` : ""}`} aria-label={label} role="img">

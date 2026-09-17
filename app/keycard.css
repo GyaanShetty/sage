@@ -1,0 +1,238 @@
+/* ── KEYCARDS ───────────────────────────────────────────────────────────────
+   The panes as physical objects: a slab of tinted glass lifted off the
+   canvas, cut across one corner, that tips toward the pointer and catches a
+   light across its face.
+
+   Three rules kept the instrument from turning into a toy:
+
+   1 · The chamfer is on ONE corner, not four. A notch on every corner reads
+       as a sticker; a single cut corner reads as a keycard with an
+       orientation, and it is the corner the pane number already sits in.
+   2 · The tilt is small — a degree and a half at the extreme. Enough that
+       the surface feels rigid and lit, not enough to move the numbers you
+       are trying to read.
+   3 · Nothing here is animated on a loop. The sheen moves because the
+       pointer moves. A dashboard that shimmers on its own is a screensaver.
+
+   All of it degrades to the flat pane it was: reduced motion and touch get
+   no tilt, browsers without backdrop-filter get the opaque panel, and no
+   layout depends on any of it. */
+
+.wall-pack, .deck, .deck-cols, .deck-band { perspective: 1400px; }
+
+/* The canvas the cards sit on. It has to be DARKER than they are: the pane
+   and the page background were four values apart out of 255, so with the
+   panes glassed the gutters and the cards rendered as the same near-black
+   and every card edge disappeared. A card is only lifted relative to
+   something. */
+.deck, .wall-shell { --canvas: #050507; background: var(--canvas); }
+
+.pane {
+  /* The cut corner. A clip-path replaces the border box, so the hairline
+     border has to be drawn by the ::before below — a clipped element cannot
+     show its own border on the cut edge. */
+  --chamfer: 14px;
+  --lift: 0px;
+  --tx: 0; --ty: 0;
+
+  clip-path: polygon(
+    var(--chamfer) 0, 100% 0, 100% 100%,
+    0 100%, 0 var(--chamfer)
+  );
+
+  background:
+    linear-gradient(145deg, var(--glass-strong), transparent 42%),
+    var(--panel-hi);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  /* At rest, not only on hover — otherwise the cards are flat until you
+     touch them, which is the opposite of the object being physical. */
+  box-shadow: 0 1px 0 var(--glass) inset, 0 10px 24px -14px rgb(0 0 0 / .9);
+
+  transform-style: preserve-3d;
+  transform:
+    translateZ(var(--lift))
+    rotateX(calc(var(--ty) * -1.5deg))
+    rotateY(calc(var(--tx) * 1.5deg));
+  transition: transform .34s var(--ease), box-shadow .34s var(--ease), filter .34s var(--ease);
+  will-change: transform;
+}
+
+/* The edge light. Drawn as a gradient behind the pane's own content so the
+   card has a lit rim on the side facing the pointer rather than a uniform
+   outline, which is what makes it read as a surface rather than a rectangle
+   with a border. */
+.pane::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  clip-path: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    calc(135deg + var(--tx) * 40deg),
+    var(--border-glass-strong),
+    var(--border-glass) 38%,
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask-composite: exclude;
+}
+
+/* The sheen. Sits above the surface, below the content, and tracks the
+   pointer across the face. Signal-tinted, so retuning the hue retunes the
+   light too. */
+.pane::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity .34s var(--ease);
+  background: radial-gradient(
+    380px circle at calc(50% + var(--tx) * 50%) calc(50% + var(--ty) * 50%),
+    var(--signal-faint),
+    transparent 62%
+  );
+}
+
+.pane.is-tilted {
+  --lift: 10px;
+  box-shadow:
+    0 1px 0 var(--border-glass) inset,
+    0 18px 44px -18px rgb(0 0 0 / .85),
+    0 0 0 1px var(--signal-faint);
+  z-index: 3;
+}
+.pane.is-tilted::after { opacity: 1; }
+
+/* The cut corner gets a hairline across it, the way a bevelled edge catches
+   light — without it the chamfer reads as a missing corner rather than a
+   cut one. */
+.pane-chamfer {
+  position: absolute;
+  top: 0; left: 0;
+  width: calc(var(--chamfer) * 1.42);
+  height: 1px;
+  background: var(--rule-strong);
+  transform-origin: 0 0;
+  transform: rotate(45deg) translateY(-0.5px);
+  pointer-events: none;
+  z-index: 2;
+}
+.pane.is-tilted .pane-chamfer { background: var(--signal-dim); }
+
+/* The header sits on the glass rather than on a filled bar. */
+.pane-hd { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+
+/* Content rides above the sheen and the rim. */
+.pane-hd, .pane-body { position: relative; z-index: 2; }
+
+/* The brackets already drawn on each pane would collide with the cut corner;
+   the top-left one is the one the chamfer replaces. */
+.pane .brk .brk-tl { display: none; }
+
+/* ── stepping back ────────────────────────────────────────────────────────
+   Below the wall breakpoint the panes stack and scroll. A tipping card in a
+   scrolling column is nausea, and the blur costs the most exactly where the
+   GPU has the least, so the phone gets the flat pane. */
+@media (max-width: 1399px) {
+  .pane {
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    transform: none;
+    --chamfer: 10px;
+  }
+  .pane::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pane { transform: none; transition: none; }
+  .pane::after { display: none; }
+}
+
+/* Backdrop-filter is the one piece with no graceful fallback — without it a
+   translucent panel over the grid is just unreadable — so the translucency
+   is only asked for where the blur is actually supported. */
+@supports not (backdrop-filter: blur(4px)) {
+  .pane { background: var(--panel); }
+}
+
+/* ── THE HUE DIAL ───────────────────────────────────────────────────────── */
+
+.hue-dial { display: flex; flex-direction: column; gap: 9px; }
+.hue-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.hue-sw {
+  width: 22px; height: 22px; border: 1px solid var(--border-glass);
+  cursor: pointer; padding: 0;
+  clip-path: polygon(5px 0, 100% 0, 100% 100%, 0 100%, 0 5px);
+  transition: transform .18s var(--ease), box-shadow .18s var(--ease);
+}
+.hue-sw:hover { transform: translateY(-2px); }
+.hue-sw.on { box-shadow: 0 0 0 1px var(--foreground), 0 0 12px -2px currentColor; transform: translateY(-2px); }
+
+.hue-fine { display: flex; align-items: center; gap: 9px; }
+.hue-fine input[type="range"] {
+  flex: 1; min-width: 90px; appearance: none; height: 4px; border-radius: 2px; cursor: pointer;
+  /* The track is the choice, so it shows every option at once. */
+  background: linear-gradient(90deg,
+    hsl(0 100% 59%), hsl(60 100% 59%), hsl(120 100% 59%),
+    hsl(180 100% 59%), hsl(240 100% 59%), hsl(300 100% 59%), hsl(359 100% 59%));
+}
+.hue-fine input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--foreground); border: 1px solid var(--background); cursor: pointer;
+}
+.hue-fine input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--foreground); border: 1px solid var(--background); cursor: pointer;
+}
+.hue-read {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .12em; color: var(--signal);
+  min-width: 66px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.hue-reset {
+  background: none; border: 1px solid var(--border-glass); color: var(--muted);
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; padding: 4px 8px; cursor: pointer;
+}
+.hue-reset:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.hue-reset:disabled { opacity: .35; cursor: default; }
+
+/* ── BOOT ───────────────────────────────────────────────────────────────── */
+
+/* The mark stops being noise and starts being a wordmark — lit, once, at the
+   moment it finishes, which is the beat the dashboard opens on. */
+.boot-mark { transition: text-shadow .5s var(--ease), color .5s var(--ease); }
+.boot-mark.is-set { color: var(--foreground); text-shadow: 0 0 28px var(--signal-glow); }
+
+.boot-go {
+  margin-top: 14px; font-family: var(--mono); font-size: 9px; letter-spacing: .22em;
+  color: var(--subtle); opacity: .5; transition: color .4s var(--ease), opacity .4s var(--ease);
+}
+.boot-go.on { color: var(--signal); opacity: 1; }
+
+/* ── THE CANVAS ─────────────────────────────────────────────────────────────
+   Something for the cards to lift off. A technical grid at the existing
+   pitch, dimmed almost to nothing, plus a pool of light under the middle of
+   the wall — without it the gutters are flat black and the shadows have
+   nothing to fall on. */
+.wall-pack, .deck {
+  position: relative;
+  background-image:
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell), var(--grid-cell) var(--grid-cell);
+  background-position: center;
+}
+.wall-pack::before, .deck::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(120% 80% at 50% 0%, var(--signal-faint), transparent 60%);
+}
+.wall-pack > *, .deck > * { position: relative; z-index: 1; }

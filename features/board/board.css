@@ -117,7 +117,7 @@
 .bd-n.t-signal { border-color: var(--signal); }
 .bd-n.t-signal .bd-n-hd { background: var(--signal-faint); color: var(--signal); }
 .bd-n.t-amber { border-color: var(--warn); }
-.bd-n.t-amber .bd-n-hd { background: rgba(255, 107, 53, 0.13); color: var(--warn); }
+.bd-n.t-amber .bd-n-hd { background: hsl(var(--hue-warn) 100% 60% / 0.13); color: var(--warn); }
 .bd-n.t-cyan { border-color: #35c7ff; }
 .bd-n.t-cyan .bd-n-hd { background: rgba(53, 199, 255, 0.13); color: #35c7ff; }
 .bd-n.t-green { border-color: #2fd07a; }
@@ -228,7 +228,7 @@
   z-index: 4;
   display: grid;
   place-items: center;
-  background: rgba(255, 59, 48, 0.08);
+  background: hsl(var(--hue) 100% 59% / 0.08);
   border: 1px dashed var(--signal);
   color: var(--signal);
   font-size: 11px;

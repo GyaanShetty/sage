@@ -39,7 +39,7 @@
   background: var(--panel);
 }
 .deck .pane-hd {
-  background: linear-gradient(180deg, rgba(255, 59, 48, 0.07), transparent);
+  background: linear-gradient(180deg, hsl(var(--hue) 100% 59% / 0.07), transparent);
   border-bottom: 1px solid var(--rule);
   padding: 5px 9px;
 }
@@ -306,5 +306,5 @@ main.hud-grid:has(.deck) { padding-bottom: 0; overflow: hidden; }
 .deck-word .ascii-mark {
   font-size: clamp(6px, 1.35vw, 16px);
   color: var(--foreground);
-  text-shadow: 0 0 24px rgba(255, 59, 48, 0.22);
+  text-shadow: 0 0 24px hsl(var(--hue) 100% 59% / 0.22);
 }

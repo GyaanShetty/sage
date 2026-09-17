@@ -286,3 +286,86 @@
    keeps the accent; the name itself goes to foreground weight. */
 .pane-t { color: var(--foreground); }
 .pane-n { color: var(--signal); }
+
+/* ── THE WALL HERO ──────────────────────────────────────────────────────────
+   Not a pane: no header, no brackets, no chamfer. The band reads as the
+   surface the cards sit on rather than as another card on it, which is what
+   stops it becoming an eighteenth readout. */
+
+.dash-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  height: 100%;
+  min-height: 0;
+  padding: 0 26px;
+  overflow: hidden;
+  border: 1px solid var(--rule);
+  background:
+    radial-gradient(120% 180% at 12% 50%, var(--signal-faint), transparent 58%),
+    linear-gradient(180deg, var(--glass), transparent);
+}
+
+/* Texture, well behind the type. The rain never resolves into anything you
+   are meant to read, which is the whole point of putting motion here rather
+   than on the wordmark. */
+.dh-rain {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  opacity: .1; color: var(--signal);
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
+}
+.asc-rain { font-family: var(--mono); font-size: 10px; line-height: 1.08; margin: 0; white-space: pre; }
+
+/* One slow pass of light across the band. The only thing in the application
+   that animates on a loop with nothing driving it, and it is six seconds
+   apart and almost transparent. */
+.dh-sweep {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 42%, var(--glass-strong) 50%, transparent 58%);
+  transform: translateX(-100%);
+  animation: dh-sweep 6.5s var(--ease) infinite;
+}
+@keyframes dh-sweep { 0%, 62% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+.dh-mark { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.dh-mark .ascii-mark {
+  margin: 0; font-size: 9px; line-height: 1.03; color: var(--foreground);
+  text-shadow: 0 0 22px var(--signal-glow);
+}
+.dh-tag {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: .2em; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dh-tag .asc-scan { color: var(--signal); letter-spacing: 0; }
+
+.dh-stats { position: relative; z-index: 1; display: flex; gap: 26px; flex: none; }
+.dh-stat { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.dh-stat b {
+  font-family: var(--mono); font-size: 21px; font-weight: 400; line-height: 1;
+  color: var(--foreground); font-variant-numeric: tabular-nums;
+}
+.dh-stat b.is-signal { color: var(--signal); }
+.dh-stat span { font-family: var(--mono); font-size: 8px; letter-spacing: .2em; color: var(--subtle); }
+
+/* The hero is the first thing to go when there is no room for it: below the
+   wall breakpoint the page stacks and scrolls, and a decorative band at the
+   top of a phone screen is a thing to scroll past. */
+@media (max-width: 1399px) {
+  .dash-hero { padding: 14px 16px; gap: 14px; flex-wrap: wrap; }
+  .dh-rain, .dh-sweep { display: none; }
+  .dh-stats { gap: 16px; }
+  .dh-stat b { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .dh-sweep { animation: none; opacity: 0; } }
+
+/* ── AIR ────────────────────────────────────────────────────────────────────
+   The wall was eight-pixel gutters around tiles whose own padding was tuned
+   for a hairline grid. With fewer tiles on the overview there is room to let
+   them breathe rather than spending it on more readouts. */
+.wall-pack { gap: 11px; padding: 11px; }
+.wall-pack.has-hero { gap: 12px; }
+.pane-body { padding: 2px 2px 4px; }

@@ -629,7 +629,8 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
 @media (max-width: 1399px) {
   .wall-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wall-pack > * { grid-column: span 2 !important; grid-row: auto !important; min-height: 200px; }
-  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4 { grid-column: span 1 !important; }
+  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4,
+  .wall-pack > .t-2x2, .wall-pack > .t-2x3 { grid-column: span 1 !important; }
 }
 
 @media (min-width: 1400px) {
@@ -665,6 +666,13 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
    * The second number is height in rows: two for a list or a strip, three for
    * a chart that needs an axis and a legend.
    */
+  /* Two wide: six to a band. With the wall's height fixed, the number of
+     tiles in a band is the only lever on how square they are — a quarter
+     tile is 453px across and 147 tall, better than three to one. A sixth is
+     296 across at the same height, and taking a band out makes it taller
+     again. */
+  .wall-pack > .t-2x2  { grid-column: span 2;  grid-row: span 2; }
+  .wall-pack > .t-2x3  { grid-column: span 2;  grid-row: span 3; }
   .wall-pack > .t-3x2  { grid-column: span 3;  grid-row: span 2; }
   /* Three wide and three tall: a quarter-width tile with room for a gauge
      over a figure, or a syllabus list. Three divides twelve, so four of
@@ -679,6 +687,21 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
   .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
   .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
+}
+
+/*
+ * Wide screens get more tiles to a band, not wider tiles.
+ *
+ * The wall fills its viewport exactly, so a tile's width tracks the screen
+ * while its height does not: the readouts that measure 298x193 at 1900 go to
+ * 408x158 at 2560 and are letterboxes again. The fix is the column count, not
+ * the tile — at a sixth each the twelve readouts are two bands, at a twelfth
+ * each they are one, which both narrows them and gives every remaining band a
+ * larger share of the height.
+ */
+@media (min-width: 2200px) {
+  .wall-pack > .t-2x3 { grid-column: span 1; }
+  .wall-pack > .t-2x2 { grid-column: span 1; }
 
   /*
    * Empty tiles used to collapse to half a row, so the wall's rhythm came

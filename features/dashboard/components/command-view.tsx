@@ -255,27 +255,27 @@ export function CommandView({
           </div>
           <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
 
-          {/* Sixths from here down, three rows each. A quarter tile was 453
-              across and 147 tall — better than three to one, a letterbox
-              rather than a panel. At a sixth it is 296 across and, with the
-              band a row taller, near enough square to read as a card.
-              Twelve of them, which is also what puts the readouts I had
-              moved off this wall back on it. */}
+          {/*
+           * One band of six, not two of six.
+           *
+           * Twelve readouts were on here because I kept adding tiles back to
+           * answer "I don't see data" — but six of them (biometrics, done,
+           * spend, focus, agent log, now playing) had nothing in them, and a
+           * tile reading "no focus sessions" does not answer that complaint,
+           * it IS that complaint. They live on Body, Work and Markets, which
+           * is where you go when you want them.
+           *
+           * Six that have something to show, at a third of the height each,
+           * is a fuller wall than twelve half-empty ones.
+           */}
           <div className="t-2x3"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
+          <div className="t-2x3"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-2x3"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
           <div className="t-2x3"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
           <div className="t-2x3"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
           <div className="t-2x3"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="BIO"><BioTile n={4} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
-
-          <div className="t-2x3"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="OVTASKS"><TaskRhythmTile n={35} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="OVSPEND"><SpendTrendTile n={38} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="OVFOCUS"><FocusTile n={37} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
         </div>
       )}
 
@@ -315,8 +315,9 @@ export function CommandView({
           <div className="t-3x2"><TileGuard name="FOCUS2"><FocusTile n={37} /></TileGuard></div>
           <div className="t-3x2"><TileGuard name="JOURNAL2"><JournalTile n={46} /></TileGuard></div>
 
-          <div className="t-6x2"><TileGuard name="READING2"><ReadingTile n={47} /></TileGuard></div>
-          <div className="t-6x2"><TileGuard name="REVIEWTREND2"><ReviewTrendTile n={45} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="READING2"><ReadingTile n={47} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="REVIEWTREND2"><ReviewTrendTile n={45} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
         </div>
       )}
 
@@ -363,7 +364,10 @@ export function CommandView({
           <div className="t-4x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
           <div className="t-4x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={44} /></TileGuard></div>
 
-          <div className="t-12x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          {/* Agent Log came off the overview with the other tiles that are
+              usually empty. It belongs next to the run history anyway. */}
+          <div className="t-6x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-6x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
         </div>
       )}
 

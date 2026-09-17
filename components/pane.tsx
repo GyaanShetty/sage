@@ -70,6 +70,10 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, no
 
   return (
     <section className={`pane${className ? ` ${className}` : ""}`}>
+      {/* The bevel across the cut corner. A div rather than a third
+          pseudo-element because the pane already spends ::before on its rim
+          light and ::after on the sheen. */}
+      <span className="pane-chamfer" aria-hidden />
       {alert && <Hazard tone={alert} />}
       {frame && <Brackets tone={alert ?? "rule"} />}
       {!bare && (

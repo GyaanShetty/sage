@@ -40,12 +40,22 @@
   --live-dim: rgba(255, 255, 255, 0.5);
   --live-glow: rgba(255, 255, 255, 0.55);
 
-  --warn: #ff6b35;
+  /* ── HUE ───────────────────────────────────────────────────────────────
+     The one hue in the system, as a number, so the whole instrument can be
+     retuned from a single knob. 3 is the stock red (#ff3b30). Warn and
+     danger keep their fixed offsets from it rather than being set
+     independently, so a turn of the dial moves the palette as one piece and
+     the three can never drift into disagreeing with each other. */
+  --hue: 3;
+  --hue-warn: calc(var(--hue) + 13);
+  --hue-danger: calc(var(--hue) - 11);
+
+  --warn: hsl(var(--hue-warn) 100% 60%);
   /* Alert red sits close to the signal red on purpose. The two are told apart
      by motion and by the hazard rule, not by hue — the reference sheets are
      one red and white on black, and inventing a second hue to carry "urgent"
      would break the thing that makes them read as one instrument. */
-  --danger: #ff1f3d;
+  --danger: hsl(var(--hue-danger) 100% 56%);
 
   /* ── SIGNAL ────────────────────────────────────────────────────────────
      Red, and the only hue in the system.
@@ -58,10 +68,10 @@
 
      Never decorative. If a thing is not live, current, or asking for a
      decision, it is grey. */
-  --signal: #ff3b30;
-  --signal-dim: rgba(255, 59, 48, 0.5);
-  --signal-faint: rgba(255, 59, 48, 0.13);
-  --signal-glow: rgba(255, 59, 48, 0.6);
+  --signal: hsl(var(--hue) 100% 59%);
+  --signal-dim: hsl(var(--hue) 100% 59% / 0.5);
+  --signal-faint: hsl(var(--hue) 100% 59% / 0.13);
+  --signal-glow: hsl(var(--hue) 100% 59% / 0.6);
 
   /* ── INSTRUMENT CHROME ─────────────────────────────────────────────────
      The measurements that make a panel read as instrumentation rather than a
@@ -744,7 +754,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   --up: #4fb477;
   --down: #d4585c;
   --mark: #6f7178;          /* default instrument grey */
-  --pane-hd: rgba(255, 59, 48, 0.06);
+  --pane-hd: hsl(var(--hue) 100% 59% / 0.06);
 }
 
 /* ── pane ── */

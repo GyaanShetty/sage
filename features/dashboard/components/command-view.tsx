@@ -242,26 +242,34 @@ export function CommandView({
           {/* Sitrep is the one tile on the wall that is prose, and it was
               truncating mid-sentence in a quarter tile. It reads first and it
               is the widest thing in the band. */}
-          <div className="t-6x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
-          <div className="t-3x3">
+          {/* Thirds. Sitrep is prose and needs the run of line, but at half
+              the wall it was a 920px measure — far past the width at which a
+              line stops being comfortable to read. */}
+          <div className="t-4x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <div className="t-4x3">
             <TileGuard name="MISSION">
               <MissionTile n={9} open={open} events={todays.length} agentRunning={agentRunning}
                 memories={stats.memories} runs={stats.runs}
                 weather={weather ? `${Math.round(weather.temp)}°` : null} />
             </TileGuard>
           </div>
-          <div className="t-3x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
 
-          {/* Thirds, not quarters — the band changes shape rather than
-              repeating the one above it at a different fill. */}
-          <div className="t-6x2"><TileGuard name="KEYMETRICS">
+          {/* Quarters from here down. Four readouts to a band rather than two
+              means each one is a tile you can take in at a glance instead of
+              a strip of numbers with a field of empty beside them — and it
+              puts the clocks, the sky and the health traces back on the
+              screen they belong on. */}
+          <div className="t-3x2"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-6x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
 
           {/*
-           * The three tiles most often waiting on a connector, kept in one
-           * band on purpose.
+           * The tiles most often waiting on a connector, kept in one band on
+           * purpose.
            *
            * A tile that collapses in a band whose neighbours do not leaves
            * the row half used and dense packing cannot always find something
@@ -269,9 +277,10 @@ export function CommandView({
            * bottom-right quadrant. Grouped, they collapse together into one
            * clean strip and the band simply gets shorter.
            */}
-          <div className="t-4x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
         </div>
       )}
 

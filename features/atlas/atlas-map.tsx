@@ -220,6 +220,32 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /*
+   * Leaflet caches its container size and only recomputes it when told to.
+   * Resize the container without saying so and it keeps drawing tiles for the
+   * old box: a field of grey with a strip of real map along one edge, which
+   * is exactly what the wall looked like after the tiles were re-proportioned
+   * around it. Nothing about the map had changed — it simply never learned it
+   * had a different shape.
+   *
+   * A ResizeObserver on the container catches every cause at once: the wall
+   * re-banding, the window resizing, the pane being magnified, the sidebar
+   * opening. invalidateSize is cheap and idempotent.
+   */
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      // Coalesce: a drag fires this continuously, and re-projecting every
+      // tile per pixel of a window drag is how a map turns to treacle.
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => mapRef.current?.invalidateSize());
+    });
+    ro.observe(el);
+    return () => { cancelAnimationFrame(frame); ro.disconnect(); };
+  }, []);
+
   // ── toggle groups on/off ─────────────────────────────────
   useEffect(() => {
     const map = mapRef.current;

@@ -23,6 +23,7 @@
 import { APP_NAME } from "@/lib/config";
 import { AsciiMark } from "@/components/ascii/mark";
 import { AsciiRain, AsciiScan } from "@/components/ascii/motifs";
+import { Globe } from "@/components/globe";
 
 function Stat({ v, k, tone }: { v: string; k: string; tone?: "signal" | "ok" }) {
   return (
@@ -43,6 +44,10 @@ export function DashHero({
     <section className="dash-hero">
       <div className="dh-rain" aria-hidden><AsciiRain cols={120} rows={9} density={0.16} /></div>
       <div className="dh-sweep" aria-hidden />
+      {/* Behind the mark, not beside it: the globe is the ground the name
+          stands on. Real lat/lon geometry with Bengaluru marked, so the
+          bright point is where you actually are. */}
+      <Globe className="dh-globe" />
 
       <div className="dh-mark">
         <AsciiMark label={APP_NAME} />

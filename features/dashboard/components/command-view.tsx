@@ -234,21 +234,28 @@ export function CommandView({
             />
           </div>
 
-          <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x3" frame noZoom>
+          {/*
+           * The big panel at the top, with the auxiliaries beside it.
+           *
+           * The map is the one panel that is worth being large — it is the
+           * only thing on the wall you read by looking rather than by
+           * reading. Sitrep flanks it on the left because it is the sentence
+           * that says what today is; markets on the right because it is the
+           * column you scan. Both are tall and narrow, which is the shape
+           * that suits a paragraph and a list and does not suit a map.
+           */}
+          <div className="t-3x4"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x4" frame noZoom>
             <AtlasMap lat={12.9352} lon={77.6245} compact />
             <span className="deck-map-marks" aria-hidden>
               <Crosshair /><Crosshair /><Crosshair /><Crosshair />
             </span>
           </Pane>
-          <div className="t-6x3"><TileGuard name="MARKETS"><MarketsList n={2} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={2} limit={14} /></TileGuard></div>
 
-          {/* Sitrep is the one tile on the wall that is prose, and it was
-              truncating mid-sentence in a quarter tile. It reads first and it
-              is the widest thing in the band. */}
-          {/* Thirds. Sitrep is prose and needs the run of line, but at half
-              the wall it was a 920px measure — far past the width at which a
-              line stops being comfortable to read. */}
-          <div className="t-4x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          {/* The three that are read rather than glanced at. */}
+          <div className="t-4x3"><TileGuard name="WIRE"><IntelFeed n={3} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="CONSOLE"><AiConsole n={5} /></TileGuard></div>
           <div className="t-4x3">
             <TileGuard name="MISSION">
               <MissionTile n={9} open={open} events={todays.length} agentRunning={agentRunning}
@@ -256,29 +263,13 @@ export function CommandView({
                 weather={weather ? `${Math.round(weather.temp)}°` : null} />
             </TileGuard>
           </div>
-          <div className="t-4x3"><TileGuard name="WIRE"><IntelFeed n={3} /></TileGuard></div>
 
-          {/*
-           * One band of six, not two of six.
-           *
-           * Twelve readouts were on here because I kept adding tiles back to
-           * answer "I don't see data" — but six of them (biometrics, done,
-           * spend, focus, agent log, now playing) had nothing in them, and a
-           * tile reading "no focus sessions" does not answer that complaint,
-           * it IS that complaint. They live on Body, Work and Markets, which
-           * is where you go when you want them.
-           *
-           * Six that have something to show, at a third of the height each,
-           * is a fuller wall than twelve half-empty ones.
-           */}
-          <div className="t-2x3"><TileGuard name="KEYMETRICS">
+          <div className="t-3x2"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-2x3"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="CONSOLE"><AiConsole n={5} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>
       )}
 

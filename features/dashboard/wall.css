@@ -686,6 +686,9 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
   .wall-pack > .t-4x3  { grid-column: span 4;  grid-row: span 3; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
   .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
+  /* Half the wall and four rows: the shape the map wants, with the tall
+     narrow auxiliaries either side of it. */
+  .wall-pack > .t-6x4  { grid-column: span 6;  grid-row: span 4; }
   .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
 
   /*

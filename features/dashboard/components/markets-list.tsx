@@ -22,8 +22,12 @@ interface Quote { symbol: string; name?: string; price: number; changePct: numbe
 
 interface RowData {
   key: string; sym: string; name: string;
-  price: number; pct: number; ccy: string; spark?: number[];
+  /** null when the source gave no change for this quote — not zero. */
+  price: number; pct: number | null; ccy: string; spark?: number[];
 }
+
+/** A quote that arrives without a move must not become NaN%. */
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 function money(n: number, ccy: string) {
   const digits = n >= 1000 ? 2 : n >= 1 ? 2 : 4;
@@ -40,11 +44,11 @@ export function MarketsList({ n, limit = 10 }: { n?: number; limit?: number }) {
     setRows([
       ...coins.map((c) => ({
         key: `c:${c.symbol}`, sym: c.symbol, name: c.name ?? c.symbol,
-        price: c.price, pct: c.change24h, ccy: "$", spark: c.spark,
+        price: c.price, pct: num(c.change24h), ccy: "$", spark: c.spark,
       })),
       ...stocks.map((s) => ({
         key: `s:${s.symbol}`, sym: s.symbol, name: s.name ?? s.symbol,
-        price: s.price, pct: s.changePct, ccy: s.currency === "INR" ? "₹" : "$",
+        price: s.price, pct: num(s.changePct), ccy: s.currency === "INR" ? "₹" : "$",
       })),
     ]);
   }).catch(() => {}), { everyMs: 120_000 });
@@ -56,22 +60,24 @@ export function MarketsList({ n, limit = 10 }: { n?: number; limit?: number }) {
         : (
           <div className="mkl">
             {rows.slice(0, limit).map((r) => {
-              const up = r.pct >= 0;
+              const up = (r.pct ?? 0) >= 0;
               return (
                 <div className="mkl-row" key={r.key}>
                   <span className="mkl-badge" aria-hidden>{r.sym.slice(0, 1)}</span>
                   <span className="mkl-sym" title={r.name}>{r.sym}</span>
                   <span className="mkl-spark">
                     {r.spark?.length
-                      ? <Wave data={r.spark} height={18} tone={up ? "var(--up)" : "var(--down)"} />
+                      ? <Wave data={r.spark} height={18} tone={r.pct === null ? "var(--muted)" : up ? "var(--up)" : "var(--down)"} />
                       : null}
                   </span>
                   <span className="mkl-price">{money(r.price, r.ccy)}</span>
                   {/* The sign is on the number as well as in the colour: a
                       screen read by someone who cannot separate green from red
                       still says which way it went. */}
-                  <span className={`mkl-pct ${up ? "up" : "down"}`}>
-                    {up ? "+" : "−"}{Math.abs(r.pct).toFixed(2)}%
+                  {/* "—" says the move is unknown. Rendering it as 0.00%
+                      would state something the source never said. */}
+                  <span className={`mkl-pct ${r.pct === null ? "flat" : up ? "up" : "down"}`}>
+                    {r.pct === null ? "—" : `${up ? "+" : "−"}${Math.abs(r.pct).toFixed(2)}%`}
                   </span>
                 </div>
               );

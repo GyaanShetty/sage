@@ -169,3 +169,29 @@
   .tb-search kbd, .tb-clock .tb-date, .tb-tz { display: none; }
   .tb-time { font-size: 16px; }
 }
+
+/* ── PANEL CHROME ───────────────────────────────────────────────────────────
+   The reference numbers its panels "01 / GLOBAL OVERVIEW" in plain type on a
+   plain bar. SAGE had "01) ATLAS MAP" in signal red on a red-washed header,
+   which on a wall of twelve reads as twelve alarms — the accent was doing
+   decoration, which is the one job it is not for. The number stays quiet, the
+   name carries, and the header bar goes neutral. */
+
+.pane-hd { background: var(--surface-hi); border-bottom: 1px solid var(--edge); }
+.pane-n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.pane-n i { color: var(--faint); font-style: normal; padding: 0 1px; }
+.pane-t { color: var(--foreground); letter-spacing: .14em; }
+.pane-s { color: var(--subtle); }
+.pane-s.live { color: var(--up); }
+
+/* The live sweep is a 45%-wide gradient travelling across the header. Setting
+   `background` on it replaces the gradient with a flat fill, which turns the
+   sweep into a solid green slab parked over the panel title — which is
+   exactly what it did. Recolour the gradient, do not replace it. */
+.pane:has(.pane-s.live) .pane-hd::after {
+  background: linear-gradient(90deg, transparent, rgb(79 180 119 / .12), transparent);
+}
+
+/* Market direction. The only place green and red appear. */
+.up, .trow-v.up, .delta-up { color: var(--up); }
+.down, .trow-v.down, .delta-down { color: var(--down); }

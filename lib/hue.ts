@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 export const HUE_KEY = "sage-hue";
-/** The stock red, #ff3b30. Kept in one place so reset means one thing. */
-export const HUE_DEFAULT = 3;
+/** Amber, the terminal default. Kept in one place so reset means one thing. */
+export const HUE_DEFAULT = 32;
 
 /** Named stops, so the dial is usable without knowing what a hue angle is. */
 export const HUE_PRESETS: { h: number; name: string }[] = [
+  { h: 32, name: "Amber" },
   { h: 3, name: "Signal red" },
-  { h: 24, name: "Amber" },
   { h: 47, name: "Gold" },
   { h: 96, name: "Acid" },
   { h: 152, name: "Mint" },

@@ -204,7 +204,7 @@ export function HealthTile({ n }: { n?: number }) {
 
   return (
     <Pane n={n} title="Health" status={<Go href="/health">{series?.length ? "LIVE" : "…"}</Go>} live={!!series?.length}>
-      {series?.length === 0 && <Empty reason="No health data" action="Run the Health shortcut" href="/health" />}
+      {series?.length === 0 && <Empty reason="No health data" plate="signal" action="Run the Health shortcut" href="/health" />}
       {trace("Heart rate", "restingHr", " BPM", "var(--live)")}
       {trace("Blood oxygen", "spo2", "%", "var(--signal)")}
       {trace("Sleep", "sleepHours", " H", "var(--muted)")}
@@ -240,7 +240,7 @@ export function ActivityTile({ n }: { n?: number }) {
 
   return (
     <Pane n={n} title="System Activity" status="EVENTS / DAY">
-      {rows.length === 0 && <Empty reason="Nothing logged this week" action="Open the log" href="/sitrep" />}
+      {rows.length === 0 && <Empty reason="Nothing logged this week" plate="ledger" action="Open the log" href="/sitrep" />}
       {/* An empty histogram is not a small histogram — it is an empty box with
           a minimum height, holding space it has nothing to put in. */}
       {rows.length > 0 && <div className="acts">
@@ -372,7 +372,7 @@ export function FeedsTile({ n }: { n?: number }) {
         {note && <span className="feed-note">{note}</span>}
       </div>
       {!items && <div className="tile-wait">ACQUIRING…</div>}
-      {items?.length === 0 && <Empty reason="No videos in the watchlist" action="Add channels" href="/settings" />}
+      {items?.length === 0 && <Empty reason="No videos in the watchlist" plate="signal" action="Add channels" href="/settings" />}
       {items?.slice(0, 4).map((v, i) => (
         <a className="vid" key={i} href={v.url} target="_blank" rel="noreferrer">
           {v.thumb && (
@@ -595,7 +595,7 @@ export function PushTile({ n }: { n?: number }) {
       live={pushes.length > 0}
     >
       {!d && <div className="tile-wait">ACQUIRING…</div>}
-      {d && pushes.length === 0 && <Empty reason="Nothing pushed yet" action="Push a solution" href="/push" />}
+      {d && pushes.length === 0 && <Empty reason="Nothing pushed yet" plate="mesh" action="Push a solution" href="/push" />}
       {pushes.slice(0, 6).map((p, i) => (
         <a className="psh" key={i} href={p.url} target="_blank" rel="noreferrer">
           <span className="psh-t">{p.title || p.path}</span>
@@ -668,7 +668,7 @@ export function CareerTile({ n }: { n?: number }) {
       }
     >
       {!apps && <div className="tile-wait">ACQUIRING…</div>}
-      {apps?.length === 0 && <Empty reason="No applications tracked" action="Add one" href="/career" />}
+      {apps?.length === 0 && <Empty reason="No applications tracked" plate="ledger" action="Add one" href="/career" />}
       {rows.length > 0 && (
         <>
           <div className="km" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
@@ -729,7 +729,7 @@ export function InboxTile({ n }: { n?: number }) {
       live={rows.length + (outlook ?? 0) > 0}
     >
       {!msgs && <div className="tile-wait">ACQUIRING…</div>}
-      {msgs?.length === 0 && <Empty reason="Inbox clear" action="Open mail" href="/mail" />}
+      {msgs?.length === 0 && <Empty reason="Inbox clear" plate="mail" action="Open mail" href="/mail" />}
       {rows.slice(0, 6).map((m) => (
         <div className="psh" key={m.id}>
           <span className="psh-t">{m.subject || "(no subject)"}</span>

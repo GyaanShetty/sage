@@ -20,6 +20,8 @@ import {
 import { MarketsList } from "./markets-list";
 import { AiConsole } from "./ai-console";
 import { IntelFeed } from "./intel-feed";
+import { SystemsPanel } from "./systems-panel";
+import { QuickLaunch } from "./quick-launch";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
@@ -264,12 +266,16 @@ export function CommandView({
             </TileGuard>
           </div>
 
-          <div className="t-3x2"><TileGuard name="KEYMETRICS">
+          <div className="t-3x3"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-3x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="SYSTEMS"><SystemsPanel n={4} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="LAUNCH"><QuickLaunch n={6} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
+
+          <div className="t-4x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-4x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
         </div>
       )}
 

@@ -15,6 +15,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { AsciiPlate, type PlateKind } from "@/components/ascii/plate";
 import { Brackets, Hazard } from "@/components/chrome";
 import { ExpandModal } from "@/components/expand-modal";
 import { TileGuard } from "@/components/tile-guard";
@@ -177,9 +178,15 @@ export function Row({ k, v, tone }: { k: ReactNode; v: ReactNode; tone?: "up" | 
  * a request that is still in flight is how you get a dashboard full of
  * buttons that turn out to have been unnecessary two seconds later.
  */
-export function Empty({ reason, action, href }: { reason: string; action?: string; href?: string }) {
+export function Empty({ reason, action, href, plate }: {
+  reason: string; action?: string; href?: string; plate?: PlateKind;
+}) {
   const body = (
     <>
+      {/* A plate turns a panel that is merely waiting into one that still
+          looks like an instrument. It is behind the copy and never replaces
+          it — the reason a panel is empty is the thing you came to read. */}
+      {plate && <AsciiPlate kind={plate} className="empty-plate" />}
       <span className="empty-rule" aria-hidden>{"░▒▓"}{"▒░·".repeat(6)}</span>
       <span className="empty-r">{reason}</span>
       {action && <span className="empty-a">{action} →</span>}

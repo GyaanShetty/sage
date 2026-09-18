@@ -4897,3 +4897,29 @@ test("the pane fade is gated on real overflow, not applied to every pane", () =>
     assert.ok(sel.includes(".is-cut"), `${sel} fades pane bodies unconditionally`);
   }
 });
+
+test("headlines land on the desk a reader would expect", async () => {
+  const { deskOf } = await import("../lib/classify.ts");
+  const cases: [string, string][] = [
+    ["Bitcoin climbs past $77,000 as ETF inflows resume", "CRYPTO"],
+    ["OpenAI releases new reasoning model", "AI"],
+    ["Escalation reported at Israel-Lebanon border", "GEO"],
+    ["Saudi signals higher oil output in Q4", "ENERGY"],
+    ["Asia markets open higher as tech rebounded", "MARKETS"],
+    ["NVIDIA announces new chip architecture", "TECH"],
+    ["Major vulnerability found in Linux kernel", "TECH"],
+    ["A profile of a family-run bakery in Lyon", "GENERAL"],
+  ];
+  for (const [title, want] of cases) {
+    assert.equal(deskOf(title), want, `"${title}" should be ${want}, got ${deskOf(title)}`);
+  }
+});
+
+test("the desk classifier prefers the more specific rule", async () => {
+  const { deskOf } = await import("../lib/classify.ts");
+  // Every one of these matches MARKETS too; the specific desk has to win, or
+  // the wire is one long MARKETS column and the tabs are useless.
+  assert.equal(deskOf("Bitcoin market cap tops $1.5 trillion"), "CRYPTO");
+  assert.equal(deskOf("AI startup earnings beat expectations"), "AI");
+  assert.equal(deskOf("Oil prices lift energy stocks"), "ENERGY");
+});

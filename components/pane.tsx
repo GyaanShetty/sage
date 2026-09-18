@@ -79,7 +79,7 @@ export function Pane({ n, title, status, live, className, bare, frame, alert, no
       {!bare && (
         <header className="pane-hd">
           <span className="pane-t">
-            {n !== undefined && <span className="pane-n">{pad(n)})</span>}
+            {n !== undefined && <span className="pane-n">{pad(n)} <i aria-hidden>/</i></span>}
             {title}
           </span>
           {status !== undefined && (

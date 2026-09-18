@@ -316,3 +316,57 @@
   .wire-desk, .wire-src { display: none; }
 }
 .mkl-pct.flat { color: var(--subtle); }
+
+/* ── SYSTEMS ────────────────────────────────────────────────────────────── */
+
+/* The panel is sized by the grid, so the contents have to fit it rather than
+   the other way round: at the first measurement it wanted 197px in a 178px
+   box and the cores/RAM/quota row was sliced off the bottom. The dials give
+   up the 19px. */
+.sys { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 7px; padding-top: 2px; }
+.sys-dials { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.sysg { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; }
+.sysg-dial { position: relative; width: 100%; max-width: 60px; aspect-ratio: 1; --g: var(--signal); }
+.sysg-dial svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.sysg-bg { fill: none; stroke: var(--edge); stroke-width: 3; }
+.sysg-fg { fill: none; stroke: var(--g); stroke-width: 3; stroke-linecap: round; transition: stroke-dasharray .5s var(--ease); }
+.sysg-dial b {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 400; color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.sysg-k { font-family: var(--mono); font-size: 8px; letter-spacing: .16em; color: var(--muted); }
+.sysg-v { font-family: var(--mono); font-size: 7.5px; letter-spacing: .06em; color: var(--subtle); text-align: center; }
+
+.sys-net { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--edge); padding-top: 6px; }
+.sys-net-k { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 8.5px; letter-spacing: .16em; color: var(--muted); }
+.sys-net-k .asc-wave { color: var(--up); font-size: 9px; }
+.sys-net-v { font-family: var(--mono); font-size: 10px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+.sys-rows { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--edge); }
+.sys-rows span { background: var(--panel); padding: 5px 8px; display: flex; flex-direction: column; gap: 2px; }
+.sys-rows i { font-style: normal; font-family: var(--mono); font-size: 7px; letter-spacing: .14em; color: var(--subtle); }
+.sys-rows b { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--foreground); }
+
+/* ── QUICK LAUNCH ───────────────────────────────────────────────────────── */
+
+.qkl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--edge); height: 100%; min-height: 0; }
+.qkl-cell {
+  background: var(--panel); display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; text-decoration: none; color: var(--muted); min-height: 0;
+  transition: color .14s var(--ease), background .14s var(--ease);
+}
+.qkl-cell:hover { color: var(--foreground); background: var(--surface-hi); }
+.qkl-cell:hover .qkl-ico { color: var(--signal); }
+.qkl-ico { width: 17px; height: 17px; transition: color .14s var(--ease); }
+.qkl-cell span { font-family: var(--mono); font-size: 7.5px; letter-spacing: .12em; }
+
+/* ── ASCII PLATES ───────────────────────────────────────────────────────── */
+
+.asc-plate {
+  font-family: var(--mono); font-size: 10px; line-height: 1.15; margin: 0 0 8px;
+  color: var(--faint); white-space: pre; overflow: hidden;
+  display: block; pointer-events: none;
+}
+.asc-plate .on { color: var(--subtle); }
+.empty-plate { opacity: .85; }

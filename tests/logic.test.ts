@@ -4437,8 +4437,12 @@ test("every tile span class on a wall actually exists", async () => {
   for (const dir of dirs) {
     for (const f of readdirSync(dir)) {
       if (!f.endsWith(".tsx")) continue;
-      for (const m of readFileSync(`${dir}/${f}`, "utf8").matchAll(/className="(t-\d+x\d+)"/g)) {
-        used.add(m[1]);
+      // Anywhere in a className, not only when it is the whole attribute.
+      // `className="wall-map t-6x4"` is how the atlas tile is written, and an
+      // exact-match regex walked straight past it — the map collapsed to
+      // 145x87 and this test stayed green. Same gap as before, one file over.
+      for (const m of readFileSync(`${dir}/${f}`, "utf8").matchAll(/className="([^"]*)"/g)) {
+        for (const c of m[1].split(/\s+/)) if (/^t-\d+x\d+$/.test(c)) used.add(c);
       }
     }
   }
@@ -4899,7 +4903,7 @@ test("the pane fade is gated on real overflow, not applied to every pane", () =>
 });
 
 test("headlines land on the desk a reader would expect", async () => {
-  const { deskOf } = await import("../lib/classify.ts");
+  const { deskOf } = await import("@/lib/classify");
   const cases: [string, string][] = [
     ["Bitcoin climbs past $77,000 as ETF inflows resume", "CRYPTO"],
     ["OpenAI releases new reasoning model", "AI"],
@@ -4916,7 +4920,7 @@ test("headlines land on the desk a reader would expect", async () => {
 });
 
 test("the desk classifier prefers the more specific rule", async () => {
-  const { deskOf } = await import("../lib/classify.ts");
+  const { deskOf } = await import("@/lib/classify");
   // Every one of these matches MARKETS too; the specific desk has to win, or
   // the wire is one long MARKETS column and the tabs are useless.
   assert.equal(deskOf("Bitcoin market cap tops $1.5 trillion"), "CRYPTO");

@@ -291,12 +291,22 @@
    surface the cards sit on rather than as another card on it, which is what
    stops it becoming an eighteenth readout. */
 
+/*
+ * The mark centred, the readings under it.
+ *
+ * It sat left with the figures pushed into the right-hand corner, which put
+ * the one thing on the wall that is purely identity at the edge of a 2000px
+ * band and the numbers somewhere you had to go looking for. Centred, the
+ * readings sit directly beneath the name and the whole band reads as one
+ * object instead of two.
+ */
 .dash-hero {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 28px;
+  justify-content: center;
+  gap: 14px;
   height: 100%;
   min-height: 0;
   padding: 0 26px;
@@ -329,7 +339,7 @@
 }
 @keyframes dh-sweep { 0%, 62% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-.dh-mark { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.dh-mark { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
 .dh-mark .ascii-mark {
   margin: 0; font-size: 11px; line-height: 1.02; color: var(--foreground);
   /*
@@ -354,9 +364,9 @@
    of a 1900px band, which made the one row of live readings on the wall the
    smallest type on it. They are the reason the band exists; they get the
    size. */
-.dh-stats { position: relative; z-index: 1; display: flex; gap: 34px; flex: none; align-items: flex-end; }
+.dh-stats { position: relative; z-index: 1; display: flex; gap: 34px; flex: none; align-items: flex-end; justify-content: center; }
 .dh-stat {
-  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
   padding-left: 34px; border-left: 1px solid var(--rule);
 }
 .dh-stat:first-child { border-left: 0; padding-left: 0; }
@@ -371,7 +381,7 @@
    wall breakpoint the page stacks and scrolls, and a decorative band at the
    top of a phone screen is a thing to scroll past. */
 @media (max-width: 1399px) {
-  .dash-hero { padding: 14px 16px; gap: 14px; flex-wrap: wrap; }
+  .dash-hero { padding: 14px 16px; gap: 12px; }
   .dh-rain, .dh-sweep { display: none; }
   .dh-stats { gap: 16px; }
   .dh-stat { padding-left: 16px; }

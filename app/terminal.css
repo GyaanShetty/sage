@@ -315,3 +315,4 @@
   .wire-row { grid-template-columns: 38px 1fr; }
   .wire-desk, .wire-src { display: none; }
 }
+.mkl-pct.flat { color: var(--subtle); }

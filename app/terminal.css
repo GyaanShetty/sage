@@ -195,3 +195,41 @@
 /* Market direction. The only place green and red appear. */
 .up, .trow-v.up, .delta-up { color: var(--up); }
 .down, .trow-v.down, .delta-down { color: var(--down); }
+
+/* ── MARKETS, AS A LIST ─────────────────────────────────────────────────────
+   Badge, symbol, sparkline, price, move. The column of percentages down the
+   right edge is the thing you scan; everything else is there to tell you
+   which row it belongs to. */
+
+.mkl { display: flex; flex-direction: column; }
+.mkl-row {
+  display: grid;
+  grid-template-columns: 18px 46px 1fr auto 62px;
+  align-items: center; gap: 9px;
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--edge);
+}
+.mkl-row:last-child { border-bottom: 0; }
+.mkl-badge {
+  width: 18px; height: 18px; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 9px; color: var(--muted);
+  background: var(--surface-hi); border: 1px solid var(--edge);
+}
+.mkl-sym { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; color: var(--foreground); }
+.mkl-spark { min-width: 0; height: 18px; display: flex; align-items: center; }
+.mkl-spark svg { width: 100%; height: 18px; display: block; }
+.mkl-price {
+  font-family: var(--mono); font-size: 11px; color: var(--foreground);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mkl-pct {
+  font-family: var(--mono); font-size: 10.5px; text-align: right;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.mkl-pct.up { color: var(--up); }
+.mkl-pct.down { color: var(--down); }
+
+@media (max-width: 1100px) {
+  .mkl-row { grid-template-columns: 18px 44px 1fr 56px; }
+  .mkl-spark { display: none; }
+}

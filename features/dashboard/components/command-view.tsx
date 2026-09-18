@@ -17,6 +17,7 @@ import {
   ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, InboxTile,
   ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
+import { MarketsList } from "./markets-list";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
@@ -237,7 +238,7 @@ export function CommandView({
               <Crosshair /><Crosshair /><Crosshair /><Crosshair />
             </span>
           </Pane>
-          <div className="t-6x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="MARKETS"><MarketsList n={2} /></TileGuard></div>
 
           {/* Sitrep is the one tile on the wall that is prose, and it was
               truncating mid-sentence in a quarter tile. It reads first and it

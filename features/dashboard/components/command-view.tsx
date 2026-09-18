@@ -18,6 +18,7 @@ import {
   ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
 import { MarketsList } from "./markets-list";
+import { AiConsole } from "./ai-console";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
@@ -254,7 +255,7 @@ export function CommandView({
                 weather={weather ? `${Math.round(weather.temp)}°` : null} />
             </TileGuard>
           </div>
-          <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="CONSOLE"><AiConsole n={5} /></TileGuard></div>
 
           {/*
            * One band of six, not two of six.
@@ -276,7 +277,7 @@ export function CommandView({
           <div className="t-2x3"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
           <div className="t-2x3"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
           <div className="t-2x3"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
-          <div className="t-2x3"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
+          <div className="t-2x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>
       )}
 

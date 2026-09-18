@@ -233,3 +233,35 @@
   .mkl-row { grid-template-columns: 18px 44px 1fr 56px; }
   .mkl-spark { display: none; }
 }
+
+/* ── AI CONSOLE ─────────────────────────────────────────────────────────── */
+
+.aic { display: flex; flex-direction: column; height: 100%; min-height: 0; gap: 11px; padding: 4px 2px 2px; }
+.aic-q { margin: 0; font-size: 14px; color: var(--foreground); letter-spacing: .01em; }
+
+.aic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.aic-grid button {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 9px 10px; cursor: pointer; text-align: left;
+  background: var(--surface-hi); border: 1px solid var(--edge); color: var(--muted);
+  font-size: 11px;
+  transition: border-color .14s var(--ease), color .14s var(--ease), background .14s var(--ease);
+}
+.aic-grid button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aic-grid button:hover { color: var(--foreground); border-color: var(--edge-hi); background: var(--panel-hi); }
+.aic-grid svg { flex: none; color: var(--signal); }
+
+/* The input sits on the floor of the panel, where a message box belongs. */
+.aic-in { margin-top: auto; display: flex; align-items: center; gap: 8px; border: 1px solid var(--edge); background: var(--deep); padding: 0 4px 0 11px; }
+.aic-in input {
+  flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  color: var(--foreground); font-size: 12px; padding: 11px 0;
+}
+.aic-in input::placeholder { color: var(--subtle); }
+.aic-in button {
+  flex: none; background: none; border: 0; cursor: pointer; color: var(--signal);
+  padding: 7px; display: grid; place-items: center;
+}
+.aic-in button:disabled { color: var(--faint); cursor: default; }
+
+@media (max-width: 1400px) { .aic-grid { grid-template-columns: 1fr; } }

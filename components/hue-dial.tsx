@@ -1,6 +1,7 @@
 "use client";
 
 import { HUE_DEFAULT, HUE_PRESETS, useHue } from "@/lib/hue";
+import { sound } from "@/lib/sound";
 
 /**
  * The accent dial.
@@ -22,7 +23,7 @@ export function HueDial({ compact }: { compact?: boolean }) {
             key={p.h}
             className={`hue-sw${Math.abs(p.h - hue) <= 3 ? " on" : ""}`}
             style={{ background: `hsl(${p.h} 100% 59%)` }}
-            onClick={() => setHue(p.h)}
+            onClick={() => { setHue(p.h); sound.latch(true); }}
             title={p.name}
             aria-label={p.name}
             aria-pressed={Math.abs(p.h - hue) <= 3}
@@ -37,14 +38,14 @@ export function HueDial({ compact }: { compact?: boolean }) {
           max={359}
           value={hue}
           aria-label="Accent hue"
-          onChange={(e) => setHue(Number(e.target.value))}
+          onChange={(e) => { setHue(Number(e.target.value)); sound.detent(); }}
         />
         <span className="hue-read">
           {named ? named.name.toUpperCase() : `H ${String(hue).padStart(3, "0")}`}
         </span>
         <button
           className="hue-reset"
-          onClick={() => setHue(HUE_DEFAULT)}
+          onClick={() => { setHue(HUE_DEFAULT); sound.blip(); }}
           disabled={hue === HUE_DEFAULT}
           title="Back to signal red"
         >

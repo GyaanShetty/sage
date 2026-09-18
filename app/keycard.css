@@ -445,3 +445,33 @@
   height: 100%; align-items: center; justify-content: space-evenly; padding-top: 0;
 }
 .wall-pack .clk svg { width: clamp(44px, 3.4vw, 68px); height: clamp(44px, 3.4vw, 68px); }
+
+/* ── SOUND DIAL ─────────────────────────────────────────────────────────── */
+
+.snd-dial { display: flex; flex-direction: column; gap: 10px; }
+.snd-row { display: flex; align-items: center; gap: 11px; }
+.snd-row input[type="range"] {
+  flex: 1; appearance: none; height: 4px; border-radius: 2px; cursor: pointer;
+  background: linear-gradient(90deg, var(--signal), var(--rule-strong));
+}
+.snd-row input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--foreground); border: 1px solid var(--background); cursor: pointer;
+}
+.snd-row input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--foreground); border: 1px solid var(--background); cursor: pointer;
+}
+.snd-row input:disabled { opacity: .35; cursor: default; }
+.snd-read {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .14em; color: var(--signal);
+  min-width: 52px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.snd-demo { display: flex; gap: 6px; flex-wrap: wrap; }
+.snd-demo button {
+  background: none; border: 1px solid var(--border-glass); color: var(--muted);
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; padding: 5px 10px; cursor: pointer;
+  clip-path: polygon(4px 0, 100% 0, 100% 100%, 0 100%, 0 4px);
+}
+.snd-demo button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.snd-demo button:disabled { opacity: .35; cursor: default; }

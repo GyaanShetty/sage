@@ -46,6 +46,31 @@
      danger keep their fixed offsets from it rather than being set
      independently, so a turn of the dial moves the palette as one piece and
      the three can never drift into disagreeing with each other. */
+  /* ── TERMINAL PALETTE ──────────────────────────────────────────────────
+     The redesign brings a second and third colour into a system that had
+     exactly one. Market data cannot be carried by luminance: up and down are
+     the two things on the screen that MUST be distinguishable at a glance,
+     and greyscale cannot do it. So green and red mean direction and nothing
+     else, amber marks live routes and attention, and cyan is structural
+     chrome. None of them are decorative. */
+  --up: #22c55e;
+  --up-dim: rgba(34, 197, 94, 0.55);
+  --down: #ef4444;
+  --down-dim: rgba(239, 68, 68, 0.55);
+  --amber: #f0a020;
+  --amber-dim: rgba(240, 160, 32, 0.5);
+  --amber-faint: rgba(240, 160, 32, 0.12);
+  --cyan: #22d3ee;
+  --cyan-dim: rgba(34, 211, 238, 0.5);
+
+  /* Surfaces lift a step: the reference is dark but not the near-black the
+     wall used, and panels have to read as separate objects on it. */
+  --deep: #07080a;
+  --surface: #0e1013;
+  --surface-hi: #14171b;
+  --edge: rgba(255, 255, 255, 0.07);
+  --edge-hi: rgba(255, 255, 255, 0.14);
+
   --hue: 3;
   --hue-warn: calc(var(--hue) + 13);
   --hue-danger: calc(var(--hue) - 11);

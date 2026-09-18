@@ -1,0 +1,171 @@
+/* ══ TERMINAL SHELL ═════════════════════════════════════════════════════════
+   The rail, the masthead and the category strip.
+
+   A fixed 78px rail on the left and everything else in a column beside it.
+   Nothing here scrolls except the workspace; the frame stays put, which is
+   what a terminal does and a page does not. */
+
+/*
+ * Named `shellframe`, not `term`: the dashboard already ships a `.term`
+ * class for the in-app terminal widget — 280px tall and a flex column — and
+ * the shell silently inherited both, which is why the rail laid out as a
+ * horizontal strip and the workspace got 76px of height.
+ *
+ * Flex, not grid.
+ *
+ * The shell mounts a dozen siblings beside the rail and the workspace — the
+ * ambient canvas, the boot screen, the toaster, the wheel, the voice overlay.
+ * Under `display: grid` every one of them claims a cell, so the rail and the
+ * column were placed wherever there was room and the wall never got a row at
+ * all. Those siblings are all fixed-position or render null, which a flex row
+ * ignores and a grid does not.
+ */
+.shellframe {
+  display: flex;
+  height: 100dvh;
+  background: var(--deep);
+  overflow: hidden;
+}
+.rail { flex: 0 0 78px; }
+.shellframe-col { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+/* ── the rail ─────────────────────────────────────────────────────────────── */
+
+.rail {
+  display: flex; flex-direction: column; align-items: stretch;
+  border-right: 1px solid var(--edge);
+  background: var(--surface);
+  padding-top: calc(10px + var(--sat));
+  padding-bottom: calc(10px + var(--sab));
+  overflow: hidden;
+}
+.rail-mark {
+  display: grid; place-items: center; height: 58px; flex: none;
+  border-bottom: 1px solid var(--edge); margin-bottom: 10px;
+}
+.rail-ring {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--edge-hi);
+  background: radial-gradient(circle at 34% 30%, rgb(255 255 255 / .22), transparent 62%);
+  box-shadow: 0 0 18px -6px rgb(255 255 255 / .35);
+}
+.rail-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.rail-list::-webkit-scrollbar { display: none; }
+
+.rail-stop {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 11px 4px; text-decoration: none; color: var(--subtle);
+  border-left: 2px solid transparent;
+  transition: color .16s var(--ease), background .16s var(--ease), border-color .16s var(--ease);
+}
+.rail-stop:hover { color: var(--foreground); background: rgb(255 255 255 / .03); }
+.rail-stop.on {
+  color: var(--foreground);
+  border-left-color: var(--amber);
+  background: linear-gradient(90deg, var(--amber-faint), transparent);
+}
+.rail-ico { width: 19px; height: 19px; }
+.rail-lbl { font-family: var(--mono); font-size: 7.5px; letter-spacing: .1em; }
+
+.rail-foot { flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; border-top: 1px solid var(--edge); padding-top: 10px; }
+.rail-ver { font-family: var(--mono); font-size: 7px; letter-spacing: .1em; color: var(--faint); text-align: center; line-height: 1.5; }
+
+/* ── the masthead ─────────────────────────────────────────────────────────── */
+
+.topbar {
+  flex: none; display: flex; align-items: center; gap: 22px;
+  padding: 0 20px; height: 62px;
+  padding-top: var(--sat);
+  border-bottom: 1px solid var(--edge);
+  background: var(--surface);
+}
+
+.tb-brand { display: flex; flex-direction: column; gap: 2px; text-decoration: none; flex: none; }
+.tb-name {
+  font-family: var(--brand); font-weight: 700; font-size: 19px; letter-spacing: .34em;
+  color: var(--foreground); line-height: 1;
+}
+.tb-motto { font-family: var(--mono); font-size: 7.5px; letter-spacing: .26em; color: var(--subtle); }
+
+.tb-search {
+  flex: 1; max-width: 620px; display: flex; align-items: center; gap: 10px;
+  height: 36px; padding: 0 12px; cursor: pointer;
+  background: var(--deep); border: 1px solid var(--edge);
+  color: var(--subtle); text-align: left;
+  transition: border-color .16s var(--ease), color .16s var(--ease);
+}
+.tb-search:hover { border-color: var(--edge-hi); color: var(--muted); }
+.tb-search-t { flex: 1; min-width: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-search kbd {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .06em; color: var(--muted);
+  border: 1px solid var(--edge); padding: 2px 6px; flex: none;
+}
+
+.tb-clock { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.tb-date { font-family: var(--mono); font-size: 8.5px; letter-spacing: .16em; color: var(--muted); }
+.tb-time {
+  font-family: var(--mono); font-size: 22px; font-weight: 300; line-height: 1;
+  color: var(--foreground); font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.tb-tz { font-family: var(--mono); font-size: 7.5px; letter-spacing: .2em; color: var(--subtle); }
+
+.tb-verbs {
+  flex: none; list-style: none; margin: 0; padding: 0 20px;
+  border-left: 1px solid var(--edge); border-right: 1px solid var(--edge);
+  display: grid; grid-template-columns: 1fr; gap: 1px;
+  font-family: var(--mono); font-size: 7.5px; letter-spacing: .2em; color: var(--subtle);
+}
+
+.tb-place { flex: none; display: flex; align-items: center; gap: 11px; }
+.tb-moon {
+  width: 34px; height: 34px; border-radius: 50%; flex: none;
+  background:
+    radial-gradient(circle at 32% 30%, rgb(255 255 255 / .9), rgb(255 255 255 / .12) 46%, transparent 60%),
+    linear-gradient(120deg, #2a2d33, #101216);
+  box-shadow: inset -6px -3px 12px rgb(0 0 0 / .8);
+}
+.tb-place-t { display: flex; flex-direction: column; gap: 1px; font-family: var(--mono); font-size: 8px; letter-spacing: .14em; color: var(--subtle); }
+.tb-place-t b { font-size: 10px; letter-spacing: .16em; color: var(--foreground); font-weight: 400; }
+.tb-temp { color: var(--muted); }
+
+/* ── the category strip ───────────────────────────────────────────────────── */
+
+.cats {
+  flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; height: 34px;
+  border-bottom: 1px solid var(--edge);
+  background: var(--deep);
+}
+.cats-list { list-style: none; margin: 0; padding: 0; display: flex; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.cats-list::-webkit-scrollbar { display: none; }
+.cat {
+  background: none; border: 0; cursor: pointer; white-space: nowrap;
+  padding: 7px 13px; color: var(--subtle);
+  font-family: var(--mono); font-size: 9px; letter-spacing: .16em;
+  border-bottom: 2px solid transparent;
+  transition: color .14s var(--ease), border-color .14s var(--ease);
+}
+.cat:hover { color: var(--muted); }
+.cat.on { color: var(--foreground); border-bottom-color: var(--amber); background: rgb(255 255 255 / .03); }
+
+.cats-state {
+  flex: none; display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .16em; color: var(--subtle);
+}
+.cats-state i { width: 6px; height: 6px; border-radius: 50%; background: var(--subtle); }
+.cats-state.open { color: var(--up); }
+.cats-state.open i { background: var(--up); box-shadow: 0 0 10px -1px var(--up); }
+
+/* ── narrow ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .rail { flex-basis: 56px; }
+  .rail-lbl { display: none; }
+  .tb-verbs, .tb-place-t { display: none; }
+  .topbar { gap: 12px; padding: 0 12px; }
+  .tb-search-t { font-size: 11px; }
+}
+@media (max-width: 620px) {
+  .tb-search kbd, .tb-clock .tb-date, .tb-tz { display: none; }
+  .tb-time { font-size: 16px; }
+}

@@ -41,6 +41,10 @@ export function BootSequence() {
     } catch {}
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     setShow(true);
+    // Power-up, a relay per check line, a riser, then the chime. On a cold
+    // load the page has not been touched, so this arms itself and fires on
+    // the first gesture instead of playing into a suspended context.
+    sound.intro(LINES.length);
   }, []);
 
   // The check lines, printing one after another.
@@ -53,7 +57,6 @@ export function BootSequence() {
   // The exit, gated on both halves being finished.
   useEffect(() => {
     if (!show || !markDone || step < LINES.length) return;
-    sound.chime(); // may be silent pre-gesture; the visual carries it
     const t = setTimeout(() => setShow(false), HOLD_MS);
     return () => clearTimeout(t);
   }, [show, markDone, step]);

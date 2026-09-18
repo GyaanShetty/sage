@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { sound } from "@/lib/sound";
 import { usePathname } from "next/navigation";
 import { navStarted } from "@/lib/nav-busy";
 
@@ -61,6 +62,8 @@ export function NavGuard() {
       const from = window.location.pathname;
       const to = href.split("#")[0].split("?")[0];
       if (to === from) return;
+
+      sound.nav();
 
       // Quieten the wall for the duration: fewer updates landing mid-render
       // means the client-side navigation has a chance to finish on its own.

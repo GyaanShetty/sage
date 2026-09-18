@@ -14,6 +14,8 @@
  * rather than layout.
  */
 
+import { sound } from "@/lib/sound";
+
 const MAX = 1;
 
 let current: HTMLElement | null = null;
@@ -41,6 +43,9 @@ function onMove(e: PointerEvent) {
     current = el;
     rect = el.getBoundingClientRect();
     el.classList.add("is-tilted");
+    // Only on entering a new card, never while moving across one — and the
+    // cue throttles itself besides.
+    sound.hover();
   }
   if (!rect) return;
 

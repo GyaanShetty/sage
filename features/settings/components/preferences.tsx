@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Hand, Mic, Moon, Palette, Rows3, Sparkles } from "lucide-react";
+import { Bell, Hand, Mic, Moon, Palette, Rows3, Sparkles, Volume2 } from "lucide-react";
 import { GlassPanel } from "@/components/ui/glass-panel";
 import { useShellStore } from "@/features/shell/store";
 import { APP_NAME } from "@/lib/config";
 import { cn } from "@/lib/utils";
 import { useDensity } from "@/lib/density-pref";
 import { HueDial } from "@/components/hue-dial";
+import { SoundDial } from "@/components/sound-dial";
 import { disablePush, enablePush, pushEnabled, pushSupported } from "@/features/notifications/push-client";
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -192,6 +193,28 @@ export function Preferences() {
           </div>
           <div className="mt-4">
             <HueDial />
+          </div>
+        </GlassPanel>
+      )}
+
+      {mounted && (
+        <GlassPanel className="mt-3 p-5">
+          <div className="flex items-center gap-4">
+            <Volume2 className="size-5 text-muted" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Interface sound</p>
+              <p className="text-xs text-subtle">
+                Every cue is synthesized on the fly — there are no audio files to
+                download. Start-up runs a power-up, a relay per system check and a
+                chime; the rest of the interface has ticks, detents and a fault
+                tone. Browsers will not play any of it until you have clicked
+                something on the page, which is why the start-up sound waits for
+                your first click rather than firing into silence.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <SoundDial />
           </div>
         </GlassPanel>
       )}

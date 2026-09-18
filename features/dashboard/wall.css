@@ -690,6 +690,9 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
      narrow auxiliaries either side of it. */
   .wall-pack > .t-6x4  { grid-column: span 6;  grid-row: span 4; }
   .wall-pack > .t-12x2 { grid-column: span 12; grid-row: span 2; }
+  /* The hero band, tall enough for the globe to be a globe rather than a
+     stripe of dots behind a line of type. */
+  .wall-pack > .t-12x3 { grid-column: span 12; grid-row: span 3; }
 
   /*
    * There was a rule here that gave wide screens MORE tiles to a band, on the

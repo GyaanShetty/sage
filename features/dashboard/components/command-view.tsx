@@ -224,7 +224,7 @@ export function CommandView({
               all already exist on Body, Work and Markets, and having them
               here as well is what made the overview a wall of everything
               rather than an overview of anything. */}
-          <div className="t-12x2">
+          <div className="t-12x3">
             <DashHero
               open={open}
               events={todays.length}

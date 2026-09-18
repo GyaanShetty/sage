@@ -233,7 +233,7 @@
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(120% 80% at 50% 0%, var(--signal-faint), transparent 60%);
+  background: radial-gradient(120% 80% at 50% 0%, rgb(255 255 255 / .035), transparent 60%);
 }
 .wall-pack > *, .deck > * { position: relative; z-index: 1; }
 
@@ -312,9 +312,10 @@
   padding: 0 26px;
   overflow: hidden;
   border: 1px solid var(--rule);
-  background:
-    radial-gradient(120% 180% at 12% 50%, var(--signal-faint), transparent 58%),
-    linear-gradient(180deg, var(--glass), transparent);
+  /* No hue behind the mark. The band carried a signal-tinted radial that
+     washed the whole hero warm — decoration in the one colour reserved for
+     what is live, which is exactly the job the accent is not for. */
+  background: linear-gradient(180deg, var(--glass), transparent);
 }
 
 /* Texture, well behind the type. The rain never resolves into anything you
@@ -322,7 +323,7 @@
    than on the wordmark. */
 .dh-rain {
   position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  opacity: .1; color: var(--signal);
+  opacity: .085; color: #aeb3bd;
   overflow: hidden;
   mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent);
 }
@@ -349,9 +350,11 @@
    * offset shadow gives the arcade-marquee read the glow was reaching for
    * while leaving the strokes actually legible.
    */
+  /* The hard offset stays — it is what makes the block glyphs read as a
+     marquee — but in ink rather than in the accent. */
   text-shadow:
-    2px 2px 0 hsl(var(--hue) 100% 59% / .55),
-    0 0 6px hsl(var(--hue) 100% 59% / .35);
+    2px 2px 0 rgb(0 0 0 / .85),
+    0 0 10px rgb(255 255 255 / .18);
 }
 .dh-tag {
   display: flex; align-items: center; gap: 9px;
@@ -485,3 +488,15 @@
 }
 .snd-demo button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
 .snd-demo button:disabled { opacity: .35; cursor: default; }
+
+/* The globe sits behind everything in the band, centred and clipped by it. */
+.dh-globe {
+  position: absolute; inset: 0; z-index: 0;
+  width: 100%; height: 100%; display: block;
+  pointer-events: none;
+  /* Faded at the edges so it reads as depth rather than as a pasted circle. */
+  -webkit-mask-image: radial-gradient(closest-side, #000 70%, transparent 100%);
+          mask-image: radial-gradient(closest-side, #000 70%, transparent 100%);
+  opacity: .8;
+}
+@media (max-width: 900px) { .dh-globe { display: none; } }

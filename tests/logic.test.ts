@@ -4927,3 +4927,34 @@ test("the desk classifier prefers the more specific rule", async () => {
   assert.equal(deskOf("AI startup earnings beat expectations"), "AI");
   assert.equal(deskOf("Oil prices lift energy stocks"), "ENERGY");
 });
+
+test("air traffic counts hold up against a real OpenSky payload", async () => {
+  const { countSkies } = await import("@/core/skies");
+  const { readFileSync: rf, existsSync } = await import("node:fs");
+  const sample = "tests/fixtures/opensky.json";
+  if (!existsSync(sample)) return; // fixture is optional in a slim checkout
+
+  const j = JSON.parse(rf(sample, "utf8")) as { states: unknown[][] };
+  const c = countSkies(j.states as never);
+
+  assert.equal(c.tracked, j.states.length);
+  assert.ok(c.airborne > 0 && c.airborne <= c.tracked, "airborne is a subset of tracked");
+  assert.ok(c.overIndia > 0 && c.overIndia < c.tracked, "the India box selects some but not all");
+
+  // The live feed carries occasional nonsense. Before the clamp this payload
+  // reported a max speed of Mach 5.4; the ceiling is guarded the same way, and
+  // a figure above the Karman line would mean the guard has stopped working.
+  assert.ok(c.ceilingM > 8000 && c.ceilingM < 30_000, `ceiling ${c.ceilingM}m is not an aircraft altitude`);
+});
+
+test("the India box excludes aircraft outside it", async () => {
+  const { countSkies } = await import("@/core/skies");
+  // [icao, callsign, country, t, t, lon, lat, alt, on_ground, ...]
+  const bengaluru = [null, null, null, 0, 0, 77.6, 12.9, 10000, false];
+  const london    = [null, null, null, 0, 0, -0.1, 51.5, 10000, false];
+  const parked    = [null, null, null, 0, 0, 77.6, 12.9, 0, true];
+  const c = countSkies([bengaluru, london, parked] as never);
+  assert.equal(c.tracked, 3);
+  assert.equal(c.airborne, 2, "the aircraft on the ground is not airborne");
+  assert.equal(c.overIndia, 2, "both Bengaluru rows are in the box, London is not");
+});

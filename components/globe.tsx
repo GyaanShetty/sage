@@ -8,13 +8,19 @@
  * Front-facing points only, brightness falling off with depth, and a marker
  * at a real coordinate that goes round the back with everything else.
  *
- * Deliberately a graticule rather than continents. Drawing coastlines would
- * mean shipping a land mask, and faking them with noise would put invented
- * geography on the screen — a grid is honest about being a grid, and at this
- * size reads as a globe regardless.
+ * Real coastlines. The repo already carried a 50m countries topology, so
+ * scripts/make-coastline.mjs decodes it once at build time into a flat array
+ * of lon/lat pairs — 756KB of polygons down to 6,586 points. The graticule
+ * stays underneath as structure; the land sits on top of it.
+ *
+ * (An earlier version drew only the graticule, on the reasoning that
+ * continents would mean shipping a land mask. The mask was already in the
+ * repo.)
  */
 
 import { useEffect, useRef } from "react";
+
+import { COAST } from "@/lib/coastline";
 
 const LAT_STEP = 6;   // degrees between parallels
 const LON_STEP = 6;   // degrees between meridians
@@ -67,6 +73,11 @@ export function Globe({
     if (!ctx) return;
 
     const pts = sphere();
+    // Pre-project the coastline to unit-sphere vectors once. Doing the
+    // trigonometry per frame for six thousand points is the difference
+    // between a globe and a slideshow.
+    const land: Pt[] = [];
+    for (let i = 0; i < COAST.length; i += 2) land.push(at(COAST[i + 1], COAST[i]));
     const marked = marks.map((m) => ({ ...at(m.lat, m.lon), label: m.label }));
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -100,15 +111,29 @@ export function Globe({
 
       ctx.clearRect(0, 0, w, h);
 
+      // The graticule, faint, as the ball the land sits on.
       for (const p of pts) {
         // Spin about Y, then take z toward the viewer.
         const x = p.x * cosA - p.z * sinA;
         const z = p.x * sinA + p.z * cosA;
         if (z < 0) continue;                       // back of the sphere
         const depth = z;                           // 0 at the limb, 1 facing us
-        ctx.globalAlpha = 0.1 + depth * 0.6;
-        ctx.fillStyle = "#d2d6de";
-        const r = (0.6 + depth * 1.0) * dpr;
+        ctx.globalAlpha = 0.05 + depth * 0.16;
+        ctx.fillStyle = "#8a8f99";
+        const r = (0.4 + depth * 0.5) * dpr;
+        ctx.beginPath();
+        ctx.arc(cx + x * R, cy - p.y * R, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // The coastlines, bright, on top.
+      ctx.fillStyle = "#e4e8ef";
+      for (const p of land) {
+        const x = p.x * cosA - p.z * sinA;
+        const z = p.x * sinA + p.z * cosA;
+        if (z < 0) continue;
+        ctx.globalAlpha = 0.1 + z * 0.75;
+        const r = (0.45 + z * 0.75) * dpr;
         ctx.beginPath();
         ctx.arc(cx + x * R, cy - p.y * R, r, 0, Math.PI * 2);
         ctx.fill();

@@ -16,10 +16,24 @@ import { countSkies, type SkyCounts, type State } from "@/core/skies";
  * contact" for all three tells you nothing you can act on.
  */
 
-export const revalidate = 600;
+/**
+ * The route's own cache, because Next's cannot hold this.
+ *
+ * `next: { revalidate }` on the upstream fetch looked like caching and was
+ * not: the state-vector payload is 2.1MB and Next's data cache refuses
+ * anything over 2MB. The build log said so —
+ *   "Failed to set Next.js data cache ... items over 2MB can not be cached"
+ * — which means every single request went out to OpenSky live. On a shared
+ * Vercel egress IP that is exactly how an anonymous quota gets spent, and
+ * almost certainly why the panel kept reading 503.
+ *
+ * So the upstream is fetched no-store and the AGGREGATE is cached here
+ * instead. Four integers cache anywhere; two megabytes cache nowhere.
+ */
+const TTL_MS = 10 * 60_000;
+const AUTHED_TTL_MS = 5 * 60_000;
 
-/** Last good reading, so one refused refresh does not blank a live panel. */
-let lastGood: { data: SkyCounts; at: number } | null = null;
+let lastGood: { data: SkyCounts; at: number; fetchedAt: number } | null = null;
 
 function why(status: number): string {
   if (status === 429) return "rate limited — set OPENSKY_USER / OPENSKY_PASS";
@@ -36,10 +50,18 @@ export async function GET() {
     headers.authorization = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
   }
 
+  // Serve the cached aggregate rather than going out again. This is the whole
+  // point: one upstream call per window, not one per page load.
+  const ttl = user ? AUTHED_TTL_MS : TTL_MS;
+  if (lastGood && Date.now() - lastGood.fetchedAt < ttl) {
+    return NextResponse.json({ ok: true, authed: !!user, cached: true, data: { ...lastGood.data, at: lastGood.at } });
+  }
+
   try {
     const r = await fetch("https://opensky-network.org/api/states/all", {
-      // An authenticated call has its own allowance, so it may be fresher.
-      next: { revalidate: user ? 300 : revalidate },
+      // Explicitly uncached: the payload is 2.1MB and Next refuses it, so
+      // asking for caching here only produced a warning and a live request.
+      cache: "no-store",
       headers,
       signal: AbortSignal.timeout(20_000),
     });
@@ -65,7 +87,7 @@ export async function GET() {
 
     const counts = countSkies(states);
     const at = (j.time ?? Math.floor(Date.now() / 1000)) * 1000;
-    lastGood = { data: counts, at };
+    lastGood = { data: counts, at, fetchedAt: Date.now() };
 
     return NextResponse.json({ ok: true, authed: !!user, data: { ...counts, at } });
   } catch (e) {

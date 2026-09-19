@@ -24,8 +24,17 @@ import { APP_NAME } from "@/lib/config";
 import { AsciiMark } from "@/components/ascii/mark";
 import { AsciiRain, AsciiScan } from "@/components/ascii/motifs";
 import { Globe } from "@/components/globe";
+import { HeroTime, HeroMachine } from "./hero-flanks";
 
-function Stat({ v, k, tone }: { v: string; k: string; tone?: "signal" | "ok" }) {
+function Stat({
+  v,
+  k,
+  tone,
+}: {
+  v: string;
+  k: string;
+  tone?: "signal" | "ok";
+}) {
   return (
     <div className="dh-stat">
       <b className={tone ? `is-${tone}` : undefined}>{v}</b>
@@ -35,33 +44,57 @@ function Stat({ v, k, tone }: { v: string; k: string; tone?: "signal" | "ok" }) 
 }
 
 export function DashHero({
-  open, events, overdue, agentRunning, weather,
+  open,
+  events,
+  overdue,
+  agentRunning,
+  weather,
 }: {
-  open: number; events: number; overdue: number;
-  agentRunning: boolean; weather: string | null;
+  open: number;
+  events: number;
+  overdue: number;
+  agentRunning: boolean;
+  weather: string | null;
 }) {
   return (
     <section className="dash-hero">
-      <div className="dh-rain" aria-hidden><AsciiRain cols={120} rows={9} density={0.16} /></div>
+      <div className="dh-rain" aria-hidden>
+        <AsciiRain cols={120} rows={9} density={0.16} />
+      </div>
       <div className="dh-sweep" aria-hidden />
       {/* Behind the mark, not beside it: the globe is the ground the name
           stands on. Real lat/lon geometry with Bengaluru marked, so the
           bright point is where you actually are. */}
       <Globe className="dh-globe" />
 
-      <div className="dh-mark">
-        <AsciiMark label={APP_NAME} />
-        <span className="dh-tag">
-          <AsciiScan width={18} /> MISSION CONTROL · {agentRunning ? "AGENT RUNNING" : "STANDING BY"}
-        </span>
+      <HeroTime />
+
+      <div className="dh-centre">
+        <div className="dh-mark">
+          <AsciiMark label={APP_NAME} />
+          <span className="dh-tag">
+            <AsciiScan width={18} /> MISSION CONTROL ·{" "}
+            {agentRunning ? "AGENT RUNNING" : "STANDING BY"}
+          </span>
+        </div>
+
+        <div className="dh-stats">
+          <Stat
+            v={String(open).padStart(2, "0")}
+            k="OPEN"
+            tone={open > 0 ? "signal" : undefined}
+          />
+          <Stat v={String(events).padStart(2, "0")} k="TODAY" />
+          <Stat
+            v={String(overdue).padStart(2, "0")}
+            k="OVERDUE"
+            tone={overdue > 0 ? "signal" : undefined}
+          />
+          <Stat v={weather ?? "—"} k="OUTSIDE" />
+        </div>
       </div>
 
-      <div className="dh-stats">
-        <Stat v={String(open).padStart(2, "0")} k="OPEN" tone={open > 0 ? "signal" : undefined} />
-        <Stat v={String(events).padStart(2, "0")} k="TODAY" />
-        <Stat v={String(overdue).padStart(2, "0")} k="OVERDUE" tone={overdue > 0 ? "signal" : undefined} />
-        <Stat v={weather ?? "—"} k="OUTSIDE" />
-      </div>
+      <HeroMachine />
     </section>
   );
 }

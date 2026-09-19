@@ -300,13 +300,22 @@
  * readings sit directly beneath the name and the whole band reads as one
  * object instead of two.
  */
+/*
+ * Three columns: elapsed time, the wordmark, the machine.
+ *
+ * The band was a name floating in a very wide empty box — the mark centred
+ * and two thirds of the width doing nothing. The flanks are readings rather
+ * than ornament, and they are the two nothing else on the wall says: how far
+ * through the day/week/quarter/year you are, and what this machine is doing
+ * while you read it.
+ */
 .dash-hero {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 14px;
+  justify-items: center;
+  gap: 24px;
   height: 100%;
   min-height: 0;
   padding: 0 26px;
@@ -340,6 +349,8 @@
 }
 @keyframes dh-sweep { 0%, 62% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
+/* The centre column keeps the mark over its readings. */
+.dh-centre { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
 .dh-mark { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
 .dh-mark .ascii-mark {
   margin: 0; font-size: 11px; line-height: 1.02; color: var(--foreground);
@@ -500,3 +511,33 @@
   opacity: .8;
 }
 @media (max-width: 900px) { .dh-globe { display: none; } }
+
+/* ── HERO FLANKS ──────────────────────────────────────────────────────────── */
+
+.dhf {
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 5px;
+  min-width: 0; max-width: 300px; width: 100%;
+}
+.dhf-l { align-items: flex-start; justify-self: start; padding-left: 8px; }
+.dhf-r { align-items: flex-start; justify-self: end; padding-right: 8px; }
+
+.dhf-cap {
+  font-family: var(--mono); font-size: 7.5px; letter-spacing: .24em; color: var(--subtle);
+  border-bottom: 1px solid var(--edge); padding-bottom: 5px; margin-bottom: 3px; width: 100%;
+}
+.dhf-line { display: grid; grid-template-columns: 42px auto 1fr; align-items: center; gap: 9px; width: 100%; }
+.dhf-k { font-family: var(--mono); font-size: 8px; letter-spacing: .16em; color: var(--muted); }
+.dhf-line .asc-meter { font-family: var(--mono); font-size: 10px; letter-spacing: -.04em; color: var(--signal); }
+.dhf-line .asc-meter.is-void { color: var(--faint); }
+.dhf-v {
+  font-family: var(--mono); font-size: 9px; color: var(--foreground);
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+
+/* Below the wall breakpoint the band stacks and the flanks are the first
+   thing to go — four progress meters are not what a phone screen is for. */
+@media (max-width: 1399px) {
+  .dash-hero { display: flex; flex-direction: column; }
+  .dhf { display: none; }
+}

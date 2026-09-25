@@ -35,8 +35,17 @@ export interface Feed<T> {
   loading: boolean;
 }
 
+/**
+ * `url` may be null to hold off fetching.
+ *
+ * Hooks cannot be called conditionally, so a panel that wants to defer an
+ * expensive request until after first paint has no way to express it except
+ * by passing null and swapping in the real URL when it is ready. The skies
+ * panel does exactly that: its upstream is a 2.1MB download and it has no
+ * business being one of the dozen calls the dashboard makes while drawing.
+ */
 export function useFeed<T>(
-  url: string,
+  url: string | null,
   opts: { everyMs?: number; hiddenMs?: number; scopes?: string[]; pick?: (json: unknown) => T | null } = {},
 ): Feed<T> {
   const { everyMs, hiddenMs, scopes, pick } = opts;
@@ -47,6 +56,9 @@ export function useFeed<T>(
   pickRef.current = pick;
 
   const run = useCallback(async () => {
+    // Not armed yet. Stay in the loading state rather than reporting failure —
+    // nothing has been asked for, so nothing has gone wrong.
+    if (!url) return;
     try {
       const res = await fetch(url, { cache: "no-store" });
       const json = await res.json();

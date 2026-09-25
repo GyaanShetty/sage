@@ -4958,3 +4958,53 @@ test("the India box excludes aircraft outside it", async () => {
   assert.equal(c.airborne, 2, "the aircraft on the ground is not airborne");
   assert.equal(c.overIndia, 2, "both Bengaluru rows are in the box, London is not");
 });
+
+test("prep-reminder dedup is bounded by the calendar, not by history", () => {
+  const src = readFileSync("core/reminders/prep.ts", "utf8");
+  const q = src.slice(src.indexOf('.from("Reminder")'), src.indexOf("const rows:"));
+
+  // The window this reads must be constrained to reminders that can actually
+  // collide — the future ones. Reading "the first N prep reminders" and
+  // hoping they are the relevant N is what ran the table to 22,949 rows: once
+  // there were more than N, every tick re-created and re-fired reminders it
+  // could no longer see.
+  assert.match(q, /gte\("remindAt"/, "the dedup read must be bounded to future reminders");
+  const limit = /\.limit\((\d+)\)/.exec(q);
+  assert.ok(limit, "the dedup read should still carry a safety limit");
+  assert.ok(Number(limit[1]) >= 500, `a limit of ${limit?.[1]} is too small to be a safety net`);
+});
+
+test("every link in the rail and quick launch resolves to a real page", async () => {
+  const { readdirSync, statSync } = await import("node:fs");
+
+  // Walk the shell route group for directories containing a page.
+  const base = "app/(shell)";
+  const routes = new Set<string>(["/"]);
+  const walk = (dir: string, prefix: string) => {
+    for (const e of readdirSync(dir)) {
+      const full = `${dir}/${e}`;
+      if (!statSync(full).isDirectory()) continue;
+      const here = `${prefix}/${e}`;
+      try { statSync(`${full}/page.tsx`); routes.add(here); } catch { /* no page here */ }
+      walk(full, here);
+    }
+  };
+  walk(base, "");
+
+  const files = [
+    "features/shell/components/nav-rail.tsx",
+    "features/dashboard/components/quick-launch.tsx",
+  ];
+  const bad: string[] = [];
+  for (const f of files) {
+    for (const m of readFileSync(f, "utf8").matchAll(/href:\s*"(\/[^"]*)"/g)) {
+      const href = m[1].split("?")[0].split("#")[0];
+      // Dynamic segments are not checkable this way; nothing here uses them.
+      if (!routes.has(href)) bad.push(`${f} -> ${href}`);
+    }
+  }
+  // /atlas, /notes and /terminal all shipped as dead links: the rail's Maps
+  // stop pointed at an API route with no page, and two quick-launch cells
+  // pointed at pages that had never existed.
+  assert.deepEqual(bad, [], `dead internal links: ${bad.join(", ")}`);
+});

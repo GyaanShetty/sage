@@ -39,7 +39,14 @@ export async function getMarkets(ids?: string[]): Promise<Coin[] | null> {
   }
 }
 
-export interface Stock { symbol: string; price: number; change: number }
+export interface Stock {
+  symbol: string;
+  price: number;
+  /** Percent move on the day. */
+  change: number;
+  /** ISO code. A .BSE or .NS listing is quoted in rupees, not dollars. */
+  currency: "INR" | "USD";
+}
 
 /**
  * Stock quotes via Alpha Vantage (free tier: 25 req/day — keep the list small,
@@ -61,9 +68,14 @@ export async function getStocks(): Promise<Stock[] | null> {
       const q = j["Global Quote"];
       if (!q || !q["05. price"]) continue;
       out.push({
-        symbol: symbol.replace(".BSE", ""),
+        symbol: symbol.replace(/\.(BSE|NS)$/, ""),
         price: parseFloat(q["05. price"]),
         change: parseFloat((q["10. change percent"] ?? "0").replace("%", "")),
+        // The quote carries no currency, and the suffix is the only thing
+        // that says which one it is. Without this a Bombay listing rendered
+        // as "$1,219" — the right number against the wrong symbol, which is
+        // worse than no number.
+        currency: /\.(BSE|NS)$/.test(symbol) ? "INR" : "USD",
       });
     } catch {
       /* skip */

@@ -18,7 +18,8 @@ import { useLive } from "@/lib/live";
 import { asArray } from "@/lib/as-array";
 
 interface Coin { symbol: string; name?: string; price: number; change24h: number; spark?: number[] }
-interface Quote { symbol: string; name?: string; price: number; changePct: number; currency?: string }
+/** Mirrors infrastructure/markets Stock — `change`, not `changePct`. */
+interface Quote { symbol: string; name?: string; price: number; change: number; currency?: string }
 
 interface RowData {
   key: string; sym: string; name: string;
@@ -48,7 +49,7 @@ export function MarketsList({ n, limit = 10 }: { n?: number; limit?: number }) {
       })),
       ...stocks.map((s) => ({
         key: `s:${s.symbol}`, sym: s.symbol, name: s.name ?? s.symbol,
-        price: s.price, pct: num(s.changePct), ccy: s.currency === "INR" ? "₹" : "$",
+        price: s.price, pct: num(s.change), ccy: s.currency === "INR" ? "₹" : "$",
       })),
     ]);
   }).catch(() => {}), { everyMs: 120_000 });

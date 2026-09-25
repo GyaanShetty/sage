@@ -5,6 +5,28 @@ import { Newspaper, Gauge, Grid3x3, CalendarClock, Network, Loader2, RefreshCw }
 import { cn } from "@/lib/utils";
 import "./intel.css";
 
+/**
+ * A request that is allowed to give up.
+ *
+ * These four panels each call an endpoint that ends in a model call, and none
+ * of them had a deadline. When one of those functions ran past the platform's
+ * limit the browser was left holding a request that would never settle, so
+ * UPCOMING sat on "loading…" for the rest of the session — not failed, not
+ * empty, just permanently loading, which is the one state a panel cannot
+ * recover from on its own.
+ *
+ * Twenty-five seconds is generous for a model call and finite, which is the
+ * only property that matters here.
+ */
+async function withDeadline<T>(url: string, ms = 25_000): Promise<T | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(ms) });
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 const pct = (n: number | null | undefined, d = 2) =>
   n == null ? "—" : `${n >= 0 ? "+" : ""}${n.toFixed(d)}%`;
 
@@ -15,13 +37,18 @@ export function NarrativePanel() {
   const [busy, setBusy] = useState(true);
   const [cached, setCached] = useState(false);
 
-  const load = useCallback((refresh = false) => {
+  const [failed, setFailed] = useState(false);
+
+  const load = useCallback(async (refresh = false) => {
     setBusy(true);
-    fetch(`/api/market/narrative${refresh ? "?refresh=1" : ""}`)
-      .then((r) => r.json())
-      .then((j) => { setText(j?.data?.narrative ?? null); setCached(!!j?.data?.cached); })
-      .catch(() => setText(null))
-      .finally(() => setBusy(false));
+    const j = await withDeadline<{ data?: { narrative?: string; cached?: boolean } }>(
+      `/api/market/narrative${refresh ? "?refresh=1" : ""}`,
+    );
+    setBusy(false);
+    if (!j) { setFailed(true); return; }   // keep whatever is on screen
+    setFailed(false);
+    setText(j.data?.narrative ?? null);
+    setCached(!!j.data?.cached);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -34,9 +61,10 @@ export function NarrativePanel() {
           {busy ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />} REFRESH
         </button>
       </div>
-      {busy && !text && <p className="mk-dim">SAGE is reading the tape…</p>}
+      {busy && !text && <p className="mk-dim">SAGE is reading the tape — this is a model call, so give it a moment…</p>}
+      {failed && <p className="mk-dim">Couldn&rsquo;t finish reading the tape. {text ? "Showing the last read." : ""} <button onClick={() => load(true)} className="mk-btn">RETRY</button></p>}
       {text && <div className="mk-prose">{text.split(/\n{2,}/).map((p, i) => <p key={i}>{p}</p>)}</div>}
-      {!busy && !text && <p className="mk-dim">No read available — the model is unreachable right now.</p>}
+      {!busy && !failed && !text && <p className="mk-dim">No read available — the model is unreachable right now.</p>}
     </div>
   );
 }
@@ -54,8 +82,8 @@ export function PulsePanel() {
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/market/sentiment").then((r) => r.json()).then((j) => setS(j?.data ?? null)).catch(() => {}),
-      fetch("/api/market/sectors").then((r) => r.json()).then((j) => setSec(j?.data ?? null)).catch(() => {}),
+      withDeadline<{ data?: Sentiment }>("/api/market/sentiment").then((j) => setS(j?.data ?? null)),
+      withDeadline<{ data?: SectorData }>("/api/market/sectors").then((j) => setSec(j?.data ?? null)),
     ]).finally(() => setLoaded(true));
   }, []);
 
@@ -130,19 +158,27 @@ interface Corr { symbols: string[]; matrix: number[][]; days: number; mostCorrel
 
 export function EventsCorrelationPanel({ symbols }: { symbols: string[] }) {
   const [events, setEvents] = useState<CalEvent[] | null>(null);
+  /** Set when the list came from an earlier day, or not at all. */
+  const [evMeta, setEvMeta] = useState<{ stale?: boolean; builtOn?: string; reason?: string }>({});
   const [c, setC] = useState<Corr | null>(null);
   const [corrBusy, setCorrBusy] = useState(false);
 
   useEffect(() => {
-    fetch("/api/market/calendar").then((r) => r.json()).then((j) => setEvents(j?.data?.events ?? [])).catch(() => setEvents([]));
+    void (async () => {
+      const j = await withDeadline<{ data?: { events?: CalEvent[]; stale?: boolean; builtOn?: string; reason?: string } }>(
+        "/api/market/calendar",
+      );
+      setEvents(j?.data?.events ?? []);
+      setEvMeta({ stale: j?.data?.stale, builtOn: j?.data?.builtOn, reason: j ? j.data?.reason : "The request timed out." });
+    })();
   }, []);
 
   const picked = symbols.slice(0, 6);
   const loadCorr = useCallback(() => {
     if (picked.length < 2) return;
     setCorrBusy(true);
-    fetch(`/api/market/correlation?symbols=${encodeURIComponent(picked.join(","))}`)
-      .then((r) => r.json()).then((j) => setC(j?.ok ? j.data : null)).catch(() => setC(null))
+    void withDeadline<{ ok?: boolean; data?: Corr }>(`/api/market/correlation?symbols=${encodeURIComponent(picked.join(","))}`)
+      .then((j) => setC(j?.ok ? (j.data ?? null) : null))
       .finally(() => setCorrBusy(false));
   }, [picked.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -154,7 +190,12 @@ export function EventsCorrelationPanel({ symbols }: { symbols: string[] }) {
   return (
     <div className="mk-grid2">
       <div className="mk-card">
-        <div className="mk-head"><CalendarClock className="size-3.5" /><h3>UPCOMING</h3><span className="mk-line" /></div>
+        <div className="mk-head">
+          <CalendarClock className="size-3.5" /><h3>UPCOMING</h3><span className="mk-line" />
+          {/* A figure labelled current when it is not is worse than one
+              labelled stale, so the panel says which day it was built on. */}
+          {evMeta.stale && evMeta.builtOn && <span className="mk-tag stale">FROM {evMeta.builtOn.slice(5)}</span>}
+        </div>
         {events === null && <p className="mk-dim">loading…</p>}
         {events?.length ? (
           <div className="mk-events">
@@ -168,7 +209,7 @@ export function EventsCorrelationPanel({ symbols }: { symbols: string[] }) {
               </div>
             ))}
           </div>
-        ) : events && <p className="mk-dim">No dated events found in today&rsquo;s headlines.</p>}
+        ) : events && <p className="mk-dim">{evMeta.reason ?? "No dated events found in today\u2019s headlines."}</p>}
       </div>
 
       <div className="mk-card">

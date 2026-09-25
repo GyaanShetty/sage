@@ -49,6 +49,27 @@ export async function recallWithin(query: string, limit = 8, ms = RECALL_DEADLIN
   return within(recallMemories(query, limit), ms, [] as RecalledMemory[]);
 }
 
+/**
+ * Record that these memories were used.
+ *
+ * The touch_memories RPC has shipped since 0002 and nothing has ever called
+ * it, so accessCount stayed 0 on every row and the memory page said "never
+ * recalled" beside all of them — including the ones SAGE reaches for daily.
+ * That is not a display bug: the number was correct, it was simply never
+ * written, so consolidation's own "has this ever been touched?" test could
+ * only ever answer no, and it decided what to retire on that basis.
+ *
+ * Not awaited. Recall sits in front of the model call and nothing streams
+ * until it returns; bookkeeping must not add a round trip to that path, and
+ * a failed bump is worth nothing to recover.
+ */
+function touch(ids: string[]): void {
+  if (!ids.length) return;
+  void db.rpc("touch_memories", { p_ids: ids }).then(({ error }) => {
+    if (error) console.warn("[memory] touch failed:", error.message);
+  });
+}
+
 export async function recallMemories(query: string, limit = 8): Promise<RecalledMemory[]> {
   const embedding = await embedText(query).catch(() => null);
 
@@ -61,7 +82,9 @@ export async function recallMemories(query: string, limit = 8): Promise<Recalled
     if (!error && Array.isArray(data) && data.length > 0) {
       // Over-fetch, then re-rank, so the weighting can actually change the
       // order rather than just shuffling whatever the ANN already returned.
-      return (data as RecalledMemory[]).sort((a, b) => score(b) - score(a)).slice(0, limit);
+      const top = (data as RecalledMemory[]).sort((a, b) => score(b) - score(a)).slice(0, limit);
+      touch(top.map((m) => m.id));
+      return top;
     }
   }
 
@@ -76,7 +99,9 @@ export async function recallMemories(query: string, limit = 8): Promise<Recalled
     .order("importance", { ascending: false })
     .order("createdAt", { ascending: false })
     .limit(limit);
-  return (data ?? []) as RecalledMemory[];
+  const rows = (data ?? []) as RecalledMemory[];
+  touch(rows.map((m) => m.id));
+  return rows;
 }
 
 /** Render recalled memories as a system-prompt block; empty string if none. */

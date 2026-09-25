@@ -9,9 +9,11 @@ import { useShellStore } from "@/features/shell/store";
 import { PALETTE_ACTIONS, type PaletteAction } from "../actions";
 import {
   CheckSquare, FileText, Brain, Wallet, Briefcase, Dumbbell, Receipt, Loader2,
-  Microscope, GraduationCap, Paperclip,
+  Microscope, GraduationCap, Paperclip, CandlestickChart,
 } from "lucide-react";
 import { asArray } from "@/lib/as-array";
+import { PAGES } from "@/features/shell/components/pages";
+import { shareJson } from "@/lib/share";
 
 interface SearchHit {
   kind: "task" | "note" | "memory" | "holding" | "career" | "workout" | "expense" | "research" | "skill" | "file";
@@ -31,6 +33,25 @@ export function CommandPalette() {
   // unified search across tasks, notes, memory, holdings, career, health, spend
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
+  /*
+   * Tickers, so ⌘K can answer "btc".
+   *
+   * The palette searched your own records and its own action list and nothing
+   * else, so typing a symbol — the most obvious thing to type into a search
+   * box on a markets terminal — returned "No results." while the price was on
+   * screen behind it.
+   *
+   * Loaded through the shared request layer, so this costs nothing: the
+   * dashboard has already asked for it, and opening the palette reuses that
+   * answer rather than making a thirteenth call.
+   */
+  const [coins, setCoins] = useState<{ symbol: string; name: string; price: number; change24h: number }[]>([]);
+  useEffect(() => {
+    if (!open || coins.length) return;
+    shareJson("/api/markets")
+      .then((j) => setCoins(asArray(j?.data)))
+      .catch(() => {});
+  }, [open, coins.length]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seq = useRef(0);
 
@@ -161,7 +182,62 @@ export function CommandPalette() {
                     })}
                   </Command.Group>
                 )}
-                {(["Actions", "Navigate", "System"] as const).map((group) => (
+                {coins.length > 0 && (
+                  <Command.Group
+                    heading="Markets"
+                    className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-subtle"
+                  >
+                    {coins.map((c) => (
+                      <Command.Item
+                        key={`coin-${c.symbol}`}
+                        value={`${c.symbol} ${c.name} price market`}
+                        onSelect={() => { setOpen(false); setQuery(""); router.push("/markets"); }}
+                        className="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm text-muted data-[selected=true]:bg-glass-strong data-[selected=true]:text-foreground"
+                      >
+                        <CandlestickChart className="size-4 shrink-0" strokeWidth={1.75} />
+                        <span>{c.symbol}</span>
+                        <span className="text-xs text-subtle">{c.name}</span>
+                        {/* The price is the answer to "btc", so it is here rather
+                            than one navigation away. */}
+                        <span className="ml-auto text-xs tabular-nums text-subtle">
+                          ${c.price?.toLocaleString()}{" "}
+                          {/* .up/.down are the app's own tokens; there is no text-up utility. */}
+                          <span className={c.change24h >= 0 ? "up" : "down"}>
+                            {c.change24h >= 0 ? "+" : ""}{c.change24h?.toFixed(1)}%
+                          </span>
+                        </span>
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                )}
+                {/*
+                  Every page, from the one registry the wheel and the launcher
+                  already read. The hand-written "Navigate" list covered 19 of
+                  34 — so half the app was unreachable from the palette, and
+                  the half that was missing was the half nobody remembered to
+                  add. Sourcing it from PAGES means a new page is in ⌘K the
+                  moment it is in the app.
+                */}
+                <Command.Group
+                  heading="Pages"
+                  className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-subtle"
+                >
+                  {PAGES.map((pg) => (
+                    <Command.Item
+                      key={`page-${pg.href}`}
+                      value={`${pg.label} ${pg.hint ?? ""} ${pg.group} ${pg.href}`}
+                      onSelect={() => { setOpen(false); setQuery(""); router.push(pg.href); }}
+                      className="flex h-10 cursor-pointer items-center gap-3 rounded-lg px-3 text-sm text-muted data-[selected=true]:bg-glass-strong data-[selected=true]:text-foreground"
+                    >
+                      <pg.icon className="size-4 shrink-0" strokeWidth={1.75} />
+                      <span>{pg.label}</span>
+                      <span className="ml-auto text-xs text-subtle">{pg.hint ?? pg.group.toLowerCase()}</span>
+                    </Command.Item>
+                  ))}
+                </Command.Group>
+                {/* "Navigate" is gone: the Pages group above supersedes it, and
+                    listing both put every page in the results twice. */}
+                {(["Actions", "System"] as const).map((group) => (
                   <Command.Group
                     key={group}
                     heading={group}

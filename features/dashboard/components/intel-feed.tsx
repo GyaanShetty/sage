@@ -33,7 +33,27 @@ export function IntelFeed({ n, limit = 12 }: { n?: number; limit?: number }) {
   const feed = useFeed<Item[]>("/api/news", { everyMs: 5 * 60_000 });
 
   const rows = useMemo(() => {
-    const all = (feed.data ?? []).map((i) => ({ ...i, desk: deskOf(i.title) }));
+    /*
+     * One story, one row.
+     *
+     * The wire pulls several feeds, and a syndicated story appears in more
+     * than one of them — same headline, different link, so nothing upstream
+     * treats them as the same item. On screen that read as the feed
+     * stuttering: the same headline twice, two rows apart, which makes the
+     * whole panel look broken even though both rows are real.
+     *
+     * Keyed on the headline with punctuation and case dropped, because that
+     * is what the copies agree on; the link never is. The earliest copy wins,
+     * so the time column still says when the story broke rather than when the
+     * slowest aggregator got round to it.
+     */
+    const seen = new Map<string, Item & { desk: Desk }>();
+    for (const i of feed.data ?? []) {
+      const key = i.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const prev = seen.get(key);
+      if (!prev || i.published < prev.published) seen.set(key, { ...i, desk: deskOf(i.title) });
+    }
+    const all = [...seen.values()].sort((a, b) => b.published - a.published);
     return tab === "ALL" ? all : all.filter((i) => i.desk === tab);
   }, [feed.data, tab]);
 

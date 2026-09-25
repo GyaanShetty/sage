@@ -159,7 +159,13 @@ async function healthLine(): Promise<SitrepLine | null> {
   const today = days.find((d) => d.day === tzDay());
 
   if (!today || today.steps == null) {
-    return { key: "health", label: "Steps", value: "Nothing logged today", level: "watch", href: "/health" };
+    /*
+     * The value slot is a one-line readout — 150px wide, nowrap, ellipsis —
+     * so a sentence in it truncated to "Nothing logged tod…". The slot below
+     * it is the one for prose. A dash reads as "no number", which is what is
+     * being said, and the sentence stays whole.
+     */
+    return { key: "health", label: "Steps", value: "—", detail: "Nothing logged today", level: "watch", href: "/health" };
   }
 
   const pct = Math.round((today.steps / goals.steps) * 100);

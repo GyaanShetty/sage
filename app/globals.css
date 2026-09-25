@@ -287,12 +287,28 @@ button:active, .chip:active { transform: translateY(1px); }
 .tape-sep { color: var(--faint); margin: 0 14px; font-size: 7px; vertical-align: 1px; }
 
 /* ── toasts ── */
-.toaster { position: fixed; right: calc(16px + var(--sar)); bottom: calc(76px + var(--sab)); z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
-@media (min-width: 768px) { .toaster { bottom: calc(24px + var(--sab)); right: calc(84px + var(--sar)); } }
-.toast { pointer-events: auto; cursor: pointer; display: flex; width: 300px; max-width: calc(100vw - 32px); background: rgba(12,13,15,.92); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14)); backdrop-filter: blur(14px); box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+/*
+ * Top right, not bottom right.
+ *
+ * At the bottom it landed on the floating mic and on the last row of the
+ * page — the two places you are most likely to be reaching for — and a
+ * reminder that covers the thing you are trying to press is worse than no
+ * reminder. The top right is empty on every page: the top bar is its own
+ * band and nothing else is anchored there.
+ *
+ * pointer-events: none on the stack so the gaps between cards stay
+ * clickable; each card turns them back on for itself.
+ */
+.toaster { position: fixed; right: calc(12px + var(--sar)); top: calc(56px + var(--sat)); z-index: 90; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+@media (min-width: 768px) { .toaster { top: calc(64px + var(--sat)); right: calc(84px + var(--sar)); } }
+.toast-x { pointer-events: auto; flex: 0 0 26px; width: 26px; align-self: stretch; display: grid; place-items: center;
+  background: none; border: 0; border-left: 1px solid var(--border-glass); cursor: pointer;
+  font-family: var(--mono); font-size: 13px; line-height: 1; color: var(--subtle); }
+.toast-x:hover { color: var(--foreground); background: rgba(244,244,245,.06); }
+.toast { pointer-events: auto; display: flex; align-items: stretch; width: 300px; max-width: calc(100vw - 32px); background: rgba(12,13,15,.92); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14)); backdrop-filter: blur(14px); box-shadow: 0 12px 40px rgba(0,0,0,.5); }
 .toast-rail { width: 2px; flex: 0 0 2px; background: var(--muted); }
 .toast.alert .toast-rail { background: var(--live); box-shadow: 0 0 10px var(--live-glow); }
-.toast-body { padding: 10px 14px; min-width: 0; }
+.toast-body { padding: 10px 14px; min-width: 0; flex: 1; cursor: pointer; }
 .toast-title { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--subtle); }
 .toast.alert .toast-title { color: var(--live); }
 .toast-text { font-size: 12px; color: var(--foreground); margin-top: 3px; line-height: 1.45; font-weight: 300; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

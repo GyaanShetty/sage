@@ -49,3 +49,6 @@ next-env.d.ts
 !/eslint.config.mjs
 !/postcss.config.mjs
 !/next.config.mjs
+
+# Session scratch — never part of the app.
+scratchpad/

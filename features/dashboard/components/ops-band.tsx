@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { asArray } from "@/lib/as-array";
 import { GitPullRequest, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ExpandableCell } from "./expandable-cell";
 import { useLive } from "@/lib/live";
@@ -25,7 +26,24 @@ export function OpsBand() {
   const [contrib, setContrib] = useState<Contrib | null>(null);
 
   useEffect(() => {
-    fetch("/api/github").then((r) => r.json()).then((j) => setGh(j.data)).catch(() => setGh(null));
+    /*
+     * Normalise on arrival, not at every use site.
+     *
+     * `setGh(j.data)` trusted the response to be the shape the type claims.
+     * When the route answers with an error envelope, or a field comes back
+     * null, `gh.repos.slice(0, 5)` throws "slice is not a function" — which
+     * is the crash the dashboard was logging nine times. A list that is not
+     * a list becomes an empty one here, once, and every render below is then
+     * safe by construction.
+     */
+    fetch("/api/github")
+      .then((r) => r.json())
+      .then((j) => {
+        const d = j?.data;
+        if (!d || typeof d !== "object") return setGh(null);
+        setGh({ ...d, repos: asArray(d.repos), reviewRequests: asArray(d.reviewRequests) } as Github);
+      })
+      .catch(() => setGh(null));
     fetch("/api/github/contributions").then((r) => r.json()).then((j) => setContrib(j.data)).catch(() => {});
   }, []);
 

@@ -57,13 +57,29 @@ export async function syncEventReminders(): Promise<{ created: number; lead: num
 
   const now = Date.now();
 
-  // Existing prep reminders, by marker, so nothing is created twice.
+  /*
+   * Existing prep reminders, by marker, so nothing is created twice.
+   *
+   * This asked for the first 200 prep reminders in the table, in whatever
+   * order the database felt like returning them. Once there were more than
+   * 200, the window stopped covering the ones that mattered: every tick
+   * failed to find the marker for an upcoming event, created a fresh
+   * reminder, fired it, and grew the table — which made the next tick's
+   * window cover proportionally less. It ran away to 22,949 reminder.fired
+   * rows and an 8.7-second endpoint, and surfaced as a toast that kept
+   * re-announcing the same event without ever counting down.
+   *
+   * A candidate is only created when its remindAt is in the FUTURE (see the
+   * guard below), so the set that can collide is exactly the future ones.
+   * That is bounded by the calendar rather than by the history.
+   */
   const { data: existing } = await db
     .from("Reminder")
     .select("text")
     .eq("userId", DEFAULT_USER_ID)
     .like("text", "%⟨prep:%")
-    .limit(200);
+    .gte("remindAt", new Date(now).toISOString())
+    .limit(500);
   const seen = new Set(
     (existing ?? [])
       .map((r) => /⟨prep:([^⟩]+)⟩/.exec(String(r.text))?.[1])

@@ -9,6 +9,7 @@
  * either would make the two real numbers untrustworthy by association.
  */
 
+import { useEffect, useState } from "react";
 import { Pane, Empty } from "@/components/pane";
 import { useFeed } from "@/lib/feed";
 import { Fresh } from "@/components/fresh";
@@ -22,7 +23,16 @@ const group = (v: number) => v.toLocaleString("en-US");
 export function SkiesPanel({ n }: { n?: number }) {
   // The whole envelope, not just the data: when this fails the reason is the
   // only useful thing on the panel, and picking `.data` throws it away.
-  const feed = useFeed<Envelope>("/api/skies", {
+  // Ten minutes, and deliberately not on mount alongside everything else: a
+  // cold instance pays for a 2.1MB upstream download, and that must not be
+  // one of the dozen requests the dashboard fires while it is drawing.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setArmed(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const feed = useFeed<Envelope>(armed ? "/api/skies" : null, {
     everyMs: 10 * 60_000,
     pick: (j) => (j && typeof j === "object" ? (j as Envelope) : null),
   });

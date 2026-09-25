@@ -141,7 +141,30 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
       if (disposed) return;
       if (!elRef.current) { setStatus("MAP CONTAINER MISSING"); return; }
       LRef.current = L;
-      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2 }).setView(center ?? [lat, lon], 5);
+      /*
+       * scrollWheelZoom is off until the map is clicked.
+       *
+       * A map inside a scrolling dashboard swallows the wheel: you scroll
+       * toward the panels below it, the pointer crosses the map, and the page
+       * stops while the map zooms instead. Leaflet's own answer is
+       * `center` — wheel zoom only with a modifier held — plus a click to
+       * engage it properly, which is what the handler below does.
+       */
+      const map = L.map(elRef.current, {
+        zoomControl: false, attributionControl: false, worldCopyJump: true, minZoom: 2,
+        scrollWheelZoom: "center",
+      }).setView(center ?? [lat, lon], 5);
+      map.scrollWheelZoom.disable();
+      const engage = () => map.scrollWheelZoom.enable();
+      const release = () => map.scrollWheelZoom.disable();
+      map.on("click", engage);
+      map.on("mouseout", release);
+      // Ctrl/⌘ + wheel zooms without the click, the convention every embedded
+      // map has settled on.
+      const wheelWithModifier = (e: WheelEvent) => {
+        if (e.ctrlKey || e.metaKey) map.scrollWheelZoom.enable();
+      };
+      elRef.current.addEventListener("wheel", wheelWithModifier, { passive: true });
       mapRef.current = map;
       L.control.zoom({ position: "bottomright" }).addTo(map);
       // Zoom all the way out → hand back to the globe view.
@@ -214,8 +237,16 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
 
     return () => {
       disposed = true;
-      mapRef.current?.remove();
+      /*
+       * Every later effect guards on mapRef.current, so clearing it BEFORE
+       * remove() is what stops a queued setView landing on a half-torn-down
+       * map — the "undefined is not an object (evaluating 't._leaflet_pos')"
+       * crash, which is Leaflet asking a layer for a position after its
+       * container has gone.
+       */
+      const m = mapRef.current;
       mapRef.current = null;
+      try { m?.remove(); } catch { /* already gone */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

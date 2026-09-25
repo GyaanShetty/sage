@@ -25,15 +25,23 @@ import { sound } from "@/lib/sound";
 
 interface Stop { href: string; label: string; icon: LucideIcon }
 
+/*
+ * The label is the page's own name, not a second one.
+ *
+ * These read INTEL, TASKS, DATA and SYSTEM when the pages they open are
+ * called Sitrep, Workspace, Memory and Settings. Two names for one place is a
+ * thing you have to learn instead of read, and it makes the rail and every
+ * other route into the app disagree.
+ */
 const STOPS: Stop[] = [
-  { href: "/dashboard", label: "HOME", icon: Home },
+  { href: "/dashboard", label: "COMMAND", icon: Home },
   { href: "/markets", label: "MARKETS", icon: LineChart },
-  { href: "/sitrep", label: "INTEL", icon: Radar },
+  { href: "/sitrep", label: "SITREP", icon: Radar },
   { href: "/atlas", label: "MAPS", icon: Map },
-  { href: "/workspace", label: "TASKS", icon: ListTodo },
-  { href: "/agents", label: "AGENTS", icon: Bot },
-  { href: "/memory", label: "DATA", icon: Database },
-  { href: "/settings", label: "SYSTEM", icon: SlidersHorizontal },
+  { href: "/workspace", label: "WORKSPACE", icon: ListTodo },
+  { href: "/agents", label: "AGENT", icon: Bot },
+  { href: "/memory", label: "MEMORY", icon: Database },
+  { href: "/settings", label: "SETTINGS", icon: SlidersHorizontal },
 ];
 
 export function NavRail() {
@@ -54,6 +62,10 @@ export function NavRail() {
                 href={s.href}
                 className={`rail-stop${on ? " on" : ""}`}
                 aria-current={on ? "page" : undefined}
+                /* The visible label is display:none below 900px, which hides
+                   it from assistive tech too — leaving eight unlabelled
+                   icons. The name belongs on the link either way. */
+                aria-label={s.label}
                 onPointerEnter={() => sound.hover()}
               >
                 <s.icon className="rail-ico" strokeWidth={1.5} aria-hidden />
@@ -65,7 +77,7 @@ export function NavRail() {
       </ul>
 
       <div className="rail-foot">
-        <Link href="/settings" className="rail-stop" onPointerEnter={() => sound.hover()}>
+        <Link href="/settings" className="rail-stop" aria-label="Profile" onPointerEnter={() => sound.hover()}>
           <CircleUser className="rail-ico" strokeWidth={1.5} aria-hidden />
           <span className="rail-lbl">PROFILE</span>
         </Link>

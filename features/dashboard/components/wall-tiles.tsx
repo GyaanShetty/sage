@@ -30,15 +30,19 @@ function Go({ href, children }: { href: string; children: React.ReactNode }) {
    Crypto with sparklines, then equities, then FX. Three endpoints that were
    already being fetched by the markets page. */
 interface Coin { symbol: string; price: number; change24h: number; spark?: number[] }
-interface Quote { symbol: string; name?: string; price: number; changePct?: number; currency?: string }
+/** Mirrors infrastructure/markets Stock. The field is `change`. */
+interface Quote { symbol: string; name?: string; price: number; change?: number; currency?: string }
 interface Fx { pair: string; rate: number; changePct?: number }
 
 /**
  * A missing percentage renders as an em dash, not as NaN.
  *
- * /api/stocks does not always carry changePct, and `Math.abs(undefined)` is
- * NaN — which is how "RELIANCE ₹1,284 ▽NaN%" got onto the screen. A gauge that
- * prints NaN is worse than one that prints nothing: it looks like a reading.
+ * The note here used to say "/api/stocks does not always carry changePct".
+ * It never carries changePct: the field is called `change`, and this was
+ * reading a name that does not exist, so every quote came back undefined and
+ * every percentage rendered as a dash. The guard is still right — NaN on a
+ * dial looks like a reading — but it was hiding the bug rather than handling
+ * an absent value.
  */
 const pct = (v?: number) =>
   Number.isFinite(v) ? `${v! >= 0 ? "▲" : "▽"}${Math.abs(v!).toFixed(1)}%` : "—";
@@ -80,7 +84,7 @@ export function MarketsTile({ n }: { n?: number }) {
             <Row
               key={s.symbol}
               k={s.name?.slice(0, 18) ?? s.symbol}
-              v={<>{money(s.price, s.currency === "INR" ? "₹" : "$")} <b className={pctClass(s.changePct)}>{pct(s.changePct)}</b></>}
+              v={<>{money(s.price, s.currency === "INR" ? "₹" : "$")} <b className={pctClass(s.change)}>{pct(s.change)}</b></>}
             />
           ))}
         </>

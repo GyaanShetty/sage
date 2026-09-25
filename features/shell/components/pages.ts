@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot, PenLine, LayoutGrid,
   Settings, Activity, ScrollText, BookMarked, Mail, Code2,
-  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, Sparkles, type LucideIcon,
+  Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, Sparkles,
+  Map as MapIcon, type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -21,6 +22,7 @@ export const PAGES: Item[] = [
   { href: "/sitrep", label: "Sitrep", icon: Radio, hint: "live status", group: "NOW" },
   { href: "/morning", label: "Morning", icon: Sunrise, hint: "the block", group: "NOW" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, hint: "week · month", group: "NOW" },
+  { href: "/atlas", label: "Maps", icon: MapIcon, hint: "local · global", group: "NOW" },
   { href: "/chat", label: "Chat", icon: MessageSquare, group: "NOW" },
   { href: "/capture", label: "Capture", icon: Mic, hint: "talk · screenshot", group: "NOW" },
   { href: "/agents", label: "Agent", icon: Bot, hint: "runs", group: "NOW" },

@@ -17,8 +17,8 @@ import { Pane } from "@/components/pane";
 import { sound } from "@/lib/sound";
 
 const STOPS: { href: string; label: string; icon: LucideIcon }[] = [
-  { href: "/terminal", label: "Terminal", icon: TerminalSquare },
-  { href: "/notes", label: "Notebook", icon: NotebookPen },
+  { href: "/code", label: "Code", icon: TerminalSquare },
+  { href: "/capture", label: "Capture", icon: NotebookPen },
   { href: "/counsel", label: "Research", icon: Search },
   { href: "/atlas", label: "Maps", icon: Map },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },

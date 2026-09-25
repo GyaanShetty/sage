@@ -27,6 +27,32 @@ function today(): string {
 }
 
 /**
+ * The newest calendar we have, whatever day it was built on.
+ *
+ * Yesterday's dated events are almost all still ahead of us — a Fed decision
+ * three weeks out does not stop being three weeks out overnight — so when
+ * today's extraction fails, last night's list is far better than the empty one
+ * that used to be returned. It comes back marked stale so the panel can say
+ * when it was built rather than presenting it as current.
+ */
+async function lastKnown(): Promise<{ day: string; events: unknown[] } | null> {
+  const { data } = await db
+    .from("Event").select("payload")
+    .eq("userId", DEFAULT_USER_ID).eq("type", C_TYPE)
+    .order("createdAt", { ascending: false }).limit(1).maybeSingle();
+  const p = data?.payload as { day?: string; events?: unknown[] } | undefined;
+  if (!p?.day || !Array.isArray(p.events)) return null;
+  return { day: p.day, events: p.events };
+}
+
+/** What the panel gets when there is nothing to show and nothing to fall back on. */
+async function orLastKnown(reason: string) {
+  const prev = await lastKnown();
+  if (!prev) return NextResponse.json({ ok: true, data: { events: [], reason } });
+  return NextResponse.json({ ok: true, data: { events: prev.events, cached: true, stale: true, builtOn: prev.day, reason } });
+}
+
+/**
  * Forward-looking market calendar. Rather than depending on a paid calendar
  * feed, SAGE reads the day's financial headlines and extracts the dated events
  * they reference — always fresh, always free.
@@ -47,12 +73,13 @@ export async function GET(req: Request) {
   }
 
   const model = getModel("fast");
-  if (!model) return NextResponse.json({ ok: true, data: { events: [] } });
+  if (!model) return orLastKnown("No model configured.");
 
   const news = await getNews(40).catch(() => []);
-  if (!news.length) return NextResponse.json({ ok: true, data: { events: [] } });
+  if (!news.length) return orLastKnown("The wire is quiet — no headlines to read dates out of.");
 
   let events: z.infer<typeof schema>["events"] = [];
+  let failed = false;
   try {
     const { object } = await generateObject({
       model,
@@ -63,8 +90,12 @@ export async function GET(req: Request) {
     });
     events = object.events.filter((e) => e.date >= day).sort((a, b) => a.date.localeCompare(b.date));
   } catch {
-    events = [];
+    // Extraction is one model call over forty headlines; when it fails there is
+    // nothing partial to keep, and an empty list reads as "nothing scheduled",
+    // which is a different and wrong claim.
+    failed = true;
   }
+  if (failed) return orLastKnown("Couldn't read the tape just now.");
 
   const payload = { day, events };
   await db.from("Event").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: C_TYPE, payload }).then(

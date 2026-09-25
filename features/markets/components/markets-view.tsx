@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { shareJson } from "@/lib/share";
+import { SymbolDrawer } from "./symbol-drawer";
 import { NarrativePanel, PulsePanel, EventsCorrelationPanel } from "./intel-panels";
 import "@/features/dashboard/command.css";
 import "@/features/dashboard/wall.css";
@@ -23,7 +24,17 @@ interface Config {
 }
 
 const DEFAULTS: Config = {
-  indices: ["^NSEI", "^BSESN"],
+  /*
+   * Two symbols left the indices panel four-fifths empty next to a stock
+   * panel with six. These are the boards you actually read an Indian
+   * morning against — the two local benchmarks, bank Nifty because it moves
+   * the index, the three US closes that set the overnight tone, and the
+   * dollar and gold because they explain half of what the rest did.
+   *
+   * All from the same free Yahoo endpoint the panel already uses, cached
+   * five minutes per symbol, so a fuller board costs nothing new.
+   */
+  indices: ["^NSEI", "^BSESN", "^NSEBANK", "^GSPC", "^IXIC", "^DJI", "DX-Y.NYB", "GC=F"],
   stocks: ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "NVDA", "AAPL"],
   crypto: ["bitcoin", "ethereum", "solana", "chainlink"],
   streams: [
@@ -86,6 +97,14 @@ function Editor({ items, onChange, placeholder }: { items: string[]; onChange: (
 export function MarketsView() {
   const [cfg, setCfg] = useState<Config>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
+  /**
+   * The row you clicked, if any.
+   *
+   * Yahoo's own symbol, not the trimmed display one — "RELIANCE" is not a
+   * ticker anything can look up, and the drawer goes straight back to the same
+   * feed the row came from.
+   */
+  const [open, setOpen] = useState<string | null>(null);
   const [indices, setIndices] = useState<Quote[] | null>(null);
   const [stocks, setStocks] = useState<Quote[] | null>(null);
   const [coins, setCoins] = useState<Coin[] | null>(null);
@@ -100,7 +119,18 @@ export function MarketsView() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(LS_KEY);
-      if (saved) setCfg({ ...DEFAULTS, ...(JSON.parse(saved) as Partial<Config>) });
+      if (saved) {
+        const stored = JSON.parse(saved) as Partial<Config>;
+        /*
+         * Anyone who has opened this page before has the old two-index list
+         * saved, so widening DEFAULTS would never reach them — the stored copy
+         * always wins, which is right for a list they have edited and wrong
+         * for one they have only ever inherited. So the untouched original is
+         * upgraded and anything else is left exactly as they set it.
+         */
+        const untouched = JSON.stringify(stored.indices) === JSON.stringify(["^NSEI", "^BSESN"]);
+        setCfg({ ...DEFAULTS, ...stored, ...(untouched ? { indices: DEFAULTS.indices } : {}) });
+      }
     } catch {}
     setLoaded(true);
   }, []);
@@ -197,7 +227,7 @@ export function MarketsView() {
         >
           {indices === null && <div className="tile-wait">ACQUIRING…</div>}
           {(indices ?? []).map((q) => (
-            <div className="tstat" key={q.symbol}>
+            <button className="tstat tstat-open" key={q.symbol} onClick={() => setOpen(q.symbol)} title={`Open ${q.name}`}>
               <span className="tstat-v num">
                 <NumberTicker value={q.price} format={(v) => fmtPx(v, q.currency)} />
               </span>
@@ -206,7 +236,7 @@ export function MarketsView() {
                   {q.changePct >= 0 ? "▲" : "▽"} {Math.abs(q.changePct).toFixed(2)}%
                 </span>
               </span>
-            </div>
+            </button>
           ))}
           {customize && (
             <>
@@ -226,7 +256,12 @@ export function MarketsView() {
           {stocks === null && <div className="tile-wait">ACQUIRING…</div>}
           {stocks?.map((q) => (
             <div className="mkt" key={q.symbol}>
-              <span className="sym">{q.symbol.replace(/\.(NS|BO)$/, "")}</span>
+              {/* The symbol opens the detail; the + still adds to the
+                  portfolio. One row, two targets, neither swallowing the
+                  other. */}
+              <button className="sym sym-open" onClick={() => setOpen(q.symbol)} title={`Open ${q.name}`}>
+                {q.symbol.replace(/\.(NS|BO)$/, "")}
+              </button>
               <Spark data={q.spark} up={q.changePct >= 0} />
               <span className="px">{fmtPx(q.price, q.currency)}</span>
               <span className={`chg${q.changePct >= 0 ? " up" : ""}`}>
@@ -286,6 +321,8 @@ export function MarketsView() {
           ))}
         </Pane>
       </div>
+
+      {open && <SymbolDrawer symbol={open} onClose={() => setOpen(null)} />}
 
       {/* ── ROW 2 · INTELLIGENCE ─────────────────────────────────────────── */}
       <div className="wall-row wall3-r2">

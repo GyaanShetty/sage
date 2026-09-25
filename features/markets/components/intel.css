@@ -7,6 +7,9 @@
 .mk-head h3 { font-family: var(--mono); font-size: 9px; letter-spacing: 1.6px; font-weight: 500; color: var(--muted); margin: 0; white-space: nowrap; }
 .mk-line { flex: 1; height: 1px; background: var(--border-glass); min-width: 8px; }
 .mk-tag { font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); }
+/* Amber, not red: stale data is a caveat, not a failure. Red here would put
+   the panel at the same volume as a market alarm. */
+.mk-tag.stale { color: #f59e0b; border: 1px solid rgba(245,158,11,.35); padding: 1px 5px; }
 .mk-dim { font-size: 11.5px; color: var(--subtle); line-height: 1.6; }
 .mk-btn { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); background: none; border: 1px solid var(--border-glass); padding: 4px 8px; cursor: pointer; }
 .mk-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
@@ -64,3 +67,51 @@
 }
 .mkt-add:hover:not(:disabled) { color: var(--live); border-color: var(--live-dim); }
 .mkt-add:disabled { color: var(--live); border-color: var(--live-dim); cursor: default; }
+
+/* ── symbol detail ──────────────────────────────────────────────────────────
+ *
+ * A panel over the page rather than a route, because you open one of these to
+ * check something and then go back to the board — a navigation would lose the
+ * board's scroll position and every panel's loaded state to answer one
+ * question.
+ */
+.sd-scrim { position: fixed; inset: 0; z-index: 140; background: rgba(4,5,6,.7); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 20px; }
+.sd { width: 100%; max-width: 620px; max-height: 86vh; overflow-y: auto;
+  background: var(--panel, #0b0c0e); border: 1px solid var(--border-glass-strong, rgba(244,244,245,.14)); padding: 16px; }
+.sd-hd { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.sd-sym { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; color: var(--foreground); }
+.sd-name { font-size: 11.5px; color: var(--subtle); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-x { background: none; border: 0; color: var(--subtle); cursor: pointer; display: flex; flex: none; }
+.sd-x:hover { color: var(--foreground); }
+.sd-ranges { display: flex; gap: 1px; margin-bottom: 12px; }
+.sd-ranges button { font-family: var(--mono); font-size: 8.5px; letter-spacing: .12em; color: var(--subtle);
+  background: none; border: 1px solid var(--border-glass); padding: 5px 9px; cursor: pointer; }
+.sd-ranges button.on { color: var(--foreground); border-color: var(--border-glass-strong, rgba(244,244,245,.24)); }
+.sd-figs { display: flex; align-items: baseline; gap: 10px; font-size: 11px; color: var(--subtle); margin-bottom: 8px; }
+.sd-last { font-size: 20px; font-weight: 300; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.sd-hl { font-family: var(--mono); font-size: 9px; letter-spacing: .1em; flex: none; }
+/* The chart is positioned so the two axis labels can sit inside it; without a
+   height it would collapse, since an SVG with a viewBox has no intrinsic one. */
+.sd-chart { position: relative; height: 200px; border: 1px solid var(--border-glass); }
+.sd-chart svg { width: 100%; height: 100%; display: block; }
+.sd-ax { position: absolute; right: 6px; font-family: var(--mono); font-size: 8px; letter-spacing: .1em; color: var(--subtle); }
+.sd-ax.hi { top: 4px; }
+.sd-ax.lo { bottom: 4px; }
+.sd-why { margin-top: 12px; }
+
+/* ── a row you can open ─────────────────────────────────────────────────────
+ *
+ * These are <button>s so a keyboard can reach them, which means undoing the
+ * button defaults a browser applies: a button does not inherit the row's font
+ * or alignment, and its own background and border would draw a box inside the
+ * panel.
+ *
+ * The affordance is a hover underline rather than a permanent one — every row
+ * on the board is clickable, and underlining all of them would just add noise
+ * to a wall that is already dense.
+ */
+.tstat-open { background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; }
+.tstat-open:hover { background: rgba(255,255,255,.03); }
+.sym-open { background: none; border: 0; font: inherit; color: inherit; letter-spacing: inherit; text-align: left; cursor: pointer; padding: 0; }
+.sym-open:hover { text-decoration: underline; text-underline-offset: 2px; }

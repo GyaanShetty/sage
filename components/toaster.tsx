@@ -73,6 +73,10 @@ export function Toaster() {
    */
   const shownRef = useRef<Map<string, number>>(new Map());
 
+  const dismiss = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((x) => x.id !== id));
+  }, []);
+
   const push = useCallback((t: Omit<Toast, "id">) => {
     const key = t.body || t.title;
     const now = Date.now();
@@ -177,13 +181,20 @@ export function Toaster() {
             exit={{ opacity: 0, x: 60, filter: "blur(4px)" }}
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
             className={`toast${t.kind === "alert" ? " alert" : ""}`}
-            onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
           >
             <span className="toast-rail" />
-            <div className="toast-body">
+            {/*
+              The card body still dismisses on click, because that is the
+              habit. But a whole card that is one big dismiss button gives you
+              nothing to aim at and no way to tell it is dismissable at all —
+              so there is also an explicit ✕, labelled, which is the only part
+              a keyboard or a screen reader can find.
+            */}
+            <div className="toast-body" onClick={() => dismiss(t.id)}>
               <div className="toast-title">{t.title}</div>
               {t.body && <div className="toast-text">{t.body}</div>}
             </div>
+            <button type="button" className="toast-x" aria-label={`Dismiss ${t.title}`} onClick={() => dismiss(t.id)}>✕</button>
           </motion.div>
         ))}
       </AnimatePresence>

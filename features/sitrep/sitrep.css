@@ -31,7 +31,9 @@
 a.sr-cell:hover { background: rgba(255,255,255,.03); }
 .sr-label { font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--subtle); }
 .sr-value { font-size: 14px; color: var(--foreground); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sr-detail { font-family: var(--mono); font-size: 9px; color: var(--subtle); }
+/* Wraps. It is the prose slot, and a truncated explanation explains nothing;
+   the cell is in an auto-fit grid so a second line costs only its own height. */
+.sr-detail { font-family: var(--mono); font-size: 9px; color: var(--subtle); line-height: 1.45; }
 .sr-cell.watch .sr-value { color: #f59e0b; }
 .sr-cell.alert .sr-value { color: #f87171; }
 .sr-cell.ok .sr-label { color: var(--subtle); }

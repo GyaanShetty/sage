@@ -5044,3 +5044,27 @@ test("hot dashboard endpoints are fetched through the shared request layer", asy
 
   assert.deepEqual(bad, [], `bare fetch of a shared endpoint: ${bad.join(", ")}`);
 });
+
+test("recall records that a memory was used, and extraction can expire one", async () => {
+  const { readFileSync } = await import("node:fs");
+
+  /*
+   * The touch_memories RPC shipped in prisma/sql/0002 and nothing called it
+   * for months, so accessCount was 0 on every row: the memory page said
+   * "never recalled" beside memories SAGE reaches for daily, and
+   * consolidation decided what to retire from a counter that was never
+   * written.
+   */
+  const recall = readFileSync("core/memory/recall.ts", "utf8");
+  assert.match(recall, /touch_memories/, "recall must bump access stats");
+
+  /*
+   * And nothing ever wrote expiresAt, so "in Bangalore this week" was stored
+   * with the same permanence as "lives in Bangalore" and recalled as current
+   * long after it stopped being true.
+   */
+  const extraction = readFileSync("core/memory/extraction.ts", "utf8");
+  assert.match(extraction, /expiresAt/, "extraction must be able to set an expiry");
+  assert.match(extraction, /lastsDays/, "the model must be asked how long a memory lasts");
+  assert.match(extraction, /Today is \$\{today\}/, "extraction must tell the model today's date");
+});

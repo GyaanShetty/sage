@@ -28,14 +28,24 @@ function Clock() {
   // Rendered in an effect: a server-rendered clock is wrong by the time it
   // paints, and rendering one during the first client pass makes React
   // complain the markup disagrees.
-  const [now, setNow] = useState<{ d: string; t: string } | null>(null);
+  /*
+   * Seconds kept separate from hours and minutes.
+   *
+   * "21:04:37" is eight characters at 22px, and on a 390px screen the top bar
+   * ran off the right edge — the shell clips its overflow, so the clock was
+   * the part that went, and what was left read "21". Seconds on a phone are
+   * worth less than the four characters they cost, but the only way to drop
+   * them in CSS is for them to be their own element.
+   */
+  const [now, setNow] = useState<{ d: string; t: string; s: string } | null>(null);
   useEffect(() => {
     const tick = () => {
       const d = new Date();
       setNow({
         d: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short", day: "2-digit", month: "short", year: "numeric" })
           .format(d).toUpperCase().replace(/,/g, ""),
-        t: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(d),
+        t: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d),
+        s: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, second: "2-digit" }).format(d),
       });
     };
     tick();
@@ -46,7 +56,7 @@ function Clock() {
   return (
     <div className="tb-clock">
       <span className="tb-date">{now?.d ?? "—"}</span>
-      <span className="tb-time">{now?.t ?? "--:--:--"}</span>
+      <span className="tb-time">{now?.t ?? "--:--"}<span className="tb-sec">:{now?.s ?? "--"}</span></span>
       <span className="tb-tz">IST</span>
     </div>
   );

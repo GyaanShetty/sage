@@ -108,6 +108,7 @@
   color: var(--foreground); font-variant-numeric: tabular-nums; letter-spacing: -.01em;
 }
 .tb-tz { font-family: var(--mono); font-size: 7.5px; letter-spacing: .2em; color: var(--subtle); }
+.tb-sec { color: var(--subtle); }
 
 .tb-verbs {
   flex: none; list-style: none; margin: 0; padding: 0 20px;
@@ -168,6 +169,59 @@
 @media (max-width: 620px) {
   .tb-search kbd, .tb-clock .tb-date, .tb-tz { display: none; }
   .tb-time { font-size: 16px; }
+}
+
+/* ── phone: the rail becomes a bottom bar ───────────────────────────────────
+ *
+ * A 56px vertical strip down the left of a 390px screen spends a seventh of
+ * the width on navigation, and puts every destination at the top-left corner
+ * — the furthest point from a thumb. Every phone OS puts primary navigation
+ * along the bottom edge for that reason.
+ *
+ * Done by turning the shell's flex row into a column with the rail last,
+ * rather than by taking the rail out of flow: `order` keeps it a normal flex
+ * item, so it reserves its own height and the workspace above it is never
+ * covered. The mark and the version footer go — the wordmark is already in
+ * the top bar and a version string is not navigation — and the stops lay out
+ * as an evenly-divided row that scrolls only if it must.
+ */
+@media (max-width: 640px) {
+  .shellframe { flex-direction: column; }
+  .rail {
+    order: 2; flex: none;
+    flex-direction: row; align-items: stretch;
+    border-right: 0; border-top: 1px solid var(--edge);
+    padding: 0 0 var(--sab);
+  }
+  .rail-mark, .rail-ver { display: none; }
+  .rail-list {
+    flex-direction: row; flex: 1; gap: 0;
+    overflow-x: auto; overflow-y: hidden;
+    /* Snap so a half-shown stop cannot be left mid-scroll. */
+    scroll-snap-type: x proximity;
+  }
+  .rail-list > li { flex: 1 0 auto; scroll-snap-align: center; }
+  .rail-stop { height: 52px; padding: 0 14px; gap: 3px; }
+  .rail-stop.on { box-shadow: inset 0 2px 0 var(--up); }
+  .rail-foot { flex-direction: row; border-top: 0; border-left: 1px solid var(--edge); padding: 0; }
+  .rail-foot .rail-stop { height: 52px; }
+  /* The mic and the toasts both anchor to the bottom right; the bar now
+     occupies it, so they clear its height. */
+  .toaster { top: calc(52px + var(--sat)); }
+}
+
+/* ── phone: the clock must not be cut in half ───────────────────────────────
+ *
+ * "21:04" rendered as "21" because the search field took the width first and
+ * the clock, being last, was the one that lost. It is a fixed-width readout;
+ * nothing is gained by letting it shrink and a truncated time is worse than
+ * no time. So the clock holds its intrinsic width and the search field — the
+ * one element that can usefully be any size — absorbs the difference.
+ */
+@media (max-width: 520px) {
+  .tb-clock { flex: none; white-space: nowrap; }
+  .tb-sec, .tb-place { display: none; }
+  .tb-search { min-width: 0; }
 }
 
 /* ── PANEL CHROME ───────────────────────────────────────────────────────────

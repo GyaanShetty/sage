@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { asArray } from "@/lib/as-array";
+import { invalidate, shareJson } from "@/lib/share";
 import { GitPullRequest, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { ExpandableCell } from "./expandable-cell";
 import { useLive } from "@/lib/live";
@@ -36,27 +37,29 @@ export function OpsBand() {
      * a list becomes an empty one here, once, and every render below is then
      * safe by construction.
      */
-    fetch("/api/github")
-      .then((r) => r.json())
+    shareJson("/api/github")
       .then((j) => {
-        const d = j?.data;
+        const d = j?.data as Partial<Github> | undefined;
         if (!d || typeof d !== "object") return setGh(null);
         setGh({ ...d, repos: asArray(d.repos), reviewRequests: asArray(d.reviewRequests) } as Github);
       })
       .catch(() => setGh(null));
-    fetch("/api/github/contributions").then((r) => r.json()).then((j) => setContrib(j.data)).catch(() => {});
+    shareJson<{ data?: Contrib }>("/api/github/contributions").then((j) => setContrib(j.data ?? null)).catch(() => {});
   }, []);
 
   // Fifteen seconds, and only while someone is watching it.
   const pullNowPlaying = useCallback(
-    () => fetch("/api/spotify").then((r) => r.json()).then((j) => setNow(j.data)).catch(() => setNow(null)),
+    () => shareJson<{ data?: Now | null }>("/api/spotify").then((j) => setNow(j.data ?? null)).catch(() => setNow(null)),
     [],
   );
   useLive(pullNowPlaying, { everyMs: 15_000 });
 
   const control = async (action: string) => {
     await fetch("/api/spotify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) });
-    setTimeout(() => fetch("/api/spotify").then((r) => r.json()).then((j) => setNow(j.data)).catch(() => {}), 400);
+    // The shared window would otherwise answer the re-read with the state
+    // from before the write, and the transport controls would look dead.
+    invalidate("/api/spotify");
+    setTimeout(() => shareJson<{ data?: Now | null }>("/api/spotify").then((j) => setNow(j.data ?? null)).catch(() => {}), 400);
   };
 
   return (

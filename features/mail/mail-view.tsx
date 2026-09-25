@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { shareJson } from "@/lib/share";
+import { asArray } from "@/lib/as-array";
 import {
   AlertTriangle, ExternalLink, Loader2, Mail, Paperclip, PenLine, Search, Sparkles, Check,
 } from "lucide-react";
@@ -134,13 +136,15 @@ export function MailView() {
     const params = search.trim()
       ? `q=${encodeURIComponent(search.trim())}&view=${v}`
       : `view=${v}`;
-    const j = await fetch(`/api/mail?${params}&account=${acct}`).then((r) => r.json()).catch(() => null);
+    // Shared with the dashboard's unread count, so opening Mail from the
+    // dashboard does not re-ask for the list it just fetched.
+    const j = await shareJson<{ ok?: boolean; error?: string; data?: { messages?: unknown } } | null>(`/api/mail?${params}&account=${acct}`).catch(() => null);
     if (!j?.ok) {
       setErr(j?.error ?? `Couldn't reach ${acct === "outlook" ? "Outlook" : "Gmail"}.`);
       setRows([]);
       return;
     }
-    setRows(j.data.messages as Row[]);
+    setRows(asArray<Row>(j.data?.messages));
   }, []);
   useEffect(() => { void load(account, view, q); /* eslint-disable-next-line */ }, [account, view]);
 
@@ -148,7 +152,7 @@ export function MailView() {
     if (!id) return;
     if (openId === id) { setOpenId(null); return; }
     setOpenId(id); setFull(null); setSummary(null); setReply(""); setDrafted("idle");
-    const j = await fetch(`/api/mail?id=${encodeURIComponent(id)}&account=${account}`).then((r) => r.json()).catch(() => null);
+    const j = await shareJson<{ ok?: boolean; data?: unknown } | null>(`/api/mail?id=${encodeURIComponent(id)}&account=${account}`).catch(() => null);
     if (j?.ok) setFull(j.data as Full);
   };
 

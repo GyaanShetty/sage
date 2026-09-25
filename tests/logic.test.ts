@@ -5008,3 +5008,39 @@ test("every link in the rail and quick launch resolves to a real page", async ()
   // pointed at pages that had never existed.
   assert.deepEqual(bad, [], `dead internal links: ${bad.join(", ")}`);
 });
+
+test("hot dashboard endpoints are fetched through the shared request layer", async () => {
+  /*
+   * One load of the dashboard used to ask /api/markets six times, /api/mail
+   * six times, /api/weather four times and /api/atlas/satellites eight times,
+   * because each panel called fetch in its own effect. Against free-tier
+   * upstreams with daily request caps the duplicates are what exhausts the
+   * quota, so the first call fails the next day.
+   *
+   * This fails when a new panel reintroduces a bare fetch of one of them.
+   * shareJson is the way in; a write that must bypass the freshness window
+   * calls invalidate rather than fetch.
+   */
+  const { readdirSync, readFileSync, statSync } = await import("node:fs");
+  const hot = ["/api/markets", "/api/weather", "/api/mail", "/api/atlas/satellites"];
+  const roots = ["features", "components", "lib", "app/(shell)"];
+  const bad: string[] = [];
+
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir)) {
+      const full = `${dir}/${e}`;
+      if (statSync(full).isDirectory()) { walk(full); continue; }
+      if (!/\.tsx?$/.test(e)) continue;
+      const src = readFileSync(full, "utf8");
+      for (const m of src.matchAll(/fetch\(\s*[`"](\/api\/[^`"?]*)/g)) {
+        // A POST is a write and has nothing to share.
+        const after = src.slice(m.index ?? 0, (m.index ?? 0) + 400);
+        if (/method:\s*"(POST|PUT|PATCH|DELETE)"/.test(after)) continue;
+        if (hot.includes(m[1])) bad.push(`${full} -> ${m[1]}`);
+      }
+    }
+  };
+  for (const r of roots) walk(r);
+
+  assert.deepEqual(bad, [], `bare fetch of a shared endpoint: ${bad.join(", ")}`);
+});

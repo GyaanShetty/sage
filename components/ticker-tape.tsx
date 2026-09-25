@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { shareJson } from "@/lib/share";
 import Link from "next/link";
 import { useLive } from "@/lib/live";
 import { asArray } from "@/lib/as-array";
@@ -20,7 +21,7 @@ export function TickerTape() {
       try {
         const [idx, coins, fx] = await Promise.all([
           fetch("/api/market/quotes?symbols=^NSEI,^BSESN,NVDA,AAPL").then((r) => r.json()).catch(() => null),
-          fetch("/api/markets").then((r) => r.json()).catch(() => null),
+          shareJson("/api/markets").catch(() => null),
           fetch("/api/fx").then((r) => r.json()).catch(() => null),
         ]);
         for (const q of asArray<{ name: string; currency: string; price: number; changePct: number }>(idx?.data)) {

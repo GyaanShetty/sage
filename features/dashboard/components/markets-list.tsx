@@ -11,6 +11,7 @@
  */
 
 import { useState } from "react";
+import { shareJson } from "@/lib/share";
 import { Pane, Empty } from "@/components/pane";
 import Link from "next/link";
 import { Wave } from "@/components/instruments";
@@ -39,7 +40,7 @@ export function MarketsList({ n, limit = 10 }: { n?: number; limit?: number }) {
   const [rows, setRows] = useState<RowData[]>([]);
 
   useLive(() => Promise.all([
-    fetch("/api/markets").then((r) => r.json()).then((j) => asArray<Coin>(j?.data)),
+    shareJson("/api/markets").then((j) => asArray<Coin>(j?.data)),
     fetch("/api/stocks").then((r) => r.json()).then((j) => asArray<Quote>(j?.data)),
   ]).then(([coins, stocks]) => {
     setRows([

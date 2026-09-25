@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { shareJson } from "@/lib/share";
 import "leaflet/dist/leaflet.css";
 import { AIR_CORRIDORS, CONFLICT_ZONES, TRADE_ROUTES, SAT_GROUPS, greatCircle } from "./data";
 import { useLivePosition } from "@/lib/geo-position";
@@ -327,12 +328,21 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
     const markers = new Map<string, import("leaflet").Marker>();
     const load = async () => {
       if (stop || !isOn("sats")) return;
+      /*
+       * Eight groups, asked for at once.
+       * Awaited in a loop this was eight serial round trips before the first
+       * satellite appeared — the slowest group setting the pace for all of
+       * them. They do not depend on each other, so nothing is gained by
+       * ordering them. One group failing must not lose the other seven,
+       * hence allSettled rather than all.
+       */
+      const settled = await Promise.allSettled(
+        SAT_GROUPS.map((grp) => shareJson<{ data?: unknown }>(`/api/atlas/satellites?group=${grp}`, 60_000)),
+      );
       const all: { name: string; lat: number; lon: number; alt: number }[] = [];
-      for (const grp of SAT_GROUPS) {
-        try {
-          const j = await fetch(`/api/atlas/satellites?group=${grp}`).then((r) => r.json());
-          for (const s of asArray<{ name: string; lat: number; lon: number; alt: number }>(j?.data)) all.push(s);
-        } catch {}
+      for (const r of settled) {
+        if (r.status !== "fulfilled") continue;
+        for (const s of asArray<{ name: string; lat: number; lon: number; alt: number }>(r.value?.data)) all.push(s);
       }
       for (const s of all) {
         const isISS = /ISS|ZARYA/i.test(s.name);

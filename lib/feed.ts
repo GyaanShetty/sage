@@ -23,6 +23,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useLive } from "@/lib/live";
+import { shareJson } from "@/lib/share";
 
 export interface Feed<T> {
   /** The last good value, or null if none has ever arrived. */
@@ -60,8 +61,9 @@ export function useFeed<T>(
     // nothing has been asked for, so nothing has gone wrong.
     if (!url) return;
     try {
-      const res = await fetch(url, { cache: "no-store" });
-      const json = await res.json();
+      // Shared, so a dozen panels reading the same endpoint on mount make
+      // one request between them rather than a dozen.
+      const json = await shareJson(url);
       const value = pickRef.current
         ? pickRef.current(json)
         : ((json as { data?: T })?.data ?? null);

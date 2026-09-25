@@ -143,7 +143,10 @@ export function Diagnostics() {
   const untriaged = (rows ?? []).some((r) => !r.triage);
 
   return (
-    <GlassPanel className="mt-4 p-4">
+    /* The dashboard's fault banner links straight here, so the section needs a
+       name to link to — scroll-mt keeps the heading clear of the fixed top bar
+       when the browser jumps to it. */
+    <GlassPanel id="diagnostics" className="mt-4 scroll-mt-20 p-4">
       <div className="flex flex-wrap items-center gap-3">
         <p className="flex items-center gap-2 text-sm font-medium">
           <AlertTriangle className="size-3.5" /> Diagnostics

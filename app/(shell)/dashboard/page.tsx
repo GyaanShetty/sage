@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CommandView } from "@/features/dashboard/components/command-view";
 import { loadDeck } from "@/features/dashboard/load";
+import { HealthBanner } from "@/features/dashboard/components/health-banner";
 
 /**
  * The wall — thirty panes on one screen.
@@ -20,6 +21,10 @@ export default async function DashboardPage() {
   const data = await loadDeck();
   return (
     <div>
+      {/* Above the wall, because a fault that means no reminder will ever fire
+          should not be below thirty panes of readings. It renders nothing at
+          all when there is nothing wrong. */}
+      <HealthBanner />
       <CommandView {...data} />
     </div>
   );

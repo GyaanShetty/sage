@@ -33,7 +33,23 @@ export function isChunkError(err: unknown): boolean {
     // Safari and Firefox phrase a failed module fetch differently, and the
     // iPhone is the client this happens on most.
     /error loading dynamically imported module/i.test(msg) ||
-    /Importing a module script failed/i.test(msg)
+    /Importing a module script failed/i.test(msg) ||
+    /*
+     * Safari's entire message for a failed fetch is "Load failed" — no URL, no
+     * resource name, nothing. That includes the fetch of a module script, so a
+     * stale chunk on an iPhone arrives as `TypeError: Load failed` and matched
+     * none of the patterns above. It was therefore treated as a real bug:
+     * reported, and shown as "Page fault" on a tab whose only problem was
+     * being open across a deploy. Two of those in one day is what prompted
+     * this.
+     *
+     * The message alone is too generic to act on, so it counts only as a
+     * TypeError, which is what a failed fetch throws, and only because the
+     * caller is a render boundary — an ordinary failed fetch does not crash a
+     * render, and the recovery is one-shot per session regardless, so the worst
+     * case for a false positive is a single reload.
+     */
+    (name === "TypeError" && /^Load failed$/i.test(msg.trim()))
   );
 }
 

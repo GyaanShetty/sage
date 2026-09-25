@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { shareJson } from "@/lib/share";
 import Image from "next/image";
 import { Pane, Row, Empty } from "@/components/pane";
 import { BarStrip, Progress, Delta } from "@/components/instruments";
@@ -89,7 +90,7 @@ export function FieldTile({ n }: { n?: number }) {
   const [iss, setIss] = useState<{ alt: number; vel: number } | null>(null);
 
   useLive(
-    () => fetch("/api/weather").then((r) => r.json()).then((j) => setW(j?.data ?? null)).catch(() => {}),
+    () => shareJson<{ data?: Weather }>("/api/weather").then((j) => setW(j?.data ?? null)).catch(() => {}),
     { everyMs: 600_000 },
   );
   useLive(

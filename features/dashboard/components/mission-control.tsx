@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { shareJson } from "@/lib/share";
 import { ExpandableCell } from "./expandable-cell";
 import { asArray } from "@/lib/as-array";
 
@@ -37,13 +38,13 @@ export function MissionControl() {
   const [apod, setApod] = useState<Apod | null>(null);
 
   useEffect(() => {
-    fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(asArray(j.data))).catch(() => setCoins([]));
+    shareJson("/api/markets").then((j) => setCoins(asArray(j.data))).catch(() => setCoins([]));
     fetch("/api/news").then((r) => r.json()).then((j) => setNews(asArray(j.data))).catch(() => setNews([]));
     fetch("/api/stocks").then((r) => r.json()).then((j) => setStocks(asArray(j.data))).catch(() => setStocks([]));
     fetch("/api/fx").then((r) => r.json()).then((j) => setFx(asArray(j.data))).catch(() => setFx([]));
     fetch("/api/cosmos").then((r) => r.json()).then((j) => setApod(j.data ?? null)).catch(() => {});
     const t = setInterval(() => {
-      fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(asArray(j.data))).catch(() => {});
+      shareJson("/api/markets").then((j) => setCoins(asArray(j.data))).catch(() => {});
     }, 120000);
     return () => clearInterval(t);
   }, []);

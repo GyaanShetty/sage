@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { shareJson } from "@/lib/share";
 import Link from "next/link";
 import { Pane, Row, Stat, Empty } from "@/components/pane";
 import { PaneForm } from "@/components/pane-form";
@@ -227,7 +228,7 @@ export function WeatherWeekTile({ n }: { n?: number }) {
   const [w, setW] = useState<Weather | null>(null);
 
   useLive(
-    () => fetch("/api/weather").then((r) => r.json()).then((j) => setW(j?.data ?? null)).catch(() => {}),
+    () => shareJson<{ data?: Weather }>("/api/weather").then((j) => setW(j?.data ?? null)).catch(() => {}),
     { everyMs: 900_000 },
   );
 

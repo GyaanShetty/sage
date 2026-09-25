@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { shareJson } from "@/lib/share";
 import Link from "next/link";
 import { Pane, Row, Stat, Empty } from "@/components/pane";
 import { PaneForm } from "@/components/pane-form";
@@ -57,7 +58,7 @@ export function MarketsTile({ n }: { n?: number }) {
   const [fx, setFx] = useState<Fx[]>([]);
 
   useLive(() => Promise.all([
-    fetch("/api/markets").then((r) => r.json()).then((j) => setCoins(asArray<Coin>(j?.data))),
+    shareJson("/api/markets").then((j) => setCoins(asArray<Coin>(j?.data))),
     fetch("/api/stocks").then((r) => r.json()).then((j) => setStocks(asArray<Quote>(j?.data))),
     fetch("/api/fx").then((r) => r.json()).then((j) => setFx(asArray<Fx>(j?.data))),
   ]).then(() => {}).catch(() => {}), { everyMs: 120_000 });
@@ -283,12 +284,12 @@ export function MissionTile({
    */
   const [temp, setTemp] = useState<number | null>(null);
 
-  useLive(() => fetch("/api/markets").then((r) => r.json())
+  useLive(() => shareJson("/api/markets")
     .then((j) => setBtc(asArray<Coin>(j?.data).find((c) => c.symbol === "BTC")?.price ?? null)).catch(() => {}),
     { everyMs: 120_000 });
-  useLive(() => fetch("/api/mail?box=unread").then((r) => r.json())
+  useLive(() => shareJson<{ data?: { messages?: unknown } }>("/api/mail?view=unread")
     .then((j) => setUnread(asArray(j?.data?.messages).length)).catch(() => {}), { everyMs: 300_000 });
-  useLive(() => fetch("/api/weather").then((r) => r.json())
+  useLive(() => shareJson<{ data?: { temp?: unknown } }>("/api/weather")
     .then((j) => setTemp(typeof j?.data?.temp === "number" ? j.data.temp : null)).catch(() => {}),
     { everyMs: 900_000 });
   useLive(() => fetch("/api/budget").then((r) => r.json())
@@ -705,7 +706,7 @@ export function InboxTile({ n }: { n?: number }) {
     // `?box=` was never a parameter this route reads — it wants `view`. It
     // only ever worked because the fallback happens to be `unread`, which is
     // the kind of accident that breaks the day a default changes.
-    () => fetch("/api/mail?view=unread").then((r) => r.json())
+    () => shareJson<{ data?: { messages?: unknown } }>("/api/mail?view=unread")
       .then((j) => setMsgs(asArray<MailMsg>(j?.data?.messages))).catch(() => setMsgs([])),
     { everyMs: 300_000 },
   );
@@ -713,7 +714,7 @@ export function InboxTile({ n }: { n?: number }) {
   // Both mailboxes, because "inbox clear" that only means one of them is the
   // pane telling a half-truth.
   useLive(
-    () => fetch("/api/mail?view=unread&account=outlook").then((r) => r.json())
+    () => shareJson<{ ok?: boolean; data?: { messages?: unknown } }>("/api/mail?view=unread&account=outlook")
       .then((j) => setOutlook(j?.ok ? asArray<MailMsg>(j?.data?.messages).length : null))
       .catch(() => setOutlook(null)),
     { everyMs: 300_000 },

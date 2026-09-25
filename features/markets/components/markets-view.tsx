@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { shareJson } from "@/lib/share";
 import { NarrativePanel, PulsePanel, EventsCorrelationPanel } from "./intel-panels";
 import "@/features/dashboard/command.css";
 import "@/features/dashboard/wall.css";
@@ -114,8 +115,8 @@ export function MarketsView() {
       .then((r) => r.json()).then((j) => setIndices(asArray(j.data))).catch(() => setIndices([]));
     fetch(`/api/market/quotes?symbols=${encodeURIComponent(c.stocks.join(","))}`)
       .then((r) => r.json()).then((j) => setStocks(asArray(j.data))).catch(() => setStocks([]));
-    fetch(`/api/markets?ids=${encodeURIComponent(c.crypto.join(","))}`)
-      .then((r) => r.json()).then((j) => setCoins(asArray(j.data))).catch(() => setCoins([]));
+    shareJson(`/api/markets?ids=${encodeURIComponent(c.crypto.join(","))}`)
+      .then((j) => setCoins(asArray(j.data))).catch(() => setCoins([]));
     fetch("/api/fx").then((r) => r.json()).then((j) => setFx(asArray(j.data))).catch(() => setFx([]));
   }, []);
 

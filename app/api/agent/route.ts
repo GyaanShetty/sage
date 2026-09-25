@@ -61,9 +61,27 @@ export async function POST(req: Request) {
       }
     }
 
-    // Persist the run (best-effort).
-    db.from("AgentRun").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, kind: "research", input: task, status: "done", output: { report } }).then(() => {}, () => {});
-    db.from("Event").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: "agent.completed", payload: { task } }).then(() => {}, () => {});
+    /*
+     * Persist the run.
+     *
+     * This was writing kind/input/output — three columns AgentRun does not
+     * have. Supabase returns that error rather than throwing it, and both
+     * handlers here discard it, so every run since this shipped was silently
+     * dropped and the agent page had no history to show. The real columns are
+     * agent/goal/result, and endedAt is what makes a finished run
+     * distinguishable from one still running.
+     */
+    db.from("AgentRun").insert({
+      id: crypto.randomUUID(),
+      userId: DEFAULT_USER_ID,
+      agent: "research",
+      goal: task,
+      status: "done",
+      result: { report, trace },
+      endedAt: new Date().toISOString(),
+    }).then(({ error }) => { if (error) console.warn("[agent] run not saved:", error.message); });
+    db.from("Event").insert({ id: crypto.randomUUID(), userId: DEFAULT_USER_ID, type: "agent.completed", payload: { task } })
+      .then(({ error }) => { if (error) console.warn("[agent] event not logged:", error.message); });
 
     return NextResponse.json({ ok: true, data: { task, trace, report } });
   } catch (err) {
@@ -71,4 +89,27 @@ export async function POST(req: Request) {
     const quota = /quota|429|exhausted/i.test(msg);
     return NextResponse.json({ ok: false, error: quota ? "Daily AI quota reached — try again after it resets." : msg }, { status: 500 });
   }
+}
+
+/**
+ * Past runs.
+ *
+ * The rows were being written (or rather, attempted) and nothing ever read
+ * them, so a page whose whole subject is work the agent has done showed
+ * nothing but an input box — and a finished report vanished on refresh unless
+ * you remembered to press Save.
+ *
+ * The trace comes back with the report because the steps are usually where the
+ * useful detail is; the list only renders the goal until you open one.
+ */
+export async function GET() {
+  const { data, error } = await db
+    .from("AgentRun")
+    .select("id, agent, goal, status, result, startedAt, endedAt")
+    .eq("userId", DEFAULT_USER_ID)
+    .order("startedAt", { ascending: false })
+    .limit(20);
+
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, data: data ?? [] });
 }

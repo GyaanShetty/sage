@@ -28,18 +28,30 @@ export async function GET(req: Request) {
   const lat = Number(url.searchParams.get("lat") ?? process.env.SAGE_LAT ?? 12.9716);
   const lon = Number(url.searchParams.get("lon") ?? process.env.SAGE_LON ?? 77.5946);
 
+  /*
+   * Deadlines, not hopes.
+   *
+   * These three run in parallel, so the route takes as long as the slowest —
+   * and with OpenSky's anonymous tier given nine seconds, the measured
+   * response was 9.2s. The sky pane is ambient furniture: nobody is waiting on
+   * the callsign of a plane over Hosur, and a pane that renders sunrise, the
+   * moon and the ISS in four seconds beats one that renders all four in nine.
+   *
+   * Every branch already degrades to null on its own, and the moon is computed
+   * locally, so the pane never comes back empty however these land.
+   */
   const [issRes, planesRes, sunRes] = await Promise.all([
-    proxyFetch("https://api.wheretheiss.at/v1/satellites/25544", { signal: AbortSignal.timeout(8000) })
+    proxyFetch("https://api.wheretheiss.at/v1/satellites/25544", { signal: AbortSignal.timeout(4000) })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
     // OpenSky anonymous: live aircraft states in a box around the user (~±6°).
     proxyFetch(
       `https://opensky-network.org/api/states/all?lamin=${(lat - 6).toFixed(3)}&lomin=${(lon - 6).toFixed(3)}&lamax=${(lat + 6).toFixed(3)}&lomax=${(lon + 6).toFixed(3)}`,
-      { signal: AbortSignal.timeout(9000) },
+      { signal: AbortSignal.timeout(4500) },
     )
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
-    proxyFetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`, { signal: AbortSignal.timeout(8000) })
+    proxyFetch(`https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`, { signal: AbortSignal.timeout(4000) })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null),
   ]);

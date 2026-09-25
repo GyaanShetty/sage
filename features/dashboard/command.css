@@ -1591,3 +1591,21 @@ html[data-density="compact"] .bh { margin-bottom: 3px; }
 .atlas-place.on i { background: var(--foreground); box-shadow: 0 0 0 2px var(--panel), 0 0 10px var(--live-glow); }
 .atlas-place.on span { color: var(--foreground); border-left-color: var(--foreground); }
 .atlas-place { cursor: pointer; }
+
+/* ── agent run history ──────────────────────────────────────────────────────
+ *
+ * Date, goal, status. The goal is the only variable-width part so it takes
+ * the remaining space and truncates; a research task is a sentence and a
+ * wrapped list of them stops reading as a list.
+ */
+.arun-wrap { margin-top: 4px; }
+.arun {
+  display: flex; align-items: baseline; gap: 12px; width: 100%; text-align: left;
+  padding: 9px 11px; background: none; border: 0; border-bottom: 1px solid var(--border-glass);
+  cursor: pointer; transition: background .15s ease;
+}
+.arun:hover { background: rgba(255,255,255,.03); }
+.arun-when { font-family: var(--mono); font-size: 9px; letter-spacing: 1.2px; color: var(--subtle); flex: none; width: 46px; }
+.arun-goal { flex: 1; min-width: 0; font-size: 12.5px; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arun-st { font-family: var(--mono); font-size: 8px; letter-spacing: 1.4px; color: var(--subtle); flex: none; }
+.arun-st.ok { color: var(--live); }

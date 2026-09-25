@@ -5068,3 +5068,31 @@ test("recall records that a memory was used, and extraction can expire one", asy
   assert.match(extraction, /lastsDays/, "the model must be asked how long a memory lasts");
   assert.match(extraction, /Today is \$\{today\}/, "extraction must tell the model today's date");
 });
+
+test("AgentRun writes only columns the schema has", async () => {
+  const { readFileSync } = await import("node:fs");
+
+  /*
+   * The insert used kind/input/output; AgentRun has agent/goal/result.
+   * Supabase *returns* that error rather than throwing, and the handler
+   * discarded it, so every run was silently dropped and the agent page had no
+   * history to show. A schema mismatch is invisible in exactly this way, which
+   * is why it is checked here rather than trusted to review.
+   */
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  const model = schema.slice(schema.indexOf("model AgentRun {"));
+  const columns = new Set(
+    model.slice(0, model.indexOf("\n}"))
+      .split("\n").slice(1)
+      .map((l) => l.trim().split(/\s+/)[0])
+      .filter((c) => /^[a-z]\w*$/.test(c)),
+  );
+
+  const route = readFileSync("app/api/agent/route.ts", "utf8");
+  const insert = route.slice(route.indexOf('db.from("AgentRun").insert('));
+  const written = [...insert.slice(0, insert.indexOf("})")).matchAll(/^\s{6}(\w+):/gm)].map((m) => m[1]);
+
+  assert.ok(written.length > 0, "could not find the AgentRun insert");
+  const unknown = written.filter((c) => !columns.has(c));
+  assert.deepEqual(unknown, [], `AgentRun has no such column(s): ${unknown.join(", ")}`);
+});

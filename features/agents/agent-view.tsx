@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Search, BookOpen, Brain, Check, FileText, Loader2, Save } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Search, BookOpen, Brain, Check, FileText, Loader2, Save, History, Bot } from "lucide-react";
+import { asArray } from "@/lib/as-array";
 import "@/features/dashboard/command.css";
 
 interface TraceStep { kind: "tool" | "result" | "think"; tool?: string; text: string }
+interface Run {
+  id: string;
+  goal: string;
+  status: string;
+  startedAt: string;
+  result: { report?: string; trace?: TraceStep[] } | null;
+}
 
 const TOOL_LABEL: Record<string, string> = { web_search: "Searching the web", knowledge_search: "Reading your knowledge" };
 
@@ -27,6 +35,32 @@ export function AgentView() {
   const endRef = useRef<HTMLDivElement>(null);
   const [saved, setSaved] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastTask, setLastTask] = useState("");
+
+  /**
+   * What the agent has already done.
+   *
+   * Every run is persisted, and nothing read it back — so the page that exists
+   * to show the agent's work showed only an input box, and a report you did
+   * not think to save was gone on refresh. Reloaded after each run so a
+   * finished report joins the list without a reload.
+   */
+  const [runs, setRuns] = useState<Run[] | null>(null);
+  const loadRuns = useCallback(() => {
+    fetch("/api/agent").then((r) => r.json()).then((j) => setRuns(asArray<Run>(j?.data))).catch(() => setRuns([]));
+  }, []);
+  useEffect(loadRuns, [loadRuns]);
+
+  /** Show a past run exactly as a fresh one, trace and all. */
+  const openRun = (r: Run) => {
+    setLastTask(r.goal);
+    setTask(r.goal);
+    setError(null);
+    setSaved("idle");
+    const steps = asArray<TraceStep>(r.result?.trace);
+    setTrace(steps);
+    setShown(steps.length);
+    setReport(r.result?.report ?? null);
+  };
 
   /**
    * Keep the work.
@@ -70,6 +104,7 @@ export function AgentView() {
       if (!j.ok) { setError(j.error ?? "Agent failed."); setRunning(false); return; }
       setTrace(j.data.trace ?? []);
       setReport(j.data.report ?? null);
+      loadRuns();
     } catch (err) {
       setError(err instanceof Error ? `Couldn't reach SAGE: ${err.message}` : "Link error — try again.");
       setRunning(false);
@@ -131,6 +166,30 @@ export function AgentView() {
             <div className="ar-body">{report}</div>
           </div>
         )}
+        {/* History last, because the thing you just asked for comes first. */}
+        <div className="arun-wrap">
+          <div className="sectitle" style={{ marginTop: 26 }}>
+            <span className="sn"><History className="size-3.5" /></span><h2>Past runs</h2><span className="line" />
+            <span className="tag">{runs ? `${runs.length}` : "—"}</span>
+          </div>
+          {runs === null && <p className="lbl">LOADING…</p>}
+          {runs?.length === 0 && (
+            <div className="empty-state">
+              <Bot className="es-mark size-5" strokeWidth={1.5} />
+              <div className="es-t">No runs yet</div>
+              <div className="es-d">Dispatch a task above and it will be kept here — report, sources and all the steps SAGE took.</div>
+            </div>
+          )}
+          {runs?.map((r) => (
+            <button key={r.id} className="arun" onClick={() => openRun(r)}>
+              <span className="arun-when">
+                {new Date(r.startedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              </span>
+              <span className="arun-goal">{r.goal}</span>
+              <span className={`arun-st${r.status === "done" ? " ok" : ""}`}>{r.status.toUpperCase()}</span>
+            </button>
+          ))}
+        </div>
         <div ref={endRef} />
       </div>
     </div>

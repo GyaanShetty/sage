@@ -1,0 +1,511 @@
+/* ============================================================================
+   SAGE · the finish pass
+   ----------------------------------------------------------------------------
+   Loaded last, on purpose. Everything here is craft rather than structure: no
+   layout moves, no panel gains or loses a place on the grid. The wall was
+   built correctly and read as flat, and the reasons were all in this layer.
+
+   Four faults, all systemic, which is why one file fixes every page:
+
+   1. THE SURFACES WERE ALL THE SAME COLOUR. --deep #07080a, --panel #0c0d0f,
+      --surface #0e1013, --surface-hi #14171b — four tokens inside seven points
+      of each other, all neutral grey. On a real display that is one plane, so
+      thirty panels read as thirty rectangles drawn on a wall rather than
+      thirty objects sitting on one.
+
+   2. THERE WAS NO LIGHT. Every panel had the same 1px rgba(255,255,255,.07)
+      on all four sides and no shadow. Nothing in the interface implied a
+      direction for light, and without that a dark interface has no depth to
+      read — it is a diagram of an interface.
+
+   3. FOUR ACCENTS WERE COMPETING. The file's own header says "ONE accent (soft
+      cyan)", then defines white as THE accent, then amber, then cyan, then a
+      hue-driven signal at 32°. On screen that was orange bars beside a green
+      ring beside red slabs. An accent only means something when it is the
+      only one; five of them is just colour.
+
+   4. SEVENTEEN FONT SIZES, hand-set per component from 7px to 22px, with no
+      interval between them. Hierarchy you cannot state as a scale is
+      hierarchy the eye cannot follow.
+
+   The rule everything here follows: value and light carry the structure,
+   colour carries meaning. Grey is the default and has to be argued out of.
+   ========================================================================= */
+
+:root {
+  /* ── THE SURFACE RAMP ─────────────────────────────────────────────────────
+   *
+   * Cool, not neutral. Every one of these carries a little blue, because a
+   * true-grey dark interface reads as switched-off, and the eye accepts a
+   * cool dark as "unlit" while reading a neutral one as "grey". This is the
+   * single change that does the most, and it costs nothing.
+   *
+   * And they are genuinely apart now — roughly three points of lightness per
+   * step rather than one. A step you cannot see is not a step, and it was the
+   * reason panels did not separate from the wall behind them.
+   */
+  --deep:       #05060a;   /* the wall behind everything */
+  --background: #05060a;
+  --panel:      #0b0d13;   /* a panel at rest */
+  --surface:    #0b0d13;
+  --panel-hi:   #121520;   /* raised: headers, hover, the active tab */
+  --surface-hi: #121520;
+  --sunken:     #030409;   /* wells: chart grounds, inputs, empty bodies */
+
+  /* ── THE LIGHT ────────────────────────────────────────────────────────────
+   *
+   * One source, above and slightly forward. Everything in the interface is
+   * lit from the same place, which is the whole trick — a top edge that
+   * catches it, sides that catch less, a bottom that catches none, and a
+   * shadow underneath.
+   *
+   * The values are deliberately small. Depth in a dark interface is a matter
+   * of a few percent; anything you can point at directly is too much, and
+   * turns into the plastic bevel look this is trying not to be.
+   */
+  --lit-top:    rgba(255, 255, 255, 0.11);   /* the edge facing the light */
+  --lit-side:   rgba(255, 255, 255, 0.055);  /* edges facing away */
+  --lit-wash:   rgba(255, 255, 255, 0.028);  /* the sheen across the top third */
+  --edge:       rgba(255, 255, 255, 0.055);
+  --edge-hi:    rgba(255, 255, 255, 0.13);
+  --rule:       rgba(255, 255, 255, 0.05);
+
+  /* Two shadows, always. A tight one to seat the object on the surface, and a
+   * wide soft one to give it somewhere to sit. One alone reads as a border or
+   * as fog respectively. */
+  --cast: 0 1px 2px rgba(0, 0, 0, 0.55), 0 10px 28px -14px rgba(0, 0, 0, 0.9);
+  --cast-hi: 0 1px 2px rgba(0, 0, 0, 0.6), 0 18px 44px -18px rgba(0, 0, 0, 1);
+
+  /* ── DIRECTION ────────────────────────────────────────────────────────────
+   *
+   * Desaturated hard. The old pair were poster colours — a saturated red and
+   * green at full strength on every row of every list, so a flat market still
+   * looked like a fireworks display and a genuine 6% move had nothing left to
+   * say. These read as green and red at a glance and stop shouting, which
+   * leaves the intensity available for when it is earned.
+   */
+  --up:   #5fb98a;   /* 8.13:1 */
+  --down: #e28c93;   /* 7.77:1 */
+  --up-dim:   rgba(95, 185, 138, 0.45);
+  --down-dim: rgba(226, 140, 147, 0.45);
+  --up-wash:   rgba(95, 185, 138, 0.10);
+  --down-wash: rgba(226, 140, 147, 0.10);
+
+  /*
+   * The two are matched on contrast, not on saturation.
+   *
+   * A red and a green picked to look equally strong side by side are not
+   * equally bright — green carries roughly seven times the luminance weight of
+   * blue and over twice that of red in the same sRGB step. The first pair here
+   * measured 8.13:1 and 5.92:1, so every falling row on the wall rendered a
+   * third dimmer than every rising one, and a list of movers read as though
+   * the losers mattered less. They do not; a 2% fall is a 2% move.
+   *
+   * So the red is lifted until the ratios agree. It looks slightly pinker in
+   * isolation and correct in place, which is the trade to make — these are
+   * only ever seen next to each other.
+   */
+
+  /* ── TYPE ─────────────────────────────────────────────────────────────────
+   *
+   * A scale, at last. Seven steps on roughly a 1.25 ratio, so the intervals
+   * are visible and finite. The two label sizes are the exception to the
+   * ratio: they are set where a wide-tracked uppercase mono stays legible
+   * rather than where the maths lands.
+   */
+  --t-micro: 7.5px;   /* the smallest legible tracked label */
+  --t-label: 9px;     /* panel headers, row keys, units */
+  --t-body:  12px;    /* prose, list rows */
+  --t-read:  13.5px;  /* anything meant to be read as sentences */
+  --t-fig:   18px;    /* a figure inside a list */
+  --t-hero:  26px;    /* the figure a panel exists for */
+  --t-mega:  40px;    /* one per screen, at most */
+
+  /* Tracking travels with size: tight on figures so digits group into a
+     number, wide on small caps so they do not set solid. */
+  --tr-tight: -0.02em;
+  --tr-label: 0.16em;
+  --tr-micro: 0.2em;
+
+  /* ── THE INK TIERS ────────────────────────────────────────────────────────
+   *
+   * Measured, not chosen by eye. Every one of these was checked against the
+   * panel background (#0b0d13) and the ratio is written beside it, because
+   * "looks about right on this monitor" is how the first draft of this file
+   * ended up with body copy at 2.23:1 — a third of the way to the contrast a
+   * sentence needs, in exactly the places a sentence appears.
+   *
+   * The floor for anything that forms words is 4.5:1. Micro labels sit at
+   * 3.3:1, which is below that floor and a deliberate exception: they are
+   * two-word uppercase keys next to the value they label, never the thing
+   * being read, and lifting them further flattens the hierarchy they exist to
+   * create. Nothing that carries information on its own is allowed down there.
+   */
+  --ink:       rgba(244, 245, 247, 0.95);  /* 14.3:1 — figures, headings */
+  --ink-2:     rgba(244, 245, 247, 0.70);  /*  8.9:1 — body copy */
+  --ink-3:     rgba(244, 245, 247, 0.55);  /*  5.8:1 — secondary, still prose */
+  --ink-4:     rgba(244, 245, 247, 0.45);  /*  4.2:1 — dimmest readable */
+  --ink-label: rgba(244, 245, 247, 0.38);  /*  3.3:1 — tracked micro caps only */
+}
+
+/* ── the wall ───────────────────────────────────────────────────────────────
+ *
+ * A single very wide radial, brighter where the light is. It gives the flat
+ * backdrop somewhere for the light to come from, so panels near the top read
+ * as nearer it. Fixed, so it does not slide around under a scrolling grid.
+ */
+body {
+  background-color: var(--deep);
+  background-image: radial-gradient(120% 80% at 50% -10%, rgba(120, 140, 190, 0.07), transparent 62%);
+  background-attachment: fixed;
+}
+
+/* ── a panel is an object ───────────────────────────────────────────────────
+ *
+ * The gradient is the lit third, the top border is the edge that faces the
+ * light, and the shadow is what it sits in. All three or none: a highlight
+ * with no shadow looks like a mistake in the border colour.
+ */
+.pane,
+.mk-card,
+.sd,
+.keycard {
+  background-color: var(--panel);
+  background-image: linear-gradient(180deg, var(--lit-wash) 0, transparent 38%);
+  border: 1px solid var(--lit-side);
+  border-top-color: var(--lit-top);
+  box-shadow: var(--cast);
+}
+
+/* Hover lifts rather than lighting up: the shadow deepens and the lit edge
+   catches a little more, which is what moving toward a light actually does. */
+.pane:hover,
+.mk-card:hover {
+  border-top-color: rgba(255, 255, 255, 0.16);
+  box-shadow: var(--cast-hi);
+}
+
+/* ── panel headers ──────────────────────────────────────────────────────────
+ *
+ * The header was washed in 6% amber on every panel. Thirty amber bars is not
+ * an accent, it is a background colour — and it meant the accent had nothing
+ * left to say on the one panel that was actually live.
+ *
+ * So the bar goes quiet and grey, the title takes the weight, and the number
+ * recedes to the point of being furniture. The only amber left in a header is
+ * on a panel that is genuinely live.
+ */
+.pane-hd {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  border-bottom: 1px solid var(--rule);
+  padding: 5px 10px;
+}
+.pane-t {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  color: var(--ink);
+  font-weight: 500;
+}
+.pane-n { color: var(--ink-label); font-weight: 400; }
+.pane-s { font-size: var(--t-micro); letter-spacing: var(--tr-micro); }
+
+/* Live earns the accent, and earns it alone. */
+.pane-s.live { color: var(--signal); }
+.pane:has(.pane-s.live) { border-top-color: hsl(var(--hue) 100% 59% / 0.30); }
+
+/* ── figures ────────────────────────────────────────────────────────────────
+ *
+ * Tabular, tight, and light. A number's job is to be read as one quantity,
+ * and default tracking on a monospace face spaces the digits so evenly that a
+ * five-figure price reads as five separate digits.
+ */
+.tstat-v,
+.sd-last,
+.tstat-v.num {
+  font-size: var(--t-fig);
+  letter-spacing: var(--tr-tight);
+  font-variant-numeric: tabular-nums;
+  font-weight: 300;
+}
+.tstat-k {
+  font-size: var(--t-micro);
+  letter-spacing: var(--tr-micro);
+  color: var(--ink-label);
+}
+.tstat { padding: 7px 10px; }
+
+/* ── rows ───────────────────────────────────────────────────────────────────
+ *
+ * The rule between rows was as strong as the rule around the panel, so a list
+ * of eight read as eight stacked boxes. A list needs the faintest possible
+ * separation — enough to track across, not enough to enclose.
+ */
+.trow,
+.mkt { border-bottom-color: rgba(255, 255, 255, 0.035); }
+.trow:hover,
+.mkt:hover { background: rgba(255, 255, 255, 0.022); }
+
+/* ── wells ──────────────────────────────────────────────────────────────────
+ *
+ * Anything that is a ground rather than an object goes darker than the panel
+ * it sits in, not lighter. A chart drawn on a surface lighter than its own
+ * panel reads as floating above it, which is backwards.
+ */
+.sd-chart,
+.mk-matrix,
+.ghgrid { background: var(--sunken); border-color: var(--lit-side); }
+
+/* ── empty states ───────────────────────────────────────────────────────────
+ *
+ * Six panels on the dashboard had nothing in them, and each was a tall black
+ * rectangle — indistinguishable from a panel that is broken, which is the
+ * worst thing an empty state can be. Centred, quiet, and clearly deliberate:
+ * an empty panel should look like a panel with nothing to report.
+ */
+.empty-state,
+.tile-wait,
+.mk-dim:only-child {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 5px; min-height: 64px; height: 100%; padding: 14px;
+  text-align: center;
+}
+/*
+ * The hatch marks an area as deliberately unoccupied — but it tiles, so what
+ * is a texture at 200px is a striped wall at 600px, and the first screenshot
+ * of this had whole panels in pyjamas. It is a soft pool under the message
+ * instead: fixed size, centred, fading out well before the panel edge, so it
+ * reads the same whatever it is sitting in.
+ */
+.empty-state::before,
+.tile-wait::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(60% 70% at 50% 50%, rgba(255, 255, 255, 0.028), transparent 70%);
+  pointer-events: none;
+}
+.empty-state, .tile-wait { position: relative; }
+.es-t { font-size: var(--t-body); color: var(--ink-2); }
+/* A sentence, so it is held to the sentence floor and given a size that
+   does not need tracking to survive. */
+.es-d { font-size: 11px; letter-spacing: 0; color: var(--ink-4); line-height: 1.55; max-width: 34ch; }
+.es-mark { color: rgba(244, 245, 247, 0.22); margin-bottom: 2px; }
+.tile-wait {
+  font-family: var(--mono); font-size: var(--t-micro); letter-spacing: var(--tr-micro);
+  color: var(--ink-4);
+}
+
+/* ── the rail ───────────────────────────────────────────────────────────────
+ *
+ * It was the same colour as the wall, so the application had no left edge.
+ * One step down plus a lit right edge gives the whole layout a spine.
+ */
+.rail {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.022), transparent 60%), var(--panel);
+  border-right: 1px solid var(--lit-side);
+}
+.rail-stop.on {
+  background: linear-gradient(90deg, hsl(var(--hue) 100% 59% / 0.14), transparent 70%);
+  box-shadow: inset 2px 0 0 var(--signal);
+  color: var(--foreground);
+}
+.rail-stop.on .rail-ico { color: var(--signal); }
+
+/* ── the top bar ────────────────────────────────────────────────────────────
+ * It floats over the wall, so it gets the panel treatment and a shadow to
+ * separate it from whatever scrolls beneath.
+ */
+.topbar {
+  background: linear-gradient(180deg, var(--panel-hi), var(--panel));
+  border-bottom: 1px solid var(--lit-side);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 8px 24px -16px rgba(0, 0, 0, 1);
+}
+.tb-search { background: var(--sunken); border-color: var(--lit-side); }
+.tb-search:hover { border-color: var(--edge-hi); background: #05070d; }
+.tb-name { letter-spacing: 0.3em; }
+
+/* ── sector blocks ──────────────────────────────────────────────────────────
+ *
+ * These were the loudest thing in the application: saturated red and green
+ * slabs, filled edge to edge, at a size that made a -2.3% sector shout louder
+ * than every actual alert on the page. Nothing about a sector list is urgent.
+ *
+ * Now the tint states the direction and a bar states the size, which is the
+ * information that was in the block all along — a filled rectangle encodes
+ * magnitude as colour, which the eye reads far less precisely than length.
+ */
+.mk-heatcell { position: relative; border-left: 2px solid var(--mark); overflow: hidden; }
+.mk-heatcell.up { border-left-color: var(--up); }
+.mk-heatcell.down { border-left-color: var(--down); }
+.mk-heatval { color: var(--ink); font-variant-numeric: tabular-nums; }
+/* The magnitude bar sits on the floor of the cell, so it reads along the
+   column as a row of lengths rather than as decoration inside each box. */
+.mk-heatbar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--mark); }
+.mk-heatcell.up .mk-heatbar { background: var(--up); }
+.mk-heatcell.down .mk-heatbar { background: var(--down); }
+
+/* ── focus ──────────────────────────────────────────────────────────────────
+ * One visible ring, everywhere, in the accent. Keyboard focus had no styling
+ * of its own, so it fell back to whatever the browser draws — which on a dark
+ * interface is frequently nothing at all.
+ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 1px solid var(--signal);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pane, .mk-card { transition: none; }
+}
+
+/* ── ascii meters ───────────────────────────────────────────────────────────
+ * The gauge is read from where its tip is, so that is the only part that is
+ * lit. See the note in components/ascii/motifs.tsx for what this replaced.
+ */
+.asc-meter i { font-style: normal; }
+.am-run   { color: var(--ink-label); }
+.am-head  { color: var(--signal); text-shadow: 0 0 8px var(--signal-glow); }
+.am-track { color: rgba(244, 245, 247, 0.07); }
+.asc-meter.is-void .am-run,
+.asc-meter.is-void .am-head { color: rgba(244, 245, 247, 0.07); text-shadow: none; }
+
+/* ── the hero band ──────────────────────────────────────────────────────────
+ *
+ * The band is the first thing on the screen and it was the cheapest-looking
+ * thing on it: block-glyph letterforms at 11px with a hard black offset, which
+ * reads as characters someone typed rather than as a sign that is lit.
+ *
+ * The letterforms stay — they are the house style and the ASCII is the point.
+ * What changes is that they are now lit like a physical sign: a vertical
+ * gradient clipped to the glyphs so the top edge catches the same light every
+ * panel catches, and a tight halo instead of a wide one. The old hard ink
+ * offset goes, because a drop shadow and a gradient fill are two different
+ * light sources and the eye notices.
+ */
+.dh-mark .ascii-mark {
+  background: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    rgba(238, 242, 252, 0.94) 42%,
+    rgba(150, 163, 190, 0.72) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* A glow on transparent text has nothing to sit on, so the halo is a drop
+     shadow on the clipped shape instead — which is also what makes it follow
+     the letterforms rather than the box around them. */
+  filter: drop-shadow(0 0 14px rgba(190, 210, 255, 0.22))
+          drop-shadow(0 2px 1px rgba(0, 0, 0, 0.9));
+  text-shadow: none;
+}
+
+/* The band itself: a shallow well under the wall's light, so the wordmark sits
+   in something rather than floating on nothing. */
+.dash-hero {
+  background:
+    radial-gradient(90% 120% at 50% 0%, rgba(120, 145, 205, 0.09), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 55%);
+  border-bottom: 1px solid var(--lit-side);
+}
+
+/* The hero figures are the reason the band exists, so they keep their size and
+   lose the competition: labels recede, the rules between them go to a hairline,
+   and only a figure that is genuinely signalling takes the accent. */
+.dh-stat { border-left-color: rgba(255, 255, 255, 0.05); }
+.dh-stat b { letter-spacing: var(--tr-tight); }
+.dh-stat span { font-size: var(--t-micro); letter-spacing: var(--tr-micro); color: var(--ink-label); }
+
+/* Flank labels and readings, matched to the scale. */
+.dhf-cap { font-size: var(--t-micro); letter-spacing: var(--tr-micro); color: var(--ink-label); }
+.dhf-k { font-size: var(--t-micro); letter-spacing: 0.14em; color: var(--ink-4); }
+.dhf-v { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+/* The rain and the sweep were competing with the wordmark for the same space.
+   Both stay — they are what makes the band feel alive — at the level of
+   atmosphere rather than of content. */
+.dh-rain { opacity: 0.35; }
+.dh-sweep { opacity: 0.5; }
+
+
+/* ── the inherited tiers ────────────────────────────────────────────────────
+ *
+ * --muted and --subtle predate this file and are used in several hundred
+ * places, including for whole sentences. Measured against the new panel
+ * colour, --subtle at #5c5d64 came to 2.8:1 — under the sentence floor
+ * wherever it was carrying prose, which it frequently was.
+ *
+ * Raised to the measured tiers rather than removed: a token used that widely
+ * is fixed where it is defined, not at three hundred call sites.
+ */
+:root {
+  --muted:  rgba(244, 245, 247, 0.62);   /* 7.1:1 */
+  --subtle: rgba(244, 245, 247, 0.45);   /* 4.2:1 */
+  /*
+   * --faint is a TEXT tier, whatever its name says.
+   *
+   * I first set this to 0.20 and wrote "dividers and disabled marks only"
+   * beside it, then found thirty-two selectors using it as a text colour —
+   * the news-source badges, the ticker separators, the frame rail, the pane
+   * number suffix. The token's documented job and its actual job had been
+   * different for a long time, and the audit put every one of those at
+   * 1.75:1, which is not text.
+   *
+   * Renaming it would touch thirty-two call sites to no benefit. It is what
+   * it is used as: the quietest tier that is still legible. Dividers already
+   * use --rule and --edge, so nothing loses anything by this being lifted.
+   */
+  --faint:  rgba(244, 245, 247, 0.34);   /* 2.9:1 — the quietest legible ink */
+}
+
+/* ── things that were invisible rather than quiet ───────────────────────────
+ *
+ * Found by compositing every text node against its actual resolved background
+ * and sorting by ratio, which is the only way to catch these: each one looks
+ * deliberate in the stylesheet and each one had disappeared on screen.
+ *
+ * --faint was being used as a text colour by three selectors. It is a divider
+ * token — the file says so two hundred lines up — and at 1.67:1 the frame
+ * rail's own labels were not legible on any display. Quiet is 3:1. Invisible
+ * is a different thing, and it is not a design decision.
+ */
+.fr-creed { color: rgba(244, 245, 247, 0.34); }  /* 2.9:1 — chrome, never content */
+/* The source badge names the outlet a story came from, which is the thing
+   that makes a heuristic desk label trustworthy — it is content, not chrome,
+   and it gets a readable tier rather than the quietest one. */
+.wire-src { color: var(--ink-4); }
+
+/* ── the live mark ──────────────────────────────────────────────────────────
+ *
+ * First attempt at fixing the unreadable amber here was to box it: dark fill,
+ * amber rule, padding. That looked right in isolation and was wrong in place,
+ * because `.live` is not rare — nearly every panel holding data carries it —
+ * so the screen grew six amber chips at once. Six accents is no accent, which
+ * is the exact rule this file opens with, broken by the file itself one
+ * screenshot later.
+ *
+ * So the accent shrinks to a single pip and the words go neutral. The pip is
+ * four pixels and unmistakable; the label beside it is just a label, and reads
+ * at the same weight as every other panel label on the wall.
+ */
+.pane-s.live { color: var(--ink-label); display: inline-flex; align-items: center; gap: 5px; }
+.pane-s.live::before {
+  content: ""; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--signal); box-shadow: 0 0 6px var(--signal-glow);
+  flex: none;
+}
+
+/* ── direction, in the watchlist ────────────────────────────────────────────
+ *
+ * `.chg.up` was white and a bare `.chg` — every falling name — was dim grey.
+ * So a stock going down rendered as a stock being de-emphasised, and the
+ * column could not be scanned for direction at all: you had to read each
+ * arrow. The rest of the application had already grown a proper up/down pair;
+ * this list never got it.
+ */
+.mkt .chg { color: var(--down); }
+.mkt .chg.up { color: var(--up); }
+
+/* Panel status labels sat at 2.2:1 — under even the micro-label exception, so
+   "YAHOO · 5M" and "ONLINE · © OSM" were guesswork. Lifted to the label tier;
+   they stay quieter than the title they sit beside, which is the whole job. */
+.pane-s { color: var(--ink-label); }

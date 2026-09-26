@@ -45,9 +45,27 @@ export function AsciiScan({ width = 22, className }: { width?: number; className
  */
 export function AsciiMeter({ value, width = 16, className }: { value: number; width?: number; className?: string }) {
   const filled = Math.max(0, Math.min(width, Math.round(value * width)));
+  /*
+   * Three parts, not one string.
+   *
+   * Drawn as a single span the whole filled run took the accent colour, and
+   * eight of these across the hero band put roughly two hundred solid amber
+   * blocks at the top of the screen. That is not a meter reading, it is an
+   * orange rectangle — and it spent the one accent the palette has on
+   * "here is a bar", leaving nothing louder for the readings that are
+   * genuinely worth looking at.
+   *
+   * A real gauge is legible because of where its needle is, so only the
+   * leading block is lit. The run behind it recedes to the level of a rule and
+   * the track behind that is barely there, which is what makes the tip read as
+   * a position rather than as the end of a coloured area.
+   */
+  const head = filled > 0 ? 1 : 0;
   return (
     <span className={`asc-meter${className ? ` ${className}` : ""}`} aria-hidden>
-      {"█".repeat(filled)}{"░".repeat(width - filled)}
+      <i className="am-run">{"█".repeat(Math.max(0, filled - head))}</i>
+      <i className="am-head">{"█".repeat(head)}</i>
+      <i className="am-track">{"░".repeat(width - filled)}</i>
     </span>
   );
 }

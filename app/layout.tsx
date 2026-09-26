@@ -7,6 +7,7 @@ import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 import "./keycard.css";
 import "./terminal.css";
+import "./refine.css";
 
 const disp = Space_Grotesk({ variable: "--font-disp", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 const mono = JetBrains_Mono({ variable: "--font-mono-f", subsets: ["latin"], weight: ["300", "400", "500"] });

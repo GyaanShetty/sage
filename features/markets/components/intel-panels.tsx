@@ -87,11 +87,25 @@ export function PulsePanel() {
     ]).finally(() => setLoaded(true));
   }, []);
 
+  /*
+   * Tint, not fill.
+   *
+   * These were saturated slabs at up to 60% alpha — the loudest thing in the
+   * whole application, so a routine -2.3% in IT shouted over every genuine
+   * alert on the page. Nothing about a sector list is urgent.
+   *
+   * And a filled rectangle encodes magnitude as colour intensity, which the
+   * eye reads far less precisely than length. So the tint says direction only,
+   * capped where it stays background, and the size moves to a bar (below)
+   * where it can actually be compared between rows.
+   */
   const heat = (v: number | null) => {
-    if (v == null) return "rgba(255,255,255,.05)";
-    const m = Math.min(1, Math.abs(v) / 2.5);
-    return v >= 0 ? `rgba(52,211,153,${0.1 + m * 0.5})` : `rgba(248,113,113,${0.1 + m * 0.5})`;
+    if (v == null) return "rgba(255,255,255,.03)";
+    return v >= 0 ? "rgba(95,185,138,.10)" : "rgba(226,140,147,.10)";
   };
+
+  /** How far the magnitude bar runs, as a percentage. 2.5% of move is full. */
+  const mag = (v: number | null) => (v == null ? 0 : Math.min(1, Math.abs(v) / 2.5) * 100);
 
   return (
     <div className="mk-grid2">
@@ -123,10 +137,17 @@ export function PulsePanel() {
         {sec?.sectors?.length ? (
           <div className="mk-heat">
             {sec.sectors.map((x) => (
-              <div key={x.symbol} className="mk-heatcell" style={{ background: heat(x.changePct) }} title={`${x.label} · ${pct(x.changePct)}`}>
+              <div
+                key={x.symbol}
+                className={`mk-heatcell${x.changePct == null ? "" : x.changePct >= 0 ? " up" : " down"}`}
+                style={{ background: heat(x.changePct) }}
+                title={`${x.label} · ${pct(x.changePct)}`}
+              >
                 <span className="mk-heatlbl">{x.label}</span>
                 <span className="mk-heatval">{pct(x.changePct, 1)}</span>
                 <i className="mk-heatreg">{x.region}</i>
+                {/* The magnitude, as a length you can compare down the column. */}
+                <span className="mk-heatbar" style={{ width: `${mag(x.changePct)}%` }} />
               </div>
             ))}
           </div>
@@ -141,7 +162,15 @@ function Dial({ value }: { value: number }) {
   const r = 40, cx = 48, cy = 48;
   const a = Math.PI * (1 - value / 100);
   const x = cx + Math.cos(a) * r, y = cy - Math.sin(a) * r;
-  const col = value < 25 ? "#f87171" : value < 45 ? "#fb923c" : value < 55 ? "#facc15" : value < 75 ? "#a3e635" : "#34d399";
+  /*
+   * Two colours and a neutral, not five.
+   *
+   * This ran a full rainbow — red, orange, yellow, lime, green — across a dial
+   * whose only job is "fearful, neutral or greedy". Five hues on one gauge in
+   * an interface that otherwise has one accent read as a children's toy, and
+   * the middle three were indistinguishable at 96px anyway.
+   */
+  const col = value < 40 ? "#e28c93" : value > 60 ? "#5fb98a" : "#8b8d96";
   return (
     <svg viewBox="0 0 96 58" className="mk-dial">
       <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="7" strokeLinecap="round" />

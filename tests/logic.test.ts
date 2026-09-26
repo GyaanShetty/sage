@@ -5096,3 +5096,64 @@ test("AgentRun writes only columns the schema has", async () => {
   const unknown = written.filter((c) => !columns.has(c));
   assert.deepEqual(unknown, [], `AgentRun has no such column(s): ${unknown.join(", ")}`);
 });
+
+test("no text token is set below the legible floor", async () => {
+  const { readFileSync } = await import("node:fs");
+
+  /*
+   * Measured, not eyeballed. An audit that composited every text node against
+   * its real resolved background found chrome rendering at 1.4–1.75:1 — the
+   * frame rail's own labels, the news-source badges, the ticker separators.
+   * Each looked deliberate in the stylesheet and none of them was visible.
+   *
+   * The cause was one token: --faint, documented as a divider colour and used
+   * as a text colour by thirty-two selectors. This pins the tiers that carry
+   * words so the next well-meant "make it subtler" cannot put them back under
+   * the floor.
+   */
+  const css = readFileSync("app/refine.css", "utf8");
+
+  const alphaOf = (name: string) => {
+    const m = css.match(new RegExp(`--${name}:\\s*rgba\\([^)]*?,\\s*([\\d.]+)\\s*\\)`));
+    assert.ok(m, `--${name} is not defined as rgba in refine.css`);
+    return parseFloat(m![1]);
+  };
+
+  // Alpha over #0b0d13: 0.34 ≈ 2.9:1, 0.45 ≈ 4.2:1, 0.62 ≈ 7.1:1.
+  // Anything forming sentences sits at 0.45 or above; the tracked micro-caps
+  // exception bottoms out at 0.34 and nothing may go under it.
+  for (const [token, floor] of [
+    ["faint", 0.34],
+    ["ink-label", 0.34],
+    ["subtle", 0.45],
+    ["ink-4", 0.45],
+    ["muted", 0.6],
+    ["ink-3", 0.5],
+  ] as const) {
+    const a = alphaOf(token);
+    assert.ok(a >= floor, `--${token} is ${a}, below the ${floor} floor — that renders as invisible, not subtle`);
+  }
+
+  /*
+   * Up and down are matched on contrast rather than on saturation: green
+   * carries far more luminance than red at the same sRGB step, so a pair that
+   * looks balanced side by side renders every falling row a third dimmer than
+   * every rising one.
+   */
+  const lin = (c: number) => { const s = c / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  const ratio = (hex: string) => {
+    const h = hex.replace("#", "");
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    const l = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const bg = 0.2126 * lin(11) + 0.7152 * lin(13) + 0.0722 * lin(19);
+    return (Math.max(l, bg) + 0.05) / (Math.min(l, bg) + 0.05);
+  };
+  const hex = (name: string) => css.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`))?.[1];
+  const up = hex("up"), down = hex("down");
+  assert.ok(up && down, "--up/--down must be hex in refine.css");
+  for (const [n, c] of [["up", up!], ["down", down!]]) {
+    assert.ok(ratio(c) >= 4.5, `--${n} at ${ratio(c).toFixed(2)}:1 is under AA`);
+  }
+  const gap = Math.abs(ratio(up!) - ratio(down!));
+  assert.ok(gap < 1.2, `--up and --down differ by ${gap.toFixed(2)} in contrast; one direction will read as dimmer than the other`);
+});

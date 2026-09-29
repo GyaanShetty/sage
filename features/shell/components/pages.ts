@@ -18,7 +18,6 @@ export interface Item { href: string; label: string; icon: LucideIcon; hint?: st
 
 export const PAGES: Item[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, hint: "command", group: "NOW" },
-  { href: "/ops", label: "Ops", icon: Gauge, hint: "page two", group: "NOW" },
   { href: "/sitrep", label: "Sitrep", icon: Radio, hint: "live status", group: "NOW" },
   { href: "/morning", label: "Morning", icon: Sunrise, hint: "the block", group: "NOW" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, hint: "week · month", group: "NOW" },
@@ -38,20 +37,15 @@ export const PAGES: Item[] = [
   { href: "/markets", label: "Markets", icon: CandlestickChart, group: "MONEY" },
 
   { href: "/decisions", label: "Decisions", icon: Scale, hint: "calibration", group: "JUDGEMENT" },
-  { href: "/counsel", label: "Counsel", icon: FileSearch, hint: "dossier · what-if", group: "JUDGEMENT" },
   { href: "/review", label: "Review", icon: BookMarked, hint: "weekly", group: "JUDGEMENT" },
-  { href: "/report", label: "Report", icon: ScrollText, hint: "life", group: "JUDGEMENT" },
 
   { href: "/knowledge", label: "Knowledge", icon: BookOpen, hint: "sources · papers", group: "MIND" },
   { href: "/read", label: "Read", icon: FileText, hint: "research", group: "MIND" },
   { href: "/study", label: "Study", icon: GraduationCap, hint: "subjects · units · hours", group: "MIND" },
   { href: "/education", label: "Skills", icon: Sparkles, hint: "the 0-5 ledger", group: "MIND" },
-  { href: "/explain", label: "Explain", icon: Lightbulb, hint: "feynman loop", group: "MIND" },
   { href: "/exam", label: "Exams", icon: Timer, hint: "countdown · practice", group: "MIND" },
   { href: "/memory", label: "Memory", icon: Brain, group: "MIND" },
-  { href: "/graph", label: "Mind Graph", icon: Network, group: "MIND" },
   { href: "/board", label: "Boards", icon: PenLine, hint: "draw · note · attach", group: "MIND" },
-  { href: "/deck", label: "Deck", icon: LayoutGrid, hint: "the mark, and an ask bar", group: "MIND" },
   { href: "/health", label: "Health", icon: Activity, group: "MIND" },
 
   { href: "/settings", label: "Settings", icon: Settings, group: "MIND" },
@@ -71,12 +65,10 @@ export const ALIASES: Record<string, string> = {
   sleep: "/health", steps: "/health", workout: "/health", gym: "/health", body: "/health",
   home: "/dashboard", main: "/dashboard", status: "/sitrep", situation: "/sitrep",
   decision: "/decisions", call: "/decisions", bet: "/decisions", calibration: "/decisions",
-  dossier: "/counsel", about: "/counsel", simulate: "/counsel",
   git: "/push", github: "/push", commit: "/push", dsa: "/push", solution: "/push",
   schedule: "/calendar", month: "/calendar", diary: "/calendar", timetable: "/calendar",
   inbox: "/mail", email: "/mail", research: "/read", brief: "/read",
   capture: "/capture", dictate: "/capture", voice: "/capture", screenshot: "/capture",
   ramble: "/capture", jot: "/capture",
-  explain: "/explain", feynman: "/explain", understand: "/explain", teach: "/explain",
   exam: "/exam", test: "/exam", revision: "/exam", syllabus: "/exam", countdown: "/exam",
 };

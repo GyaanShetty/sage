@@ -356,7 +356,7 @@ export async function gatherAmbient(): Promise<AmbientItem[]> {
         text: due.length === 1
           ? `One thing is waiting to be explained back: ${due[0].title}.`
           : `${due.length} concepts are waiting to be explained back.`,
-        href: "/explain",
+        href: "/study",
       });
     })().catch(() => undefined),
 

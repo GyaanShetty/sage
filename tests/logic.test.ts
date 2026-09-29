@@ -4128,7 +4128,7 @@ test("the exam countdown is a desk cell, not a band across the wall", async () =
   // The old full-width band is gone from the pages and from the tree — a
   // component nobody renders is a component that rots.
   assert.equal(existsSync("features/dashboard/components/exam-strip.tsx"), false);
-  for (const f of ["app/(shell)/dashboard/page.tsx", "app/(shell)/deck/page.tsx"]) {
+  for (const f of ["app/(shell)/dashboard/page.tsx"]) {
     assert.doesNotMatch(readFileSync(f, "utf8"), /ExamStrip/, `${f} still renders the old band`);
   }
 
@@ -4618,21 +4618,6 @@ test("a route that renders shared styles loads them", async () => {
   }
 
   assert.deepEqual(offenders, [], `unstyled on a hard load:\n  ${offenders.join("\n  ")}`);
-});
-
-test("the deck's quick access fills its rows", async () => {
-  const view = readFileSync("features/dashboard/components/deck-view.tsx", "utf8");
-  const css = readFileSync("features/dashboard/deck.css", "utf8");
-
-  const count = [...view.matchAll(/\{ href: "\/[a-z-]+", label: "[^"]+", Icon: \w+ \}/g)].length;
-  // [^]* rather than the s flag: the test file targets a lower ES level and
-  // the dotAll flag is a compile error there.
-  const cols = Number(css.match(/\.deck-quick \{[^]*?repeat\((\d+),/)?.[1] ?? 0);
-
-  // A ragged last row in a grid of destinations reads as a missing link, not
-  // as a full set. Keep the count a multiple of the columns.
-  assert.ok(cols > 0, "the grid declares its columns");
-  assert.equal(count % cols, 0, `${count} quick links do not fill rows of ${cols}`);
 });
 
 test("a pasted syllabus becomes units, in the shapes syllabuses arrive in", async () => {

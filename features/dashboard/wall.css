@@ -558,8 +558,23 @@
   .wall-shell > .wall { flex: 1; min-height: 0; }
 }
 
-/* The shell owns the frame the wall used to. */
-main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
+/* The shell owns the frame the wall used to.
+ *
+ * `overflow: hidden` belongs ONLY to the fixed wall at 1400px and up, where
+ * the grid is exactly one viewport tall and scrolling would be a bug. It was
+ * written outside the media query, so it also applied to the phone — where
+ * the same grid stacks into a 3,099px column inside a 667px box that clips
+ * and cannot scroll.
+ *
+ * Measured at 390×844: main.clientHeight 667, main.scrollHeight 3099, and
+ * window.scrollY still 0 after a 2000px wheel. Two and a half thousand pixels
+ * of dashboard — every panel below the fold — were simply unreachable on a
+ * phone, and had been for as long as this rule has existed.
+ */
+main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
+@media (min-width: 1400px) {
+  main.hud-grid:has(.wall-shell) { overflow: hidden; }
+}
 @media (min-width: 1400px) {
   main.hud-grid:has(.wall-shell) { display: flex; flex-direction: column; }
   main.hud-grid:has(.wall-shell) > *,
@@ -684,6 +699,11 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; overflow: hidden; }
   .wall-pack > .t-3x4  { grid-column: span 3;  grid-row: span 4; }
   .wall-pack > .t-4x2  { grid-column: span 4;  grid-row: span 2; }
   .wall-pack > .t-4x3  { grid-column: span 4;  grid-row: span 3; }
+  /* Three of these tile the twelve columns exactly. Added when the band under
+     the map went to Eisenhower + Morning Wire + Board; without the rule the
+     three would have taken the grid's implicit minimum and rendered as
+     slivers, which is the same way the Atlas map once came out 145x87. */
+  .wall-pack > .t-4x4  { grid-column: span 4;  grid-row: span 4; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
   .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
   /* Half the wall and four rows: the shape the map wants, with the tall

@@ -509,3 +509,16 @@ body {
    "YAHOO · 5M" and "ONLINE · © OSM" were guesswork. Lifted to the label tier;
    they stay quieter than the title they sit beside, which is the whole job. */
 .pane-s { color: var(--ink-label); }
+
+/* ── the dashboard takes the full width ─────────────────────────────────────
+ *
+ * The rail is a side panel on a desktop and the bottom bar on a phone — the
+ * same element, two jobs. It is only the first one that was eating the wall's
+ * width, so it is hidden at the widths where it is vertical and kept
+ * everywhere else. Hiding it outright would leave the home screen with no
+ * visible navigation on the device that has the least room for a wheel and no
+ * keyboard for ⌘K.
+ */
+@media (min-width: 641px) {
+  .rail-offwide { display: none; }
+}

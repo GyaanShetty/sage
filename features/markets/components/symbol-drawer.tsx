@@ -19,6 +19,20 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, X, Sparkles } from "lucide-react";
 import "./intel.css";
 
+interface Profile {
+  symbol: string; name: string; currency: string; exchange: string;
+  price: number; changePct: number;
+  dayLow: number | null; dayHigh: number | null;
+  low52: number | null; high52: number | null; band: number | null;
+  volume: number | null;
+  fundamentals: {
+    peRatio: number | null; marketCap: number | null; dividendYield: number | null;
+    eps: number | null; bookValue: number | null; profitMargin: number | null;
+    sector: string | null; industry: string | null; asOf: string;
+  } | null;
+  note?: string;
+}
+
 interface Series {
   symbol: string; name: string; currency: string; range: string;
   points: { t: number; v: number }[];
@@ -57,6 +71,7 @@ export function SymbolDrawer({ symbol, onClose }: { symbol: string; onClose: () 
   const [range, setRange] = useState<string>("1mo");
   const [s, setS] = useState<Series | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [prof, setProf] = useState<Profile | null>(null);
   const [why, setWhy] = useState<string | null>(null);
   const [whyBusy, setWhyBusy] = useState(false);
 
@@ -69,6 +84,24 @@ export function SymbolDrawer({ symbol, onClose }: { symbol: string; onClose: () 
       .catch(() => { if (live) setErr("Couldn't reach the price feed."); });
     return () => { live = false; };
   }, [symbol, range]);
+
+  /*
+   * The numbers behind the line.
+   *
+   * Separate from the series because it does not change with the range —
+   * the 52-week band and the valuation are the same whichever window the
+   * chart is showing, and refetching them on every tab press would spend the
+   * valuation quota four times for one look.
+   */
+  useEffect(() => {
+    let live = true;
+    setProf(null);
+    fetch(`/api/market/profile?symbol=${encodeURIComponent(symbol)}`, { signal: AbortSignal.timeout(20_000) })
+      .then((r) => r.json())
+      .then((j) => { if (live && j?.ok) setProf(j.data); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [symbol]);
 
   // Escape closes it, because a panel over the page that only closes by mouse
   // is a trap for anyone not using one.
@@ -128,6 +161,40 @@ export function SymbolDrawer({ symbol, onClose }: { symbol: string; onClose: () 
             </div>
             <Chart s={s} />
           </>
+        )}
+
+        {prof && (
+          <div className="sd-facts">
+            {/* Where it sits in its own year, as a position rather than two
+                numbers you have to subtract in your head. */}
+            {prof.band !== null && prof.low52 !== null && prof.high52 !== null && (
+              <div className="sd-52">
+                <span className="sd-52k">52-WEEK</span>
+                <span className="sd-52lo">{money(prof.low52, prof.currency)}</span>
+                <span className="sd-52track"><i style={{ left: `${prof.band * 100}%` }} /></span>
+                <span className="sd-52hi">{money(prof.high52, prof.currency)}</span>
+              </div>
+            )}
+            <dl className="sd-dl">
+              {prof.dayLow !== null && prof.dayHigh !== null && (
+                <div><dt>Day</dt><dd>{money(prof.dayLow, prof.currency)} – {money(prof.dayHigh, prof.currency)}</dd></div>
+              )}
+              {prof.volume !== null && <div><dt>Volume</dt><dd>{prof.volume.toLocaleString()}</dd></div>}
+              {prof.exchange && <div><dt>Listed</dt><dd>{prof.exchange}</dd></div>}
+              {prof.fundamentals?.peRatio != null && <div><dt>P/E</dt><dd>{prof.fundamentals.peRatio.toFixed(1)}</dd></div>}
+              {prof.fundamentals?.eps != null && <div><dt>EPS</dt><dd>{prof.fundamentals.eps}</dd></div>}
+              {prof.fundamentals?.marketCap != null && (
+                <div><dt>Mkt cap</dt><dd>{money(prof.fundamentals.marketCap, prof.currency)}</dd></div>
+              )}
+              {prof.fundamentals?.dividendYield != null && (
+                <div><dt>Yield</dt><dd>{(prof.fundamentals.dividendYield * 100).toFixed(2)}%</dd></div>
+              )}
+              {prof.fundamentals?.sector && <div><dt>Sector</dt><dd>{prof.fundamentals.sector}</dd></div>}
+            </dl>
+            {/* Say why a number is absent rather than leaving a gap — a
+                missing row and a rationed feed look identical otherwise. */}
+            {prof.note && <p className="sd-note">{prof.note}</p>}
+          </div>
         )}
 
         <div className="sd-why">

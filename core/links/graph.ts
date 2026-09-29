@@ -149,7 +149,7 @@ export function hrefFor(end: LinkEnd): string {
     case "application": return "/career";
     case "holding": return "/portfolio";
     case "automation": return "/automations";
-    case "report": return "/report";
+    case "report": return "/knowledge";
     case "thread": return "/chat";
     case "file": return `/api/files?path=${encodeURIComponent(end.id)}`;
     default: return "/dashboard";

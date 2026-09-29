@@ -12,6 +12,12 @@
  * Eight destinations, not thirty. Everything else stays reachable through
  * the command palette; a rail that lists every page is a menu, and a menu is
  * the thing this replaces.
+ *
+ * It steps out of the way on the dashboard — but only where it is a side
+ * panel. On a phone this same element is the bottom bar, and hiding it there
+ * would leave the home screen with no visible navigation at all. So the
+ * hiding is done in CSS at the width where the rail is actually vertical,
+ * rather than by not rendering it: one rule, and the phone keeps its bar.
  */
 
 import Link from "next/link";
@@ -46,9 +52,12 @@ const STOPS: Stop[] = [
 
 export function NavRail() {
   const path = usePathname();
+  /* The wall wants the width; ⌘K, the wheel and the launcher still reach
+     every page from here. */
+  const onDashboard = path === "/dashboard";
 
   return (
-    <nav className="rail" aria-label="Primary">
+    <nav className={`rail${onDashboard ? " rail-offwide" : ""}`} aria-label="Primary">
       <Link href="/dashboard" className="rail-mark" aria-label="SAGE home">
         <span className="rail-ring" aria-hidden />
       </Link>

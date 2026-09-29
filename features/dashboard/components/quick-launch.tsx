@@ -19,7 +19,7 @@ import { sound } from "@/lib/sound";
 const STOPS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/code", label: "Code", icon: TerminalSquare },
   { href: "/capture", label: "Capture", icon: NotebookPen },
-  { href: "/counsel", label: "Research", icon: Search },
+  { href: "/agents", label: "Research", icon: Search },
   { href: "/atlas", label: "Maps", icon: Map },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/workspace", label: "Files", icon: FolderKanban },

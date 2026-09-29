@@ -38,7 +38,6 @@ import { PAGES } from "./pages";
  */
 const KEYS: { fn: number; href: string }[] = [
   { fn: 5, href: "/dashboard" },
-  { fn: 6, href: "/ops" },
   { fn: 7, href: "/workspace" },
   { fn: 8, href: "/sitrep" },
   { fn: 9, href: "/memory" },

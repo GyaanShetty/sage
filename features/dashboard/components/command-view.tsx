@@ -13,20 +13,18 @@ import {
   AgentLogTile, GithubTile, BioTile, PortfolioTile, ExamTile, SystemTile,
 } from "./page-tiles";
 import {
-  MarketsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, FeedsTile,
-  ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, InboxTile,
-  ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
+  MarketsTile, FeedsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
 import { MarketsList } from "./markets-list";
 import { AiConsole } from "./ai-console";
 import { IntelFeed } from "./intel-feed";
 import { SystemsPanel } from "./systems-panel";
 import { QuickLaunch } from "./quick-launch";
-import { SkiesPanel } from "./skies-panel";
-import { WorldPanel } from "./world-panel";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
+import { MorningWire } from "./morning-wire";
+import { BoardPanel } from "./board-panel";
 import { SitrepBand } from "./sitrep-band";
 import {
   SpendTrendTile, SpendShapeTile, TaskRhythmTile, TaskWeekdayTile, FocusTile,
@@ -257,28 +255,54 @@ export function CommandView({
           </Pane>
           <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={2} limit={14} /></TileGuard></div>
 
-          {/* The three that are read rather than glanced at. */}
-          <div className="t-4x3"><TileGuard name="WIRE"><IntelFeed n={3} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="CONSOLE"><AiConsole n={5} /></TileGuard></div>
+          {/*
+           * What the day is made of: the decision grid, what he reads, and
+           * the wider market. These three are the reason to have the screen
+           * open at all, so they get the band directly under the map rather
+           * than a corner below the fold.
+           *
+           * Eisenhower was already built and was sitting on the WORK sub-tab,
+           * which is one click away from the screen that is open all day —
+           * so the matrix that is supposed to decide what you do next was
+           * somewhere you only looked once you had already decided to go
+           * looking. It comes to the front.
+           */}
+          {/*
+           * The wall is a fixed number of rows divided into one viewport, so
+           * every row a new band takes comes straight out of the height of
+           * every other. Adding three panels at four rows each put the bottom
+           * band at 77px — a panel header and nothing under it.
+           *
+           * So the three new ones arrive at three rows, and four old tiles
+           * leave to pay for them. Two were duplicates: Feeds is what Morning
+           * Wire now does properly, with the publishers actually read rather
+           * than a generic list, and the global map repeated the Atlas map
+           * two bands above it. Inbox was a count that Mission Control
+           * already carries, and Skies was a list of aircraft overhead.
+           *
+           * Row count before: 3+4+3+3+2 = 15. After: 3+4+3+3+2 = 15. Three
+           * panels of real data for four that repeated or decorated.
+           */}
+          <div className="t-4x3"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="MORNINGWIRE"><MorningWire n={3} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="BOARD"><BoardPanel n={4} /></TileGuard></div>
+
+          <div className="t-4x3"><TileGuard name="WIRE"><IntelFeed n={5} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="CONSOLE"><AiConsole n={6} /></TileGuard></div>
           <div className="t-4x3">
             <TileGuard name="MISSION">
-              <MissionTile n={9} open={open} events={todays.length} agentRunning={agentRunning}
+              <MissionTile n={7} open={open} events={todays.length} agentRunning={agentRunning}
                 memories={stats.memories} runs={stats.runs}
                 weather={weather ? `${Math.round(weather.temp)}°` : null} />
             </TileGuard>
           </div>
 
-          <div className="t-3x3"><TileGuard name="KEYMETRICS">
-            <KeyMetricsTile n={3} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+          <div className="t-3x2"><TileGuard name="KEYMETRICS">
+            <KeyMetricsTile n={8} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-3x3"><TileGuard name="SYSTEMS"><SystemsPanel n={4} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="LAUNCH"><QuickLaunch n={6} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="WORLD"><WorldPanel n={8} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="SKIES"><SkiesPanel n={7} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="INBOX"><InboxTile n={27} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="SYSTEMS"><SystemsPanel n={9} /></TileGuard></div>
+          <div className="t-3x2"><TileGuard name="LAUNCH"><QuickLaunch n={10} /></TileGuard></div>
           <div className="t-3x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
         </div>
       )}
 
@@ -326,8 +350,7 @@ export function CommandView({
 
       {page === "work" && (
         <div className="wall-pack">
-          <div className="t-6x3"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard></div>
+          <div className="t-12x3"><TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard></div>
 
           <div className="t-3x2"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
           <div className="t-3x2"><TileGuard name="CAREER"><CareerTile n={26} /></TileGuard></div>

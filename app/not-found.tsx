@@ -22,7 +22,6 @@ export const metadata: Metadata = {
  */
 const DOORS = [
   { href: "/dashboard", label: "Command", hint: "the wall" },
-  { href: "/ops", label: "Ops", hint: "standing state" },
   { href: "/board", label: "Boards", hint: "canvas" },
   { href: "/mail", label: "Mail", hint: "gmail · outlook" },
 ];

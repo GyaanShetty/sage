@@ -806,7 +806,7 @@ export function GraphTile({ n }: { n?: number }) {
   const density = g && g.nodes.length ? (links / g.nodes.length).toFixed(1) : "—";
 
   return (
-    <Pane n={n} title="Graph" status={<Go href="/graph">{g ? `${g.nodes.length} NODES` : "…"}</Go>} live={!!g?.nodes.length}>
+    <Pane n={n} title="Graph" status={<Go href="/knowledge">{g ? `${g.nodes.length} NODES` : "…"}</Go>} live={!!g?.nodes.length}>
       {!g && <div className="tile-wait">ACQUIRING…</div>}
       {g?.nodes.length === 0 && <Empty reason="Graph is empty" action="Add a source" href="/knowledge" />}
       {!!g?.nodes.length && (

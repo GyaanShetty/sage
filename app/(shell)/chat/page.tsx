@@ -1,46 +1,32 @@
 import type { Metadata } from "next";
-import { ChatView } from "@/features/chat/components/chat-view";
-import { ThreadList } from "@/features/chat/components/thread-list";
-import {
-  createThread,
-  startFreshThread,
-  getThread,
-  listThreads,
-  loadThreadMessages,
-} from "@/infrastructure/db/threads";
+import { Suspense } from "react";
+import { ChatPage } from "@/features/chat/chat-page";
+import { startFreshThread } from "@/infrastructure/db/threads";
 
-export const metadata: Metadata = {
-  title: "Chat",
-  description: "Talk to SAGE with everything it knows about you already loaded.",
-};
+export const metadata: Metadata = { title: "Chat", description: "Ask SAGE anything." };
 export const dynamic = "force-dynamic";
 
-export default async function ChatPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ t?: string; ask?: string }>;
-}) {
-  const { t, ask } = await searchParams;
-  // Palette "Ask" always lands in a fresh thread; `?t=` opens a specific past thread; anything else starts clean. See
-  // startFreshThread — the memory is in the Memory table, not the scrollback.
-  const thread = ask
-    ? await createThread()
-    : ((t ? await getThread(t) : null) ?? (await startFreshThread()));
-  const [threads, initialMessages] = await Promise.all([
-    listThreads(),
-    loadThreadMessages(thread.id),
-  ]);
+export default async function Page() {
+  /*
+   * A real thread, made on the server, not a UUID invented in the browser.
+   *
+   * My first pass generated the id client-side, which looked equivalent and
+   * was not: nothing ever wrote the thread row, so every message hung off an
+   * id with no parent. startFreshThread also reuses an already-empty thread
+   * rather than creating another, so opening chat five times leaves one blank
+   * thread behind instead of five.
+   *
+   * Fresh rather than resumed is deliberate and safe only because recall reads
+   * the Memory table by relevance rather than reading the transcript back —
+   * if that ever moved, starting clean would become real amnesia.
+   */
+  const thread = await startFreshThread();
+
+  // useSearchParams needs a boundary, or the route opts out of static
+  // rendering with a build-time error.
   return (
-    <div className="flex h-full">
-      <ThreadList threads={threads} activeId={thread.id} />
-      <div className="min-w-0 flex-1">
-        <ChatView
-          key={thread.id}
-          threadId={thread.id}
-          initialMessages={initialMessages}
-          initialAsk={ask}
-        />
-      </div>
-    </div>
+    <Suspense>
+      <ChatPage threadId={thread.id} />
+    </Suspense>
   );
 }

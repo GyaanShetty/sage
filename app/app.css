@@ -321,3 +321,85 @@ button.row:disabled { cursor: default; }
 .back:hover { background: var(--bg-2); color: var(--ink); }
 .top-title { font-size: var(--t-label); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
 .sec-hint { font-size: var(--t-label); color: var(--ink-4); }
+
+/* ── chat ─────────────────────────────────────────────────────────────────── */
+
+.chat { display: flex; flex-direction: column; gap: var(--s4); padding-bottom: var(--s8); }
+.turn { display: flex; }
+.turn.mine { justify-content: flex-end; }
+.bubble {
+  margin: 0; max-width: 78%; padding: 9px 14px; border-radius: 16px 16px 4px 16px;
+  background: var(--bg-3); color: var(--ink);
+}
+/* SAGE's turns are not in a bubble. A long answer in a speech balloon is
+   harder to read than the same answer as prose, and most of its answers are
+   long. */
+.said { max-width: 100%; color: var(--ink-2); }
+.said :where(p, li) { line-height: 1.65; }
+.said :where(h1, h2, h3) { font-size: var(--t-lead); font-weight: 500; color: var(--ink); margin: var(--s4) 0 var(--s2); }
+.said code { font-family: var(--font-mono-f), monospace; font-size: 0.92em; background: var(--bg-3); padding: 1px 5px; border-radius: 4px; }
+.said pre { background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--r); padding: var(--s3); overflow-x: auto; }
+.said pre code { background: none; padding: 0; }
+.said a { color: var(--accent); }
+
+.dots { color: var(--ink-4); letter-spacing: 2px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: .3 } 50% { opacity: 1 } }
+
+/* The field stays put while the conversation scrolls behind it. */
+.chat-ask {
+  position: sticky; bottom: var(--s4);
+  background: var(--bg-2); backdrop-filter: blur(12px);
+}
+
+/* ============================================================================
+   The pages not yet rebuilt
+   ----------------------------------------------------------------------------
+   Calendar, Capture, Mail and Memory still carry their own stylesheets from
+   the old build. Those files survived the cull — they are self-contained and
+   the screens work — but every colour in them is written against tokens the
+   old globals.css defined, and that file is gone. Left alone they render with
+   no colour at all, which is what a missing custom property resolves to.
+
+   So the old names are redefined here against the new palette. Each of those
+   pages then reads as part of this build rather than as a hole in it, and the
+   rebuild can take them one at a time instead of all at once.
+
+   This is a bridge and it is meant to be removed. Every page rebuilt in the
+   new language drops a few more of these; when the list is empty, so is this
+   block.
+   ========================================================================= */
+
+:root {
+  --background:  var(--bg);
+  --panel:       var(--bg-2);
+  --panel-hi:    var(--bg-3);
+  --foreground:  var(--ink);
+  --muted:       var(--ink-2);
+  --subtle:      var(--ink-3);
+  --faint:       var(--ink-4);
+
+  --border-glass:        var(--line);
+  --border-glass-strong: var(--line-2);
+  --rule:                var(--line);
+  --rule-strong:         var(--line-2);
+  --glass:               rgba(255, 255, 255, 0.03);
+  --glass-strong:        rgba(255, 255, 255, 0.06);
+
+  /* The old build had five accents. They all come out here as the one. */
+  --live:          var(--accent);
+  --live-dim:      var(--accent-line);
+  --live-glow:     var(--accent-soft);
+  --signal:        var(--accent);
+  --signal-dim:    var(--accent-line);
+  --signal-faint:  var(--accent-soft);
+
+  --mono: var(--font-mono-f), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Safe-area insets: the old shell set these on :root and several surviving
+     rules still subtract them. Zero is the right value now that nothing is
+     fixed to the edge of the screen. */
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}

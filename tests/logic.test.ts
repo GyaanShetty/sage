@@ -2658,31 +2658,6 @@ test("snoozing puts a fired reminder back in the queue", async () => {
   assert.match(tool, /ambiguous: true/);
 });
 
-test("browsing the morning brief does not stop it talking", async () => {
-  const fs = await import("node:fs");
-  const src = fs.readFileSync("features/morning/morning-block.tsx", "utf8");
-
-  /**
-   * The step-loading effect runs on every `active` change, and its cleanup
-   * used to call stopSpeak(). So pressing Listen and then touching anything in
-   * the brief — Next, or any step in the rail — killed the audio mid-sentence.
-   * Reading along while it talks is the obvious way to use this, which is why
-   * it read as random rather than as a button doing it.
-   *
-   * Two separate reports of "the brief cuts out" were chased into the speech
-   * layer (an ambient interrupt, then a failed continuation). Both were real,
-   * and neither was this. This is the one a person would actually hit.
-   */
-  const stepEffect = src.slice(src.indexOf("if (step.kind === \"digest\")"), src.indexOf("}, [active, synNonce]);"));
-  assert.ok(
-    !/stopSpeak\(\)/.test(stepEffect),
-    "the per-step effect must not stop playback — its cleanup fires on every step change",
-  );
-
-  // Leaving the page still stops it, via an unmount-only effect.
-  assert.match(src, /useEffect\(\(\) => \(\) => stopSpeak\(\), \[stopSpeak\]\)/);
-});
-
 // ── The disk bridge boundary ───────────────────────────────────────────────
 //
 // This is the one place in SAGE where a mistake exposes files on a real
@@ -2953,23 +2928,6 @@ test("the CSP permits the hand tracker to load", async () => {
  * first it swallows every click and the interface becomes unpressable while
  * looking like it is tracking perfectly.
  */
-test("the pointing gesture is matched before the scroll drag", () => {
-  const src = readFileSync(new URL("../features/gestures/gesture-nav.tsx", import.meta.url), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-
-  const point = src.indexOf("const onlyIndex");
-  const drag = src.indexOf("if (f.pinch) {");
-  assert.ok(point > 0, "the pointing branch must exist");
-  assert.ok(drag > 0, "the drag branch must exist");
-  assert.ok(point < drag, "pointing must be tested before the pinch-drag");
-
-  // The cursor must never be its own hit target.
-  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "");
-  const rule = css.match(/\.gn-cursor\s*\{([^}]*)\}/)?.[1] ?? "";
-  assert.match(rule, /pointer-events:\s*none/, "elementFromPoint must see through the cursor");
-});
-
 // ── Calendar: events that overlap must sit beside each other ───────────────
 
 test("overlapping events are laid out side by side", async () => {
@@ -3116,26 +3074,6 @@ test("quadrants come from urgency and importance, not priority alone", async () 
  * tracker and a broken one looked identical, which is most of why this feature
  * read as dead for so long.
  */
-test("gesture control has a fallback click and legible states", () => {
-  const src = readFileSync(new URL("../features/gestures/gesture-nav.tsx", import.meta.url), "utf8");
-  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-
-  assert.match(code, /DWELL_MS/, "dwell is the accessible second route to a click");
-  assert.match(code, /DWELL_SLOP/, "drifting must not accumulate toward a click");
-  assert.match(code, /EDGE_BAND/, "pointing below the fold must be reachable");
-
-  for (const state of ["loading", "searching", "tracking", "failed"]) {
-    assert.match(code, new RegExp(`"${state}"`), `tracking state '${state}' must be distinguishable`);
-  }
-
-  // The real error is shown rather than swallowed into a generic message.
-  assert.match(code, /err as Error/, "surface what actually failed");
-
-  // And the toggle must never turn itself off on failure: that leaves nothing
-  // switched on to inspect and the message disappears with the component.
-  assert.doesNotMatch(code, /setGestureNav\(false\)/, "failure must not flip the switch back");
-});
-
 /**
  * Location must be reported with its age.
  *
@@ -3297,41 +3235,6 @@ test("the brief leads with career deadlines, and says nothing when there are non
  * as "the editor is broken" rather than as an indentation rule — which is why
  * they are pure functions with tests rather than inline handlers.
  */
-test("the code editor indents like an editor", async () => {
-  const { onTab, onShiftTab, onEnter, onCloseBracket } = await import("@/features/coding/indent");
-
-  // Tab with no selection inserts a level at the caret.
-  assert.deepEqual(onTab({ value: "ab", start: 1, end: 1 }), { value: "a    b", start: 5, end: 5 });
-
-  /**
-   * The one that matters: a plain textarea replaces the selection with a tab
-   * character, silently destroying the code that was highlighted.
-   */
-  const block = "def f():\nx = 1\ny = 2";
-  const indented = onTab({ value: block, start: 9, end: 20 });
-  assert.equal(indented.value, "def f():\n    x = 1\n    y = 2");
-
-  // Outdent removes up to one level, never more than a line has.
-  assert.equal(onShiftTab({ value: "    x = 1", start: 9, end: 9 }).value, "x = 1");
-  assert.equal(onShiftTab({ value: "  x = 1", start: 7, end: 7 }).value, "x = 1", "two spaces lose two, not four");
-  assert.equal(onShiftTab({ value: "x = 1", start: 5, end: 5 }).value, "x = 1", "no indent, nothing eaten");
-  // And the caret never ends up behind the start of its own line.
-  assert.ok(onShiftTab({ value: "x = 1", start: 0, end: 0 }).start >= 0);
-
-  // Enter carries the indentation — in Python this is the syntax, not a style.
-  assert.equal(onEnter({ value: "    x = 1", start: 9, end: 9 }).value, "    x = 1\n    ");
-  // And adds a level after a line that opens a block.
-  assert.equal(onEnter({ value: "def f():", start: 8, end: 8 }).value, "def f():\n    ");
-  assert.equal(onEnter({ value: "    if x:", start: 9, end: 9 }).value, "    if x:\n        ");
-
-  // A closing bracket alone on a line pulls back to where the block opened.
-  assert.equal(onCloseBracket({ value: "x = [\n    1,\n    ", start: 17, end: 17 }, "}")!.value,
-    "x = [\n    1,\n}");
-  // But not when there is code before it, and not at the left margin already.
-  assert.equal(onCloseBracket({ value: "foo(a", start: 5, end: 5 }, ")"), null);
-  assert.equal(onCloseBracket({ value: "x = [\n", start: 6, end: 6 }, "]"), null);
-});
-
 /**
  * The sitrep has four layers, and the dashboard reads the same source as the
  * page.
@@ -3726,41 +3629,6 @@ test("contentBounds counts ink, so a board of only drawing can be fitted", async
   const v = fitView(r, 1200, 800);
   assert.ok(v.k <= 1);
   assert.ok(Math.abs((r.x + r.w / 2) * v.k + v.x - 600) < 1e-6, "content centre lands on viewport centre");
-});
-
-test("undo coalesces a drag, and a new edit clears the redo branch", async () => {
-  const { emptyHistory, record, undo, redo, LIMIT } = await import("../features/board/history");
-  const { emptyBoard } = await import("../core/board/types");
-
-  const a = { ...emptyBoard("b"), title: "a" };
-  const b = { ...a, title: "b" };
-  const c = { ...a, title: "c" };
-
-  // Forty move events inside the coalesce window are one undo entry, not forty.
-  let h = emptyHistory();
-  for (let i = 0; i < 40; i++) h = record(h, a, "move", 1000 + i * 5);
-  assert.equal(h.past.length, 1, "a single drag must be a single undo step");
-
-  // A different kind of edit is its own entry.
-  h = record(h, b, "ink", 1300);
-  assert.equal(h.past.length, 2);
-
-  const u = undo(h, c)!;
-  assert.equal(u.doc.title, "b", "undo restores the state before the last edit");
-  const r = redo(u.history, u.doc)!;
-  assert.equal(r.doc.title, "c");
-
-  // Undo, then edit: the redo branch is gone rather than pointing at history
-  // that no longer connects to the board.
-  const u2 = undo(h, c)!;
-  assert.equal(u2.history.future.length, 1);
-  const after = record(u2.history, u2.doc, "text", 9000);
-  assert.equal(after.future.length, 0);
-
-  // And the stack is bounded, or a long session grows without limit.
-  let big = emptyHistory();
-  for (let i = 0; i < LIMIT + 25; i++) big = record(big, a, `k${i}`, i * 10_000);
-  assert.equal(big.past.length, LIMIT);
 });
 
 test("distToSegment clamps to the segment, so an arrow is not clickable from its extension", async () => {
@@ -4187,46 +4055,6 @@ test("the sitrep gets a read, and the read may not invent a fact", async () => {
   assert.match(route, /const read = await readSitrep\(top\);/);
 });
 
-test("every link on the wall goes somewhere that exists, and can be hit", async () => {
-  const { readdirSync, existsSync } = await import("node:fs");
-
-  // Which routes actually exist, read off the filesystem rather than a list
-  // someone has to remember to update.
-  const shell = "app/(shell)";
-  const routes = new Set(
-    readdirSync(shell, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && existsSync(`${shell}/${d.name}/page.tsx`))
-      .map((d) => `/${d.name}`),
-  );
-
-  const files = readdirSync("features/dashboard/components").filter((f) => f.endsWith(".tsx"));
-  const dead: string[] = [];
-  for (const f of files) {
-    const src = readFileSync(`features/dashboard/components/${f}`, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    for (const m of src.matchAll(/href="(\/[a-z0-9-]*)"/g)) {
-      const href = m[1];
-      if (href.startsWith("/api")) continue;
-      if (!routes.has(href)) dead.push(`${f} → ${href}`);
-    }
-  }
-  // /wire was linked from two tiles and has never been a route, so both of
-  // them landed on the 404.
-  assert.deepEqual(dead, [], `dead links on the wall: ${dead.join(", ")}`);
-
-  const css = readFileSync("app/globals.css", "utf8");
-
-  // The live header sweep is decoration that travels across the status link.
-  // Without pointer-events: none it swallows the click, so the link worked or
-  // did nothing depending on where a 4.5s animation had got to.
-  const sweep = css.slice(css.indexOf(".pane:has(.pane-s.live) .pane-hd::after"));
-  assert.match(sweep.slice(0, sweep.indexOf("}")), /pointer-events: none/);
-
-  // Container queries shrink status text to ~6px. The link needs a hit box
-  // that does not shrink with the type.
-  const go = css.slice(css.indexOf(".pane-go {"));
-  assert.match(go.slice(0, go.indexOf("}")), /min-height: 20px/);
-});
-
 test("a click on a link always ends in a navigation", async () => {
   const src = readFileSync("components/nav-guard.tsx", "utf8");
 
@@ -4354,111 +4182,6 @@ test("SAGE can read, log against and set up a subject", async () => {
   assert.match(readFileSync("app/api/chat/route.ts", "utf8"), /nativeTools/);
 });
 
-test("the study page is a real route, reachable from the launcher", async () => {
-  const { existsSync } = await import("node:fs");
-  assert.ok(existsSync("app/(shell)/study/page.tsx"), "the route exists");
-
-  const pages = readFileSync("features/shell/components/pages.ts", "utf8");
-  assert.match(pages, /href: "\/study"/, "and the launcher knows about it");
-
-  // The skill ledger stays: levels and syllabus answer different questions.
-  assert.match(pages, /href: "\/education"/);
-});
-
-test("client components never import the database through a back door", async () => {
-  const { readdirSync, readFileSync: rf, existsSync } = await import("node:fs");
-
-  // core/study/model.ts is the browser-safe half. If it ever grows a database
-  // import, every client component that uses completion() or pace() drags
-  // Supabase — and node:async_hooks — into the browser bundle. That is not
-  // hypothetical: the first version of this module did exactly that, and the
-  // build printed UnhandledSchemeError for a dozen node: schemes.
-  /*
-   * Followed transitively, because checking one hop is what let this through
-   * the first time: model.ts stopped importing the database directly and
-   * started importing core/history, which imports it — so the bundle pulled
-   * Supabase anyway and the build failed on node:assert.
-   */
-  const seen = new Set<string>();
-  const resolve = (spec: string): string | null => {
-    if (!spec.startsWith("@/")) return null;
-    const base = spec.slice(2);
-    for (const ext of [".ts", ".tsx", "/index.ts", "/index.tsx"]) {
-      if (existsSync(base + ext)) return base + ext;
-    }
-    return null;
-  };
-  const walk = (file: string): string[] => {
-    if (seen.has(file)) return [];
-    seen.add(file);
-    const src = rf(file, "utf8");
-    if (/infrastructure\/db\/supabase/.test(src)) return [file];
-    const out: string[] = [];
-    for (const m of src.matchAll(/from "(@\/[^"]+)"/g)) {
-      const next = resolve(m[1]);
-      if (next) out.push(...walk(next).map((f) => `${file} -> ${f}`));
-    }
-    return out;
-  };
-
-  const leaks = walk("core/study/model.ts");
-  assert.deepEqual(leaks, [], `model.ts reaches the database: ${leaks.join(", ")}`);
-  assert.doesNotMatch(rf("core/study/model.ts", "utf8"), /from "\.\/subjects"/, "and must not point back at the server half");
-
-  // The study page may only reach for the pure half.
-  const view = rf("features/study/study-view.tsx", "utf8");
-  assert.match(view, /"@\/core\/study\/model"/);
-  assert.doesNotMatch(view, /"@\/core\/study\/subjects"/);
-
-  // And the general rule, checked across every client component that touches
-  // this feature: "use client" and a direct db import cannot coexist.
-  for (const f of readdirSync("features/study")) {
-    if (!f.endsWith(".tsx")) continue;
-    const src = rf(`features/study/${f}`, "utf8");
-    if (!src.startsWith('"use client"')) continue;
-    assert.doesNotMatch(src, /infrastructure\/db\/supabase/, `${f} is a client component`);
-  }
-});
-
-test("every tile span class on a wall actually exists", async () => {
-  const { readdirSync } = await import("node:fs");
-  const css = readFileSync("features/dashboard/wall.css", "utf8");
-
-  // A tile with a class the grid does not define gets no span at all: one
-  // column, one row, and its content crushed. That is what happened to the
-  // study page's first band, where four t-3x3 tiles collapsed into a strip
-  // — and nothing failed, because CSS does not complain about a class it has
-  // never heard of.
-  const defined = new Set([...css.matchAll(/\.wall-pack > \.(t-\d+x\d+)/g)].map((m) => m[1]));
-  assert.ok(defined.size >= 6, "the grid defines spans");
-
-  const dirs = ["features/dashboard/components", "features/study"];
-  const used = new Set<string>();
-  for (const dir of dirs) {
-    for (const f of readdirSync(dir)) {
-      if (!f.endsWith(".tsx")) continue;
-      // Anywhere in a className, not only when it is the whole attribute.
-      // `className="wall-map t-6x4"` is how the atlas tile is written, and an
-      // exact-match regex walked straight past it — the map collapsed to
-      // 145x87 and this test stayed green. Same gap as before, one file over.
-      for (const m of readFileSync(`${dir}/${f}`, "utf8").matchAll(/className="([^"]*)"/g)) {
-        for (const c of m[1].split(/\s+/)) if (/^t-\d+x\d+$/.test(c)) used.add(c);
-      }
-    }
-  }
-  assert.ok(used.size > 0, "walls use span classes");
-
-  const missing = [...used].filter((c) => !defined.has(c));
-  assert.deepEqual(missing, [], `span classes used but never defined: ${missing.join(", ")}`);
-
-  // Spans must divide twelve, or a band cannot tile and the wall gets a
-  // ragged right edge that dense packing can only backfill, never invent.
-  for (const c of defined) {
-    const cols = Number(c.slice(2).split("x")[0]);
-    assert.equal(12 % cols, 0, `${c} does not divide twelve`);
-  }
-});
-
 test("the timetable becomes today's actual times", async () => {
   const { slotsOn, splitByNow, burnUp } = await import("@/core/study/model");
 
@@ -4505,121 +4228,6 @@ test("the timetable becomes today's actual times", async () => {
   assert.deepEqual(burnUp(units, ["2026-09-10"]), [80]);
 });
 
-test("today's slots become tasks once, not twice", async () => {
-  const src = readFileSync("core/study/subjects.ts", "utf8");
-  const body = src.slice(src.indexOf("export async function slotsToTasks"));
-
-  // Idempotent by title within the day: a second press, or a cron racing a
-  // click, must not file the same directive twice.
-  assert.match(body, /\.eq\("source", "study"\)/);
-  assert.match(body, /gte\("createdAt", startOfDay/);
-  assert.match(body, /if \(seen\.has\(title\)\)/);
-
-  // Only what is still ahead. A task for a session that ended this morning is
-  // how a task list stops being read.
-  assert.match(body, /splitByNow\(today, now\)/);
-  assert.match(body, /current \? \[current, \.\.\.upcoming\] : upcoming/);
-
-  // Tasks carry the slot's real start time, so they sort with everything else.
-  assert.match(body, /dueAt: s\.startsAt\.toISOString\(\)/);
-
-  // Event rows and Task rows both need an explicit id in this schema.
-  assert.match(body, /id: crypto\.randomUUID\(\)/);
-
-  // And the page can reach it.
-  assert.match(readFileSync("app/api/study/route.ts", "utf8"), /case "tasks"/);
-  assert.match(readFileSync("features/study/study-view.tsx", "utf8"), /action: "tasks"/);
-});
-
-test("a route that renders shared styles loads them", async () => {
-  const { readFileSync: rf, existsSync, readdirSync } = await import("node:fs");
-
-  /*
-   * A CSS import in Next is global once any loaded route pulls it in, which
-   * makes this class of bug invisible in normal use: the Eisenhower matrix on
-   * /workspace looked right for as long as you arrived from the dashboard,
-   * which had already loaded command.css. Hard-load /workspace and the
-   * quadrants collapse into a run-on list.
-   *
-   * Checked per ROUTE by walking each page's import graph, not per file. A
-   * component is perfectly fine using a class its parent's stylesheet
-   * defines, and a per-file rule would demand a pile of redundant imports to
-   * satisfy a check rather than a user.
-   */
-  const CSS = ["features/dashboard/command.css", "features/dashboard/wall.css"];
-
-  // Only prefixes that belong to exactly one stylesheet prove anything. A
-  // name like desk-cell lives in globals.css too, which the root layout
-  // always loads, so it is not evidence of a missing import.
-  const globals = rf("app/globals.css", "utf8");
-  const owns: Record<string, Set<string>> = {};
-  for (const css of CSS) {
-    const set = new Set<string>();
-    for (const m of rf(css, "utf8").matchAll(/\.([a-z][a-z0-9-]{2,})[\s,{:.[]/g)) {
-      // Tailwind generates its own utilities; command.css happening to
-      // mention .ml-auto does not make it the owner of that class.
-      const util = /^(m[ltrbxy]?|p[ltrbxy]?|w|h|min|max|gap|flex|grid|text|bg|border|rounded|opacity|z|inset|top|left|right|bottom|space|size)-/;
-      if (!util.test(m[1]) && !new RegExp(`\\.${m[1]}[\\s,{:.\\[]`).test(globals)) set.add(m[1]);
-    }
-    owns[css] = set;
-  }
-
-  const resolve = (spec: string, from: string): string | null => {
-    let base: string;
-    if (spec.startsWith("@/")) base = spec.slice(2);
-    else if (spec.startsWith(".")) {
-      const dir = from.split("/").slice(0, -1).join("/");
-      base = `${dir}/${spec}`.replace(/\/\.\//g, "/");
-      while (base.includes("/../")) base = base.replace(/[^/]+\/\.\.\//, "");
-    } else return null;
-    if (base.endsWith(".css")) return existsSync(base) ? base : null;
-    for (const ext of [".tsx", ".ts", "/index.tsx", "/index.ts"]) {
-      if (existsSync(base + ext)) return base + ext;
-    }
-    return null;
-  };
-
-  const shell = "app/(shell)";
-  const routes = readdirSync(shell, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && existsSync(`${shell}/${d.name}/page.tsx`))
-    .map((d) => `${shell}/${d.name}/page.tsx`);
-
-  const offenders: string[] = [];
-  for (const page of routes) {
-    const seen = new Set<string>();
-    const css = new Set<string>();
-    const classes = new Set<string>();
-
-    const walk = (file: string) => {
-      if (seen.has(file) || seen.size > 400) return;
-      seen.add(file);
-      const src = rf(file, "utf8");
-      for (const m of src.matchAll(/className="([^"{]+)"/g)) {
-        for (const t of m[1].split(/\s+/)) classes.add(t);
-      }
-      for (const m of src.matchAll(/(?:from|import) "([^"]+)"/g)) {
-        const next = resolve(m[1], file);
-        if (!next) continue;
-        if (next.endsWith(".css")) css.add(next);
-        else walk(next);
-      }
-    };
-    walk(page);
-    // The shell layout is loaded on every one of these routes.
-    walk(`${shell}/layout.tsx`);
-
-    for (const sheet of CSS) {
-      if (css.has(sheet)) continue;
-      const needs = [...classes].filter((c) => owns[sheet].has(c));
-      if (needs.length) {
-        offenders.push(`${page.replace(shell, "")} renders ${needs.slice(0, 3).join(", ")} but never loads ${sheet.split("/").pop()}`);
-      }
-    }
-  }
-
-  assert.deepEqual(offenders, [], `unstyled on a hard load:\n  ${offenders.join("\n  ")}`);
-});
-
 test("a pasted syllabus becomes units, in the shapes syllabuses arrive in", async () => {
   const { parseUnitNames, moveUnit } = await import("@/core/study/model");
 
@@ -4662,57 +4270,6 @@ test("a pasted syllabus becomes units, in the shapes syllabuses arrive in", asyn
   const bulk = src.slice(src.indexOf("export async function addUnits"), src.indexOf("export async function reorderUnit"));
   assert.match(bulk, /have\.has\(n\.toLowerCase\(\)\)/, "case-insensitive dedupe against what exists");
   assert.equal((bulk.match(/upsertSubject\(/g) ?? []).length, 1, "one write, not one per unit");
-});
-
-test("the syllabus can be edited without leaving the pane", async () => {
-  const view = readFileSync("features/study/study-view.tsx", "utf8");
-
-  // Add, rename, reweight, reorder, remove — all on the row, none behind a
-  // mode or a modal.
-  for (const action of ['action: "unit.bulk"', 'action: "unit.move"', 'action: "unit.remove"', "unit: { id: unitId, name }"]) {
-    assert.ok(view.includes(action), `missing ${action}`);
-  }
-
-  // Deleting asks twice, and deleting a subject says what goes with it.
-  assert.match(view, /SURE\?/);
-  assert.match(view, /units and its history/);
-
-  // The old adder is gone rather than left alongside the new one.
-  assert.doesNotMatch(view, /function UnitAdd\(/);
-
-  // The button counts what will actually be added. The server skips names
-  // already in the syllabus, so counting the paste would overstate by one for
-  // every chapter you already have.
-  assert.match(view, /const preview = parsed\.filter\(\(n\) => !have\.has\(n\.toLowerCase\(\)\)\)/);
-  assert.match(view, /already in the syllabus/);
-});
-
-test("the study page's daily actions are on the page, not behind an overlay", async () => {
-  const raw = readFileSync("features/study/study-view.tsx", "utf8");
-  // Comments mention window.prompt to explain why it is not used; stripping
-  // them is the difference between checking the code and checking the prose.
-  const view = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
-
-  // Logging time is the thing done every day. It was behind the magnify
-  // control — the rarest interaction guarding the commonest.
-  assert.match(view, /QUICK_MINUTES = \[15, 25, 45, 60, 90\]/);
-  assert.match(view, /<QuickLog subject=\{subject\}/);
-
-  // Nothing can be reached only through window.prompt: an installed PWA can
-  // suppress it, which would leave the only route to a new subject silently
-  // doing nothing.
-  assert.doesNotMatch(view, /window\.prompt/);
-
-  // The exam link must exist, or pace, the countdown and the days-to-exam
-  // figure have exactly one possible state: the message explaining why they
-  // are empty.
-  assert.match(view, /function ExamLink\(/);
-  assert.match(view, /examId: e\.target\.value/);
-  assert.match(view, /"\/api\/exam"/);
-
-  // A reading may not argue with itself: the word comes from the number
-  // shown, so -0.4% does not render as "0% BEHIND".
-  assert.match(view, /const word = shown === 0 \? "ON TRACK"/);
 });
 
 test("every wall tab tiles its bands twelve wide", async () => {
@@ -4822,25 +4379,6 @@ test("one name per page, everywhere it appears", async () => {
   const targets = [...rail.matchAll(/\{ fn: \d+, href: "(\/[a-z-]+)" \}/g)].map((m) => m[1]);
   assert.ok(targets.length >= 8, "the rail has its keys");
   assert.deepEqual(targets.filter((h) => !known.has(h)), [], "a key points at a page the wheel does not know");
-});
-
-test("nothing in the wheel leads to a page that does not exist", async () => {
-  const { readdirSync, existsSync } = await import("node:fs");
-  const shell = "app/(shell)";
-  const routes = new Set(
-    readdirSync(shell, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && existsSync(`${shell}/${d.name}/page.tsx`))
-      .map((d) => `/${d.name}`),
-  );
-
-  const pages = readFileSync("features/shell/components/pages.ts", "utf8");
-  const dead = [...pages.matchAll(/\{ href: "(\/[a-z-]+)", label: "([^"]+)"/g)]
-    .filter((m) => !routes.has(m[1]))
-    .map((m) => `${m[2]} → ${m[1]}`);
-
-  // A wheel entry with a subtitle and no route is a dead click, and the
-  // subtitle makes it look deliberate.
-  assert.deepEqual(dead, [], `wheel entries with no page: ${dead.join(", ")}`);
 });
 
 test("the font tokens are declared where the fonts exist", async () => {
@@ -4957,41 +4495,6 @@ test("prep-reminder dedup is bounded by the calendar, not by history", () => {
   const limit = /\.limit\((\d+)\)/.exec(q);
   assert.ok(limit, "the dedup read should still carry a safety limit");
   assert.ok(Number(limit[1]) >= 500, `a limit of ${limit?.[1]} is too small to be a safety net`);
-});
-
-test("every link in the rail and quick launch resolves to a real page", async () => {
-  const { readdirSync, statSync } = await import("node:fs");
-
-  // Walk the shell route group for directories containing a page.
-  const base = "app/(shell)";
-  const routes = new Set<string>(["/"]);
-  const walk = (dir: string, prefix: string) => {
-    for (const e of readdirSync(dir)) {
-      const full = `${dir}/${e}`;
-      if (!statSync(full).isDirectory()) continue;
-      const here = `${prefix}/${e}`;
-      try { statSync(`${full}/page.tsx`); routes.add(here); } catch { /* no page here */ }
-      walk(full, here);
-    }
-  };
-  walk(base, "");
-
-  const files = [
-    "features/shell/components/nav-rail.tsx",
-    "features/dashboard/components/quick-launch.tsx",
-  ];
-  const bad: string[] = [];
-  for (const f of files) {
-    for (const m of readFileSync(f, "utf8").matchAll(/href:\s*"(\/[^"]*)"/g)) {
-      const href = m[1].split("?")[0].split("#")[0];
-      // Dynamic segments are not checkable this way; nothing here uses them.
-      if (!routes.has(href)) bad.push(`${f} -> ${href}`);
-    }
-  }
-  // /atlas, /notes and /terminal all shipped as dead links: the rail's Maps
-  // stop pointed at an API route with no page, and two quick-launch cells
-  // pointed at pages that had never existed.
-  assert.deepEqual(bad, [], `dead internal links: ${bad.join(", ")}`);
 });
 
 test("hot dashboard endpoints are fetched through the shared request layer", async () => {

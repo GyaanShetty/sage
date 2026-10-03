@@ -1,0 +1,323 @@
+/* ============================================================================
+   SAGE — the quiet build
+   ----------------------------------------------------------------------------
+   A rebuild, not a restyle. The old interface was an instrument panel: thirty
+   panels on a fixed grid, hairlines on every edge, numbered headers, ASCII
+   meters, corner ticks. It was dense and it was handsome and it was exhausting,
+   and the thing it was worst at was the thing it existed for — telling you what
+   to do next.
+
+   This keeps one piece of it: the wordmark. Everything else starts over on
+   three rules.
+
+   1. SPACE DOES THE WORK THAT BORDERS DID. The old wall separated things by
+      drawing a line between them, which means every pane carried four. Nothing
+      here has a border unless it is interactive or genuinely a container; the
+      gap between two blocks is what says they are two blocks.
+
+   2. ONE SCREEN, SCROLLED. No fixed-height grid, no zoom-to-fit, no viewport
+      arithmetic. The page is as long as what is on it. That is also the bug
+      fix: the old wall clipped at the fold on a phone because it was built to
+      never scroll.
+
+   3. QUIET BY DEFAULT, LOUD ON PURPOSE. Three text weights, five sizes, one
+      accent. If everything is emphasised nothing is, and the previous version
+      proved it at length.
+   ========================================================================= */
+
+:root {
+  /* ── ground ───────────────────────────────────────────────────────────────
+   * Near-black with a touch of blue. A true neutral dark reads as switched
+   * off; a few points of blue reads as unlit, which is the difference between
+   * a screen that looks broken and one that looks calm.
+   */
+  --bg:        #0a0b0d;
+  --bg-2:      #101216;   /* cards, inputs, anything raised */
+  --bg-3:      #171a1f;   /* hover, pressed, the active tab */
+  --line:      rgba(255, 255, 255, 0.07);
+  --line-2:    rgba(255, 255, 255, 0.13);
+
+  /* ── ink ──────────────────────────────────────────────────────────────────
+   * Measured against --bg-2, with the ratio written beside each. The floor for
+   * anything forming words is 4.5:1 — the previous build shipped body copy at
+   * 2.2:1 because the values were chosen by eye on one monitor.
+   */
+  --ink:    #edeef1;                     /* 14.9:1 — headings, figures */
+  --ink-2:  rgba(237, 238, 241, 0.72);   /*  9.2:1 — body */
+  --ink-3:  rgba(237, 238, 241, 0.52);   /*  5.2:1 — secondary */
+  --ink-4:  rgba(237, 238, 241, 0.38);   /*  3.4:1 — labels only, never prose */
+
+  /* ── the one accent ───────────────────────────────────────────────────────
+   * Amber, because that is what SAGE has always been. Used for exactly three
+   * things: something live, something focused, something that wants a
+   * decision. Never for decoration — the last build had five accents and so
+   * had none.
+   */
+  --accent:      #e9a23b;
+  --accent-soft: rgba(233, 162, 59, 0.14);
+  --accent-line: rgba(233, 162, 59, 0.34);
+
+  /* Direction, matched on contrast rather than saturation: green carries far
+     more luminance than red at the same step, so a pair that looks balanced
+     renders every falling row dimmer than every rising one. */
+  --up:   #5fb98a;   /* 8.1:1 */
+  --down: #e28c93;   /* 7.8:1 */
+
+  /* ── scale ────────────────────────────────────────────────────────────────
+   * Five sizes and a spacing ramp. The old build had seventeen hand-set font
+   * sizes with no interval between them, which is hierarchy the eye cannot
+   * follow.
+   */
+  --t-label: 11px;
+  --t-body:  13.5px;
+  --t-lead:  15px;
+  --t-head:  20px;
+  --t-hero:  32px;
+
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
+
+  --r: 10px;              /* one radius, everywhere */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── reset enough ─────────────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-disp), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  /* The page scrolls. That is the whole layout model. */
+  min-height: 100dvh;
+}
+
+/* Numbers are tabular everywhere, so a column of them lines up and a changing
+   figure does not make the row twitch. */
+.num, .money { font-family: var(--font-mono-f), ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ── the wordmark — the one thing kept ────────────────────────────────────── */
+
+.mark {
+  font-family: var(--font-brand), var(--font-disp), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  /* The tracking adds a trailing gap after the last letter; pulling it back
+     keeps the mark optically centred against anything beside it. */
+  margin-right: -0.34em;
+  color: var(--ink);
+}
+
+/* ── page frame ───────────────────────────────────────────────────────────── */
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--s5) var(--s4) var(--s8);
+}
+@media (min-width: 720px) { .page { padding: var(--s6) var(--s5) var(--s8); } }
+
+.top {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-bottom: var(--s6);
+}
+.top-mark { font-size: var(--t-lead); }
+.top-when { margin-left: auto; font-size: var(--t-label); color: var(--ink-4); letter-spacing: 0.08em; }
+
+/* ── sections ─────────────────────────────────────────────────────────────── */
+
+section { margin-bottom: var(--s7); }
+
+.sec-h {
+  display: flex; align-items: baseline; gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+.sec-h h2 {
+  margin: 0;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.sec-h a, .sec-more {
+  margin-left: auto;
+  font-size: var(--t-label);
+  color: var(--ink-4);
+  text-decoration: none;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: inherit;
+}
+.sec-h a:hover, .sec-more:hover { color: var(--ink-2); }
+
+/* ── the lead ─────────────────────────────────────────────────────────────── */
+
+.lead { font-size: var(--t-hero); font-weight: 300; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 var(--s2); }
+.lead-sub { font-size: var(--t-lead); color: var(--ink-3); margin: 0; }
+
+/* ── cards and rows ───────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: var(--s4);
+}
+
+/* A list of things. The divider is between rows, never around them — a border
+   on four sides of every row is what made the old lists read as stacked boxes
+   rather than as one list. */
+.rows { display: flex; flex-direction: column; }
+.row {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  text-decoration: none; color: inherit;
+}
+.row:last-child { border-bottom: 0; }
+/*
+ * An interactive row is still a row.
+ *
+ * The first version gave these a radius and a negative margin so the hover
+ * fill could bleed past the text. With a bottom border still on, the radius
+ * curved it at both ends and the overhang pushed each row wider than its
+ * neighbours — so a plain list rendered as nine outlined boxes with notched
+ * corners. The hover does not need to bleed; it needs to be visible.
+ */
+a.row, button.row {
+  background: none; border: 0; border-bottom: 1px solid var(--line);
+  font: inherit; color: inherit; text-align: left; width: 100%;
+  cursor: pointer;
+}
+a.row:hover, button.row:hover { background: var(--bg-2); }
+a.row:last-child, button.row:last-child { border-bottom: 0; }
+button.row:disabled { cursor: default; }
+/* A column, not a run of inline spans. Left as the default `display: inline`
+   the name and its subtitle set as one string — "^NSEINIFTY 50",
+   "RELIANCERELIANCE INDUSTRIES LTD" — which is the sort of thing that reads as
+   a data bug rather than a layout one. */
+.row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.row-t { display: block; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-s { display: block; font-size: var(--t-label); color: var(--ink-4); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-v { flex: none; color: var(--ink-2); }
+.row-k { flex: none; font-size: var(--t-label); color: var(--ink-4); width: 44px; }
+
+/* ── pills, tabs, buttons ─────────────────────────────────────────────────── */
+
+.tabs { display: flex; gap: var(--s1); overflow-x: auto; scrollbar-width: none; margin-bottom: var(--s3); }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: none; padding: 5px 11px; border-radius: 999px;
+  font-size: var(--t-label); font-family: inherit; letter-spacing: 0.04em;
+  color: var(--ink-4); background: none; border: 1px solid transparent; cursor: pointer;
+  transition: color .15s var(--ease), background .15s var(--ease);
+}
+.tab:hover { color: var(--ink-2); }
+.tab[aria-selected="true"] { color: var(--ink); background: var(--bg-3); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 9px 14px; border-radius: 8px;
+  font-family: inherit; font-size: var(--t-body); cursor: pointer;
+  background: var(--bg-3); border: 1px solid var(--line); color: var(--ink);
+  transition: border-color .15s var(--ease), background .15s var(--ease);
+}
+.btn:hover { border-color: var(--line-2); background: #1c2027; }
+.btn-accent { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+
+/* ── the ask field ────────────────────────────────────────────────────────── */
+
+.ask {
+  display: flex; align-items: center; gap: var(--s3);
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: var(--r); padding: var(--s3) var(--s4);
+  transition: border-color .15s var(--ease);
+}
+.ask:focus-within { border-color: var(--accent-line); }
+.ask input {
+  flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  color: var(--ink); font-family: inherit; font-size: var(--t-lead);
+}
+.ask input::placeholder { color: var(--ink-4); }
+
+/* ── direction and state ──────────────────────────────────────────────────── */
+
+.up { color: var(--up); }
+.down { color: var(--down); }
+.live { color: var(--accent); }
+
+/* A four-pixel pip is the whole live indicator. The last build boxed it in
+   amber and ended up with six amber chips on one screen. */
+.pip { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex: none; display: inline-block; }
+
+/* ── empty and loading ────────────────────────────────────────────────────── */
+
+.quiet { color: var(--ink-4); font-size: var(--t-body); padding: var(--s4) 0; }
+
+/* ── focus ────────────────────────────────────────────────────────────────── */
+
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── the completion tick ──────────────────────────────────────────────────── */
+
+.tick {
+  flex: none; width: 17px; height: 17px; border-radius: 50%;
+  border: 1.5px solid var(--line-2); display: grid; place-items: center;
+  color: var(--bg); transition: background .15s var(--ease), border-color .15s var(--ease);
+}
+.row:hover .tick { border-color: var(--ink-4); }
+.tick.on { background: var(--accent); border-color: var(--accent); }
+
+/* ── the 52-week band ─────────────────────────────────────────────────────── */
+
+.band { position: relative; flex: 1; max-width: 120px; height: 3px; background: rgba(255, 255, 255, 0.08); border-radius: 2px; }
+.band i { position: absolute; top: -3px; width: 2px; height: 9px; background: var(--accent); transform: translateX(-1px); border-radius: 1px; }
+
+/* ── video thumbnails ─────────────────────────────────────────────────────── */
+
+.vthumb { position: relative; flex: none; width: 72px; height: 41px; border-radius: 5px; overflow: hidden; display: grid; place-items: center; }
+.vthumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vthumb svg { position: relative; color: #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.8)); }
+
+/* ── footer ───────────────────────────────────────────────────────────────── */
+
+.foot { margin-top: var(--s8); padding-top: var(--s4); border-top: 1px solid var(--line); font-size: var(--t-label); color: var(--ink-4); }
+.foot kbd {
+  font-family: var(--font-mono-f), monospace; font-size: 10px;
+  border: 1px solid var(--line-2); border-radius: 4px; padding: 1px 5px; color: var(--ink-3);
+}
+
+/* ── phone ────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+  :root { --t-hero: 26px; }
+  .page { padding: var(--s4) var(--s4) var(--s8); }
+  section { margin-bottom: var(--s6); }
+  /* The watchlist's three columns do not fit; the name takes the row and the
+     numbers sit under it rather than being squeezed to four characters. */
+  .row-s { white-space: normal; }
+}
+
+/* ── page frame ───────────────────────────────────────────────────────────── */
+
+.back { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px;
+  color: var(--ink-3); text-decoration: none; margin-left: -6px; }
+.back:hover { background: var(--bg-2); color: var(--ink); }
+.top-title { font-size: var(--t-label); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
+.sec-hint { font-size: var(--t-label); color: var(--ink-4); }

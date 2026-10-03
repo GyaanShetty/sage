@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { MarketsView } from "@/features/markets/components/markets-view";
+import { MarketsPage } from "@/features/markets/markets-page";
 
 export const metadata: Metadata = {
   title: "Markets",
-  description: "Indices, holdings, crypto, FX and sector heat, on one Bloomberg-style wall.",
+  description: "Your names, crypto, and the wider board.",
 };
 
-export default function MarketsPage() {
-  return <MarketsView />;
+export default function Page() {
+  return <MarketsPage />;
 }

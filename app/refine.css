@@ -522,3 +522,88 @@ body {
 @media (min-width: 641px) {
   .rail-offwide { display: none; }
 }
+
+/* ============================================================================
+   The density pass
+   ----------------------------------------------------------------------------
+   Thirteen panels became nine and the survivors got the rows back. This is the
+   inside of that change: at five rows a tile has room, and the cramped
+   measurements it was wearing — 2px row padding, 7.5px labels, hairlines
+   between everything — were chosen for a tile that had none.
+
+   Taken from the rebuild, which got this part right. Not the rebuild's layout:
+   the wall stays, the panel chrome stays, the instrument look stays. Only the
+   measurements come across.
+   ========================================================================= */
+
+/* ── room inside a panel ──────────────────────────────────────────────────── */
+
+.pane-hd { padding: 7px 12px; }
+.pane-body { padding-bottom: 4px; }
+
+/* Rows were 2px of vertical padding on a 19px minimum, which is a row you read
+   by concentrating. At five rows per tile there is no reason for that. */
+.trow, .mkt {
+  padding: 6px 12px;
+  min-height: 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+}
+.tstat { padding: 10px 12px; }
+
+/* ── fewer sizes ──────────────────────────────────────────────────────────── */
+
+/* The wall ran 7px, 7.5px, 8px, 8.5px, 9px, 9.5px, 10px and 11px as separate
+   label sizes — eight steps inside four pixels, which is not a hierarchy, it
+   is a rounding error. Two: one for keys, one for titles. */
+.pane-s, .tstat-k, .lbl, .bd-gh, .wire-src, .mk-tag, .dhf-cap, .dh-stat span {
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+}
+.pane-t, .bh .t, .sectitle h2 { font-size: 10px; letter-spacing: 0.14em; }
+
+/* Body text gets a size it can be read at rather than one that fits. */
+.wire-h, .news .nh, .sitrep-chip .sc-tx, .es-d { font-size: 12px; line-height: 1.5; }
+.trow-k, .mkt .sym, .bd-k { font-size: 10.5px; }
+
+/* ── quieter rules ────────────────────────────────────────────────────────── */
+
+/* The wall drew a line between everything. With nine panels and real gutters
+   the gap already says where one thing ends, so the lines inside can go
+   almost all the way down. */
+.wire-row, .bd-row, .mw-vid { border-bottom-color: rgba(255, 255, 255, 0.035); }
+.wire-row { padding: 7px 12px; }
+.bd-row { padding: 6px 12px; min-height: 26px; }
+
+/* ── the hero keeps its row, and spends less of it ────────────────────────── */
+
+/*
+ * I took a row off the hero and the flanks came out sliced mid-line: four
+ * readings and a caption do not fit in a hundred pixels, so DAY and WEEK
+ * rendered and QTR and YEAR were cut in half. The row went back and came out
+ * of the bottom band instead, whose three tiles are compact by nature.
+ *
+ * The band still gives some height back through its own measurements rather
+ * than through the grid.
+ */
+.dash-hero { padding: 10px 0; }
+.dh-stat b { font-size: 32px; }
+.dh-mark .ascii-mark { font-size: 10px; }
+
+/* ── the map is dark before it is a map ───────────────────────────────────── */
+
+/*
+ * Leaflet's container defaults to a light grey, which is what shows through
+ * until tiles arrive — and on a dark wall that is a white slab where the map
+ * should be, on every load and for as long as the network takes. It is also
+ * what you get permanently if tile requests are blocked.
+ */
+/*
+ * Specificity, not hope. leaflet.css is imported inside atlas-map.tsx, so Next
+ * emits it AFTER the global stylesheet — a bare `.leaflet-container` here ties
+ * on specificity and loses on order. Two classes beats one, whatever the
+ * order.
+ */
+.wall-map .leaflet-container,
+.atlas-page .leaflet-container,
+.pane-body > .leaflet-container,
+.leaflet-container.leaflet-container { background: #06070b; }

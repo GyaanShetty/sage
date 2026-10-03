@@ -13,12 +13,9 @@ import {
   AgentLogTile, GithubTile, BioTile, PortfolioTile, ExamTile, SystemTile,
 } from "./page-tiles";
 import {
-  MarketsTile, FeedsTile, KeyMetricsTile, HealthTile, ActivityTile, MissionTile, ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
+  MarketsTile, FeedsTile, KeyMetricsTile, HealthTile, ActivityTile, ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
 } from "./wall-tiles";
 import { MarketsList } from "./markets-list";
-import { AiConsole } from "./ai-console";
-import { IntelFeed } from "./intel-feed";
-import { SystemsPanel } from "./systems-panel";
 import { QuickLaunch } from "./quick-launch";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
@@ -106,7 +103,6 @@ export function CommandView({
   tasks: initialTasks,
   events,
   log,
-  stats,
   weather,
 }: {
   tasks: TaskRow[];
@@ -253,7 +249,7 @@ export function CommandView({
               <Crosshair /><Crosshair /><Crosshair /><Crosshair />
             </span>
           </Pane>
-          <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={2} limit={14} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={2} limit={18} /></TileGuard></div>
 
           {/*
            * What the day is made of: the decision grid, what he reads, and
@@ -283,26 +279,36 @@ export function CommandView({
            * Row count before: 3+4+3+3+2 = 15. After: 3+4+3+3+2 = 15. Three
            * panels of real data for four that repeated or decorated.
            */}
-          <div className="t-4x3"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="MORNINGWIRE"><MorningWire n={3} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="BOARD"><BoardPanel n={4} /></TileGuard></div>
+          {/*
+           * Nine panels, not thirteen, in the same fifteen rows.
+           *
+           * Four left, and each had the same problem: it was a panel about the
+           * application rather than about the day. SYSTEMS was heap, store,
+           * frame rate and battery — telemetry for a dashboard, which is the
+           * most inward-looking thing a dashboard can show. MISSION was eight
+           * counts, six of which KEY METRICS already carried. CONSOLE was four
+           * preset buttons that each opened chat with a sentence pre-typed.
+           * And the intel WIRE was a generic headline list sitting beside
+           * MORNING WIRE, which carries the same stories from the publishers
+           * actually read.
+           *
+           * The rows they freed go to the survivors rather than to the gaps:
+           * the decision grid and the two reading panels go from three rows to
+           * five, which is the difference between a list you scroll inside a
+           * tile and a list you can see.
+           *
+           * Bands: 3 + 4 + 5 + 3 = 15. Every band sums to twelve columns and
+           * shares a row-span, which is what lets the grid close.
+           */}
+          <div className="t-4x5"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
+          <div className="t-4x5"><TileGuard name="MORNINGWIRE"><MorningWire n={3} /></TileGuard></div>
+          <div className="t-4x5"><TileGuard name="BOARD"><BoardPanel n={4} /></TileGuard></div>
 
-          <div className="t-4x3"><TileGuard name="WIRE"><IntelFeed n={5} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="CONSOLE"><AiConsole n={6} /></TileGuard></div>
-          <div className="t-4x3">
-            <TileGuard name="MISSION">
-              <MissionTile n={7} open={open} events={todays.length} agentRunning={agentRunning}
-                memories={stats.memories} runs={stats.runs}
-                weather={weather ? `${Math.round(weather.temp)}°` : null} />
-            </TileGuard>
-          </div>
-
-          <div className="t-3x2"><TileGuard name="KEYMETRICS">
-            <KeyMetricsTile n={8} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+          <div className="t-4x3"><TileGuard name="KEYMETRICS">
+            <KeyMetricsTile n={5} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-3x2"><TileGuard name="SYSTEMS"><SystemsPanel n={9} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="LAUNCH"><QuickLaunch n={10} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={6} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>
       )}
 

@@ -704,6 +704,12 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
      three would have taken the grid's implicit minimum and rendered as
      slivers, which is the same way the Atlas map once came out 145x87. */
   .wall-pack > .t-4x4  { grid-column: span 4;  grid-row: span 4; }
+  /* Five-row spans, for the density pass. A tile referencing a span class that
+     does not exist takes the grid's implicit minimum and renders as a sliver —
+     which is how the Atlas map once came out 145x87. */
+  .wall-pack > .t-3x5  { grid-column: span 3;  grid-row: span 5; }
+  .wall-pack > .t-4x5  { grid-column: span 4;  grid-row: span 5; }
+  .wall-pack > .t-6x5  { grid-column: span 6;  grid-row: span 5; }
   .wall-pack > .t-6x2  { grid-column: span 6;  grid-row: span 2; }
   .wall-pack > .t-6x3  { grid-column: span 6;  grid-row: span 3; }
   /* Half the wall and four rows: the shape the map wants, with the tall

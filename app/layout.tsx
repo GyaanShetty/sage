@@ -4,7 +4,10 @@ import type { Viewport } from "next";
 import { APP_NAME, APP_TAGLINE } from "@/lib/config";
 import { Providers } from "@/components/providers";
 import { PwaRegister } from "@/components/pwa-register";
-import "./app.css";
+import "./globals.css";
+import "./keycard.css";
+import "./terminal.css";
+import "./refine.css";
 
 const disp = Space_Grotesk({ variable: "--font-disp", subsets: ["latin"], weight: ["300", "400", "500", "600"] });
 const mono = JetBrains_Mono({ variable: "--font-mono-f", subsets: ["latin"], weight: ["300", "400", "500"] });

@@ -1,0 +1,848 @@
+"use client";
+
+/**
+ * The study wall.
+ *
+ * One tab per subject, plus an overview that compares them. Each subject gets
+ * the same set of instruments in the same places, because the point of a wall
+ * is that you learn where to look once: completion on the left, time in the
+ * middle, the syllabus and the timetable on the right.
+ *
+ * Two numbers are kept visibly apart everywhere on this page — how much of the
+ * syllabus is finished, and how many hours have gone in. They are not the same
+ * measurement and a page that blends them teaches you to sit with a book open
+ * and call it progress.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pane, Row, Stat, Empty } from "@/components/pane";
+import { TileGuard } from "@/components/tile-guard";
+import { Acquiring } from "@/components/ui/acquiring";
+import { Area, BarRows, Diverging, Donut, Gauge, Heat, Histogram, Radial, Stack } from "@/components/instruments";
+import { asArray } from "@/lib/as-array";
+import { lastDays } from "@/lib/config";
+import {
+  burnUp, completion, minutesByDay, minutesByUnit, minutesByWeekday, nextSlot, pace, parseUnitNames,
+  scheduledMinutes, weeklyActual, clockOf, WEEKDAYS,
+  type Session, type Subject, type Unit,
+} from "@/core/study/model";
+import "@/features/dashboard/wall.css";
+import "@/features/dashboard/command.css";
+import "./study.css";
+
+interface Exam { id: string; subject: string; at: string; doneAt?: string | null }
+
+const TONE_VAR: Record<string, string> = {
+  signal: "var(--signal)", amber: "#ff9f0a", cyan: "#35c7ff", green: "#2fd07a", plain: "var(--muted)",
+};
+
+const hours = (min: number) => (min >= 60 ? `${(min / 60).toFixed(1)}H` : `${Math.round(min)}M`);
+const pct = (f: number) => `${Math.round(f * 100)}%`;
+
+export function StudyView() {
+  const [subjects, setSubjects] = useState<Subject[] | null>(null);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [tab, setTab] = useState<string>("all");
+  const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+
+  /*
+   * The tab survives a reload.
+   *
+   * Read in an effect rather than during render: localStorage during render
+   * makes the server and client disagree and React throws the whole tree
+   * away. Same pattern as the dashboard's tabs.
+   */
+  useEffect(() => {
+    const saved = localStorage.getItem("sage-study-tab");
+    if (saved) setTab(saved);
+  }, []);
+  useEffect(() => { try { localStorage.setItem("sage-study-tab", tab); } catch {} }, [tab]);
+
+  const load = useCallback(async () => {
+    const j = await fetch("/api/study?days=120").then((r) => r.json()).catch(() => null);
+    setSubjects(asArray<Subject>(j?.data?.subjects));
+    setSessions(asArray<Session>(j?.data?.sessions));
+    setExams(asArray<Exam>(j?.data?.exams));
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+
+  const post = useCallback(async (body: Record<string, unknown>) => {
+    setBusy(true);
+    await fetch("/api/study", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+    }).catch(() => {});
+    setBusy(false);
+    void load();
+  }, [load]);
+
+  const days30 = useMemo(() => lastDays(30), []);
+  const days84 = useMemo(() => lastDays(84), []);
+
+  if (subjects === null) return <div className="wall"><Acquiring label="SUBJECTS" /></div>;
+
+  const current = subjects.find((s) => s.id === tab);
+
+  return (
+    <div className="wall-shell study">
+      <div className="wall-tabs">
+        <button className={tab === "all" ? "on" : ""} onClick={() => setTab("all")}>
+          <em>0</em> ALL SUBJECTS
+        </button>
+        {subjects.map((s, i) => (
+          <button key={s.id} className={tab === s.id ? "on" : ""} onClick={() => setTab(s.id)}
+            style={{ ["--c" as string]: TONE_VAR[s.tone] ?? "var(--signal)" }}>
+            <em>{i + 1}</em> {s.name.toUpperCase()}
+          </button>
+        ))}
+        {/* An inline field, not window.prompt — a browser dialog in the
+            middle of a terminal is jarring, and in an installed PWA it can be
+            suppressed outright, which makes the only way to add a subject
+            silently do nothing. */}
+        {adding ? (
+          <form
+            className="wall-tab-form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const v = name.trim();
+              if (v) { void post({ name: v }); setName(""); }
+              setAdding(false);
+            }}
+          >
+            <input
+              autoFocus value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="SUBJECT NAME" aria-label="New subject name"
+              onKeyDown={(e) => { if (e.key === "Escape") { setAdding(false); setName(""); } }}
+              onBlur={() => { if (!name.trim()) setAdding(false); }}
+            />
+          </form>
+        ) : (
+          <button className="wall-tab-add" onClick={() => setAdding(true)}>+ SUBJECT</button>
+        )}
+      </div>
+
+      {tab === "all"
+        ? <Overview subjects={subjects} sessions={sessions} exams={exams} days30={days30} days84={days84} />
+        : current
+          ? <SubjectWall
+              subject={current}
+              sessions={sessions.filter((x) => x.subjectId === current.id)}
+              exam={exams.find((e) => e.id === current.examId) ?? null}
+              exams={exams}
+              days30={days30} days84={days84} post={post} busy={busy}
+            />
+          : null}
+    </div>
+  );
+}
+
+/* ── every subject at once ───────────────────────────────────────────────── */
+
+function Overview({
+  subjects, sessions, exams, days30, days84,
+}: { subjects: Subject[]; sessions: Session[]; exams: Exam[]; days30: string[]; days84: string[] }) {
+  if (!subjects.length) {
+    return (
+      <div className="wall">
+        <Empty reason="No subjects yet — add one to start tracking units, time and schedule" action="Add a subject" />
+      </div>
+    );
+  }
+
+  const per = subjects.map((s) => {
+    const mine = sessions.filter((x) => x.subjectId === s.id);
+    const exam = exams.find((e) => e.id === s.examId) ?? null;
+    return {
+      subject: s,
+      minutes: mine.reduce((n, x) => n + x.minutes, 0),
+      done: completion(s),
+      drift: pace(s, exam?.at ?? null),
+      weekly: weeklyActual(mine),
+      sessions: mine,
+    };
+  });
+
+  const totalMin = per.reduce((n, p) => n + p.minutes, 0);
+  const allMinutes = minutesByDay(sessions, days30);
+  const heat = minutesByDay(sessions, days84);
+
+  return (
+    <div className="wall">
+      <div className="wall-pack">
+        <div className="t-3x2"><TileGuard name="TOTAL"><Pane n={1} title="The term so far" status={`${subjects.length} SUBJECTS`} live>
+          <div className="km">
+            <Stat v={hours(totalMin)} k="LOGGED" />
+            <Stat v={pct(per.reduce((n, p) => n + p.done, 0) / per.length)} k="SYLLABUS" />
+            <Stat v={hours(per.reduce((n, p) => n + p.weekly, 0))} k="PER WEEK" />
+          </div>
+        </Pane></TileGuard></div>
+
+        <div className="t-3x2"><TileGuard name="SHARE"><Pane n={2} title="Where the time goes" status="BY SUBJECT">
+          <Donut slices={per.map((p) => ({ label: p.subject.name, value: p.minutes }))} />
+        </Pane></TileGuard></div>
+
+        <div className="t-3x2"><TileGuard name="COMPLETION"><Pane n={3} title="Syllabus done" status="WEIGHTED">
+          <Radial data={per.map((p) => p.done)} labels={per.map((p) => p.subject.name.slice(0, 6).toUpperCase())} />
+        </Pane></TileGuard></div>
+
+        <div className="t-3x2"><TileGuard name="PACE"><Pane n={4} title="Ahead or behind" status="VS THE CLOCK"
+          alert={per.some((p) => (p.drift ?? 0) < -0.2) ? "signal" : undefined}>
+          {per.some((p) => p.drift !== null)
+            ? <Diverging rows={per.filter((p) => p.drift !== null)
+                .map((p) => ({ label: p.subject.name.slice(0, 10), value: Math.round((p.drift ?? 0) * 100) }))} />
+            : <Empty reason="Pace needs an exam date and a syllabus" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="DAILY"><Pane n={5} title="Minutes a day" status="30 DAYS" live>
+          {sessions.length
+            ? <Area data={allMinutes} height={70} />
+            : <Empty reason="Nothing logged in the last 30 days — open a subject tab to log time" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="HEAT"><Pane n={6} title="Study heat" status="12 WEEKS">
+          {sessions.length
+            ? <Heat days={heat} weeks={12} />
+            : <Empty reason="No study logged in the last 12 weeks — open a subject tab to log time" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-4x2"><TileGuard name="BALANCE"><Pane n={7} title="Balance" status="MINUTES">
+          <Stack parts={per.map((p) => ({ label: p.subject.name, value: p.minutes, tone: TONE_VAR[p.subject.tone] }))} height={14} />
+          <div className="st-legend">
+            {per.map((p) => (
+              <span key={p.subject.id}><i style={{ background: TONE_VAR[p.subject.tone] }} />{p.subject.name} · {hours(p.minutes)}</span>
+            ))}
+          </div>
+        </Pane></TileGuard></div>
+
+        <div className="t-4x2"><TileGuard name="TARGET"><Pane n={8} title="Planned against actual" status="HOURS / WEEK">
+          <BarRows rows={per.map((p) => ({
+            label: p.subject.name.slice(0, 14),
+            value: Math.round(p.weekly / 60),
+            max: Math.max(1, p.subject.targetHoursPerWeek),
+            tone: p.weekly / 60 >= p.subject.targetHoursPerWeek ? "ok" : "warm",
+          }))} />
+        </Pane></TileGuard></div>
+
+        <div className="t-4x2"><TileGuard name="WEEKDAY"><Pane n={9} title="Which days" status="ALL SUBJECTS">
+          <Radial data={minutesByWeekday(sessions)} labels={[...WEEKDAYS]} />
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="LENGTHS"><Pane n={10} title="Session lengths" status={`${sessions.length} SESSIONS`}>
+          {sessions.length
+            ? <Histogram values={sessions.map((s) => s.minutes)} height={70} />
+            : <Empty reason="No sessions logged yet" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="CUMULATIVE"><Pane n={11} title="Hours, cumulative" status="30 DAYS">
+          {/* The shape of a term: flat stretches are the weeks that got away. */}
+          {sessions.length
+            ? <Area data={allMinutes.reduce<number[]>((acc, v) => [...acc, (acc[acc.length - 1] ?? 0) + v], [])}
+                height={70} baseline={false} />
+            : <Empty reason="The curve starts with your first logged session — open a subject tab to log time" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-12x2"><TileGuard name="TABLE"><Pane n={12} title="Every subject" status={`${subjects.length} TRACKED`}>
+          <div className="sv-table">
+            <div className="sv-th"><span>SUBJECT</span><span>UNITS</span><span>DONE</span><span>LOGGED</span><span>PER WK</span><span>TARGET</span><span>PACE</span><span>EXAM</span></div>
+            {per.map((p) => {
+              const exam = exams.find((e) => e.id === p.subject.examId);
+              const d = exam ? Math.ceil((new Date(exam.at).getTime() - Date.now()) / 86_400_000) : null;
+              return (
+                <div className="sv-tr" key={p.subject.id}>
+                  <span style={{ color: TONE_VAR[p.subject.tone] }}>{p.subject.name}</span>
+                  <span>{p.subject.units.length}</span>
+                  <span>{pct(p.done)}</span>
+                  <span>{hours(p.minutes)}</span>
+                  <span>{hours(p.weekly)}</span>
+                  <span>{p.subject.targetHoursPerWeek}H</span>
+                  <span className={p.drift === null ? "" : p.drift >= 0 ? "up" : "down"}>
+                    {p.drift === null ? "—" : `${p.drift >= 0 ? "+" : ""}${Math.round(p.drift * 100)}%`}
+                  </span>
+                  <span>{d === null ? "—" : `${d}D`}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Pane></TileGuard></div>
+      </div>
+    </div>
+  );
+}
+
+/* ── one subject, in depth ───────────────────────────────────────────────── */
+
+function SubjectWall({
+  subject, sessions, exam, exams, days30, days84, post, busy,
+}: {
+  subject: Subject; sessions: Session[]; exam: Exam | null; exams: Exam[];
+  days30: string[]; days84: string[];
+  post: (b: Record<string, unknown>) => Promise<void>; busy: boolean;
+}) {
+  const tone = TONE_VAR[subject.tone] ?? "var(--signal)";
+  const done = completion(subject);
+  const drift = pace(subject, exam?.at ?? null);
+  const totalMin = sessions.reduce((n, s) => n + s.minutes, 0);
+  const weekly = weeklyActual(sessions);
+  const targetMin = subject.targetHoursPerWeek * 60;
+  const byUnit = minutesByUnit(sessions, subject.units);
+  const daily = minutesByDay(sessions, days30);
+  const next = nextSlot(subject.slots);
+  const examDays = exam ? Math.ceil((new Date(exam.at).getTime() - Date.now()) / 86_400_000) : null;
+
+  // Cumulative hours, so the shape of a term is visible rather than inferred.
+  const cumulative = daily.reduce<number[]>((acc, v) => [...acc, (acc[acc.length - 1] ?? 0) + v], []);
+
+  return (
+    <div className="wall">
+      <div className="wall-pack">
+        <div className="t-3x4"><TileGuard name="PROGRESS"><Pane n={1} title={subject.name} status={subject.code ?? "SYLLABUS"} live>
+          <div className="sv-hero">
+            <Gauge value={Math.round(done * 100)} max={100} label="DONE" unit="%" tone={tone} size={104} />
+            <div className="sv-hero-side">
+              <Stat v={`${subject.units.filter((u) => u.doneAt).length}/${subject.units.length}`} k="UNITS" />
+              <Stat v={hours(totalMin)} k="LOGGED" />
+              {examDays !== null && <Stat v={`${Math.max(0, examDays)}D`} k="TO EXAM" tone={examDays <= 7 ? "down" : undefined} />}
+            </div>
+          </div>
+        </Pane></TileGuard></div>
+
+        <div className="t-3x4"><TileGuard name="UNITS"><Pane
+          n={2} title="Units" status={`${subject.units.filter((u) => u.doneAt).length}/${subject.units.length}`}
+        >
+          <UnitEditor subject={subject} tone={tone} post={post} busy={busy} />
+        </Pane></TileGuard></div>
+
+        <div className="t-3x4"><TileGuard name="WHERE"><Pane n={3} title="Time per unit" status="MINUTES">
+          {byUnit.some((r) => r.minutes > 0)
+            ? <BarRows rows={byUnit.map((r) => ({ label: r.unit.name.slice(0, 14), value: r.minutes, tone: r.unit.doneAt ? "ok" : "warm" }))} />
+            : <Empty reason="No sessions logged against a unit yet" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-3x4"><TileGuard name="SCHEDULE"><Pane
+          n={4} title="Timetable" status={`${(scheduledMinutes(subject) / 60).toFixed(1)}H/WK`}
+        >
+          <SlotAdd subjectId={subject.id} post={post} busy={busy} />
+          {subject.slots.length === 0
+            ? <p className="sv-hint">A subject with no time set aside usually gets none.</p>
+            : (
+              <>
+                {subject.slots
+                  .slice()
+                  .sort((a, b) => a.weekday - b.weekday || a.startMin - b.startMin)
+                  .map((s) => (
+                    <Row key={s.id}
+                      k={`${WEEKDAYS[s.weekday]} ${clockOf(s.startMin)}`}
+                      v={<>
+                        {s.minutes}M
+                        <button className="sv-x" disabled={busy}
+                          onClick={() => void post({ action: "slot.remove", subjectId: subject.id, slotId: s.id })}>×</button>
+                      </>}
+                    />
+                  ))}
+                <button
+                  className="sv-tasks"
+                  disabled={busy}
+                  onClick={async () => {
+                    const j = await fetch("/api/study", {
+                      method: "POST", headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ action: "tasks" }),
+                    }).then((r) => r.json()).catch(() => null);
+                    const d = j?.data;
+                    window.dispatchEvent(new CustomEvent("sage:toast", {
+                      detail: {
+                        title: "STUDY → TASKS",
+                        body: d?.created
+                          ? `${d.created} filed${d.skipped ? `, ${d.skipped} already there` : ""}`
+                          : d?.skipped
+                            ? "Already filed for today"
+                            : "Nothing left on today's timetable",
+                      },
+                    }));
+                  }}
+                >
+                  FILE TODAY&apos;S SLOTS AS TASKS →
+                </button>
+                {next && (
+                  <div className="sv-next">
+                    NEXT · {WEEKDAYS[next.slot.weekday]} {clockOf(next.slot.startMin)} —{" "}
+                    {next.inMinutes < 60 ? `in ${next.inMinutes}m` : `in ${Math.round(next.inMinutes / 60)}h`}
+                  </div>
+                )}
+              </>
+            )}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="DAILY"><Pane n={5} title="Minutes a day" status="30 DAYS" live>
+          {sessions.length
+            ? <Area data={daily} height={72} tone={tone} />
+            : <Empty reason={`Nothing logged against ${subject.name} yet`} action="Log a session" href="#study-log" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="CUMULATIVE"><Pane n={6} title="Hours, cumulative" status="30 DAYS">
+          {sessions.length
+            ? <Area data={cumulative} height={72} tone={tone} baseline={false} />
+            : <Empty reason="The curve starts with your first logged session" action="Log a session" href="#study-log" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-4x2"><TileGuard name="PACE"><Pane n={7} title="Against the clock" status={exam ? "VS EXAM" : "NO EXAM SET"}
+          alert={drift !== null && drift < -0.2 ? "signal" : undefined}>
+          {drift === null
+            ? <Empty reason="Pace needs both an exam date and units to measure" />
+            : (() => {
+              /*
+               * The word comes from the number shown, not the number behind
+               * it. A drift of -0.4% rounds to 0% and was labelled BEHIND —
+               * "0% BEHIND" is a reading that argues with itself, and on the
+               * day you set an exam it is the first thing the pane says.
+               */
+              const shown = Math.round(drift * 100);
+              const word = shown === 0 ? "ON TRACK" : shown > 0 ? "AHEAD" : "BEHIND";
+              return (
+                <>
+                  <Stat
+                    v={`${shown > 0 ? "+" : ""}${shown}%`}
+                    k={word}
+                    tone={shown === 0 ? undefined : shown > 0 ? "up" : "down"}
+                  />
+                  <Diverging rows={[{ label: "SYLLABUS", value: shown }]} />
+                </>
+              );
+            })()}
+        </Pane></TileGuard></div>
+
+        <div className="t-4x2"><TileGuard name="TARGET"><Pane n={8} title="This week" status={`TARGET ${subject.targetHoursPerWeek}H`}>
+          <Gauge value={Math.round(weekly / 60)} max={Math.max(1, subject.targetHoursPerWeek)} label="PER WEEK" unit="H" tone={tone} />
+        </Pane></TileGuard></div>
+
+        <div className="t-4x2"><TileGuard name="WEEKDAY"><Pane n={9} title="Which days" status="ALL TIME">
+          <Radial data={minutesByWeekday(sessions)} labels={[...WEEKDAYS]} tone={tone} />
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="HEAT"><Pane n={10} title="Study heat" status="12 WEEKS">
+          <Heat days={minutesByDay(sessions, days84)} weeks={12} tone={tone} />
+        </Pane></TileGuard></div>
+
+        <div className="t-6x2"><TileGuard name="LENGTHS"><Pane n={11} title="Session lengths" status={`${sessions.length} SESSIONS`}>
+          {sessions.length
+            ? <Histogram values={sessions.map((s) => s.minutes)} height={72} />
+            : <Empty reason="No sessions logged yet" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-6x3"><TileGuard name="LOG"><Pane n={12} title="Sessions" status={hours(totalMin)}>
+          {/*
+            Logging time is the thing you do every day, and it used to be
+            behind the magnify overlay — the rarest interaction on the pane
+            guarding the commonest. It is inline now, with the usual lengths
+            as one click each, because "45" is nearly always the answer and
+            typing it is a tax on doing the thing at all.
+          */}
+          <QuickLog subject={subject} post={post} busy={busy} />
+          <div className="sv-log">
+            {sessions.length === 0
+              ? <p className="sv-hint">Nothing logged yet — SAGE can take these by voice too: &ldquo;I did an hour of {subject.name} on paging&rdquo;.</p>
+              : sessions.slice(0, 12).map((x) => (
+                  <Row key={x.id}
+                    k={<>{new Date(x.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      {x.unitId && <em className="sv-unit-tag">{subject.units.find((u) => u.id === x.unitId)?.name ?? ""}</em>}</>}
+                    v={`${x.minutes}M`}
+                  />
+                ))}
+          </div>
+        </Pane></TileGuard></div>
+
+        <div className="t-3x3"><TileGuard name="BURNUP"><Pane n={13} title="Syllabus burn-up" status="UNITS DONE">
+          {/*
+            Units ticked over time, from each unit's own doneAt. A step up per
+            unit, weighted the same way the percentage is — so this chart and
+            the gauge in pane 01 cannot disagree, because they are the same
+            arithmetic over the same field.
+          */}
+          {subject.units.some((u) => u.doneAt)
+            ? <Area data={burnUp(subject.units, days30)} height={110} tone={tone} baseline={false} />
+            : <Empty reason="Tick a unit and this fills in" />}
+        </Pane></TileGuard></div>
+
+        <div className="t-3x3"><TileGuard name="SETTINGS"><Pane n={14} title="Subject" status="SETTINGS">
+          <Row k="Weekly target" v={
+            <input className="sv-num" type="number" min={0} max={60} defaultValue={subject.targetHoursPerWeek}
+              onBlur={(e) => void post({ id: subject.id, targetHoursPerWeek: Number(e.target.value) })} />
+          } />
+          <Row k="Name" v={
+            <input className="sv-txt wide" defaultValue={subject.name}
+              onBlur={(e) => { const v = e.target.value.trim(); if (v && v !== subject.name) void post({ id: subject.id, name: v }); }} />
+          } />
+          <Row k="Code" v={
+            <input className="sv-txt" defaultValue={subject.code ?? ""} placeholder="CS3501"
+              onBlur={(e) => void post({ id: subject.id, code: e.target.value })} />
+          } />
+          <Row k="Colour" v={
+            <span className="sv-tones">
+              {["signal", "amber", "cyan", "green", "plain"].map((t) => (
+                <button key={t} className={subject.tone === t ? "on" : ""} title={t}
+                  style={{ background: TONE_VAR[t] }}
+                  onClick={() => void post({ id: subject.id, tone: t })} />
+              ))}
+            </span>
+          } />
+          <Row k="Scheduled" v={`${(scheduledMinutes(subject) / 60).toFixed(1)}H / WEEK`} />
+          <Row k="Actual" v={`${(weekly / 60).toFixed(1)}H / WEEK`} tone={weekly >= targetMin ? "up" : "down"} />
+          <Row k="Units done" v={`${subject.units.filter((u) => u.doneAt).length} of ${subject.units.length}`} />
+          {/*
+            The paper this is building towards.
+            Nothing could set this before, so "against the clock", the
+            days-to-exam figure and the whole pace column were unreachable —
+            a feature that could only ever display the message explaining why
+            it had nothing to show.
+          */}
+          <Row k="Exam" v={<ExamLink subject={subject} exams={exams} post={post} busy={busy} />} />
+          {/* Deleting a subject takes its sessions' meaning with it, so it
+              asks twice and says what is at stake rather than just "sure?". */}
+          <Row k="Remove" v={<DeleteSubject subject={subject} busy={busy} />} />
+          {/* One canvas per subject — mind maps, worked problems, the diagram
+              that finally made it click. Made on demand rather than up front,
+              so a subject you never draw for does not accumulate an empty
+              board. */}
+          <Row k="Board" v={
+            subject.boardId
+              ? <a className="pane-go" href={`/board/${subject.boardId}`}>OPEN →</a>
+              : <button className="sv-linkbtn" disabled={busy} onClick={async () => {
+                  const j = await fetch("/api/board", {
+                    method: "POST", headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ title: `${subject.name} — notes` }),
+                  }).then((r) => r.json()).catch(() => null);
+                  const id = j?.data?.id;
+                  if (id) await post({ id: subject.id, boardId: id });
+                }}>CREATE →</button>
+          } />
+        </Pane></TileGuard></div>
+      </div>
+    </div>
+  );
+}
+
+/* ── the three little editors ────────────────────────────────────────────── */
+
+/**
+ * The syllabus, editable in place.
+ *
+ * The old version could only add, one chapter at a time, from inside the
+ * magnify modal — so setting up a subject meant twenty round trips through an
+ * overlay, and a typo in chapter three could not be fixed at all.
+ *
+ * Everything is here now and nothing is hidden behind a mode: tick to mark
+ * done, click the name to rename it, arrows to reorder, × to remove. The
+ * weight stepper is beside the name rather than in a settings panel, because
+ * "this chapter is worth three of those" is a thought you have while reading
+ * the list, not later.
+ *
+ * The paste box is the part that matters most. Nobody types a syllabus — they
+ * have it in a PDF or a message and paste it, numbering and all, so the box
+ * takes lines, commas and semicolons and strips the list's own scaffolding.
+ */
+function UnitEditor({
+  subject, tone, post, busy,
+}: { subject: Subject; tone: string; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [bulk, setBulk] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const id = subject.id;
+
+  /*
+   * What will actually be added, not what was typed.
+   *
+   * The server skips names already in the syllabus, so a paste containing a
+   * chapter you already have would have promised "ADD 3 UNITS" and added two.
+   * A button that overstates by one is the kind of small lie that makes you
+   * stop reading the counts.
+   */
+  const have = new Set(subject.units.map((u) => u.name.toLowerCase()));
+  const parsed = parseUnitNames(bulk);
+  const preview = parsed.filter((n) => !have.has(n.toLowerCase()));
+  const dupes = parsed.length - preview.length;
+
+  const rename = (unitId: string) => {
+    const name = draft.trim();
+    setEditing(null);
+    const was = subject.units.find((u) => u.id === unitId)?.name;
+    if (!name || name === was) return;
+    void post({ action: "unit", subjectId: id, unit: { id: unitId, name } });
+  };
+
+  return (
+    <div className="sv-units">
+      {/* The list scrolls; the paste box does not. A syllabus of twenty pushed
+          the input off the bottom of the pane, so the one control you need
+          while setting a subject up was the one you had to scroll to find. */}
+      <div className="sv-unit-list">
+      {subject.units.length === 0 && (
+        <p className="sv-hint">Paste the syllabus below — numbered lines, commas, whatever shape it is in.</p>
+      )}
+
+      {subject.units.map((u, i) => (
+        <div className={`sv-unit${u.doneAt ? " done" : ""}`} key={u.id}>
+          <button
+            className="sv-tick"
+            disabled={busy}
+            title={u.doneAt ? "Mark as not done" : "Mark as done"}
+            onClick={() => void post({
+              action: "unit", subjectId: id,
+              unit: { id: u.id, doneAt: u.doneAt ? null : new Date().toISOString() },
+            })}
+          >
+            <i style={{ borderColor: tone, background: u.doneAt ? tone : "transparent" }} />
+          </button>
+
+          {editing === u.id ? (
+            <input
+              className="sv-rename"
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => rename(u.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") rename(u.id);
+                if (e.key === "Escape") setEditing(null);
+              }}
+            />
+          ) : (
+            <button
+              className="sv-unit-n"
+              title="Rename"
+              onClick={() => { setEditing(u.id); setDraft(u.name); }}
+            >
+              {u.name}
+            </button>
+          )}
+
+          {/* Weight: a chapter worth three of another counts for three. */}
+          <span className="sv-weight" title="Weight — how much of the syllabus this is">
+            <button disabled={busy || u.weight <= 1}
+              onClick={() => void post({ action: "unit", subjectId: id, unit: { id: u.id, weight: u.weight - 1 } })}>−</button>
+            <b>{u.weight}</b>
+            <button disabled={busy || u.weight >= 9}
+              onClick={() => void post({ action: "unit", subjectId: id, unit: { id: u.id, weight: u.weight + 1 } })}>+</button>
+          </span>
+
+          <span className="sv-move">
+            <button disabled={busy || i === 0} title="Move up"
+              onClick={() => void post({ action: "unit.move", subjectId: id, unitId: u.id, delta: -1 })}>↑</button>
+            <button disabled={busy || i === subject.units.length - 1} title="Move down"
+              onClick={() => void post({ action: "unit.move", subjectId: id, unitId: u.id, delta: 1 })}>↓</button>
+          </span>
+
+          {/* Two-step delete. A syllabus you retyped because of a stray click
+              is a worse outcome than one extra click. */}
+          {confirming === u.id ? (
+            <button className="sv-del confirm" disabled={busy}
+              onClick={() => { setConfirming(null); void post({ action: "unit.remove", subjectId: id, unitId: u.id }); }}
+              onMouseLeave={() => setConfirming(null)}
+            >SURE?</button>
+          ) : (
+            <button className="sv-del" title="Remove" disabled={busy} onClick={() => setConfirming(u.id)}>×</button>
+          )}
+        </div>
+      ))}
+
+      </div>
+
+      <div className="sv-bulk">
+        <textarea
+          value={bulk}
+          onChange={(e) => setBulk(e.target.value)}
+          // One line, because the box is one row until you type in it — a
+          // three-line placeholder in a one-line box is just clipped text.
+          placeholder="PASTE THE SYLLABUS — LINES, COMMAS, NUMBERED, ANY SHAPE"
+          // Grow to what was pasted. At a fixed three rows a five-line
+          // syllabus was scrolled and sliced through the middle of line two,
+          // so you could not read back the thing you were about to add. The
+          // cap keeps a forty-chapter paste from eating the list above; past
+          // it the box scrolls, which is the right behaviour at that size.
+          rows={Math.min(9, Math.max(1, bulk ? bulk.split("\n").length : 1))}
+          onKeyDown={(e) => {
+            // Enter adds when it is a single line; Shift+Enter always newlines.
+            if (e.key === "Enter" && !e.shiftKey && !bulk.includes("\n")) {
+              e.preventDefault();
+              if (preview.length) { void post({ action: "unit.bulk", subjectId: id, text: bulk }); setBulk(""); }
+            }
+          }}
+        />
+        <div className="sv-bulk-foot">
+          {(preview.length > 1 || dupes > 0) && (
+            <span className="sv-hint">
+              {preview.length ? `${preview.length} units: ${preview.slice(0, 3).join(" · ")}${preview.length > 3 ? " …" : ""}` : "nothing new here"}
+              {dupes > 0 && <em> · {dupes} already in the syllabus</em>}
+            </span>
+          )}
+          <button
+            disabled={busy || !preview.length}
+            onClick={() => { void post({ action: "unit.bulk", subjectId: id, text: bulk }); setBulk(""); }}
+          >
+            {parsed.length && !preview.length
+              ? "ALREADY ADDED"
+              : `ADD ${preview.length > 1 ? `${preview.length} UNITS` : "UNIT"}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExamLink({
+  subject, exams, post, busy,
+}: { subject: Subject; exams: Exam[]; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [creating, setCreating] = useState(false);
+  const [date, setDate] = useState("");
+  const linked = exams.find((e) => e.id === subject.examId) ?? null;
+
+  if (linked && !creating) {
+    return (
+      <span className="sv-confirm">
+        <b className="sv-examdate">{new Date(linked.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</b>
+        <button className="sv-linkbtn" disabled={busy} onClick={() => setCreating(true)}>CHANGE</button>
+      </span>
+    );
+  }
+
+  // Papers already in /exam, offered by name — a subject usually has one
+  // waiting there rather than needing a new one.
+  const candidates = exams.filter((e) => !e.doneAt);
+
+  return (
+    <span className="sv-examset">
+      {candidates.length > 0 && (
+        <select
+          className="sv-txt"
+          value={subject.examId ?? ""}
+          disabled={busy}
+          onChange={(e) => { if (e.target.value) void post({ id: subject.id, examId: e.target.value }); setCreating(false); }}
+        >
+          <option value="">— link a paper —</option>
+          {candidates.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.subject} · {new Date(e.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </option>
+          ))}
+        </select>
+      )}
+      <input
+        className="sv-txt"
+        type="date"
+        value={date}
+        disabled={busy}
+        onChange={(e) => setDate(e.target.value)}
+      />
+      <button
+        className="sv-linkbtn"
+        disabled={busy || !date}
+        onClick={async () => {
+          // Create the paper in /exam, then point the subject at it — one
+          // exam record, so the countdown on the dashboard and the pace here
+          // are the same date rather than two that can disagree.
+          const j = await fetch("/api/exam", {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ subject: subject.name, at: new Date(`${date}T09:00`).toISOString(), syllabus: subject.units.map((u) => u.name).join("\n") }),
+          }).then((r) => r.json()).catch(() => null);
+          const id = j?.data?.id ?? j?.data;
+          if (typeof id === "string") await post({ id: subject.id, examId: id });
+          setCreating(false);
+        }}
+      >SET</button>
+    </span>
+  );
+}
+
+function DeleteSubject({ subject, busy }: { subject: Subject; busy: boolean }) {
+  const [armed, setArmed] = useState(false);
+  const units = subject.units.length;
+
+  if (!armed) {
+    return <button className="sv-linkbtn danger" disabled={busy} onClick={() => setArmed(true)}>DELETE →</button>;
+  }
+  return (
+    <span className="sv-confirm">
+      <em>{units ? `${units} units and its history` : "this subject"}</em>
+      <button className="sv-linkbtn" onClick={() => setArmed(false)}>KEEP</button>
+      <button
+        className="sv-linkbtn danger"
+        disabled={busy}
+        onClick={async () => {
+          await fetch(`/api/study?id=${subject.id}`, { method: "DELETE" }).catch(() => {});
+          window.location.href = "/study";
+        }}
+      >DELETE</button>
+    </span>
+  );
+}
+
+function SlotAdd({ subjectId, post, busy }: { subjectId: string; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [weekday, setWeekday] = useState(1);
+  const [time, setTime] = useState("18:00");
+  const [minutes, setMinutes] = useState(60);
+  const add = () => {
+    const [h, m] = time.split(":").map(Number);
+    void post({ action: "slot", subjectId, slot: { weekday, startMin: h * 60 + (m || 0), minutes } });
+  };
+  return (
+    <div className="sv-add">
+      <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
+        {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+      </select>
+      <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+      <input type="number" min={5} max={600} step={5} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} />
+      <button onClick={add} disabled={busy}>ADD SLOT</button>
+    </div>
+  );
+}
+
+/**
+ * Logging time, in one click where possible.
+ *
+ * The lengths are the ones a study session actually is — a pomodoro, half an
+ * hour, an hour — so the common case is a single tap and the uncommon one is
+ * still there in the box. The unit selector is optional and remembers nothing
+ * on purpose: attributing time to the wrong chapter quietly corrupts the only
+ * chart that says where the effort went.
+ */
+const QUICK_MINUTES = [15, 25, 45, 60, 90];
+
+function QuickLog({
+  subject, post, busy,
+}: { subject: Subject; post: (b: Record<string, unknown>) => Promise<void>; busy: boolean }) {
+  const [unitId, setUnitId] = useState("");
+  const [custom, setCustom] = useState("");
+
+  const log = (minutes: number) => {
+    if (!minutes || minutes < 1) return;
+    void post({ action: "session", subjectId: subject.id, session: { minutes, unitId: unitId || null } });
+    setCustom("");
+  };
+
+  return (
+    <div className="sv-quick" id="study-log">
+      <div className="sv-quick-row">
+        {QUICK_MINUTES.map((m) => (
+          <button key={m} disabled={busy} onClick={() => log(m)} title={`Log ${m} minutes`}>{m}M</button>
+        ))}
+        <input
+          type="number" min={1} max={600} placeholder="…"
+          value={custom}
+          disabled={busy}
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") log(Number(custom)); }}
+        />
+        <button className="go" disabled={busy || !custom} onClick={() => log(Number(custom))}>LOG</button>
+      </div>
+      {subject.units.length > 0 && (
+        <select value={unitId} onChange={(e) => setUnitId(e.target.value)} disabled={busy}>
+          <option value="">against the whole subject</option>
+          {subject.units.map((u: Unit) => <option key={u.id} value={u.id}>{u.name}</option>)}
+        </select>
+      )}
+    </div>
+  );
+}
+

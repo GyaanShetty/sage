@@ -1,0 +1,206 @@
+/* ── the study wall ───────────────────────────────────────────────────────
+   Only what the dashboard's wall.css does not already provide: the syllabus
+   list, the little editors, and the comparison table. Everything else — the
+   grid, the panes, the tabs — is the same machinery the dashboard uses, so
+   the two screens stay in step when either is changed. */
+
+.study .wall-tabs button { --c: var(--signal); }
+.study .wall-tabs button.on { color: var(--c); border-bottom-color: var(--c); }
+.wall-tab-add { margin-left: auto; color: var(--muted); }
+
+/* ── the syllabus editor ──────────────────────────────────────────────────
+   Every control is on the row it acts on. The alternative — a mode, or a
+   panel — means holding in your head which unit you selected, which is the
+   sort of thing a list of twenty chapters is bad at. */
+.sv-units { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+/* The list keeps a floor of roughly three rows. It is flex: 1, so without
+   one a grown paste box squeezed the syllabus you were adding to down to a
+   single visible line — you could not see what you already had while typing
+   what you did not. */
+.sv-unit-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 1px; }
+.sv-unit-list:not(:empty) { min-height: 56px; }
+.sv-unit-list::-webkit-scrollbar { display: none; }
+
+.sv-unit {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 6px; font-size: 12px; color: var(--foreground);
+}
+.sv-unit:hover { background: var(--glass); }
+
+.sv-tick { flex: 0 0 auto; background: none; border: 0; padding: 2px; cursor: pointer; line-height: 0; }
+.sv-tick i { display: block; width: 10px; height: 10px; border: 1px solid; border-radius: 2px; }
+
+.sv-unit-n {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: none; border: 0; padding: 2px 0; text-align: left; cursor: text;
+  font: inherit; color: inherit;
+}
+.sv-unit.done .sv-unit-n { color: var(--muted); text-decoration: line-through; }
+
+.sv-rename {
+  flex: 1; min-width: 0; background: var(--panel); border: 1px solid var(--signal-dim);
+  color: var(--foreground); font: inherit; padding: 2px 5px; border-radius: 3px;
+}
+.sv-rename:focus { outline: none; }
+
+/* The row's controls stay out of the way until the row is under the pointer —
+   five buttons per line on a list of twenty is noise you read past. */
+.sv-weight, .sv-move { display: inline-flex; align-items: center; gap: 1px; opacity: 0; transition: opacity .12s ease; }
+.sv-unit:hover .sv-weight, .sv-unit:hover .sv-move, .sv-unit:focus-within .sv-weight, .sv-unit:focus-within .sv-move { opacity: 1; }
+.sv-weight b { font-family: var(--mono); font-size: 9px; color: var(--muted); min-width: 9px; text-align: center; font-weight: 400; }
+.sv-weight button, .sv-move button, .sv-del {
+  background: none; border: 0; color: var(--subtle); cursor: pointer;
+  font-family: var(--mono); font-size: 11px; line-height: 1; padding: 1px 3px;
+}
+.sv-weight button:hover, .sv-move button:hover { color: var(--foreground); }
+.sv-weight button:disabled, .sv-move button:disabled { opacity: 0.25; cursor: default; }
+.sv-del { flex: 0 0 auto; font-size: 13px; opacity: 0; transition: opacity .12s ease; }
+.sv-unit:hover .sv-del { opacity: 1; }
+.sv-del:hover { color: var(--danger); }
+.sv-del.confirm { opacity: 1; font-size: 8.5px; letter-spacing: 0.1em; color: var(--danger); }
+
+/* A weighted unit shows its weight even at rest — it changes what the
+   percentage means, so hiding it would hide the reason a number moved. */
+.sv-unit .sv-weight:has(b:not(:empty)) { opacity: 1; }
+.sv-unit:not(:hover) .sv-weight b { color: var(--subtle); }
+
+.sv-hint em { font-style: normal; color: var(--muted); }
+.sv-hint { margin: 4px 6px; font-size: 10.5px; line-height: 1.45; color: var(--subtle); }
+
+.sv-bulk { flex: 0 0 auto; margin-top: 6px; border-top: 1px solid var(--rule); padding-top: 6px; }
+.sv-bulk textarea {
+  width: 100%; resize: vertical; background: var(--panel); color: var(--foreground);
+  border: 1px solid var(--border-glass); border-radius: 4px; padding: 6px 8px;
+  font: inherit; font-size: 11.5px; line-height: 1.4;
+  /* The rows attribute grows the box to the paste; this stops it growing
+     past the pane and scrolls instead. Without the cap a long syllabus
+     pushed the add button out of the bottom of the tile. */
+  max-height: 124px; overflow-y: auto;
+}
+.sv-bulk textarea:focus { outline: none; border-color: var(--signal-dim); }
+.sv-bulk textarea::placeholder { color: var(--subtle); font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; }
+.sv-bulk-foot { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.sv-bulk-foot .sv-hint { flex: 1; margin: 0; }
+.sv-bulk-foot button {
+  margin-left: auto; background: none; border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--muted); cursor: pointer; padding: 5px 10px;
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; white-space: nowrap;
+}
+.sv-bulk-foot button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.sv-bulk-foot button:disabled { opacity: 0.4; cursor: default; }
+
+/* One-click session lengths. The commonest action on the page, so it sits at
+   the top of the pane rather than behind the magnify control. */
+.sv-quick { display: flex; flex-direction: column; gap: 5px; padding-bottom: 7px; margin-bottom: 6px; border-bottom: 1px solid var(--rule); }
+.sv-quick-row { display: flex; gap: 4px; align-items: center; }
+.sv-quick button {
+  flex: 1; background: var(--panel); border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--muted); cursor: pointer; padding: 6px 0;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+}
+.sv-quick button:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.sv-quick button:disabled { opacity: 0.4; cursor: default; }
+.sv-quick input {
+  width: 48px; background: var(--panel); border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--foreground); font-family: var(--mono); font-size: 10px; padding: 6px 4px; text-align: center;
+}
+.sv-quick .go { flex: 0 0 auto; padding: 6px 9px; }
+.sv-quick select {
+  background: none; border: 0; border-bottom: 1px solid var(--rule); color: var(--muted);
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.06em; padding: 2px 0; width: 100%;
+}
+.sv-log { min-height: 0; overflow-y: auto; scrollbar-width: none; }
+.sv-log::-webkit-scrollbar { display: none; }
+
+/* Adding a subject: an inline field in the tab strip. */
+.wall-tab-form { display: flex; align-items: center; margin-left: auto; padding: 0 8px; }
+.wall-tab-form input {
+  background: var(--panel); border: 1px solid var(--signal-dim); border-radius: 4px;
+  color: var(--foreground); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
+  padding: 6px 9px; width: 170px;
+}
+.wall-tab-form input:focus { outline: none; }
+
+.sv-examset { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.sv-examset select, .sv-examset input { font-size: 10px; }
+.sv-examdate { font-family: var(--mono); font-weight: 400; }
+
+.sv-tones { display: inline-flex; gap: 4px; }
+.sv-tones button { width: 12px; height: 12px; border: 1px solid transparent; border-radius: 2px; cursor: pointer; padding: 0; }
+.sv-tones button.on { border-color: var(--foreground); }
+
+.sv-confirm { display: inline-flex; align-items: center; gap: 8px; }
+.sv-confirm em { font-style: normal; font-size: 10px; color: var(--muted); }
+.sv-linkbtn.danger { color: var(--danger); }
+.sv-txt.wide { width: 140px; }
+
+.sv-hero { display: flex; align-items: center; gap: 14px; height: 100%; }
+.sv-hero-side { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.sv-next {
+  margin-top: 6px; padding: 5px 8px; font-family: var(--mono); font-size: 9.5px;
+  letter-spacing: 0.12em; color: var(--live); border-top: 1px solid var(--rule);
+}
+
+.sv-x {
+  margin-left: 8px; background: none; border: 0; color: var(--subtle); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0 2px;
+}
+.sv-x:hover { color: var(--danger); }
+
+/* The editors live inside the magnified pane, where there is room to type. */
+.sv-add { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.sv-add input, .sv-add select {
+  background: var(--panel); border: 1px solid var(--border-glass); color: var(--foreground);
+  padding: 7px 9px; font-size: 12px; font-family: inherit; border-radius: 4px; min-width: 0;
+}
+.sv-add input[type="number"] { width: 74px; }
+.sv-add input:not([type]), .sv-add input[type="text"] { flex: 1; min-width: 140px; }
+.sv-add button {
+  background: none; border: 1px solid var(--border-glass); color: var(--muted); cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; padding: 7px 12px; border-radius: 4px;
+}
+.sv-add button:hover { color: var(--signal); border-color: var(--signal); }
+
+.sv-num, .sv-txt {
+  background: none; border: 0; border-bottom: 1px solid var(--rule); color: var(--foreground);
+  font-family: var(--mono); font-size: 11px; text-align: right; width: 70px; padding: 1px 2px;
+}
+.sv-txt { text-align: right; width: 90px; }
+.sv-num:focus, .sv-txt:focus { outline: none; border-bottom-color: var(--signal); }
+
+.sv-tasks {
+  display: block; width: 100%; margin-top: 8px; padding: 7px 9px;
+  background: none; border: 1px solid var(--border-glass); border-radius: 4px;
+  color: var(--muted); cursor: pointer;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.14em;
+}
+.sv-tasks:hover:not(:disabled) { color: var(--signal); border-color: var(--signal); }
+.sv-tasks:disabled { opacity: 0.5; cursor: default; }
+
+.sv-linkbtn {
+  background: none; border: 0; color: var(--signal); cursor: pointer;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; padding: 0;
+}
+
+/* The comparison table: one row per subject, numbers right-aligned. */
+.sv-table { display: flex; flex-direction: column; font-family: var(--mono); font-size: 10.5px; }
+.sv-th, .sv-tr {
+  display: grid; grid-template-columns: 2fr repeat(7, minmax(0, 1fr));
+  gap: 6px; padding: 4px 8px; align-items: center;
+}
+.sv-th { color: var(--subtle); font-size: 8.5px; letter-spacing: 0.16em; border-bottom: 1px solid var(--rule); }
+.sv-tr { border-bottom: 1px solid var(--rule); }
+.sv-tr:hover { background: var(--glass); }
+.sv-tr span:not(:first-child), .sv-th span:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.sv-tr .up { color: var(--up); }
+.sv-tr .down { color: var(--down); }
+
+.st-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-family: var(--mono); font-size: 9px; color: var(--muted); }
+.st-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.st-legend i { width: 7px; height: 7px; display: inline-block; }
+
+@media (max-width: 900px) {
+  .sv-th, .sv-tr { grid-template-columns: 1.6fr repeat(4, minmax(0, 1fr)); }
+  .sv-th span:nth-child(n + 6), .sv-tr span:nth-child(n + 6) { display: none; }
+}

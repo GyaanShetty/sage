@@ -331,6 +331,11 @@ export function CommandView({
 
       {page === "markets" && (
         <div className="wall-pack">
+          {/* Bloomberg and the rest, on the page where they belong. The
+              overview carries them too; a markets desk with no television on
+              it is the thing that was missing. */}
+          <div className="t-6x4"><TileGuard name="MKTTV"><LiveTv n={1} /></TileGuard></div>
+          <div className="t-6x4"><TileGuard name="MKTCHARTS"><ChartsPanel n={2} /></TileGuard></div>
           <div className="t-6x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
           <div className="t-6x3"><TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard></div>
 

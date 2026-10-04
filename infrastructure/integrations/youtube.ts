@@ -12,7 +12,41 @@ export interface Video {
 
 // Gyaan's channels — news/finance/crypto. Handles (@name) or raw UC… ids both
 // work; override with MORNING_YT_CHANNELS (comma-separated).
-const DEFAULT_CHANNELS = ["@FinancialTimes", "@CoinDesk", "@Bloomberg", "@CNBC", "@mkbhd"];
+/*
+ * Channel IDs, not @handles.
+ *
+ * The handle resolver scrapes the channel page and takes the first UC id it
+ * finds, which is frequently a *related* channel rather than the one asked
+ * for. Checked by fetching each feed and reading back its title:
+ * @aljazeeraenglish resolved to Al Jazeera Arabic, @CNBC to CNBC Make It,
+ * @DWNews to DW Podcasts, @ycombinator to YC Root Access, @TED to TEDx Talks,
+ * and @Coinbureau to a channel called Finance Bureau — a different outlet
+ * altogether. Every one of those looked like it had worked.
+ *
+ * An ID resolves to exactly one channel or to nothing, so each of these was
+ * verified against the feed's own title before it went in. Handles still work
+ * if he adds one from Settings; this is only the default set.
+ */
+const DEFAULT_CHANNELS = [
+  // Markets and money
+  "UCIALMKvObZNtJ6AmdCLP7Lg",   // Bloomberg Television
+  "UCvJJ_dzjViJCoLf5uKUTwoA",   // CNBC
+  "UCrp_UI8XtuYfpiqluWLD7Lw",   // CNBC Television
+  "@FinancialTimes",
+  "@YahooFinance",
+  // Crypto
+  "@CoinDesk",
+  "UCqK_GSMbpiV8spgD3ZGloSw",   // Coin Bureau
+  // World
+  "UC16niRr50-MSBwiO3YDb3RA",   // BBC News
+  "UCNye-wNBqNL5ZzHSJj3l8Bg",   // Al Jazeera English
+  "UCknLrEdhRCp1aegoMqRaCZg",   // DW News
+  // Tech and ideas
+  "UCBJycsmduvYEL83R_U4JriQ",   // Marques Brownlee
+  "UCSHZKyawb77ixDdsGog4iWA",   // Lex Fridman
+  "UCAuUUnT6oDeKwE6v1NGQxug",   // TED
+  "@TechCrunch",
+];
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
 
@@ -79,8 +113,34 @@ async function channelVideos(id: string, perChannel: number): Promise<Video[]> {
 }
 
 /** Latest videos across the configured channels, newest first. */
-export async function getMorningVideos(perChannel = 2): Promise<Video[]> {
+export async function getMorningVideos(perChannel = 2, limit = 24): Promise<Video[]> {
   const ids = (await Promise.all((await channels()).map(resolveChannelId))).filter((x): x is string => !!x);
-  const sets = await Promise.all(ids.map((c) => channelVideos(c, perChannel)));
-  return sets.flat().sort((a, b) => b.published - a.published).slice(0, 6);
+  /*
+   * allSettled, not all. Nineteen channels means nineteen round trips and one
+   * of them will be slow or blocked on any given morning; `all` would lose the
+   * other eighteen to it.
+   */
+  const sets = await Promise.allSettled(ids.map((c) => channelVideos(c, perChannel)));
+  return sets
+    .flatMap((r) => (r.status === "fulfilled" ? r.value : []))
+    .sort((a, b) => b.published - a.published)
+    .slice(0, limit);
+}
+
+/**
+ * A still from each live channel, for the television panel's cards.
+ *
+ * A live stream has no thumbnail you can address without resolving the stream
+ * itself, so this takes the newest video on the channel instead. It is the
+ * right picture for the job either way: the card is saying "this is Bloomberg",
+ * not "this is the current frame", and a channel's latest upload looks like the
+ * channel.
+ */
+export async function channelStills(ids: string[]): Promise<Record<string, string>> {
+  const sets = await Promise.allSettled(ids.map(async (id) => [id, (await channelVideos(id, 1))[0]?.thumb ?? ""] as const));
+  const out: Record<string, string> = {};
+  for (const r of sets) {
+    if (r.status === "fulfilled" && r.value[1]) out[r.value[0]] = r.value[1];
+  }
+  return out;
 }

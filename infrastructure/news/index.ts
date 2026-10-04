@@ -16,6 +16,8 @@ const FEEDS: { source: string; url: string }[] = [
   { source: "MIT TR", url: "https://www.technologyreview.com/feed/" },
   { source: "TED", url: "https://www.ted.com/feeds/talks.rss" },
   { source: "FT", url: "https://www.ft.com/rss/home" },
+  { source: "THE DEFIANT", url: "https://thedefiant.io/api/feed" },
+  { source: "ECONOMIC TIMES", url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms" },
 ];
 
 /** Named sources for the Morning Block, in the order Gyaan reads them.
@@ -27,6 +29,18 @@ export const NEWS_SOURCES: Record<string, { source: string; url: string; site: s
   finexpress: { source: "Financial Express", url: "https://www.financialexpress.com/feed/", site: "financialexpress.com" },
   coindesk: { source: "CoinDesk", url: "https://www.coindesk.com/arc/outboundfeeds/rss/", site: "coindesk.com" },
   mittr: { source: "MIT Tech Review", url: "https://www.technologyreview.com/feed/", site: "technologyreview.com" },
+  /*
+   * Each of these was checked before being added — a feed URL that looks right
+   * and 301s or returns an empty channel is indistinguishable from a quiet
+   * news day once it is behind a tab.
+   *
+   * The Defiant publishes at /api/feed; /feed redirects and yields nothing.
+   * Economic Times has a markets-only channel as well as top stories, and the
+   * markets one is the reason to carry it.
+   */
+  defiant: { source: "The Defiant", url: "https://thedefiant.io/api/feed", site: "thedefiant.io" },
+  et: { source: "Economic Times", url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", site: "economictimes.indiatimes.com" },
+  ethome: { source: "ET Top Stories", url: "https://economictimes.indiatimes.com/rssfeedstopstories.cms", site: "economictimes.indiatimes.com" },
 };
 
 /** Google News RSS scoped to a publisher — reliable when the direct feed is
@@ -47,6 +61,37 @@ export async function getSourceHeadlines(key: string, limit = 6): Promise<Headli
   if (direct.length >= 2) return direct;
   const fallback = await googleNewsFeed(s.source, s.site, limit);
   return fallback.length ? fallback : direct;
+}
+
+/**
+ * Every morning source at once, newest first.
+ *
+ * The reader walks the publishers one tab at a time, which is right when you
+ * are doing the block deliberately and wrong for the rest of the day — the
+ * question then is "what has happened", not "what has the FT said". This is
+ * that: one stream, deduplicated, with each item still carrying the publisher
+ * it came from.
+ *
+ * Fetched in parallel and settled individually, so one slow or blocked feed
+ * costs its own stories and nobody else's.
+ */
+export async function getAllSourceHeadlines(perSource = 8): Promise<Headline[]> {
+  const keys = Object.keys(NEWS_SOURCES);
+  const settled = await Promise.allSettled(keys.map((k) => getSourceHeadlines(k, perSource)));
+
+  const seen = new Map<string, Headline>();
+  for (const r of settled) {
+    if (r.status !== "fulfilled") continue;
+    for (const h of r.value) {
+      // Syndicated stories reach more than one of these with different links,
+      // so the headline is what they agree on. Earliest copy wins, so the time
+      // is when it broke rather than when the slowest aggregator noticed.
+      const key = h.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const prev = seen.get(key);
+      if (!prev || h.published < prev.published) seen.set(key, h);
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.published - a.published);
 }
 
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });

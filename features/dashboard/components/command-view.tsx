@@ -22,6 +22,8 @@ import { Crosshair } from "@/components/chrome";
 import { EisenhowerBand } from "./eisenhower-band";
 import { MorningWire } from "./morning-wire";
 import { BoardPanel } from "./board-panel";
+import { LiveTv } from "./live-tv";
+import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
 import {
   SpendTrendTile, SpendShapeTile, TaskRhythmTile, TaskWeekdayTile, FocusTile,
@@ -304,10 +306,25 @@ export function CommandView({
           <div className="t-4x5"><TileGuard name="MORNINGWIRE"><MorningWire n={3} /></TileGuard></div>
           <div className="t-4x5"><TileGuard name="BOARD"><BoardPanel n={4} /></TileGuard></div>
 
+          {/*
+           * A fourth band: the things that are looked at rather than read.
+           * Charts carry the sector tape, the breadth and a month of mood;
+           * Live is six 24-hour news channels, none of them playing until
+           * pressed. Key Metrics keeps its place because it is the only
+           * panel that is about him rather than about the world.
+           *
+           * Bands: 3 + 4 + 5 + 4 + 3 = 19 rows, up from 15 — the wall scrolls
+           * now rather than being pinned to one viewport, which is what
+           * "more, and not empty" has to mean once there is more than a
+           * screenful.
+           */}
+          <div className="t-6x4"><TileGuard name="CHARTS"><ChartsPanel n={5} /></TileGuard></div>
+          <div className="t-6x4"><TileGuard name="LIVETV"><LiveTv n={6} /></TileGuard></div>
+
           <div className="t-4x3"><TileGuard name="KEYMETRICS">
-            <KeyMetricsTile n={5} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+            <KeyMetricsTile n={7} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={6} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={8} /></TileGuard></div>
           <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>
       )}

@@ -61,7 +61,12 @@
    * flex-sized `main`. So `100%` is the answer, and it needs no JavaScript,
    * cannot go stale, and re-solves itself whenever anything above changes.
    */
-  .wall { flex: 1; height: 100%; min-height: 0; overflow: hidden; }
+  /* Was `height: 100%; overflow: hidden` — the wall was exactly one viewport
+     and clipped whatever did not fit. Measured at 1600x1000 with the charts
+     and television bands in: 847px tall around 1630px of content, so the
+     bottom four panels were drawn and then hidden. It takes its content's
+     height now and the page scrolls. */
+  .wall { flex: 1; min-height: 100%; }
   /* One row of tracks, floored at zero.
      Without this the grid's implicit rows size to `auto` — the track grows to
      its tallest pane and the row spills over the one below it, which is what
@@ -554,7 +559,9 @@
 }
 
 @media (min-width: 1400px) {
-  .wall-shell { flex: 1; height: 100%; min-height: 0; overflow: hidden; }
+  /* `height: 100%` pinned the wall to the viewport; `min-height` lets it fill
+     the screen when there is little and grow past it when there is a lot. */
+  .wall-shell { flex: 1; min-height: 100%; }
   .wall-shell > .wall { flex: 1; min-height: 0; }
 }
 
@@ -572,8 +579,11 @@
  * phone, and had been for as long as this rule has existed.
  */
 main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
+/* The wall scrolls at every width now. It was `overflow: hidden` above 1400px
+   because the grid was exactly one viewport tall; it is nineteen rows and
+   taller than that, so clipping it would hide the bottom band outright. */
 @media (min-width: 1400px) {
-  main.hud-grid:has(.wall-shell) { overflow: hidden; }
+  main.hud-grid:has(.wall-shell) { overflow-y: auto; }
 }
 @media (min-width: 1400px) {
   main.hud-grid:has(.wall-shell) { display: flex; flex-direction: column; }
@@ -651,8 +661,7 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
 @media (min-width: 1400px) {
   .wall-pack {
     flex: 1;
-    height: 100%;
-    overflow: hidden;
+    min-height: 100%;
     /*
      * Rows are created as needed and share the height equally.
      *
@@ -665,8 +674,17 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
      * Letting the row count follow the content and sizing every row to an
      * equal share of a fixed height means a page needing eight rows simply
      * gets shorter ones, and nothing is ever squeezed to nothing.
+     *
+     * The floor is new, and it is the point at which "one screen, no scroll"
+     * stopped being the right promise. The overview is nineteen rows now —
+     * charts and live television on top of what was there — and an equal share
+     * of one viewport would be about forty pixels a row: a panel header and
+     * nothing under it. A minimum means the wall grows past the fold and the
+     * page scrolls, which is the honest consequence of there being more than a
+     * screenful. Below the floor nothing is readable anyway, so there was
+     * never a version of this that fit.
      */
-    grid-auto-rows: minmax(0, 1fr);
+    grid-auto-rows: minmax(74px, 1fr);
   }
 
   /*

@@ -26,11 +26,16 @@ interface Video { id: string; title: string; channel: string; thumb: string }
 
 /* The order he reads them in. WATCH is last because it is the one that takes
    a quarter of an hour rather than a glance. */
+/* ALL first, because the stream is what you want once the block is done for
+   the day. The publishers stay in the order he reads them. */
 const TABS = [
+  { key: "all", label: "ALL" },
   { key: "ft", label: "FT" },
+  { key: "et", label: "ET" },
   { key: "mint", label: "MINT" },
   { key: "finexpress", label: "FIN EXP" },
   { key: "coindesk", label: "COINDESK" },
+  { key: "defiant", label: "DEFIANT" },
   { key: "mittr", label: "MIT TR" },
   { key: "watch", label: "WATCH" },
 ] as const;
@@ -59,7 +64,7 @@ function LeadImage({ src }: { src?: string }) {
 }
 
 export function MorningWire({ n }: { n?: number }) {
-  const [tab, setTab] = useState<string>("ft");
+  const [tab, setTab] = useState<string>("all");
   /* Cached per tab, so flipping back and forth does not re-fetch a feed that
      refreshes hourly at best. */
   const [feeds, setFeeds] = useState<Record<string, Headline[] | null>>({});
@@ -99,7 +104,7 @@ export function MorningWire({ n }: { n?: number }) {
   /* The lead is only a lead if it has a picture; otherwise the column simply
      starts at the top and nothing looks like a missing image. */
   const lead = rows?.[0];
-  const rest = (rows ?? []).filter((h) => h !== lead).slice(0, 12);
+  const rest = (rows ?? []).filter((h) => h !== lead).slice(0, tab === "all" ? 30 : 12);
   const anything = tab === "watch" ? (videos?.length ?? 0) > 0 : (rows?.length ?? 0) > 0;
 
   return (
@@ -163,6 +168,7 @@ export function MorningWire({ n }: { n?: number }) {
                 <a key={h.link} className="wire-row mw-row" href={h.link} target="_blank" rel="noopener noreferrer" title={h.title}>
                   <span className="wire-t">{hhmm(h.published)}</span>
                   <span className="wire-h">{h.title}</span>
+                  {tab === "all" && <span className="wire-src">{h.source}</span>}
                   <ExternalLink className="mw-out size-3" aria-hidden />
                 </a>
               ))}

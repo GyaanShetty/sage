@@ -21,7 +21,7 @@ import { TZ } from "@/lib/config";
 import { asArray } from "@/lib/as-array";
 import { sound } from "@/lib/sound";
 
-interface Headline { source: string; title: string; link: string; published: number }
+interface Headline { source: string; title: string; link: string; published: number; image?: string }
 interface Video { id: string; title: string; channel: string; thumb: string }
 
 /* The order he reads them in. WATCH is last because it is the one that takes
@@ -38,6 +38,25 @@ const TABS = [
 const hhmm = (ms: number) =>
   new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false })
     .format(new Date(ms));
+
+/**
+ * The lead picture, or nothing at all.
+ *
+ * Publishers hotlink-protect their images — FT's CDN refuses a referrer that
+ * is not ft.com — so a src that is perfectly valid still fails, and the
+ * browser draws its broken-image glyph in a 104px box at the top of the
+ * panel. That is worse than no picture: it reads as the panel being broken
+ * rather than as the publisher declining.
+ *
+ * So the element removes itself on error. The headline and the standfirst
+ * stay, which is the part that was always the story.
+ */
+function LeadImage({ src }: { src?: string }) {
+  const [dead, setDead] = useState(false);
+  if (!src || dead) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" loading="lazy" onError={() => setDead(true)} />;
+}
 
 export function MorningWire({ n }: { n?: number }) {
   const [tab, setTab] = useState<string>("ft");
@@ -61,13 +80,26 @@ export function MorningWire({ n }: { n?: number }) {
     setBusy(true);
     const j = await fetch(`/api/feeds?source=${key}`, { signal: AbortSignal.timeout(15000) })
       .then((r) => r.json()).catch(() => null);
-    setFeeds((f) => ({ ...f, [key]: asArray<Headline>(j?.data) }));
+    /*
+     * `data.items`, not `data`.
+     *
+     * /api/feeds answers { data: { source, items } } — the wire route next to
+     * it answers { data: [...] }, and I read the second shape out of the
+     * first. So every publisher tab rendered "Nothing from FT today" with five
+     * FT stories sitting in the response, which looked exactly like a dead
+     * feed and was a wrong property name.
+     */
+    setFeeds((f) => ({ ...f, [key]: asArray<Headline>(j?.data?.items) }));
     setBusy(false);
   }, [feeds, videos]);
 
   useEffect(() => { void load(tab); }, [tab, load]);
 
   const rows = feeds[tab];
+  /* The lead is only a lead if it has a picture; otherwise the column simply
+     starts at the top and nothing looks like a missing image. */
+  const lead = rows?.[0];
+  const rest = (rows ?? []).filter((h) => h !== lead).slice(0, 12);
   const anything = tab === "watch" ? (videos?.length ?? 0) > 0 : (rows?.length ?? 0) > 0;
 
   return (
@@ -111,8 +143,24 @@ export function MorningWire({ n }: { n?: number }) {
           : rows.length === 0 ? <Empty reason={`Nothing from ${TABS.find((t) => t.key === tab)?.label} today`} />
           : (
             <div className="wire-rows">
-              {rows.slice(0, 14).map((h) => (
-                <a key={h.link} className="wire-row" href={h.link} target="_blank" rel="noopener noreferrer" title={h.title}>
+              {/*
+                * A lead and a list, which is how a page is laid out.
+                *
+                * Every one of these feeds returns a picture with the headline
+                * and the wall was dropping all of them — the single biggest
+                * difference between a page that reads as a newspaper and one
+                * that reads as a log file. The newest story gets the picture
+                * and the size; the rest are the column under it.
+                */}
+              {lead && (
+                <a className="wire-lead" href={lead.link} target="_blank" rel="noopener noreferrer">
+                  <LeadImage src={lead.image} />
+                  <p className="wl-h">{lead.title}</p>
+                  <span className="wl-m">{lead.source} · {hhmm(lead.published)}</span>
+                </a>
+              )}
+              {rest.map((h) => (
+                <a key={h.link} className="wire-row mw-row" href={h.link} target="_blank" rel="noopener noreferrer" title={h.title}>
                   <span className="wire-t">{hhmm(h.published)}</span>
                   <span className="wire-h">{h.title}</span>
                   <ExternalLink className="mw-out size-3" aria-hidden />

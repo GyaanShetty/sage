@@ -20,9 +20,9 @@
  * late.
  */
 
-import { APP_NAME } from "@/lib/config";
-import { AsciiMark } from "@/components/ascii/mark";
-import { AsciiRain, AsciiScan } from "@/components/ascii/motifs";
+import { useEffect, useState } from "react";
+import { APP_NAME, APP_MOTTO, TZ } from "@/lib/config";
+import { AsciiRain } from "@/components/ascii/motifs";
 import { Globe } from "@/components/globe";
 import { HeroTime, HeroMachine } from "./hero-flanks";
 
@@ -43,6 +43,20 @@ function Stat({
   );
 }
 
+/** "Sunday, 4 October 2026" — the line a front page carries under its name. */
+function useEdition(): string {
+  const [d, setD] = useState("");
+  useEffect(() => {
+    const fmt = () => new Intl.DateTimeFormat("en-GB", {
+      timeZone: TZ, weekday: "long", day: "numeric", month: "long", year: "numeric",
+    }).format(new Date());
+    setD(fmt());
+    const id = setInterval(() => setD(fmt()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return d;
+}
+
 export function DashHero({
   open,
   events,
@@ -56,6 +70,8 @@ export function DashHero({
   agentRunning: boolean;
   weather: string | null;
 }) {
+  const edition = useEdition();
+
   return (
     <section className="dash-hero">
       <div className="dh-rain" aria-hidden>
@@ -70,11 +86,26 @@ export function DashHero({
       <HeroTime />
 
       <div className="dh-centre">
+        {/*
+          * A masthead, not a boot screen.
+          *
+          * This was block-glyph art spelling SAGE with "MISSION CONTROL ·
+          * STANDING BY" under it and a scanning bar beside that. The art was
+          * never a typeface — it was characters arranged to look like one, and
+          * it was the single most science-fiction thing on the page.
+          *
+          * The name is set in the wordmark face, which he has asked twice to
+          * keep, between two rules the way a paper sets its nameplate. The
+          * line under it is a dateline: what this edition is and when, which
+          * is what sits there on a front page and is also more use than
+          * "STANDING BY".
+          */}
         <div className="dh-mark">
-          <AsciiMark label={APP_NAME} />
+          <span className="dh-rules">
+            <span className="dh-nameplate">{APP_NAME}</span>
+          </span>
           <span className="dh-tag">
-            <AsciiScan width={18} /> MISSION CONTROL ·{" "}
-            {agentRunning ? "AGENT RUNNING" : "STANDING BY"}
+            {edition} · {agentRunning ? "Agent running" : APP_MOTTO}
           </span>
         </div>
 

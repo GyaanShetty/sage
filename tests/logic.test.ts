@@ -5142,3 +5142,24 @@ test("no text token is set below the legible floor", async () => {
   const gap = Math.abs(ratio(up!) - ratio(down!));
   assert.ok(gap < 1.2, `--up and --down differ by ${gap.toFixed(2)} in contrast; one direction will read as dimmer than the other`);
 });
+
+test("the morning wire reads the shape /api/feeds actually returns", async () => {
+  const { readFileSync } = await import("node:fs");
+
+  /*
+   * Two neighbouring routes, two shapes: /api/news answers { data: [...] } and
+   * /api/feeds answers { data: { source, items } }. The panel read the first
+   * out of the second, so every publisher tab said "Nothing from FT today"
+   * while five FT stories sat in the response — indistinguishable from a dead
+   * feed, and a wrong property name.
+   */
+  const route = readFileSync("app/api/feeds/route.ts", "utf8");
+  assert.match(route, /items/, "the feeds route is expected to nest under items");
+
+  const panel = readFileSync("features/dashboard/components/morning-wire.tsx", "utf8");
+  assert.match(
+    panel,
+    /data\?\.items/,
+    "the morning wire must read data.items from /api/feeds, not data",
+  );
+});

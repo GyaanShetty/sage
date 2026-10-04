@@ -22,6 +22,7 @@ export const PAGES: Item[] = [
   { href: "/morning", label: "Morning", icon: Sunrise, hint: "the block", group: "NOW" },
   { href: "/calendar", label: "Calendar", icon: CalendarDays, hint: "week · month", group: "NOW" },
   { href: "/atlas", label: "Maps", icon: MapIcon, hint: "local · global", group: "NOW" },
+  { href: "/gods-eye", label: "God's Eye", icon: Radio, hint: "the whole planet, live", group: "NOW" },
   { href: "/chat", label: "Chat", icon: MessageSquare, group: "NOW" },
   { href: "/capture", label: "Capture", icon: Mic, hint: "talk · screenshot", group: "NOW" },
   { href: "/agents", label: "Agent", icon: Bot, hint: "runs", group: "NOW" },

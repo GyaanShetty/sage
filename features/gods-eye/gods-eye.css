@@ -1,0 +1,103 @@
+/* ── God's Eye ───────────────────────────────────────────────────────────────
+   A full-bleed map with the readout floating over it. The HUD is a column down
+   the left rather than a panel beside the map, because the subject of this
+   page is the planet and nothing should be taking width from it.
+   ------------------------------------------------------------------------- */
+
+.ge { position: relative; height: calc(100dvh - 128px); min-height: 520px; overflow: hidden; }
+.ge-map { position: absolute; inset: 0; background: #050505; }
+
+/* Monochrome tiles. OSM ships in colour and a colour basemap under a
+   black-and-white interface is the one thing that would make this page look
+   like a different application. */
+.ge-map .leaflet-tile-pane { filter: grayscale(1) invert(1) contrast(0.82) brightness(0.92); }
+.ge-map .leaflet-container { background: #050505; }
+
+.ge-hud {
+  position: absolute; top: 0; left: 0; bottom: 0; z-index: 500;
+  width: 330px; max-width: 86vw; overflow-y: auto; scrollbar-width: none;
+  padding: 14px 14px 20px;
+  background: linear-gradient(to right, rgba(5,5,5,.94) 0, rgba(5,5,5,.86) 70%, rgba(5,5,5,0) 100%);
+  pointer-events: auto;
+}
+.ge-hud::-webkit-scrollbar { display: none; }
+
+.ge-title {
+  font-family: var(--font-brand), sans-serif; font-weight: 900;
+  font-size: 22px; letter-spacing: 0.2em; margin: 0 0 2px; color: var(--ink);
+}
+.ge-sub { margin: 0; font-family: var(--serif); font-size: 12.5px; font-style: italic; color: var(--ink-3); }
+.ge-down { margin: 6px 0 0; display: flex; align-items: center; gap: 5px;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--down); }
+
+/* ── layer switches ───────────────────────────────────────────────────── */
+
+.ge-layers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px;
+  background: var(--line); border: 1px solid var(--line); margin: 14px 0; }
+.ge-layer {
+  display: flex; align-items: center; gap: 7px; padding: 8px 9px;
+  background: var(--panel); border: 0; cursor: pointer; color: var(--ink-4);
+  font-family: inherit; text-align: left; min-width: 0;
+}
+.ge-layer:hover { background: var(--panel-hi); }
+/* On is brighter, not coloured — the page has one accent and it is white. */
+.ge-layer.on { color: var(--ink); background: var(--panel-hi); box-shadow: inset 2px 0 0 var(--ink); }
+.ge-lname { flex: 1; min-width: 0; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ge-lcount { font-size: 10px; color: var(--ink-3); }
+
+/* ── lists ────────────────────────────────────────────────────────────── */
+
+.ge-list { margin-bottom: 16px; }
+.ge-list h2 {
+  margin: 0 0 4px; font-family: var(--font-disp), sans-serif;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-4); border-bottom: 1px solid var(--line); padding-bottom: 4px;
+}
+.ge-quiet { margin: 8px 0; font-family: var(--serif); font-style: italic; font-size: 12px; color: var(--ink-4); }
+
+.ge-row {
+  display: flex; align-items: baseline; gap: 9px; width: 100%;
+  padding: 6px 0; background: none; border: 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  text-align: left; cursor: pointer; color: inherit; font-family: inherit;
+}
+.ge-row.static { cursor: default; }
+.ge-row:not(.static):hover { background: rgba(255,255,255,.04); }
+/* Fixed width so a column of magnitudes is comparable down the page — the
+   whole reason the number is first. */
+.ge-mag { flex: none; width: 34px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.ge-mag.big { color: var(--ink); font-size: 15px; }
+.ge-rmain { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ge-rt { font-family: var(--serif); font-size: 12.5px; line-height: 1.25; color: var(--ink); }
+.ge-rs { font-family: var(--font-disp), sans-serif; font-size: 9px; letter-spacing: 0.08em; color: var(--ink-4); }
+
+.ge-foot { display: flex; align-items: center; gap: 6px; padding-top: 10px;
+  border-top: 1px solid var(--line); font-size: 9px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-4); }
+
+/* ── markers ──────────────────────────────────────────────────────────── */
+
+.ge-quake { stroke: rgba(255,255,255,.75); fill: #ffffff; }
+.ge-quake.big { stroke: #ffffff; fill: #ffffff; }
+.ge-storm { color: #fff; font-size: 17px; line-height: 1; text-align: center;
+  text-shadow: 0 0 10px rgba(255,255,255,.6); }
+.ge-sat { color: rgba(255,255,255,.62); font-size: 9px; line-height: 1; text-align: center; }
+.ge-sat.iss { color: #fff; font-size: 12px; text-shadow: 0 0 8px rgba(255,255,255,.8); }
+.ge-plane { color: rgba(255,255,255,.5); font-size: 10px; line-height: 1; text-align: center; }
+
+.leaflet-tooltip {
+  background: #0a0a0a; border: 1px solid var(--line-2); color: var(--ink);
+  font-family: var(--font-mono-f), monospace; font-size: 10px; box-shadow: none;
+}
+.leaflet-tooltip::before { display: none; }
+
+@media (max-width: 720px) {
+  .ge { height: calc(100dvh - 160px); }
+  /* The HUD becomes a sheet over the bottom half rather than a column that
+     would leave a phone with a 40px strip of map. */
+  .ge-hud {
+    top: auto; right: 0; width: auto; max-width: none; max-height: 56%;
+    background: linear-gradient(to top, rgba(5,5,5,.96) 0, rgba(5,5,5,.9) 80%, rgba(5,5,5,0) 100%);
+    border-top: 1px solid var(--line);
+  }
+}

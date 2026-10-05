@@ -737,6 +737,12 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
   /* The hero band, tall enough for the globe to be a globe rather than a
      stripe of dots behind a line of type. */
   .wall-pack > .t-12x3 { grid-column: span 12; grid-row: span 3; }
+  /* The morning block is a nine-step flow with its own chrome; four rows cut
+     its step list off mid-way. A tile whose span class is not defined takes
+     the grid's implicit minimum and renders as a sliver — the Atlas map came
+     out 145x87 that way once. */
+  .wall-pack > .t-12x4 { grid-column: span 12; grid-row: span 4; }
+  .wall-pack > .t-12x6 { grid-column: span 12; grid-row: span 6; }
 
   /*
    * There was a rule here that gave wide screens MORE tiles to a band, on the

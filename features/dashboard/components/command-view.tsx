@@ -7,48 +7,27 @@ import "../wall.css";
 import { ExpandModal } from "@/components/expand-modal";
 import { TaskManager } from "./task-manager";
 import { AtlasMap } from "@/features/atlas/atlas-map";
-import { PlayingTile } from "./tiles";
 import { TileGuard } from "@/components/tile-guard";
 import {
-  AgentLogTile, GithubTile, BioTile, PortfolioTile, ExamTile, SystemTile,
-} from "./page-tiles";
-import {
-  MarketsTile, FeedsTile, KeyMetricsTile, HealthTile, ActivityTile, ClocksTile, SkyTile, CodeTile, PushTile, CareerTile, ReviewTile, GraphTile, SpendTile, CalibrationTile, GrowthTile,
-} from "./wall-tiles";
+  KeyMetricsTile, } from "./wall-tiles";
 import { MarketsList } from "./markets-list";
 import { QuickLaunch } from "./quick-launch";
 import { Pane } from "@/components/pane";
 import { Crosshair } from "@/components/chrome";
-import { EisenhowerBand } from "./eisenhower-band";
 import { MorningWire } from "./morning-wire";
 import { BoardPanel } from "./board-panel";
 import { LiveTv } from "./live-tv";
+import { GmailPanel } from "./gmail-panel";
+import { AgendaPanel } from "./agenda-panel";
+import { MorningBlock } from "@/features/morning/morning-block";
 import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
-import {
-  SpendTrendTile, SpendShapeTile, TaskRhythmTile, TaskWeekdayTile, FocusTile,
-  AgentRunsTile, MemoryGrowthTile, ReadingTile, ReviewTrendTile, JournalTile,
-  StepsTile, CorpusTile, StudyTile,
-} from "./chart-tiles";
-import {
-  BudgetTile, WeatherWeekTile, SkillsTile, DecisionsTile, MachineryTile,
-  ModelLoadTile, KeysTile,
-} from "./ops-tiles";
 import { BriefBlock } from "./brief-block";
 import { TZ } from "@/lib/config";
 
 /* ─── data contracts (all real, server-fetched) ─── */
-export type PageId = "overview" | "markets" | "body" | "work" | "mind";
 
-const PAGE_KEY = "sage-wall-page";
 
-export const PAGES: { id: PageId; label: string }[] = [
-  { id: "overview", label: "OVERVIEW" },
-  { id: "markets", label: "MARKETS" },
-  { id: "body", label: "BODY" },
-  { id: "work", label: "WORK" },
-  { id: "mind", label: "MIND" },
-];
 
 export interface TaskRow { id: string; title: string; status: string; dueAt: string | null }
 export interface EventRow { id?: string; summary: string; start: string; allDay?: boolean }
@@ -118,36 +97,6 @@ export function CommandView({
   const [focusRun] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
 
-  /*
-   * The tab he was last in, restored.
-   *
-   * Read in an effect rather than as the initial state, because reading
-   * localStorage during render makes the server and client disagree and React
-   * throws away the whole tree to recover from it.
-   */
-  const [page, setPage] = useState<PageId>("overview");
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(PAGE_KEY) as PageId | null;
-      if (saved && PAGES.some((p) => p.id === saved)) setPage(saved);
-    } catch { /* private mode; the default is fine */ }
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem(PAGE_KEY, page); } catch { /* nothing to persist to */ }
-  }, [page]);
-
-  // 1–5 switch pages, unless he is typing into something.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (!t || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const i = Number(e.key) - 1;
-      if (Number.isInteger(i) && i >= 0 && i < PAGES.length) setPage(PAGES[i].id);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   const now = new Date();
   const open = tasks.filter((t) => t.status !== "done").length;
@@ -187,18 +136,6 @@ export function CommandView({
         Client state rather than routes: the data is already loaded, so
         switching should cost nothing.
       */}
-      <nav className="wall-tabs" aria-label="Dashboard pages">
-        {PAGES.map((p, i) => (
-          <button
-            key={p.id}
-            className={page === p.id ? "on" : ""}
-            onClick={() => setPage(p.id)}
-            aria-current={page === p.id ? "page" : undefined}
-          >
-            <em>{i + 1}</em>{p.label}
-          </button>
-        ))}
-      </nav>
 
     <div className="wall">
       {/* ── ROW 1 ─────────────────────────────────────────────────────────
@@ -216,7 +153,6 @@ export function CommandView({
         385x200 each — enough for a title, a figure and four rows, which is
         what these panes actually contain.
       */}
-      {page === "overview" && (
         <div className="wall-pack has-hero">
           {/* The band the eye lands on before it starts reading numbers. It
               pays for its height by taking eight tiles off this wall — the
@@ -302,9 +238,33 @@ export function CommandView({
            * Bands: 3 + 4 + 5 + 3 = 15. Every band sums to twelve columns and
            * shares a row-span, which is what lets the grid close.
            */}
-          <div className="t-4x5"><TileGuard name="EISENHOWER"><div className="wall-cell"><EisenhowerBand /></div></TileGuard></div>
-          <div className="t-4x5"><TileGuard name="MORNINGWIRE"><MorningWire n={3} /></TileGuard></div>
-          <div className="t-4x5"><TileGuard name="BOARD"><BoardPanel n={4} /></TileGuard></div>
+          {/*
+           * Inbox and agenda in words, not counts.
+           *
+           * Both have been on the wall for months as a number — "6 unread",
+           * "0 today" — which is the least useful form either takes: it says
+           * whether there is work and nothing about what it is. Senders and
+           * subjects, times and titles; what you were going to click through
+           * to see anyway.
+           */}
+          <div className="t-4x5"><TileGuard name="INBOX"><GmailPanel n={3} /></TileGuard></div>
+          <div className="t-4x5"><TileGuard name="AGENDA"><AgendaPanel n={4} events={events} /></TileGuard></div>
+          <div className="t-4x5"><TileGuard name="BOARD"><BoardPanel n={5} /></TileGuard></div>
+
+          {/*
+           * The morning block, where the morning is.
+           *
+           * It has lived on its own route, so the nine-step read — Gmail, five
+           * publishers, the watch list, LeetCode, the synthesis — was
+           * somewhere you had to decide to go. The whole point of it is that
+           * it is the first thing, so it belongs on the screen already open.
+           * Full width and six rows deep: it is a flow with its own chrome
+           * rather than a readout, and it does not fit in a quarter.
+           */}
+          <div className="t-12x6"><TileGuard name="MORNINGBLOCK"><div className="wall-cell mb-cell"><MorningBlock /></div></TileGuard></div>
+
+          <div className="t-6x3"><TileGuard name="MORNINGWIRE"><MorningWire n={6} /></TileGuard></div>
+          <div className="t-6x3"><TileGuard name="CHARTS"><ChartsPanel n={7} /></TileGuard></div>
 
           {/*
            * A fourth band: the things that are looked at rather than read.
@@ -318,112 +278,14 @@ export function CommandView({
            * "more, and not empty" has to mean once there is more than a
            * screenful.
            */}
-          <div className="t-6x4"><TileGuard name="CHARTS"><ChartsPanel n={5} /></TileGuard></div>
-          <div className="t-6x4"><TileGuard name="LIVETV"><LiveTv n={6} /></TileGuard></div>
+          <div className="t-12x4"><TileGuard name="LIVETV"><LiveTv n={8} /></TileGuard></div>
 
           <div className="t-4x3"><TileGuard name="KEYMETRICS">
-            <KeyMetricsTile n={7} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+            <KeyMetricsTile n={9} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={8} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={10} /></TileGuard></div>
           <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>
-      )}
-
-      {page === "markets" && (
-        <div className="wall-pack">
-          {/* Bloomberg and the rest, on the page where they belong. The
-              overview carries them too; a markets desk with no television on
-              it is the thing that was missing. */}
-          <div className="t-6x4"><TileGuard name="MKTTV"><LiveTv n={1} /></TileGuard></div>
-          <div className="t-6x4"><TileGuard name="MKTCHARTS"><ChartsPanel n={2} /></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="MARKETS"><MarketsTile n={2} /></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="PORTFOLIO"><PortfolioTile n={28} /></TileGuard></div>
-
-          <div className="t-4x3"><TileGuard name="SPENDTREND"><SpendTrendTile n={38} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="SPENDSHAPE"><SpendShapeTile n={39} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="MEMGROWTH2"><MemoryGrowthTile n={43} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="SPEND"><SpendTile n={33} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="BUDGET"><BudgetTile n={42} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="GROWTH"><GrowthTile n={29} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="KEYS"><KeysTile n={47} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="CALIBRATION"><CalibrationTile n={34} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="MACHINERY"><MachineryTile n={45} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="MODELLOAD"><ModelLoadTile n={46} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="SYSTEM"><SystemTile n={23} /></TileGuard></div>
-        </div>
-      )}
-
-      {page === "body" && (
-        <div className="wall-pack">
-          <div className="t-4x3"><TileGuard name="STEPS"><StepsTile n={40} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="HEALTH"><HealthTile n={5} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="BIO"><BioTile n={4} /></TileGuard></div>
-
-          <div className="t-6x2"><TileGuard name="WEATHERWEEK"><WeatherWeekTile n={44} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="SKY"><SkyTile n={16} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="CLOCKS"><ClocksTile n={15} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="ACTIVITY"><ActivityTile n={7} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="TASKRHYTHM2"><TaskRhythmTile n={35} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="FOCUS2"><FocusTile n={37} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="JOURNAL2"><JournalTile n={46} /></TileGuard></div>
-
-          <div className="t-4x2"><TileGuard name="READING2"><ReadingTile n={47} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="REVIEWTREND2"><ReviewTrendTile n={45} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="PLAYING"><PlayingTile n={14} /></TileGuard></div>
-        </div>
-      )}
-
-      {page === "work" && (
-        <div className="wall-pack">
-          <div className="t-12x3"><TileGuard name="TASKWEEKDAY"><TaskWeekdayTile n={36} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="CAREER"><CareerTile n={26} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="CODE"><CodeTile n={24} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="GITHUB"><GithubTile n={13} /></TileGuard></div>
-
-          <div className="t-3x2"><TileGuard name="PUSH"><PushTile n={25} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="SKILLS"><SkillsTile n={41} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="DECISIONS"><DecisionsTile n={43} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="REVIEW"><ReviewTile n={31} /></TileGuard></div>
-
-          <div className="t-6x2"><TileGuard name="TASKRHYTHM"><TaskRhythmTile n={35} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="FOCUSHIST"><FocusTile n={37} /></TileGuard></div>
-          <div className="t-3x2"><TileGuard name="AGENTRUNS2"><AgentRunsTile n={48} /></TileGuard></div>
-        </div>
-      )}
-
-      {page === "mind" && (
-        /*
-         * Bands of twelve, every tile in a band the same height.
-         *
-         * This tab was 12, then 18, then 9 columns wide — the spans did not
-         * tile, so dense packing backfilled what it could and left ragged
-         * edges with dead gaps in the middle. A band has to sum to twelve and
-         * its tiles have to share a row-span, or the grid cannot close.
-         */
-        <div className="wall-pack">
-          <div className="t-3x3"><TileGuard name="STUDY"><StudyTile n={49} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="EXAM"><ExamTile n={30} /></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="GRAPH"><GraphTile n={32} /></TileGuard></div>
-
-          <div className="t-6x3"><TileGuard name="MEMGROWTH"><MemoryGrowthTile n={43} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="CORPUS"><CorpusTile n={41} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="JOURNAL"><JournalTile n={46} /></TileGuard></div>
-
-          <div className="t-4x2"><TileGuard name="READING"><ReadingTile n={47} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="REVIEWTREND"><ReviewTrendTile n={45} /></TileGuard></div>
-          <div className="t-4x2"><TileGuard name="AGENTRUNS"><AgentRunsTile n={44} /></TileGuard></div>
-
-          {/* Agent Log came off the overview with the other tiles that are
-              usually empty. It belongs next to the run history anyway. */}
-          <div className="t-6x2"><TileGuard name="FEEDS"><FeedsTile n={12} /></TileGuard></div>
-          <div className="t-6x2"><TileGuard name="AGENTLOG"><AgentLogTile n={6} /></TileGuard></div>
-        </div>
-      )}
 
       <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">
         <TaskManager tasks={tasks} setTasks={setTasks} />

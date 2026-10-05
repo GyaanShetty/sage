@@ -437,3 +437,47 @@ body::after, body::before { display: none; }
 .cx-mlab { display: block; margin-top: 5px; font-family: var(--font-disp), sans-serif;
   font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); }
 .cx-mlab b { font-family: var(--mono); font-size: 13px; color: var(--ink); letter-spacing: 0; }
+
+/* ── inbox and agenda ─────────────────────────────────────────────────────── */
+
+.gm-row {
+  display: grid; grid-template-columns: 88px minmax(0, 1fr) 36px;
+  align-items: baseline; gap: 9px; padding: 6px 12px;
+  border-bottom: 1px solid var(--line); text-decoration: none; color: inherit;
+}
+.gm-row:hover { background: rgba(255, 255, 255, 0.035); }
+.gm-from { font-family: var(--font-disp), sans-serif; font-size: 9.5px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.gm-sub { font-family: var(--serif); font-size: 12.5px; line-height: 1.25; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-snip { font-size: 10px; color: var(--ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-when { font-size: 9px; color: var(--ink-4); text-align: right; }
+
+.ag-row {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: baseline; gap: 10px; padding: 7px 12px;
+  border-bottom: 1px solid var(--line); text-decoration: none; color: inherit;
+}
+.ag-row:hover { background: rgba(255, 255, 255, 0.035); }
+.ag-when { font-size: 10.5px; color: var(--ink-3); }
+.ag-what { font-family: var(--serif); font-size: 13px; color: var(--ink-2); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* What has already happened recedes; what is next is the only thing marked. */
+.ag-row.past .ag-when, .ag-row.past .ag-what { color: var(--ink-4); }
+.ag-row.next .ag-what { color: var(--ink); }
+.ag-row.next .ag-when { color: var(--ink); }
+.ag-tag { font-family: var(--font-disp), sans-serif; font-size: 8px; letter-spacing: 0.16em;
+  color: var(--ink); border: 1px solid var(--line-2); padding: 1px 5px; }
+
+/* ── the morning block, inside a tile ─────────────────────────────────────── */
+
+/*
+ * It was written as a page: its own max-width, its own vertical padding, its
+ * own assumption that the viewport is the container. In a tile it needs to
+ * scroll inside itself rather than push on the grid, which is the bargain
+ * every other pane on this wall already makes.
+ */
+.mb-cell { overflow: auto; scrollbar-width: none; height: 100%; min-height: 0; }
+.mb-cell::-webkit-scrollbar { display: none; }
+.mb-cell > * { max-width: none; }

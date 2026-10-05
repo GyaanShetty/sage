@@ -4727,14 +4727,21 @@ test("every wall tab tiles its bands twelve wide", async () => {
    * two-row tiles is the other half of the same fault — the band's height
    * comes from its tallest member and the short ones grow airy gaps.
    */
-  const tabs = [...src.matchAll(/page === "(\w+)" && \(/g)].map((m) => m[1]);
-  assert.ok(tabs.length >= 5, "found the tab blocks");
+  /*
+   * One wall now, not five tabs. The MARKETS / BODY / WORK / MIND tabs are
+   * gone, so this reads the single `.wall-pack` instead of hunting for
+   * `page === "x"` blocks that no longer exist — the rule it enforces is
+   * unchanged and is the reason the test survived the restructure.
+   */
+  const walls = [...src.matchAll(/className="wall-pack[^"]*"/g)];
+  assert.ok(walls.length >= 1, "found the wall");
 
   const problems: string[] = [];
-  for (const tab of tabs) {
-    const start = src.indexOf(`page === "${tab}" && (`);
-    const end = src.indexOf('{page === "', start + 10);
-    const block = src.slice(start, end > 0 ? end : undefined);
+  for (const [i, w] of walls.entries()) {
+    const tab = `wall ${i + 1}`;
+    const start = w.index ?? 0;
+    const next = walls[i + 1]?.index;
+    const block = src.slice(start, next ?? undefined);
 
     // Anywhere in the class list, not only at its start: the atlas map
     // carries `wall-map t-6x3`, and anchoring to the quote skipped it — which

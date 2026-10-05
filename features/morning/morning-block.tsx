@@ -17,17 +17,28 @@ import { TZ } from "@/lib/config";
 type StepKind = "gmail" | "feed" | "leetcode" | "synthesis" | "watch";
 interface Step { id: string; label: string; kind: StepKind; source?: string; icon: typeof Mail; tint: string }
 
-// Gyaan's morning block, in order.
+/*
+ * Gyaan's morning block, in order.
+ *
+ * The tints are all the same now. They were seven hues — coral, red, green,
+ * white, amber, violet, red again — used to give each step an identity, which
+ * is exactly the job colour cannot do on this palette: a five-step grey ramp
+ * measures 12.5 ΔE between neighbours against a floor of 15, and these seven
+ * were carrying no information the label beside them did not already carry.
+ *
+ * The step you are on is marked by position and brightness instead, which is
+ * what the rest of the interface does.
+ */
 const STEPS: Step[] = [
-  { id: "gmail", label: "Gmail", kind: "gmail", icon: Mail, tint: "#e86a6a" },
-  { id: "ft", label: "Financial Times", kind: "feed", source: "ft", icon: Newspaper, tint: "#ff3b30" },
-  { id: "mint", label: "Mint", kind: "feed", source: "mint", icon: TrendingUp, tint: "#54c98a" },
-  { id: "finexpress", label: "Financial Express", kind: "feed", source: "finexpress", icon: Newspaper, tint: "#f4f5f7" },
-  { id: "coindesk", label: "CoinDesk", kind: "feed", source: "coindesk", icon: Coins, tint: "#e8c14a" },
-  { id: "mittr", label: "MIT Tech Review", kind: "feed", source: "mittr", icon: Cpu, tint: "#9a7bff" },
-  { id: "watch", label: "Watch", kind: "watch", icon: Video, tint: "#ff4d4d" },
-  { id: "leetcode", label: "LeetCode", kind: "leetcode", icon: Code2, tint: "#ffa116" },
-  { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "#f4f5f7" },
+  { id: "gmail", label: "Gmail", kind: "gmail", icon: Mail, tint: "var(--ink)" },
+  { id: "ft", label: "Financial Times", kind: "feed", source: "ft", icon: Newspaper, tint: "var(--ink)" },
+  { id: "mint", label: "Mint", kind: "feed", source: "mint", icon: TrendingUp, tint: "var(--ink)" },
+  { id: "finexpress", label: "Financial Express", kind: "feed", source: "finexpress", icon: Newspaper, tint: "var(--ink)" },
+  { id: "coindesk", label: "CoinDesk", kind: "feed", source: "coindesk", icon: Coins, tint: "var(--ink)" },
+  { id: "mittr", label: "MIT Tech Review", kind: "feed", source: "mittr", icon: Cpu, tint: "var(--ink)" },
+  { id: "watch", label: "Watch", kind: "watch", icon: Video, tint: "var(--ink)" },
+  { id: "leetcode", label: "LeetCode", kind: "leetcode", icon: Code2, tint: "var(--ink)" },
+  { id: "synthesis", label: "Synthesis", kind: "synthesis", icon: Sparkles, tint: "var(--ink)" },
 ];
 
 interface Synthesis { summary: string; connections: string[]; watch: string[]; actions: string[]; spoken?: string }

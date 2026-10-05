@@ -34,13 +34,33 @@ export function AgendaPanel({ n, events }: { n?: number; events: EventRow[] | nu
     const load = () => {
       const from = new Date(); from.setHours(0, 0, 0, 0);
       const to = new Date(); to.setHours(23, 59, 59, 999);
-      shareJson<{ data?: unknown }>(`/api/calendar?from=${from.toISOString()}&to=${to.toISOString()}`)
-        .then((j) => setRows(asArray<EventRow>(j?.data)))
+      /*
+       * `data.events`, not `data`.
+       *
+       * /api/calendar answers { data: { events, feeds, lead } }. I read the
+       * first level as the array, so asArray received an object, returned
+       * nothing, and the panel then *overwrote* the correct events the server
+       * had already handed it as a prop — it showed "nothing on the calendar
+       * today" on a day with entries, and the empty state was the panel
+       * arguing with itself.
+       *
+       * Second time I have made this exact mistake: /api/feeds answers
+       * { data: { source, items } } and I read `data` there too. The guard
+       * test below now covers the class rather than the instance.
+       */
+      shareJson<{ data?: { events?: unknown } }>(`/api/calendar?from=${from.toISOString()}&to=${to.toISOString()}`)
+        .then((j) => {
+          const next = asArray<EventRow>(j?.data?.events);
+          // Only replace what is on screen with something real. A failed or
+          // empty refresh must not blank a good server render.
+          if (next.length || rows === null) setRows(next);
+        })
         .catch(() => {});
     };
     load();
     const id = setInterval(load, 600_000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* The first entry that has not started yet. Everything before it is behind

@@ -5170,3 +5170,63 @@ test("the morning wire reads the shape /api/feeds actually returns", async () =>
     "the morning wire must read data.items from /api/feeds, not data",
   );
 });
+
+test("a panel reads the shape its route actually returns", async () => {
+  const { readFileSync } = await import("node:fs");
+
+  /*
+   * Twice now I have read `data` out of a route that nests its payload one
+   * level deeper. /api/feeds answers { data: { source, items } } and the
+   * morning wire read `data`, so every publisher tab said "Nothing from FT
+   * today" with five FT stories in the response. /api/calendar answers
+   * { data: { events, feeds, lead } } and the agenda panel read `data`, so it
+   * rendered "nothing on the calendar today" AND overwrote the correct events
+   * the server had already given it.
+   *
+   * Both looked exactly like an empty upstream, which is why neither was
+   * obvious. This pins the class: for each route that wraps its list in a
+   * named key, every client that calls it must name that key too.
+   */
+  const CASES: { route: string; key: string; callers: string[] }[] = [
+    {
+      route: "app/api/calendar/route.ts",
+      key: "events",
+      callers: ["features/dashboard/components/agenda-panel.tsx", "features/calendar/calendar-view.tsx"],
+    },
+    {
+      route: "app/api/feeds/route.ts",
+      key: "items",
+      callers: ["features/dashboard/components/morning-wire.tsx"],
+    },
+    {
+      route: "app/api/youtube/route.ts",
+      key: "videos",
+      callers: ["features/dashboard/components/morning-wire.tsx"],
+    },
+  ];
+
+  for (const c of CASES) {
+    const route = readFileSync(c.route, "utf8");
+    assert.match(
+      route,
+      new RegExp(`\\b${c.key}\\b`),
+      `${c.route} is expected to nest its payload under "${c.key}"`,
+    );
+    for (const f of c.callers) {
+      /*
+       * Comments stripped first. The first version of this test matched the
+       * explanatory comment above the fix — "`data.events`, not `data`" — so
+       * reintroducing the bug left it passing. A guard that reads the
+       * documentation instead of the code is worse than no guard, because it
+       * reports that the thing is covered.
+       */
+      const src = readFileSync(f, "utf8")
+        .replace(/\/\*[\s\S]*?\*\//g, "")
+        .replace(/\/\/[^\n]*/g, "");
+      assert.ok(
+        new RegExp(`data\\??\\.${c.key}\\b`).test(src),
+        `${f} calls ${c.route} but never reads data.${c.key} — it will render as an empty upstream`,
+      );
+    }
+  }
+});

@@ -525,3 +525,158 @@ body::after, body::before { display: none; }
 .ht-h { display: block; font-family: var(--serif); font-size: 12px; line-height: 1.3; color: var(--ink-2); min-width: 0; }
 .ht-src { font-family: var(--font-disp), sans-serif; font-size: 8px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+
+/* ══ the merge ════════════════════════════════════════════════════════════ */
+
+/*
+ * Gyaan sent five references and asked for a merge of them: a dark industrial
+ * HUD with boxed, numbered panels, corner ticks and bar meters; rounded cards
+ * with big dot-matrix numerals; radial gauges. All of them carry an orange
+ * accent, and two rounds earlier he said the old black and white was best.
+ *
+ * So this takes the structure and leaves the paint. What the references
+ * actually have that this page did not is *addressing* — every panel reads as
+ * an instrument with a number, a corner mark and a measured edge — and that
+ * survives translation to monochrome intact, where the palette does not.
+ *
+ * One exception, and it is the whole merge: a single amber, spent only where
+ * something is live or wrong. A lone hue against neutrals is the one colour
+ * encoding that holds for every form of colour blindness — unlike the
+ * up/down pair, which measured 1.9 ΔE under deuteranopia and therefore still
+ * ships with ▲/▽ doing the real work. Amber is never the only cue either:
+ * live states carry the word, hazards carry the stripe.
+ */
+:root {
+  --amber: #e8a33d;
+  --amber-dim: rgba(232, 163, 61, 0.42);
+}
+
+/* Corner ticks, drawn as four gradients on the panel itself rather than as
+   pseudo-elements — .pane already spends ::before and ::after, and a fifth
+   element per tile on a thirty-tile wall is thirty elements for a decoration.
+   7px arms: long enough to read as a registration mark at a glance, short
+   enough that they never become a second border. */
+.pane, .mk-card {
+  background-image:
+    linear-gradient(var(--line-2), var(--line-2)), linear-gradient(var(--line-2), var(--line-2)),
+    linear-gradient(var(--line-2), var(--line-2)), linear-gradient(var(--line-2), var(--line-2));
+  background-size: 7px 1px, 1px 7px, 7px 1px, 1px 7px;
+  background-position: left bottom, left bottom, right bottom, right bottom;
+  background-repeat: no-repeat;
+}
+
+/* The address comes back as an address: boxed, monospace, tabular, so 03 and
+   11 are the same width and the column of numbers down the wall lines up. */
+.pane-n {
+  font-family: var(--font-mono-f), monospace;
+  font-size: 9px; font-weight: 500; font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  border: 1px solid var(--line-2);
+  padding: 1px 3px; margin-right: 7px;
+}
+
+/* Live is the one place amber is spent on the wall. The word still says it. */
+.pane-s.live { color: var(--amber); }
+.pane:has(.pane-s.live) { border-top-color: var(--amber-dim); }
+
+/* Meters become segmented, which is the reference's reading and also a better
+   one: a segmented bar can be counted, a continuous one can only be compared. */
+.am-run {
+  background-image: repeating-linear-gradient(90deg,
+    var(--ink-3) 0 3px, transparent 3px 5px);
+  background-color: transparent;
+}
+.am-head { background: var(--amber); }
+
+/* The hero's figures set as instrument numerals: mono, tabular, tight. The
+   references put the one number that matters at display size, and the reason
+   it works is that nothing else on the card competes with it. */
+.dh-stat b {
+  font-family: var(--font-mono-f), monospace;
+  font-weight: 400; font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ── charts ───────────────────────────────────────────────────────────────── */
+
+/*
+ * These styles were missing entirely: the panel shipped with its markup and
+ * no sheet, so the sector rows fell back to inline text and the breadth
+ * donut — an SVG with a viewBox and no box to fit — expanded to the width of
+ * the tile and ran off the bottom as a black dome. Caught by screenshotting
+ * the wall rather than by trusting the component.
+ */
+.cx { display: flex; flex-direction: column; gap: 10px; padding: 9px 11px; min-width: 0; }
+
+.cx-sectors { display: flex; flex-direction: column; gap: 3px; }
+.cx-srow {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr) 62px;
+  align-items: center; gap: 8px;
+}
+.cx-slabel {
+  font-family: var(--font-disp), sans-serif; font-size: 9.5px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The track is the full width and the axis sits at its centre, so every bar
+   is read against one shared baseline — which is the entire reason this is a
+   diverging bar and not eight separately-scaled ones. */
+.cx-track { position: relative; display: block; height: 9px; min-width: 0; }
+.cx-axis {
+  position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+  background: var(--line-2);
+}
+.cx-bar { position: absolute; top: 1px; bottom: 1px; display: block; }
+.cx-bar.up { background: var(--up); }
+.cx-bar.down { background: var(--down); }
+.cx-sval {
+  font-family: var(--font-mono-f), monospace; font-size: 9.5px;
+  font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap;
+}
+.cx-sval.up { color: var(--up); }
+.cx-sval.down { color: var(--down); }
+
+.cx-pair {
+  display: grid; grid-template-columns: 86px minmax(0, 1fr);
+  align-items: center; gap: 12px;
+  border-top: 1px solid var(--line); padding-top: 9px; min-width: 0;
+}
+
+/* A fixed square for the donut. Without one an SVG with a viewBox takes the
+   width it is given and the height that implies — which on a 600px tile is a
+   600px circle. */
+.cx-donut { position: relative; width: 86px; height: 86px; }
+.cx-donut svg { width: 86px; height: 86px; display: block; transform: rotate(-90deg); }
+.cx-ring { fill: none; stroke: var(--line-2); stroke-width: 9; }
+.cx-ringup { fill: none; stroke: var(--ink); stroke-width: 9; }
+.cx-dmid {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px; text-align: center;
+}
+.cx-dmid b {
+  font-family: var(--font-mono-f), monospace; font-size: 17px; font-weight: 400;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.cx-dmid i {
+  font-style: normal; font-family: var(--font-disp), sans-serif;
+  font-size: 7.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4);
+}
+
+.cx-mood { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.cx-mood svg { width: 100%; height: 52px; display: block; }
+.cx-mid { stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.cx-line { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+.cx-mlab {
+  font-family: var(--font-disp), sans-serif; font-size: 9px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-4);
+}
+.cx-mlab b {
+  font-family: var(--font-mono-f), monospace; font-size: 12px; font-weight: 400;
+  color: var(--ink-2); margin-right: 4px;
+}
+
+/* A blocked or failed embed paints its own white page, which on this wall is
+   a 1400px white slab. The stage underneath is dark and the frame is told it
+   is on a dark scheme, so the failure mode is a dark rectangle. */
+.tv-stage { background: var(--sunken); }
+.tv-stage iframe { color-scheme: dark; background: var(--sunken); }

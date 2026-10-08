@@ -23,7 +23,7 @@ import { MorningBlock } from "@/features/morning/morning-block";
 import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
 import { HotTopics } from "./hot-topics";
-import { SubscriptionsTile, WhiteboardTile } from "./routine-tiles";
+import { SubscriptionsTile, WhiteboardTile, DirectivesPanel } from "./routine-tiles";
 import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
 import { BudgetTile } from "./ops-tiles";
 import { StudyTile } from "./chart-tiles";
@@ -208,11 +208,16 @@ export function CommandView({
            */}
           <div className="t-12x5"><TileGuard name="LIVETV"><LiveTv n={1} /></TileGuard></div>
 
-          {/* 1 · 2 · 3 · 6 — the two mailboxes, the wire and the day. The
-              mailboxes are two panes rather than one merged list because he
-              clears them in two passes. */}
-          <div className="t-3x5"><TileGuard name="INBOX"><GmailPanel n={2} account="gmail" /></TileGuard></div>
-          <div className="t-3x5"><TileGuard name="OUTLOOK"><GmailPanel n={3} account="outlook" /></TileGuard></div>
+          {/* 1 · 3 · 6 · 7 — the mail, the wire, the day, the list.
+              Outlook was here and is gone: the Azure app is single-tenant, so
+              that pane could only ever say "not connected" and fail a request
+              every five minutes. Directives took the slot — a tall narrow
+              column beside mail and calendar is the shape of a list, and the
+              list that belongs in the morning is what he has to do. */}
+          <div className="t-3x5"><TileGuard name="INBOX"><GmailPanel n={2} /></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="DIRECTIVES">
+            <DirectivesPanel n={3} tasks={tasks} setTasks={setTasks} onManage={() => setTaskModal(true)} />
+          </TileGuard></div>
           <div className="t-3x5"><TileGuard name="MORNINGWIRE"><MorningWire n={4} /></TileGuard></div>
           <div className="t-3x5"><TileGuard name="AGENDA"><AgendaPanel n={5} events={events} /></TileGuard></div>
 

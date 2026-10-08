@@ -757,3 +757,64 @@ body::after, body::before { display: none; }
 
 /* The meter head, which marks where a value actually sits on its track. */
 .am-head { background: var(--amber); }
+
+/* ── directives ───────────────────────────────────────────────────────────── */
+
+/* The add field sits at the top rather than the bottom: a list you add to
+   every morning should not need scrolling past ten rows to reach its input. */
+.dv-add {
+  display: grid; grid-template-columns: minmax(0, 1fr) 26px; align-items: center;
+  border-bottom: 1px solid var(--rule-strong); background: var(--sunken);
+}
+.dv-in {
+  background: none; border: 0; outline: none; min-width: 0;
+  padding: 8px 12px; color: var(--ink);
+  font-family: var(--serif); font-size: 12.5px;
+}
+.dv-in::placeholder { color: var(--ink-4); font-style: italic; }
+.dv-in:focus { background: var(--panel-hi); }
+.dv-plus {
+  background: none; border: 0; cursor: pointer; height: 100%;
+  color: var(--ink-4); font-size: 15px; line-height: 1;
+  transition: color .15s var(--ease);
+}
+.dv-plus:hover { color: var(--amber); }
+
+.dv-row {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center; gap: 8px; padding: 6px 12px 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.dv-row:hover { background: var(--panel-hi); }
+
+/* An empty box until it is pressed. The tick only appears on hover, so a
+   list of ten unticked rows is ten boxes rather than ten ticks, which is the
+   state it is actually in. */
+.dv-tick {
+  display: flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; padding: 0;
+  background: none; border: 1px solid var(--line-2); cursor: pointer;
+  color: transparent; transition: color .12s var(--ease), border-color .12s var(--ease);
+}
+.dv-row:hover .dv-tick { border-color: var(--ink-3); }
+.dv-tick:hover { color: var(--amber); border-color: var(--amber); }
+
+.dv-t {
+  font-family: var(--serif); font-size: 12.5px; line-height: 1.3; color: var(--ink-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.dv-row.late .dv-t { color: var(--ink); }
+/* Late carries the word as well as the colour — amber is the confirmation,
+   never the only thing saying it. */
+.dv-late {
+  font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: 0.14em;
+  color: var(--amber); border: 1px solid var(--amber-dim); padding: 1px 3px; white-space: nowrap;
+}
+
+.dv-more {
+  display: block; width: 100%; text-align: left; padding: 7px 12px;
+  background: none; border: 0; border-top: 1px solid var(--line); cursor: pointer;
+  font-family: var(--font-disp), sans-serif; font-size: 9px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-4);
+}
+.dv-more:hover { color: var(--amber); }

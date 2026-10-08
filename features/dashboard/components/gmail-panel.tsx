@@ -8,11 +8,16 @@
  * nothing about whether any of it matters. This is the senders and the
  * subjects, which is what you were going to click through to see anyway.
  *
- * One panel per mailbox rather than one merged list. They were merged, which
- * is defensible as "is there mail" and wrong as a morning routine: Gyaan
- * clears Gmail and then clears Outlook, two steps, and a single sorted list
- * cannot be cleared in two passes. `account` picks which; `both` is still
- * there for anywhere that only wants the one pane.
+ * Gmail only.
+ *
+ * This used to read both mailboxes, and briefly had an Outlook twin beside
+ * it. Outlook is out: the Azure app is registered single-tenant, so the call
+ * cannot succeed from this account, and a pane that is structurally
+ * incapable of returning anything is worse than no pane — it fails a request
+ * every five minutes to go on saying "not connected". The integration itself
+ * is untouched in settings and on the mail page; if the Azure registration
+ * is ever switched to multi-tenant, this pane is three lines from reading it
+ * again.
  */
 
 import { useCallback, useState } from "react";
@@ -40,84 +45,42 @@ const hhmm = (iso?: string) => {
   return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 };
 
-type Account = "gmail" | "outlook" | "both";
-
-const SOURCE: Record<Exclude<Account, "both">, { url: string; title: string; connect: string; href: string }> = {
-  gmail: {
-    url: "/api/mail?view=unread",
-    title: "Gmail",
-    connect: "Gmail isn\u2019t connected",
-    href: "/api/integrations/google",
-  },
-  outlook: {
-    url: "/api/mail?view=unread&account=outlook",
-    title: "Outlook",
-    connect: "Outlook isn\u2019t connected",
-    href: "/settings",
-  },
-};
-
-export function GmailPanel({ n, account = "both" }: { n?: number; account?: Account }) {
+export function GmailPanel({ n }: { n?: number }) {
   const [gmail, setGmail] = useState<Msg[] | null>(null);
-  const [outlook, setOutlook] = useState<Msg[] | null>(null);
-  const [gmailDown, setGmailDown] = useState(false);
-  const [outlookDown, setOutlookDown] = useState(false);
-
-  const wantG = account !== "outlook";
-  const wantO = account !== "gmail";
+  const [down, setDown] = useState(false);
 
   const pull = useCallback(async () => {
-    const [g, o] = await Promise.allSettled([
-      wantG ? shareJson<{ ok?: boolean; data?: { messages?: unknown } }>(SOURCE.gmail.url) : Promise.resolve(null),
-      wantO ? shareJson<{ ok?: boolean; data?: { messages?: unknown } }>(SOURCE.outlook.url) : Promise.resolve(null),
-    ]);
-    if (wantG) {
-      if (g.status === "fulfilled" && g.value?.ok) { setGmail(asArray<Msg>(g.value.data?.messages)); setGmailDown(false); }
-      else setGmailDown(true);
+    try {
+      const j = await shareJson<{ ok?: boolean; data?: { messages?: unknown } }>("/api/mail?view=unread");
+      if (j?.ok) { setGmail(asArray<Msg>(j.data?.messages)); setDown(false); }
+      else setDown(true);
+    } catch {
+      setDown(true);
     }
-    // Outlook is frequently not connected, which is a configuration state
-    // rather than a failure — it says so rather than reporting an error.
-    if (wantO) {
-      if (o.status === "fulfilled" && o.value?.ok) { setOutlook(asArray<Msg>(o.value.data?.messages)); setOutlookDown(false); }
-      else setOutlookDown(true);
-    }
-  }, [wantG, wantO]);
+  }, []);
   useLive(pull, { everyMs: 300_000 });
 
-  const rows = [...(wantG ? gmail ?? [] : []), ...(wantO ? outlook ?? [] : [])]
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
-    .slice(0, 12);
-
-  const total = rows.length;
-  const loaded = (!wantG || gmail !== null || gmailDown) && (!wantO || outlook !== null || outlookDown);
-  /* A single-mailbox pane is named for its mailbox; the merged one is just
-     "Inbox", because that is the only honest name for two of them. */
-  const title = account === "both" ? "Inbox" : SOURCE[account].title;
-  const down = account === "outlook" ? outlookDown : gmailDown;
-  const empty = account === "both" ? gmailDown : down;
+  const rows = (gmail ?? []).slice(0, 12);
+  const loaded = gmail !== null || down;
 
   return (
     <Pane
       n={n}
-      title={title}
-      status={total ? `${total} unread` : empty ? "not connected" : "clear"}
-      live={total > 0}
+      title="Gmail"
+      status={rows.length ? `${rows.length} unread` : down ? "not connected" : "clear"}
+      live={rows.length > 0}
     >
       {!loaded && <div className="tile-wait">OPENING…</div>}
 
-      {empty && rows.length === 0 && loaded && (
+      {down && gmail === null && (
         <div className="empty-state">
           <Mail className="es-mark size-5" strokeWidth={1.5} />
-          <div className="es-t">{account === "both" ? SOURCE.gmail.connect : SOURCE[account].connect}</div>
-          <div className="es-d">
-            <Link href={account === "both" ? SOURCE.gmail.href : SOURCE[account].href} className="live">
-              Connect →
-            </Link>
-          </div>
+          <div className="es-t">Gmail isn&rsquo;t connected</div>
+          <div className="es-d"><Link href="/api/integrations/google" className="live">Connect Google →</Link></div>
         </div>
       )}
 
-      {!empty && rows.length === 0 && loaded && (
+      {!down && rows.length === 0 && loaded && (
         <Empty reason="Nothing unread. The inbox is clear." />
       )}
 

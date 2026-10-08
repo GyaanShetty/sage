@@ -742,6 +742,10 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
      the grid's implicit minimum and renders as a sliver — the Atlas map came
      out 145x87 that way once. */
   .wall-pack > .t-12x4 { grid-column: span 12; grid-row: span 4; }
+  /* Five rows for the television band: three streams side by side plus the
+     strip of recent uploads under them. At four the strip squeezed the
+     players down to a letterbox. */
+  .wall-pack > .t-12x5 { grid-column: span 12; grid-row: span 5; }
   .wall-pack > .t-12x6 { grid-column: span 12; grid-row: span 6; }
 
   /*

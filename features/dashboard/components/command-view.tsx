@@ -23,6 +23,10 @@ import { MorningBlock } from "@/features/morning/morning-block";
 import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
 import { HotTopics } from "./hot-topics";
+import { SubscriptionsTile, WhiteboardTile } from "./routine-tiles";
+import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
+import { BudgetTile } from "./ops-tiles";
+import { StudyTile } from "./chart-tiles";
 import { BriefBlock } from "./brief-block";
 import { TZ } from "@/lib/config";
 
@@ -182,46 +186,66 @@ export function CommandView({
            * that suits a paragraph and a list and does not suit a map.
            */}
           {/*
-           * Television first, then the day, then the money.
+           * The wall, in the order of his day.
            *
-           * The order is the order the screen is read in. The player is at the
-           * top because it is the one thing on the wall that is *happening* —
-           * everything else is a reading of something that already happened.
-           * The board and the watchlist moved to the bottom: they are checked,
-           * not watched, and they were taking the position of the thing you
-           * look at.
+           * He wrote the routine out: mail, then the wire, then LeetCode,
+           * then markets, then the schedule, then the plan — college — then
+           * study, money and the board in the evening, with video running
+           * throughout. The wall now follows that order top to bottom, and
+           * every one of the fourteen things on his list has a pane. Six of
+           * them already existed as tiles elsewhere in the tree and were
+           * simply never placed here: LeetCode, study, budget, spend,
+           * review. Two did not exist at all and are new.
            *
-           * A quarter narrower, too. The three-across bands are four-across
-           * now: span 4 of twelve is a third of the width, span 3 is a
-           * quarter, which is exactly the 25% asked for and lands on the grid
-           * rather than near it.
+           * Television stays at the top because it is the one thing on the
+           * wall that is *happening*; everything else is a reading of
+           * something that already happened.
            *
-           * Bands: 3 + 4 + 5 + 6 + 4 + 3 + 2 = 27 rows. The wall scrolls.
+           * Bands: 3 + 5 + 5 + 6 + 4 + 4 + 4 + 3 + 2 = 36 rows. The wall
+           * scrolls, and every band sums to 12 columns on a shared row span,
+           * which is the one rule this grid cannot bend — a tile with no span
+           * class takes the implicit minimum and renders as a sliver.
            */}
-          <div className="t-12x4"><TileGuard name="LIVETV"><LiveTv n={1} /></TileGuard></div>
+          <div className="t-12x5"><TileGuard name="LIVETV"><LiveTv n={1} /></TileGuard></div>
 
-          <div className="t-3x5"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
-          <div className="t-3x5"><TileGuard name="INBOX"><GmailPanel n={2} /></TileGuard></div>
-          <div className="t-3x5"><TileGuard name="AGENDA"><AgendaPanel n={3} events={events} /></TileGuard></div>
+          {/* 1 · 2 · 3 · 6 — the two mailboxes, the wire and the day. The
+              mailboxes are two panes rather than one merged list because he
+              clears them in two passes. */}
+          <div className="t-3x5"><TileGuard name="INBOX"><GmailPanel n={2} account="gmail" /></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="OUTLOOK"><GmailPanel n={3} account="outlook" /></TileGuard></div>
           <div className="t-3x5"><TileGuard name="MORNINGWIRE"><MorningWire n={4} /></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="AGENDA"><AgendaPanel n={5} events={events} /></TileGuard></div>
 
+          {/* 7 — plan the day. */}
           <div className="t-12x6"><TileGuard name="MORNINGBLOCK"><div className="wall-cell mb-cell"><MorningBlock /></div></TileGuard></div>
 
-          <Pane n={5} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x4" frame noZoom>
+          <Pane n={6} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x4" frame noZoom>
             <AtlasMap lat={12.9352} lon={77.6245} compact />
           </Pane>
-          <div className="t-4x4"><TileGuard name="CHARTS"><ChartsPanel n={6} /></TileGuard></div>
+          <div className="t-4x4"><TileGuard name="CHARTS"><ChartsPanel n={7} /></TileGuard></div>
           {/* Hot topics earns its place by breadth: a term only shows once two
               separate publishers are running it, so this is what the desk is
               actually chasing rather than what one outlet happens to repeat. */}
-          <div className="t-4x4"><TileGuard name="HOTTOPICS"><HotTopics n={11} /></TileGuard></div>
+          <div className="t-4x4"><TileGuard name="HOTTOPICS"><HotTopics n={8} /></TileGuard></div>
 
-          <div className="t-3x3"><TileGuard name="MARKETS"><MarketsList n={7} limit={12} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="BOARD"><BoardPanel n={8} /></TileGuard></div>
+          {/* 5 · 4 — skim the markets, then the day's problem. */}
+          <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={9} limit={12} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="BOARD"><BoardPanel n={10} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="LEETCODE"><CodeTile n={11} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="STUDY"><StudyTile n={12} /></TileGuard></div>
+
+          {/* 11 · 12 · 13 — the evening: money, what it renews at, the board. */}
+          <div className="t-3x4"><TileGuard name="BUDGET"><BudgetTile n={13} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="SPEND"><SpendTile n={14} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="SUBSCRIPTIONS"><SubscriptionsTile n={15} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="WHITEBOARD"><WhiteboardTile n={16} /></TileGuard></div>
+
+          <div className="t-3x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
           <div className="t-3x3"><TileGuard name="KEYMETRICS">
-            <KeyMetricsTile n={9} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+            <KeyMetricsTile n={17} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-3x3"><TileGuard name="LAUNCH"><QuickLaunch n={10} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="REVIEW"><ReviewTile n={18} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="LAUNCH"><QuickLaunch n={19} /></TileGuard></div>
 
           <div className="t-12x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>

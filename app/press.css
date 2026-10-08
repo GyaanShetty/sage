@@ -28,13 +28,13 @@
    * black, warm white, and the FT's own ink colours for everything that has to
    * stand out.
    */
-  --deep:       #0a0a0a;
-  --background: #0a0a0a;
-  --panel:      #121212;
-  --surface:    #121212;
-  --panel-hi:   #1a1a1a;
-  --surface-hi: #1a1a1a;
-  --sunken:     #050505;
+  --deep:       #0b0a09;
+  --background: #0b0a09;
+  --panel:      #131211;
+  --surface:    #131211;
+  --panel-hi:   #1c1a18;
+  --surface-hi: #1c1a18;
+  --sunken:     #060504;
 
   /* Paper, not white. #fff on a dark ground glares; warm off-white reads as
      printed rather than emitted. */
@@ -62,34 +62,41 @@
   --lit-wash: rgba(242, 242, 242, 0.02);
 
   /*
-   * Monochrome, which is where this started and where it was best.
+   * One accent: amber.
    *
-   * The claret-and-teal pair was correct for a newspaper and wrong for this
-   * one: on a page that is mostly figures, two hues of chrome compete with the
-   * two hues that mean something. The original design note said it plainly —
-   * meaning carried by luminance, not by hue — and then four accents were
-   * added over the following months until there were five.
+   * This went monochrome first, and monochrome was right about the thing it
+   * was fixing — four competing hues of chrome on a page that is mostly
+   * figures. It was wrong about the conclusion. With white as the accent,
+   * "live" and "bright" are the same signal, so a panel that is receiving and
+   * a panel that is merely emphasised look identical, and the eye has nothing
+   * to find.
    *
-   * So: white is the accent. Live, focused, selected and current are all
-   * degrees of brightness, which a dense page can carry indefinitely without
-   * ever looking busy. The only hue left in the interface is direction, and it
-   * is muted hard — enough to tell a column of risers from a column of
-   * fallers at a glance, not enough to be the first thing you see.
+   * Amber is the one hue the references all share, and it is the right one on
+   * the evidence rather than only by taste: a single warm hue against warm
+   * neutrals is separable for every form of colour blindness, which is not
+   * true of any PAIR of hues — the up/down pair measured 1.9 ΔE under
+   * deuteranopia and still carries ▲/▽ for exactly that reason.
+   *
+   * The discipline is what keeps it from becoming decoration: amber means
+   * live, current, selected or wrong. It is never spent on a heading, a
+   * border or a figure that is merely large, and it is never the only cue —
+   * live states carry the word, hazards carry the stripe, the current tab
+   * carries its position.
    */
-  --signal:       #ffffff;
-  --signal-dim:   rgba(255, 255, 255, 0.42);
-  --signal-faint: rgba(255, 255, 255, 0.10);
-  --signal-glow:  rgba(255, 255, 255, 0.5);
-  --live:         #ffffff;
-  --live-dim:     rgba(255, 255, 255, 0.42);
-  --live-glow:    rgba(255, 255, 255, 0.4);
-  --accent:       #ffffff;
-  --claret:       #ffffff;   /* kept as a name so the press rules below hold */
-  --teal:         rgba(255, 255, 255, 0.62);
+  --signal:       #e8a33d;
+  --signal-dim:   rgba(232, 163, 61, 0.42);
+  --signal-faint: rgba(232, 163, 61, 0.10);
+  --signal-glow:  rgba(232, 163, 61, 0.45);
+  --live:         #e8a33d;
+  --live-dim:     rgba(232, 163, 61, 0.42);
+  --live-glow:    rgba(232, 163, 61, 0.38);
+  --accent:       #e8a33d;
+  --claret:       #e8a33d;   /* kept as a name so the press rules below hold */
+  --teal:         rgba(242, 242, 242, 0.62);
 
   /* Desaturated to roughly a third of their old chroma. They still read as
      green and red where two sit side by side, and the page still reads as
-     black and white from across the room. */
+     near-monochrome from across the room. Amber sits clear of both. */
   --up:   #8fb89d;
   --down: #c9969b;
 
@@ -362,79 +369,87 @@ body::after, body::before { display: none; }
  * that is on; the strip is twelve stills you can switch to, scrolling in its
  * own column rather than pushing the panel taller.
  */
-.tv { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 1px;
-  background: var(--line); height: 100%; min-height: 0; }
+/* ── three screens ───────────────────────────────────────────────────────── */
 
-.tv-stage { position: relative; background: #000; min-height: 0; }
+/*
+ * Three equal cells, each a stream and a name plate. The old single-stage
+ * layout is gone: one 16:9 player in a 12-column band is a cinema screen with
+ * a dashboard around it, which is the wrong way round.
+ *
+ * The strip of recent uploads moves UNDER the screens rather than beside
+ * them, so the three players get the full width and the strip gets a row it
+ * does not have to share.
+ */
+.tv3 {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  background: var(--line); flex: 1; min-height: 0;
+}
+.tv3-cell { display: flex; flex-direction: column; background: var(--panel); min-width: 0; min-height: 0; }
+
+.tv3-stage { position: relative; flex: 1; min-height: 0; background: var(--sunken); }
 /*
  * color-scheme: dark is the only lever there is over an iframe's own content.
- * When the stream cannot load — the network is down, the channel is offline,
- * an extension blocked it — the browser renders ITS error page inside the
- * frame, and that page is white by default: a 1700px light slab in the middle
- * of a black wall. Declaring the scheme makes Chrome draw that error dark
- * instead. Everything else in there is cross-origin and not ours to style.
+ * When a stream cannot load — network down, channel offline, an extension
+ * blocking it — the browser renders ITS error page inside the frame, and that
+ * page is white by default. Declaring the scheme makes Chrome draw it dark.
+ * Everything else in there is cross-origin and not ours to style.
  */
-.tv-stage iframe { width: 100%; height: 100%; border: 0; display: block; color-scheme: dark; background: #000; }
+.tv3-stage iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  border: 0; display: block; color-scheme: dark; background: var(--sunken);
+}
 
-/* The column beside the player: three recent videos, then the channel strip
-   under them. Both scroll together rather than each having its own bar. */
-.tv-side { display: flex; flex-direction: column; gap: 1px; background: var(--line);
-  overflow-y: auto; scrollbar-width: none; min-height: 0; }
-.tv-side::-webkit-scrollbar { display: none; }
-.tv-saved { background: var(--panel); }
-.tv-sh { font-family: var(--font-disp), sans-serif; font-size: 8px; letter-spacing: 0.16em;
-  text-transform: uppercase; color: var(--ink-4); padding: 7px 9px 4px; }
-.tv-vid { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: center;
-  padding: 5px 9px; text-decoration: none; color: inherit; border-top: 1px solid var(--line); }
+.tv3-bar {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) 22px; align-items: center;
+  border-top: 1px solid var(--line); background: var(--panel); flex: none;
+}
+.tv3-nav {
+  display: flex; align-items: center; justify-content: center; height: 30px;
+  background: none; border: 0; color: var(--ink-4); cursor: pointer;
+  transition: color .15s var(--ease);
+}
+.tv3-nav:hover { color: var(--amber); }
+.tv3-id { min-width: 0; text-align: center; padding: 4px 2px; }
+.tv3-name {
+  display: block; font-family: var(--serif); font-size: 12.5px; line-height: 1.1; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tv3-note {
+  display: block; font-family: var(--font-disp), sans-serif; font-size: 7.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The three recent uploads, in a row under the screens. */
+.tv3-saved {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
+  background: var(--line); border-top: 1px solid var(--line); flex: none;
+}
+.tv-vid {
+  display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: center;
+  padding: 6px 9px; text-decoration: none; color: inherit; background: var(--panel); min-width: 0;
+}
 .tv-vid:hover { background: var(--panel-hi); }
 .tv-vid img { width: 58px; height: 33px; object-fit: cover; filter: grayscale(1) brightness(0.85); }
 .tv-vbody { min-width: 0; }
-.tv-vt { display: block; font-family: var(--serif); font-size: 11px; line-height: 1.25; color: var(--ink-2);
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.tv-vc { display: block; font-family: var(--font-disp), sans-serif; font-size: 7.5px;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
-
-.tv-strip { display: flex; flex-direction: column; gap: 1px; background: var(--line); }
-.tv-strip::-webkit-scrollbar { display: none; }
-
-.tv-card {
-  position: relative; flex: none; height: 54px;
-  display: flex; flex-direction: column; justify-content: flex-end; gap: 0;
-  background: var(--panel); border: 0; padding: 5px 9px; cursor: pointer;
-  text-align: left; min-width: 0; overflow: hidden;
-  transition: background .15s var(--ease);
+.tv-vt {
+  font-family: var(--serif); font-size: 11px; line-height: 1.25; color: var(--ink-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.tv-card:hover { background: var(--panel-hi); }
-.tv-card.on { box-shadow: inset 2px 0 0 var(--ink); }
+.tv-vc {
+  display: block; font-family: var(--font-disp), sans-serif; font-size: 7.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
-/* The still sits behind the label, desaturated so twelve different channel
-   thumbnails do not turn a black-and-white page into a collage. */
-.tv-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  filter: grayscale(1) contrast(1.05) brightness(0.42); }
-.tv-card:hover .tv-still, .tv-card.on .tv-still { filter: grayscale(1) contrast(1.05) brightness(0.62); }
-/* A gradient under the text, so a bright frame cannot make the name
-   unreadable — the one thing a picture behind a label must not do. */
-.tv-shade { position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.88) 0, rgba(0,0,0,.3) 60%, rgba(0,0,0,.12) 100%); }
-.tv-play { position: absolute; top: 6px; right: 8px; color: var(--ink-4); }
-.tv-card:hover .tv-play { color: var(--ink); }
-/* The one that is on gets a pip rather than a play arrow — it is already
-   playing, and an arrow on it would be an invitation to press it again. */
-.tv-on { position: absolute; top: 9px; right: 10px; width: 5px; height: 5px;
-  border-radius: 50%; background: var(--ink); }
-.tv-name, .tv-note { position: relative; }
-.tv-name { font-family: var(--serif); font-size: 12.5px; color: var(--ink); line-height: 1.1; }
-.tv-note { font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--ink-4); }
+/* The pane body is the flex column these cells grow inside. */
+.pane:has(.tv3) .pane-body { display: flex; flex-direction: column; min-height: 0; }
 
 @media (max-width: 900px) {
-  /* The strip goes under the player; a 190px column beside a phone-width
-     video leaves neither of them usable. */
-  .tv { grid-template-columns: none; grid-template-rows: minmax(140px, 1fr) auto; }
-  .tv-side { overflow-x: auto; overflow-y: hidden; flex-direction: row; }
-  .tv-saved { display: none; }   /* no room for both beside a phone-width player */
-  .tv-strip { flex-direction: row; }
-  .tv-card { width: 136px; }
+  /* Three streams across a phone is three postage stamps. One column, and
+     the recent strip stacks under it. */
+  .tv3, .tv3-saved { grid-template-columns: none; }
+  .tv3-cell { min-height: 150px; }
 }
 
 /* ── inbox and agenda ─────────────────────────────────────────────────────── */
@@ -680,3 +695,65 @@ body::after, body::before { display: none; }
    is on a dark scheme, so the failure mode is a dark rectangle. */
 .tv-stage { background: var(--sunken); }
 .tv-stage iframe { color-scheme: dark; background: var(--sunken); }
+
+/* ── the routine tiles ────────────────────────────────────────────────────── */
+
+/* Subscriptions: merchant, a bar against the dearest one, the figure. The bar
+   is there because the question is never "what am I subscribed to", it is
+   "which one is the expensive one", and that is a length comparison. */
+.sub-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 46px 62px;
+  align-items: center; gap: 8px; padding: 5px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.sub-m {
+  font-family: var(--serif); font-size: 12.5px; color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sub-bar { display: block; height: 3px; background: var(--line-2); }
+.sub-bar i { display: block; height: 3px; background: var(--amber); }
+.sub-a {
+  font-family: var(--font-mono-f), monospace; font-size: 10.5px;
+  font-variant-numeric: tabular-nums; text-align: right; color: var(--ink);
+}
+
+/* The whiteboard index: title, how much is on it, how long ago. */
+.wb-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 34px 30px;
+  align-items: center; gap: 8px; padding: 6px 12px;
+  border-bottom: 1px solid var(--line); text-decoration: none; color: inherit;
+}
+.wb-row:hover { background: var(--panel-hi); }
+.wb-t {
+  font-family: var(--serif); font-size: 12.5px; color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wb-c, .wb-w {
+  font-family: var(--font-mono-f), monospace; font-size: 9.5px;
+  font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-4);
+}
+
+/* ── amber, spent ─────────────────────────────────────────────────────────── */
+
+/*
+ * Where the accent is allowed to land. Listing it in one place is the only
+ * way a single-accent rule survives contact with a codebase this size: if
+ * amber can be reached from anywhere it is a colour, and if it can be reached
+ * from here it is a signal.
+ */
+
+/* The live pip and the live kicker. */
+.pane-s.live { color: var(--amber); }
+.pane:has(.pane-s.live) { border-top-color: var(--amber-dim); }
+
+/* The selected tab, the current filter, the pressed channel. Position and
+   weight still say it too — amber is the confirmation, not the message. */
+.mw-tab.on, .wire-tab.on, .tab.on, [aria-selected="true"] { color: var(--amber); }
+.mw-tab.on, .wire-tab.on, .tab.on { box-shadow: inset 0 -2px 0 var(--amber); }
+
+/* The masthead rule. One amber line under the nameplate, which is the
+   references' single loudest move and costs nothing here. */
+.dh-rules::before, .dh-rules::after { background: var(--amber-dim); }
+
+/* The meter head, which marks where a value actually sits on its track. */
+.am-head { background: var(--amber); }

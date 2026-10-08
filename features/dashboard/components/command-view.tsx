@@ -13,7 +13,7 @@ import {
 import { MarketsList } from "./markets-list";
 import { QuickLaunch } from "./quick-launch";
 import { Pane } from "@/components/pane";
-import { Crosshair } from "@/components/chrome";
+
 import { MorningWire } from "./morning-wire";
 import { BoardPanel } from "./board-panel";
 import { LiveTv } from "./live-tv";
@@ -180,111 +180,45 @@ export function CommandView({
            * column you scan. Both are tall and narrow, which is the shape
            * that suits a paragraph and a list and does not suit a map.
            */}
-          <div className="t-3x4"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
-          <Pane n={1} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x4" frame noZoom>
-            <AtlasMap lat={12.9352} lon={77.6245} compact />
-            <span className="deck-map-marks" aria-hidden>
-              <Crosshair /><Crosshair /><Crosshair /><Crosshair />
-            </span>
-          </Pane>
-          <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={2} limit={18} /></TileGuard></div>
+          {/*
+           * Television first, then the day, then the money.
+           *
+           * The order is the order the screen is read in. The player is at the
+           * top because it is the one thing on the wall that is *happening* —
+           * everything else is a reading of something that already happened.
+           * The board and the watchlist moved to the bottom: they are checked,
+           * not watched, and they were taking the position of the thing you
+           * look at.
+           *
+           * A quarter narrower, too. The three-across bands are four-across
+           * now: span 4 of twelve is a third of the width, span 3 is a
+           * quarter, which is exactly the 25% asked for and lands on the grid
+           * rather than near it.
+           *
+           * Bands: 3 + 4 + 5 + 6 + 4 + 3 + 2 = 27 rows. The wall scrolls.
+           */}
+          <div className="t-12x4"><TileGuard name="LIVETV"><LiveTv n={1} /></TileGuard></div>
 
-          {/*
-           * What the day is made of: the decision grid, what he reads, and
-           * the wider market. These three are the reason to have the screen
-           * open at all, so they get the band directly under the map rather
-           * than a corner below the fold.
-           *
-           * Eisenhower was already built and was sitting on the WORK sub-tab,
-           * which is one click away from the screen that is open all day —
-           * so the matrix that is supposed to decide what you do next was
-           * somewhere you only looked once you had already decided to go
-           * looking. It comes to the front.
-           */}
-          {/*
-           * The wall is a fixed number of rows divided into one viewport, so
-           * every row a new band takes comes straight out of the height of
-           * every other. Adding three panels at four rows each put the bottom
-           * band at 77px — a panel header and nothing under it.
-           *
-           * So the three new ones arrive at three rows, and four old tiles
-           * leave to pay for them. Two were duplicates: Feeds is what Morning
-           * Wire now does properly, with the publishers actually read rather
-           * than a generic list, and the global map repeated the Atlas map
-           * two bands above it. Inbox was a count that Mission Control
-           * already carries, and Skies was a list of aircraft overhead.
-           *
-           * Row count before: 3+4+3+3+2 = 15. After: 3+4+3+3+2 = 15. Three
-           * panels of real data for four that repeated or decorated.
-           */}
-          {/*
-           * Nine panels, not thirteen, in the same fifteen rows.
-           *
-           * Four left, and each had the same problem: it was a panel about the
-           * application rather than about the day. SYSTEMS was heap, store,
-           * frame rate and battery — telemetry for a dashboard, which is the
-           * most inward-looking thing a dashboard can show. MISSION was eight
-           * counts, six of which KEY METRICS already carried. CONSOLE was four
-           * preset buttons that each opened chat with a sentence pre-typed.
-           * And the intel WIRE was a generic headline list sitting beside
-           * MORNING WIRE, which carries the same stories from the publishers
-           * actually read.
-           *
-           * The rows they freed go to the survivors rather than to the gaps:
-           * the decision grid and the two reading panels go from three rows to
-           * five, which is the difference between a list you scroll inside a
-           * tile and a list you can see.
-           *
-           * Bands: 3 + 4 + 5 + 3 = 15. Every band sums to twelve columns and
-           * shares a row-span, which is what lets the grid close.
-           */}
-          {/*
-           * Inbox and agenda in words, not counts.
-           *
-           * Both have been on the wall for months as a number — "6 unread",
-           * "0 today" — which is the least useful form either takes: it says
-           * whether there is work and nothing about what it is. Senders and
-           * subjects, times and titles; what you were going to click through
-           * to see anyway.
-           */}
-          <div className="t-4x5"><TileGuard name="INBOX"><GmailPanel n={3} /></TileGuard></div>
-          <div className="t-4x5"><TileGuard name="AGENDA"><AgendaPanel n={4} events={events} /></TileGuard></div>
-          <div className="t-4x5"><TileGuard name="BOARD"><BoardPanel n={5} /></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="INBOX"><GmailPanel n={2} /></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="AGENDA"><AgendaPanel n={3} events={events} /></TileGuard></div>
+          <div className="t-3x5"><TileGuard name="MORNINGWIRE"><MorningWire n={4} /></TileGuard></div>
 
-          {/*
-           * The morning block, where the morning is.
-           *
-           * It has lived on its own route, so the nine-step read — Gmail, five
-           * publishers, the watch list, LeetCode, the synthesis — was
-           * somewhere you had to decide to go. The whole point of it is that
-           * it is the first thing, so it belongs on the screen already open.
-           * Full width and six rows deep: it is a flow with its own chrome
-           * rather than a readout, and it does not fit in a quarter.
-           */}
           <div className="t-12x6"><TileGuard name="MORNINGBLOCK"><div className="wall-cell mb-cell"><MorningBlock /></div></TileGuard></div>
 
-          <div className="t-6x3"><TileGuard name="MORNINGWIRE"><MorningWire n={6} /></TileGuard></div>
-          <div className="t-6x3"><TileGuard name="CHARTS"><ChartsPanel n={7} /></TileGuard></div>
+          <Pane n={5} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x4" frame noZoom>
+            <AtlasMap lat={12.9352} lon={77.6245} compact />
+          </Pane>
+          <div className="t-6x4"><TileGuard name="CHARTS"><ChartsPanel n={6} /></TileGuard></div>
 
-          {/*
-           * A fourth band: the things that are looked at rather than read.
-           * Charts carry the sector tape, the breadth and a month of mood;
-           * Live is six 24-hour news channels, none of them playing until
-           * pressed. Key Metrics keeps its place because it is the only
-           * panel that is about him rather than about the world.
-           *
-           * Bands: 3 + 4 + 5 + 4 + 3 = 19 rows, up from 15 — the wall scrolls
-           * now rather than being pinned to one viewport, which is what
-           * "more, and not empty" has to mean once there is more than a
-           * screenful.
-           */}
-          <div className="t-12x4"><TileGuard name="LIVETV"><LiveTv n={8} /></TileGuard></div>
-
-          <div className="t-4x3"><TileGuard name="KEYMETRICS">
+          <div className="t-3x3"><TileGuard name="MARKETS"><MarketsList n={7} limit={12} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="BOARD"><BoardPanel n={8} /></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="KEYMETRICS">
             <KeyMetricsTile n={9} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={10} /></TileGuard></div>
-          <div className="t-4x3"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
+          <div className="t-3x3"><TileGuard name="LAUNCH"><QuickLaunch n={10} /></TileGuard></div>
+
+          <div className="t-12x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>
 
       <ExpandModal open={taskModal} onClose={() => setTaskModal(false)} title="Directives" tag="ADD · EDIT · REMOVE">

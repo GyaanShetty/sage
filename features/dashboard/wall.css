@@ -653,8 +653,8 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
    bargain the wall already made: a phone is the constraint, not the layout. */
 @media (max-width: 1399px) {
   .wall-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .wall-pack > * { grid-column: span 2 !important; grid-row: auto !important; min-height: 200px; }
-  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4,
+  .wall-pack > *, .wall-pack > div { grid-column: span 2 !important; grid-row: auto !important; min-height: 200px; }
+  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4, .wall-pack > .t-3x5,
   .wall-pack > .t-2x2, .wall-pack > .t-2x3 { grid-column: span 1 !important; }
 }
 
@@ -790,7 +790,17 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
    goes back up to a size a phone can actually show. */
 @media (max-width: 620px) {
   .wall-pack { grid-template-columns: 1fr; }
-  .wall-pack > *, .wall-pack > .t-3x2 { grid-column: span 1 !important; min-height: 168px; }
+  /*
+   * `> div`, not `> *`.
+   *
+   * `.wall-pack > div { min-height: 0 }` further up is an element selector and
+   * outranks a universal one, so this floor never applied to any tile that is
+   * a div — which is all of them. It went unnoticed because almost every pane
+   * has enough content to exceed 168px on its own; the two that do not are the
+   * two with short empty states. Measured on a phone: Sitrep 76px and Agenda
+   * 70px, both a header with a sliver beneath it.
+   */
+  .wall-pack > *, .wall-pack > div, .wall-pack > .t-3x2 { grid-column: span 1 !important; min-height: 168px; }
 
   .wall .pane-t { font-size: 11px; }
   .wall .pane-s { font-size: 9px; }

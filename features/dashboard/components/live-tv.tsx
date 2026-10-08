@@ -8,16 +8,21 @@
  * the one rule that makes a video panel usable on a dashboard: nothing plays
  * until you ask it to.
  *
- * Four autoplaying iframes is four video decoders, four audio contexts and a
- * couple of hundred megabytes of memory on a page that is open all day — and
- * the old build's version mounted them at `autoplay=1` on load. Here a channel
- * is a still frame with a play button until it is pressed, and only one plays
- * at a time, so the panel costs one decoder at most.
+ * ONE channel plays, muted, from the moment the panel mounts. Twelve
+ * autoplaying iframes would be twelve video decoders and a couple of hundred
+ * megabytes on a page that is open all day; one is the cost of a single
+ * stream, which is what a television in the corner of a room actually is.
+ * Muted because a dashboard that makes noise at you without being asked is a
+ * dashboard you close — and because no browser will autoplay with sound
+ * anyway.
+ *
+ * The rest are stills down the side. Pressing one switches the player rather
+ * than adding a second.
  */
 
 import { useEffect, useState } from "react";
 import { Pane } from "@/components/pane";
-import { Play, X } from "lucide-react";
+import { Play } from "lucide-react";
 import { sound } from "@/lib/sound";
 
 interface Channel { id: string; label: string; note: string }
@@ -45,7 +50,9 @@ const CHANNELS: Channel[] = [
 ];
 
 export function LiveTv({ n }: { n?: number }) {
-  const [playing, setPlaying] = useState<string | null>(null);
+  /* Bloomberg by default: it is the one that belongs on a markets desk, and a
+     panel whose job is "there is television on" has to start with it on. */
+  const [playing, setPlaying] = useState<string>(CHANNELS[0].id);
   /*
    * A still per channel, so the panel is twelve pictures rather than twelve
    * words. A live stream has no addressable thumbnail — the route takes the
@@ -63,46 +70,42 @@ export function LiveTv({ n }: { n?: number }) {
       .catch(() => {});
   }, []);
 
+  const current = CHANNELS.find((c) => c.id === playing) ?? CHANNELS[0];
+
   return (
-    <Pane
-      n={n}
-      title="Live"
-      status={playing ? CHANNELS.find((c) => c.id === playing)?.label : `${CHANNELS.length} channels`}
-      live={!!playing}
-    >
-      {playing ? (
+    <Pane n={n} title="Live" status={`${current.label} · muted`} live>
+      <div className="tv">
         <div className="tv-stage">
           <iframe
-            src={`https://www.youtube-nocookie.com/embed/live_stream?channel=${playing}&autoplay=1&mute=1`}
-            title={CHANNELS.find((c) => c.id === playing)?.label ?? "Live"}
+            key={playing}
+            src={`https://www.youtube-nocookie.com/embed/live_stream?channel=${playing}&autoplay=1&mute=1&playsinline=1`}
+            title={current.label}
             allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen
           />
-          <button className="tv-close" onClick={() => { setPlaying(null); sound.detent(); }} aria-label="Stop">
-            <X className="size-3.5" />
-          </button>
         </div>
-      ) : (
-        <div className="tv-grid">
+
+        <div className="tv-strip">
           {CHANNELS.map((c) => (
             <button
               key={c.id}
-              className="tv-card"
+              className={`tv-card${c.id === playing ? " on" : ""}`}
               onClick={() => { setPlaying(c.id); sound.latch(true); }}
               onPointerEnter={() => sound.hover()}
+              aria-pressed={c.id === playing}
             >
               {stills[c.id] && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img className="tv-still" src={stills[c.id]} alt="" loading="lazy" />
               )}
               <span className="tv-shade" aria-hidden />
-              <span className="tv-play"><Play className="size-3" /></span>
+              {c.id === playing ? <span className="tv-on" aria-hidden /> : <span className="tv-play"><Play className="size-3" /></span>}
               <span className="tv-name">{c.label}</span>
               <span className="tv-note">{c.note}</span>
             </button>
           ))}
         </div>
-      )}
+      </div>
     </Pane>
   );
 }

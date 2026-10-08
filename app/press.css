@@ -357,86 +357,66 @@ body::after, body::before { display: none; }
 
 /* ── live television ──────────────────────────────────────────────────────── */
 
-.tv-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); height: 100%;
-  grid-auto-rows: minmax(0, 1fr); overflow-y: auto; scrollbar-width: none; }
-.tv-grid::-webkit-scrollbar { display: none; }
+/*
+ * A player and a strip. The player takes the width because it is the thing
+ * that is on; the strip is twelve stills you can switch to, scrolling in its
+ * own column rather than pushing the panel taller.
+ */
+.tv { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 1px;
+  background: var(--line); height: 100%; min-height: 0; }
+
+.tv-stage { position: relative; background: #000; min-height: 0; }
+/*
+ * color-scheme: dark is the only lever there is over an iframe's own content.
+ * When the stream cannot load — the network is down, the channel is offline,
+ * an extension blocked it — the browser renders ITS error page inside the
+ * frame, and that page is white by default: a 1700px light slab in the middle
+ * of a black wall. Declaring the scheme makes Chrome draw that error dark
+ * instead. Everything else in there is cross-origin and not ours to style.
+ */
+.tv-stage iframe { width: 100%; height: 100%; border: 0; display: block; color-scheme: dark; background: #000; }
+
+.tv-strip { display: flex; flex-direction: column; gap: 1px; background: var(--line);
+  overflow-y: auto; scrollbar-width: none; min-height: 0; }
+.tv-strip::-webkit-scrollbar { display: none; }
+
 .tv-card {
-  display: flex; flex-direction: column; justify-content: flex-end; gap: 1px;
-  background: var(--panel); border: 0; padding: 9px 11px; cursor: pointer;
-  text-align: left; min-width: 0; position: relative; transition: background .15s var(--ease);
+  position: relative; flex: none; height: 54px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 0;
+  background: var(--panel); border: 0; padding: 5px 9px; cursor: pointer;
+  text-align: left; min-width: 0; overflow: hidden;
+  transition: background .15s var(--ease);
 }
 .tv-card:hover { background: var(--panel-hi); }
+.tv-card.on { box-shadow: inset 2px 0 0 var(--ink); }
+
 /* The still sits behind the label, desaturated so twelve different channel
    thumbnails do not turn a black-and-white page into a collage. */
 .tv-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  filter: grayscale(1) contrast(1.05) brightness(0.52); }
-.tv-card:hover .tv-still { filter: grayscale(1) contrast(1.05) brightness(0.72); }
-/* And a gradient under the text, so a bright frame cannot make the name
+  filter: grayscale(1) contrast(1.05) brightness(0.42); }
+.tv-card:hover .tv-still, .tv-card.on .tv-still { filter: grayscale(1) contrast(1.05) brightness(0.62); }
+/* A gradient under the text, so a bright frame cannot make the name
    unreadable — the one thing a picture behind a label must not do. */
 .tv-shade { position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.85) 0, rgba(0,0,0,.25) 52%, rgba(0,0,0,.1) 100%); }
-.tv-name, .tv-note, .tv-play { position: relative; }
-.tv-play { position: absolute; top: 9px; left: 11px; color: var(--ink-4); }
+  background: linear-gradient(to top, rgba(0,0,0,.88) 0, rgba(0,0,0,.3) 60%, rgba(0,0,0,.12) 100%); }
+.tv-play { position: absolute; top: 6px; right: 8px; color: var(--ink-4); }
 .tv-card:hover .tv-play { color: var(--ink); }
-.tv-name { font-family: var(--serif); font-size: 14px; color: var(--ink); line-height: 1.1; }
-.tv-note { font-family: var(--font-disp), sans-serif; font-size: 8.5px; letter-spacing: 0.14em;
+/* The one that is on gets a pip rather than a play arrow — it is already
+   playing, and an arrow on it would be an invitation to press it again. */
+.tv-on { position: absolute; top: 9px; right: 10px; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--ink); }
+.tv-name, .tv-note { position: relative; }
+.tv-name { font-family: var(--serif); font-size: 12.5px; color: var(--ink); line-height: 1.1; }
+.tv-note { font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--ink-4); }
 
-.tv-stage { position: relative; height: 100%; background: #000; }
-.tv-stage iframe { width: 100%; height: 100%; border: 0; display: block; }
-.tv-close {
-  position: absolute; top: 6px; right: 6px; z-index: 2;
-  display: grid; place-items: center; width: 24px; height: 24px;
-  background: rgba(0,0,0,.72); border: 1px solid var(--line-2); color: var(--ink);
-  cursor: pointer;
+@media (max-width: 900px) {
+  /* The strip goes under the player; a 190px column beside a phone-width
+     video leaves neither of them usable. */
+  .tv { grid-template-columns: none; grid-template-rows: minmax(140px, 1fr) auto; }
+  .tv-strip { flex-direction: row; overflow-x: auto; overflow-y: hidden; }
+  .tv-card { width: 136px; }
 }
-
-/* ── charts ───────────────────────────────────────────────────────────────── */
-
-.cx { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-
-/* Sector bars: label, a track with a centre axis, the value. Length from a
-   shared baseline, which is the encoding read most precisely. */
-.cx-sectors { display: flex; flex-direction: column; }
-.cx-srow {
-  display: grid; grid-template-columns: 62px minmax(0, 1fr) 64px;
-  align-items: center; gap: 9px; padding: 4px 12px;
-}
-.cx-slabel { font-family: var(--font-disp), sans-serif; font-size: 10px; color: var(--ink-2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cx-track { position: relative; height: 10px; }
-.cx-axis { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
-/* 4px rounded data-end, anchored at the axis — the end that carries the value
-   is the one that gets the radius. */
-.cx-bar { position: absolute; top: 2px; height: 6px; border-radius: 0; }
-.cx-bar.up { background: var(--up); border-radius: 0 3px 3px 0; }
-.cx-bar.down { background: var(--down); border-radius: 3px 0 0 3px; }
-.cx-sval { font-size: 9.5px; text-align: right; }
-
-.cx-pair { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px;
-  align-items: center; padding: 8px 12px 10px; margin-top: auto; border-top: 1px solid var(--line); }
-
-/* The donut: two segments and a gap. */
-.cx-donut { position: relative; width: 96px; height: 96px; }
-.cx-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.cx-ring { fill: none; stroke: var(--line-2); stroke-width: 9; }
-.cx-ringup { fill: none; stroke: var(--up); stroke-width: 9; stroke-linecap: butt; }
-.cx-dmid {
-  position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 1px; pointer-events: none;
-}
-.cx-dmid b { font-family: var(--mono); font-size: 17px; font-weight: 400; color: var(--ink); }
-.cx-dmid i { font-family: var(--font-disp), sans-serif; font-style: normal; font-size: 7.5px;
-  letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); }
-
-/* Sentiment line: one series, so no legend — the label names it. */
-.cx-mood { min-width: 0; }
-.cx-mood svg { width: 100%; height: 58px; display: block; }
-.cx-mid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
-.cx-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
-.cx-mlab { display: block; margin-top: 5px; font-family: var(--font-disp), sans-serif;
-  font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); }
-.cx-mlab b { font-family: var(--mono); font-size: 13px; color: var(--ink); letter-spacing: 0; }
 
 /* ── inbox and agenda ─────────────────────────────────────────────────────── */
 

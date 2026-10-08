@@ -22,10 +22,12 @@
 
 import { useEffect, useState } from "react";
 import { Pane } from "@/components/pane";
+import { asArray } from "@/lib/as-array";
 import { Play } from "lucide-react";
 import { sound } from "@/lib/sound";
 
 interface Channel { id: string; label: string; note: string }
+interface Vid { id: string; title: string; channel: string; thumb: string }
 
 /*
  * YouTube's own 24/7 live channel URLs. A live stream's video id changes when
@@ -63,6 +65,21 @@ export function LiveTv({ n }: { n?: number }) {
    * it arrives, so nothing waits on it.
    */
   const [stills, setStills] = useState<Record<string, string>>({});
+  /*
+   * Three recent videos from the channels he follows, under the player.
+   *
+   * The panel was a 16:9 stage beside a 190px strip, and at four rows that
+   * left most of the right-hand column empty — the live stream is one aspect
+   * ratio and the tile is another. These fill it with the thing the gap was
+   * next to anyway: what those channels have actually posted.
+   */
+  const [videos, setVideos] = useState<Vid[]>([]);
+  useEffect(() => {
+    fetch("/api/youtube", { signal: AbortSignal.timeout(25_000) })
+      .then((r) => r.json())
+      .then((j) => setVideos(asArray<Vid>(j?.data?.videos).slice(0, 3)))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     fetch(`/api/tv?ids=${CHANNELS.map((c) => c.id).join(",")}`, { signal: AbortSignal.timeout(20_000) })
       .then((r) => r.json())
@@ -85,7 +102,24 @@ export function LiveTv({ n }: { n?: number }) {
           />
         </div>
 
-        <div className="tv-strip">
+        <div className="tv-side">
+          {videos.length > 0 && (
+            <div className="tv-saved">
+              <div className="tv-sh">Latest from your channels</div>
+              {videos.map((v) => (
+                <a className="tv-vid" key={v.id} href={`https://www.youtube.com/watch?v=${v.id}`}
+                   target="_blank" rel="noopener noreferrer" title={v.title}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={v.thumb} alt="" loading="lazy" />
+                  <span className="tv-vbody">
+                    <span className="tv-vt">{v.title}</span>
+                    <span className="tv-vc">{v.channel}</span>
+                  </span>
+                </a>
+              ))}
+            </div>
+          )}
+          <div className="tv-strip">
           {CHANNELS.map((c) => (
             <button
               key={c.id}
@@ -104,6 +138,7 @@ export function LiveTv({ n }: { n?: number }) {
               <span className="tv-note">{c.note}</span>
             </button>
           ))}
+          </div>
         </div>
       </div>
     </Pane>

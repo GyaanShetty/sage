@@ -23,7 +23,7 @@ export function StatusBar() {
   return (
     <header className="relative flex min-h-12 shrink-0 items-center gap-3 border-b border-[var(--rule-strong)] bg-background/90 px-4 pt-[var(--sat)] backdrop-blur-xl md:min-h-[54px] md:gap-4 md:px-6">
       <div className="flex items-center gap-3">
-        <SageMark size={22} online />
+        <SageMark size={24} online />
         <span className="brand-title text-[13px] md:text-[15px]">{APP_NAME}</span>
       </div>
       <span className="rail hidden sm:flex">

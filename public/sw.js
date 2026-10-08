@@ -1,6 +1,6 @@
 /* SAGE service worker — network-first for navigations, cache shell for offline. */
-const CACHE = "sage-v3";
-const SHELL = ["/dashboard", "/icon-192-v3.png", "/icon-512-v3.png"];
+const CACHE = "sage-v4";
+const SHELL = ["/dashboard", "/icon-192-v4.png", "/icon-512-v4.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -25,8 +25,8 @@ self.addEventListener("push", (e) => {
     self.registration.showNotification(title, {
       body: data.body || "",
       tag: data.tag || "sage",
-      icon: "/icon-192-v3.png",
-      badge: "/icon-192-v3.png",
+      icon: "/icon-192-v4.png",
+      badge: "/icon-192-v4.png",
       data: { url: data.url || "/dashboard" },
       vibrate: [40, 30, 40],
     }),

@@ -22,6 +22,7 @@ import { AgendaPanel } from "./agenda-panel";
 import { MorningBlock } from "@/features/morning/morning-block";
 import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
+import { HotTopics } from "./hot-topics";
 import { BriefBlock } from "./brief-block";
 import { TZ } from "@/lib/config";
 
@@ -206,10 +207,14 @@ export function CommandView({
 
           <div className="t-12x6"><TileGuard name="MORNINGBLOCK"><div className="wall-cell mb-cell"><MorningBlock /></div></TileGuard></div>
 
-          <Pane n={5} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-6x4" frame noZoom>
+          <Pane n={5} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x4" frame noZoom>
             <AtlasMap lat={12.9352} lon={77.6245} compact />
           </Pane>
-          <div className="t-6x4"><TileGuard name="CHARTS"><ChartsPanel n={6} /></TileGuard></div>
+          <div className="t-4x4"><TileGuard name="CHARTS"><ChartsPanel n={6} /></TileGuard></div>
+          {/* Hot topics earns its place by breadth: a term only shows once two
+              separate publishers are running it, so this is what the desk is
+              actually chasing rather than what one outlet happens to repeat. */}
+          <div className="t-4x4"><TileGuard name="HOTTOPICS"><HotTopics n={11} /></TileGuard></div>
 
           <div className="t-3x3"><TileGuard name="MARKETS"><MarketsList n={7} limit={12} /></TileGuard></div>
           <div className="t-3x3"><TileGuard name="BOARD"><BoardPanel n={8} /></TileGuard></div>

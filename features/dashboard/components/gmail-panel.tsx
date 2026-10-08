@@ -87,12 +87,14 @@ export function GmailPanel({ n }: { n?: number }) {
           className="gm-row"
           key={m.id ?? `${i}`}
           href="/mail"
-          title={m.subject}
+          /* The snippet moves to the tooltip. In a quarter-width panel it was
+             a second line inside a row sized for one, which is what made the
+             list collide with itself. */
+          title={m.snippet ? `${m.subject}\n\n${m.snippet}` : m.subject}
         >
           <span className="gm-from">{sender(m.from)}</span>
           <span className="gm-main">
             <span className="gm-sub">{m.subject || "(no subject)"}</span>
-            {m.snippet && <span className="gm-snip">{m.snippet}</span>}
           </span>
           <span className="gm-when num">{hhmm(m.date)}</span>
         </Link>

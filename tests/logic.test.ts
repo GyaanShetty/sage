@@ -3892,13 +3892,13 @@ test("the app icons are drawn from the same geometry as the mark", async () => {
 
   const paths = (src: string) =>
     Object.fromEntries(
-      [...src.matchAll(/^const (HEAD|CROSS|WING_L|WING_R|SPIKE_L|SPIKE_R|ROBE) = `([^`]+)`/gm)]
+      [...src.matchAll(/^const (MARK) = `([^`]+)`/gm)]
         .map(([, name, d]) => [name, d.replace(/\s+/g, " ").trim()]),
     );
 
   const a = paths(component);
   const b = paths(generator);
-  assert.equal(Object.keys(a).length, 7, "expected seven shapes in the component");
+  assert.equal(Object.keys(a).length, 1, "expected the mark path in the component");
   assert.deepEqual(a, b, "the icon generator has drifted from the mark — rerun scripts/make-icons.mjs");
 });
 

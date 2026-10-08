@@ -45,10 +45,10 @@ export const metadata: Metadata = {
    */
   icons: {
     icon: [
-      { url: "/sage-mark-v3.svg", type: "image/svg+xml" },
-      { url: "/icon-192-v3.png", sizes: "192x192", type: "image/png" },
+      { url: "/sage-mark-v4.svg", type: "image/svg+xml" },
+      { url: "/icon-192-v4.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: "/apple-icon-v3.png",
+    apple: "/apple-icon-v4.png",
   },
 };
 

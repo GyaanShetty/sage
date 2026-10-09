@@ -27,6 +27,18 @@ const hhmm = (iso: string) => {
   return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
 };
 
+/** Fractional hours past local midnight, or null if the date will not parse. */
+function hoursOf(iso: string): number | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const p = new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false,
+  }).formatToParts(d);
+  const h = Number(p.find((x) => x.type === "hour")?.value ?? 0);
+  const m = Number(p.find((x) => x.type === "minute")?.value ?? 0);
+  return h + m / 60;
+}
+
 export function AgendaPanel({ n, events }: { n?: number; events: EventRow[] | null }) {
   const [rows, setRows] = useState<EventRow[] | null>(events);
 
@@ -63,13 +75,57 @@ export function AgendaPanel({ n, events }: { n?: number; events: EventRow[] | nu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* The first entry that has not started yet. Everything before it is behind
-     you, which is worth seeing but not worth the emphasis. */
-  const nextIdx = useMemo(() => {
-    if (!rows) return -1;
-    const now = Date.now();
-    return rows.findIndex((e) => new Date(e.start).getTime() >= now);
-  }, [rows]);
+  /*
+   * A vertical timeline, not a horizontal one.
+   *
+   * The first attempt put the hours along the x-axis with each entry at its
+   * hour — which is the textbook shape and unusable in a pane this narrow.
+   * "Compiler design lab" at 15:00 wants 150px of label starting 60% of the
+   * way across a 600px column, so it either overflows the pane or gets
+   * clipped to "Compiler d". Zeroing the offset to fix the clipping left a
+   * list with a ruler on top of it: a timeline that had stopped being one.
+   *
+   * Vertically there is as much room as the pane is tall, labels run the
+   * full width, and the gaps between entries are still proportional — which
+   * is the whole reason to draw a timeline instead of a list. You can see
+   * the free two hours after lunch.
+   *
+   * The axis fits the day's span rather than running 00:00–24:00: three
+   * entries between 10 and 16 on a full-day axis occupy a quarter of it and
+   * leave eighteen hours blank.
+   */
+  const timed = (rows ?? []).filter((e) => !e.allDay);
+  const allDay = (rows ?? []).filter((e) => e.allDay);
+  const nowH = hoursOf(new Date().toISOString()) ?? 0;
+
+  const laid = useMemo(() => {
+    const pts = timed
+      .map((e) => ({ e, h: hoursOf(e.start) }))
+      .filter((x): x is { e: EventRow; h: number } => x.h !== null)
+      .sort((a, b) => a.h - b.h);
+    if (!pts.length) return null;
+
+    const lo = Math.max(0, Math.floor(Math.min(...pts.map((p) => p.h), nowH)) - 1);
+    const hi = Math.min(24, Math.ceil(Math.max(...pts.map((p) => p.h), nowH)) + 1);
+    const span = Math.max(2, hi - lo);
+    /* 26px a row is the floor for a readable line; the track is whichever is
+       larger, the proportional height or enough room for every entry. */
+    const ROW = 26;
+    const height = Math.max(span * 17, pts.length * ROW + 10);
+    const at = (h: number) => ((h - lo) / span) * height;
+
+    /* One pass downward so two entries twenty minutes apart do not sit on
+       top of each other. Proportional where there is room, stacked where
+       there is not — the alternative is an overlap that hides an entry. */
+    let last = -Infinity;
+    const placed = pts.map(({ e, h }) => {
+      const y = Math.max(at(h), last + ROW);
+      last = y;
+      return { e, h, y };
+    });
+    const needed = Math.max(height, last + ROW);
+    return { lo, hi, span, height: needed, at, placed };
+  }, [timed, nowH]);
 
   return (
     <Pane
@@ -82,11 +138,50 @@ export function AgendaPanel({ n, events }: { n?: number; events: EventRow[] | nu
       {rows?.length === 0 && (
         <Empty reason="Nothing on the calendar today" action="Open calendar" href="/calendar" />
       )}
-      {rows?.map((e, i) => (
-        <Link className={`ag-row${i === nextIdx ? " next" : ""}${i < nextIdx ? " past" : ""}`} key={e.id ?? i} href="/calendar">
-          <span className="ag-when num">{hhmm(e.start)}</span>
+
+      {laid && (
+        <div className="tlv" style={{ height: `${laid.height + 14}px` }}>
+          {/* The hour rail. A tick every hour, a label every third when the
+              span is long enough that every hour would be clutter. */}
+          {Array.from({ length: laid.hi - laid.lo + 1 }, (_, i) => laid.lo + i)
+            .filter((h) => (laid.span > 9 ? h % 3 === 0 : true))
+            .map((h) => (
+              <span className="tlv-h" key={h} style={{ top: `${laid.at(h)}px` }} aria-hidden>
+                <i />{String(h).padStart(2, "0")}
+              </span>
+            ))}
+
+          {/* Now. */}
+          {nowH >= laid.lo && nowH <= laid.hi && (
+            <span className="tlv-now" style={{ top: `${laid.at(nowH)}px` }} aria-hidden />
+          )}
+
+          {laid.placed.map(({ e, y }, i) => {
+            const past = new Date(e.start).getTime() < Date.now();
+            return (
+              <Link
+                className={`tlv-ev${past ? " past" : ""}${i === laid.placed.findIndex((q) => new Date(q.e.start).getTime() >= Date.now()) ? " next" : ""}`}
+                key={e.id ?? i}
+                href="/calendar"
+                style={{ top: `${y}px` }}
+                title={`${hhmm(e.start)} · ${e.summary}`}
+              >
+                <span className="tlv-dot" aria-hidden />
+                <span className="tlv-t num">{hhmm(e.start)}</span>
+                <span className="tlv-s">{e.summary || "(untitled)"}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* All-day entries have no position on a clock, so they are a list
+          under the timeline rather than a block spanning the whole axis —
+          a bar across the full width says "all day" and also says nothing. */}
+      {allDay.map((e, i) => (
+        <Link className="ag-row allday" key={e.id ?? `ad${i}`} href="/calendar">
+          <span className="ag-when num">ALL</span>
           <span className="ag-what">{e.summary || "(untitled)"}</span>
-          {i === nextIdx && <span className="ag-tag">NEXT</span>}
         </Link>
       ))}
     </Pane>

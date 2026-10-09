@@ -3415,12 +3415,18 @@ test("every wall track sets min-height: 0", async () => {
 });
 
 test("the wall only claims the viewport above the fallback breakpoint", async () => {
-  // Below 1400px it must stay a scrolling stack: forcing a fixed height on a
-  // phone is how the panes become unreadable slivers.
+  // Below the breakpoint it must stay a scrolling stack: forcing a fixed
+  // height on a phone is how the panes become unreadable slivers.
+  //
+  // The breakpoint moved from 1400px to 880px. 1400 was a cliff — a merely
+  // narrowed window, which is most laptops, threw away the twelve-column
+  // layout entirely and stacked everything two abreast. The rule this test
+  // protects is unchanged; only where the fallback starts has moved, so the
+  // marker it looks for moves with it.
   const fs = await import("node:fs/promises");
   const css = (await fs.readFile("features/dashboard/wall.css", "utf8")).replace(/\/\*[\s\S]*?\*\//g, "");
-  const at = css.indexOf("@media (min-width: 1400px)");
-  assert.ok(at > 0, "no 1400px breakpoint");
+  const at = css.indexOf("@media (min-width: 880px)");
+  assert.ok(at > 0, "no 880px breakpoint");
   // The wall takes 100% of its container, and only above the breakpoint.
   // Below it the stack must be free to grow and scroll, so a height claim
   // there is the regression this guards.
@@ -5228,5 +5234,52 @@ test("a panel reads the shape its route actually returns", async () => {
         `${f} calls ${c.route} but never reads data.${c.key} — it will render as an empty upstream`,
       );
     }
+  }
+});
+
+/*
+ * A write followed by a read inside shareJson's freshness window.
+ *
+ * shareJson holds a resolved response for ten seconds so a dozen panels
+ * mounting in one tick make one request. Right for reads, wrong straight
+ * after a write: the re-read returns the response from before it, so the row
+ * just added is missing and the pane looks broken. The expense pane is the
+ * one place on the wall that writes and immediately re-reads, so it passes 0
+ * as the window. This guards that it keeps doing so.
+ */
+test("the expense pane re-reads past shareJson's freshness window after a write", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("features/dashboard/components/routine-tiles.tsx", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")   // strip comments: the explanation must not satisfy the test
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  assert.match(src, /shareJson<[^>]*>\(\s*"\/api\/expenses",\s*fresh \? 0 : undefined/,
+    "the expense read must accept a zero freshness window");
+  assert.match(src, /await pull\(true\)/,
+    "the save handler must re-read with the window bypassed");
+});
+
+/*
+ * Every tile on the wall must name a span class the grid actually defines.
+ *
+ * A tile whose class has no rule takes the grid's implicit minimum and
+ * renders as a sliver — the Atlas map came out 145x87 that way once, and the
+ * television band did it again when it moved to five rows before `.t-12x5`
+ * existed. Cheap to check, invisible until someone looks at the right part
+ * of the page.
+ */
+test("every span class used on the wall is defined in the grid", async () => {
+  const fs = await import("node:fs");
+  const view = fs.readFileSync("features/dashboard/components/command-view.tsx", "utf8");
+  const css = fs.readFileSync("features/dashboard/wall.css", "utf8");
+
+  const used = new Set([...view.matchAll(/\bt-(\d+)x(\d+)\b/g)].map((m) => `t-${m[1]}x${m[2]}`));
+  assert.ok(used.size > 0, "expected the dashboard to use span classes");
+
+  for (const cls of used) {
+    assert.ok(
+      css.includes(`.wall-pack > .${cls} `) || css.includes(`.wall-pack > .${cls}{`),
+      `${cls} is used on the wall but has no rule in wall.css — it will render as a sliver`,
+    );
   }
 });

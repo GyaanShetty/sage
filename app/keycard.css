@@ -140,7 +140,7 @@
    Below the wall breakpoint the panes stack and scroll. A tipping card in a
    scrolling column is nausea, and the blur costs the most exactly where the
    GPU has the least, so the phone gets the flat pane. */
-@media (max-width: 1399px) {
+@media (max-width: 879px) {
   .pane {
     backdrop-filter: none; -webkit-backdrop-filter: none;
     transform: none;
@@ -394,7 +394,7 @@
 /* The hero is the first thing to go when there is no room for it: below the
    wall breakpoint the page stacks and scrolls, and a decorative band at the
    top of a phone screen is a thing to scroll past. */
-@media (max-width: 1399px) {
+@media (max-width: 879px) {
   .dash-hero { padding: 14px 16px; gap: 12px; }
   .dh-rain, .dh-sweep { display: none; }
   .dh-stats { gap: 16px; }
@@ -544,8 +544,12 @@
 }
 
 /* Below the wall breakpoint the band stacks and the flanks are the first
-   thing to go — four progress meters are not what a phone screen is for. */
-@media (max-width: 1399px) {
+   thing to go — four progress meters are not what a phone screen is for.
+   This said 1399px, which was the same cliff the grid had: a 1280px window
+   turned the hero into a flex column, so the canvas and the plate fell into
+   DOM order and every grid-row on them went inert. It is the phone
+   breakpoint now, like everything else. */
+@media (max-width: 879px) {
   .dash-hero { display: flex; flex-direction: column; }
   .dhf { display: none; }
 }

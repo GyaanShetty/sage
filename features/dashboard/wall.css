@@ -2,8 +2,8 @@
    ────────────────────────────────────────────────────────────────────────
    The dashboard as one screen.
 
-   Below 1400px this is a plain vertical stack that scrolls — the layout that
-   already worked, and the one his phone gets. At 1400px and up it becomes a
+   Below 880px this is a plain vertical stack that scrolls — the layout that
+   already worked, and the one his phone gets. At 880px and up it becomes a
    fixed four-row grid the exact height of the viewport, and stops scrolling
    entirely: zoomed out, every pane is on screen at once.
 
@@ -36,7 +36,7 @@
    One screen, no scroll. The row ratios and column templates are read off
    the reference: four bands, each with its own rhythm. Forcing them onto a
    single uniform grid is the thing that would not reproduce it. */
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   /*
    * The wall takes whatever the shell gives it.
    *
@@ -239,7 +239,7 @@
 
    Scoped to `.wall`. These class names are used on every other screen, where
    panes size to their content and cqh means nothing there. */
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   .wall .pane:not(.wall-map) { container-type: size; }
 
   /* The body is a column so a pane's instrument can take the leftover height
@@ -386,7 +386,7 @@
 .psh-t { font-size: 11px; line-height: 1.25; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .psh-m { font-family: var(--mono); font-size: 7.5px; letter-spacing: 1px; color: var(--subtle); text-transform: uppercase; }
 
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   .wall .cd-daily, .wall .psh { padding: clamp(2px, 1.6cqh, 6px) 8px; }
   .wall .cd-t { font-size: clamp(8px, 5cqh, 12px); }
   .wall .psh-t { font-size: clamp(7.5px, 4.4cqh, 11px); }
@@ -558,7 +558,7 @@
   box-shadow: inset 0 -2px 0 var(--signal);
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   /* `height: 100%` pinned the wall to the viewport; `min-height` lets it fill
      the screen when there is little and grow past it when there is a lot. */
   .wall-shell { flex: 1; min-height: 100%; }
@@ -582,10 +582,10 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
 /* The wall scrolls at every width now. It was `overflow: hidden` above 1400px
    because the grid was exactly one viewport tall; it is nineteen rows and
    taller than that, so clipping it would hide the bottom band outright. */
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   main.hud-grid:has(.wall-shell) { overflow-y: auto; }
 }
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   main.hud-grid:has(.wall-shell) { display: flex; flex-direction: column; }
   main.hud-grid:has(.wall-shell) > *,
   main.hud-grid :has(> .wall-shell) { flex: 1; min-height: 0; height: auto; display: flex; flex-direction: column; }
@@ -649,16 +649,36 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
 }
 .wall-pack > * { min-width: 0; min-height: 0; }
 
-/* Below the breakpoint the spans collapse and the page scrolls, the same
-   bargain the wall already made: a phone is the constraint, not the layout. */
-@media (max-width: 1399px) {
+/*
+ * The wall between a full screen and a phone.
+ *
+ * There was one breakpoint here and it was a cliff: at 1399px the twelve
+ * columns collapsed straight to two, so a window merely *narrowed* — a
+ * laptop at 1280, which is most of them, or any window not maximised — threw
+ * away the entire layout and stacked twenty-three panes two abreast. Every
+ * band composed to sum to twelve stopped meaning anything, and the page
+ * became a mile of scroll. Gyaan works in a minimised window; this is what
+ * he was actually looking at the whole time.
+ *
+ * So the grid stays twelve columns everywhere down to phone width and only
+ * the SPANS step down. Quarters become halves, thirds become halves, halves
+ * become full — so a band that summed to twelve still sums to twelve, two or
+ * one to a row instead of four. Nothing reflows into a ragged edge because
+ * every tier is still built from divisors of twelve.
+ *
+ * Measured at each tier rather than assumed: a quarter tile is 453px wide on
+ * a 1900 screen, and a half tile on a 1280 screen is 640 — wider, not
+ * narrower. Narrowing the window makes each pane bigger and the wall longer,
+ * which is the right trade and the opposite of what the cliff did.
+ */
+
+/* Phone. One column, auto rows, a floor so nothing collapses to a header. */
+@media (max-width: 879px) {
   .wall-pack { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wall-pack > *, .wall-pack > div { grid-column: span 2 !important; grid-row: auto !important; min-height: 200px; }
-  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4, .wall-pack > .t-3x5,
-  .wall-pack > .t-2x2, .wall-pack > .t-2x3 { grid-column: span 1 !important; }
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   .wall-pack {
     flex: 1;
     min-height: 100%;
@@ -684,7 +704,31 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
      * screenful. Below the floor nothing is readable anyway, so there was
      * never a version of this that fit.
      */
-    grid-auto-rows: minmax(74px, 1fr);
+    /*
+     * `1fr` here, not `auto`, was quietly catastrophic on a narrow window.
+     *
+     * Every `1fr` track in a grid resolves to the SAME size, and that size is
+     * driven up by whatever the tallest spanning item needs. On a 1280px
+     * window the morning block wants ~1320px over six rows, so every one of
+     * the wall's thirty-six rows became 220px — and a five-row pane that
+     * holds a six-item list came out 1148px tall. The wall measured 12,769px
+     * for a page that should be about a third of that, and the hero alone
+     * filled the viewport.
+     *
+     * `auto` fixed the coupling and introduced its own problem: a pane with a
+     * long list simply grew, so the morning wire came out 1063px tall beside
+     * an agenda holding one line. A dashboard pane is a window onto its data,
+     * not a container that resizes to it.
+     *
+     * A fixed row is the answer, and it is what makes `.pane-body`'s
+     * `overflow: auto` mean anything — with an unbounded pane there is
+     * nothing to scroll against, which is why that rule had been inert. Now
+     * geometry is set by the span and the content scrolls inside it: the band
+     * structure is honoured at every width, every row is the same height, and
+     * the wall's total height is a function of the layout rather than of
+     * whichever feed happened to return the most items today.
+     */
+    grid-auto-rows: 86px;
   }
 
   /*
@@ -775,9 +819,41 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
    */
 }
 
+/*
+ * These two tiers come AFTER the block above on purpose. They override the
+ * same selectors at the same specificity, so source order is the only thing
+ * deciding them — written before it, every one of them silently lost.
+ */
+/* Laptop and small-window: halves and fulls. */
+@media (min-width: 1120px) and (max-width: 1399px) {
+  .wall-pack > .t-2x2, .wall-pack > .t-2x3,
+  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4, .wall-pack > .t-3x5,
+  .wall-pack > .t-4x2, .wall-pack > .t-4x3, .wall-pack > .t-4x4, .wall-pack > .t-4x5 {
+    grid-column: span 6;
+  }
+  .wall-pack > .t-6x2, .wall-pack > .t-6x3, .wall-pack > .t-6x4, .wall-pack > .t-6x5 {
+    grid-column: span 12;
+  }
+}
+
+/* Narrower still: quarters pair up, thirds take the full width. A third of
+   a 1000px window is 320px, and a 320px pane renders "Log an expense" as
+   "LOG AN EXPEN" — the same lesson the wide-screen experiment taught. */
+@media (min-width: 880px) and (max-width: 1119px) {
+  .wall-pack > .t-2x2, .wall-pack > .t-2x3,
+  .wall-pack > .t-3x2, .wall-pack > .t-3x3, .wall-pack > .t-3x4, .wall-pack > .t-3x5 {
+    grid-column: span 6;
+  }
+  .wall-pack > .t-4x2, .wall-pack > .t-4x3, .wall-pack > .t-4x4, .wall-pack > .t-4x5,
+  .wall-pack > .t-6x2, .wall-pack > .t-6x3, .wall-pack > .t-6x4, .wall-pack > .t-6x5 {
+    grid-column: span 12;
+  }
+}
+
+
 /* The shell owns the frame; the packed grid fills what is left under the
    tabs. */
-@media (min-width: 1400px) {
+@media (min-width: 880px) {
   .wall-shell > .wall-pack { flex: 1; min-height: 0; }
 }
 
@@ -817,3 +893,13 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
      column — the handle overlaps the page margin, not a pane. */
   main.hud-grid { padding-left: 8px; }
 }
+
+/*
+ * A note, because the measurement is counter-intuitive and I nearly "fixed"
+ * it: `.wall-pack` reports a 696px box on a 820px window while its
+ * scrollHeight is 5,386px. That is correct. `main.hud-grid` is the scroll
+ * container — it carries `overflow-y: auto` — so the pack is content inside
+ * it, not the thing that scrolls. Giving the pack `flex: 1 0 auto` to make
+ * its own box match its content changes nothing visible and only moves the
+ * overflow up a level.
+ */

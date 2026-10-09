@@ -15,15 +15,17 @@
  * only kind a browser will grant unprompted anyway. Nothing here ever makes
  * noise without being asked.
  *
- * Each cell cycles independently through the channel list, and a channel
- * already on one of the other two is skipped: three screens showing Bloomberg
+ * Each cell has a picker — press the name and the full list drops down, with
+ * whatever the other two screens are showing marked as taken. The arrows are
+ * still there for stepping one along without thinking about it, and they
+ * skip a channel already on another screen: three screens showing Bloomberg
  * is two wasted screens.
  */
 
 import { useEffect, useState } from "react";
 import { Pane } from "@/components/pane";
 import { asArray } from "@/lib/as-array";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { sound } from "@/lib/sound";
 
 interface Channel { id: string; label: string; note: string }
@@ -56,6 +58,9 @@ const START = [0, 1, 2];
 
 export function LiveTv({ n }: { n?: number }) {
   const [slots, setSlots] = useState<number[]>(START);
+  /* Which screen's picker is open, if any. One at a time: two dropdowns over
+     three small players leaves nothing to look at. */
+  const [picking, setPicking] = useState<number | null>(null);
 
   /*
    * Three recent uploads from the channels he follows, as a strip under the
@@ -68,6 +73,21 @@ export function LiveTv({ n }: { n?: number }) {
       .then((j) => setVideos(asArray<Vid>(j?.data?.videos).slice(0, 3)))
       .catch(() => {});
   }, []);
+
+  /* Put a specific channel on a specific screen. If it is already running on
+     another screen the two swap rather than one being duplicated — pressing
+     a channel should never leave two screens the same. */
+  const put = (slot: number, ci: number) => {
+    setSlots((prev) => {
+      const next = [...prev];
+      const other = prev.indexOf(ci);
+      if (other !== -1 && other !== slot) next[other] = prev[slot];
+      next[slot] = ci;
+      return next;
+    });
+    setPicking(null);
+    sound.latch(true);
+  };
 
   /* Step one screen forward or back, skipping whatever the other two are
      already showing, so the three are always three. */
@@ -107,15 +127,46 @@ export function LiveTv({ n }: { n?: number }) {
                         onPointerEnter={() => sound.hover()} aria-label={`Previous channel on screen ${slot + 1}`}>
                   <ChevronLeft className="size-3" />
                 </button>
-                <span className="tv3-id">
+                <button
+                  className="tv3-id"
+                  onClick={() => { setPicking(picking === slot ? null : slot); sound.detent(); }}
+                  aria-expanded={picking === slot}
+                  aria-label={`Choose the channel for screen ${slot + 1}`}
+                >
                   <span className="tv3-name">{c.label}</span>
                   <span className="tv3-note">{c.note}</span>
-                </span>
+                </button>
                 <button className="tv3-nav" onClick={() => step(slot, 1)}
                         onPointerEnter={() => sound.hover()} aria-label={`Next channel on screen ${slot + 1}`}>
                   <ChevronRight className="size-3" />
                 </button>
               </div>
+
+              {picking === slot && (
+                <div className="tv3-menu" role="listbox" aria-label={`Channels for screen ${slot + 1}`}>
+                  {CHANNELS.map((ch, ci) => {
+                    const here = slots[slot] === ci;
+                    const elsewhere = !here && slots.includes(ci);
+                    return (
+                      <button
+                        key={ch.id}
+                        className={`tv3-opt${here ? " on" : ""}${elsewhere ? " taken" : ""}`}
+                        role="option"
+                        aria-selected={here}
+                        onClick={() => put(slot, ci)}
+                        onPointerEnter={() => sound.hover()}
+                      >
+                        <span className="tv3-oi">{here && <Check className="size-3" />}</span>
+                        <span className="tv3-ol">{ch.label}</span>
+                        {/* "On 2" rather than disabling it: pressing it swaps
+                            the two screens, which is a useful thing to do and
+                            not an error to prevent. */}
+                        <span className="tv3-on2">{elsewhere ? `ON ${slots.indexOf(ci) + 1}` : ch.note}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

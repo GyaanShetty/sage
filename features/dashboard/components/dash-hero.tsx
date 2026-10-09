@@ -22,8 +22,8 @@
 
 import { useEffect, useState } from "react";
 import { APP_NAME, APP_MOTTO, TZ } from "@/lib/config";
-import { AsciiRain } from "@/components/ascii/motifs";
-import { Globe } from "@/components/globe";
+import { HeroCanvas } from "./hero-canvas";
+import type { EventRow } from "./command-view";
 import { HeroTime, HeroMachine } from "./hero-flanks";
 
 function Stat({
@@ -60,12 +60,15 @@ function useEdition(): string {
 export function DashHero({
   open,
   events,
+  eventRows,
   overdue,
   agentRunning,
   weather,
 }: {
   open: number;
   events: number;
+  /** The rows themselves, for the canvas; `events` stays the count. */
+  eventRows: EventRow[] | null;
   overdue: number;
   agentRunning: boolean;
   weather: string | null;
@@ -74,14 +77,10 @@ export function DashHero({
 
   return (
     <section className="dash-hero">
-      <div className="dh-rain" aria-hidden>
-        <AsciiRain cols={120} rows={9} density={0.16} />
-      </div>
-      <div className="dh-sweep" aria-hidden />
-      {/* Behind the mark, not beside it: the globe is the ground the name
-          stands on. Real lat/lon geometry with Bengaluru marked, so the
-          bright point is where you actually are. */}
-      <Globe className="dh-globe" />
+      {/* The day, drawn. This replaced a dot-globe that was decoration: it
+          marked Bengaluru and otherwise said nothing that changed. The
+          canvas says what hour it is, what is open, and what is coming. */}
+      <HeroCanvas events={eventRows} />
 
       <HeroTime />
 

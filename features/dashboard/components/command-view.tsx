@@ -23,7 +23,7 @@ import { MorningBlock } from "@/features/morning/morning-block";
 import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
 import { HotTopics } from "./hot-topics";
-import { SubscriptionsTile, WhiteboardTile, DirectivesPanel } from "./routine-tiles";
+import { ExpenseTile, WhiteboardTile, DirectivesPanel } from "./routine-tiles";
 import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
 import { BudgetTile } from "./ops-tiles";
 import { StudyTile } from "./chart-tiles";
@@ -169,6 +169,7 @@ export function CommandView({
             <DashHero
               open={open}
               events={todays.length}
+              eventRows={events}
               overdue={overdue}
               agentRunning={agentRunning}
               weather={weather ? `${Math.round(weather.temp)}°` : null}
@@ -239,10 +240,15 @@ export function CommandView({
           <div className="t-3x4"><TileGuard name="LEETCODE"><CodeTile n={11} /></TileGuard></div>
           <div className="t-3x4"><TileGuard name="STUDY"><StudyTile n={12} /></TileGuard></div>
 
-          {/* 11 · 12 · 13 — the evening: money, what it renews at, the board. */}
+          {/* 11 · 12 · 13 — the evening: the budget, what went out, logging
+              what just went out, the board. Subscriptions had this slot and
+              lost it: it could only ever show what the receipt scanner had
+              already found, so it was an empty box, and the thing he does
+              several times a day is record a spend. The recurring total
+              lives on the expense pane now, which is where it was useful. */}
           <div className="t-3x4"><TileGuard name="BUDGET"><BudgetTile n={13} /></TileGuard></div>
           <div className="t-3x4"><TileGuard name="SPEND"><SpendTile n={14} /></TileGuard></div>
-          <div className="t-3x4"><TileGuard name="SUBSCRIPTIONS"><SubscriptionsTile n={15} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="EXPENSES"><ExpenseTile n={15} /></TileGuard></div>
           <div className="t-3x4"><TileGuard name="WHITEBOARD"><WhiteboardTile n={16} /></TileGuard></div>
 
           <div className="t-3x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>

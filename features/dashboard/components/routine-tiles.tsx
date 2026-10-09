@@ -9,7 +9,7 @@
  * every month, and the whiteboard he calls his main workspace.
  */
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState, useCallback, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { Pane, Empty } from "@/components/pane";
 import { useLive } from "@/lib/live";
@@ -25,64 +25,135 @@ import type { TaskRow } from "./command-view";
 
 const rupees = (v: number) => `₹${Math.round(v).toLocaleString("en-IN")}`;
 
-/* ── subscriptions ─────────────────────────────────────────────────────────
+/* ── expenses ──────────────────────────────────────────────────────────────
  *
- * Not a list he maintains by hand — these are the charges the expense
- * scanner already flagged as recurring when it read the receipts out of his
- * mail. That matters: a subscription tracker you have to remember to update
- * is a subscription tracker that is wrong, and the whole reason this one is
- * worth having is that it finds the ₹149 nobody remembers agreeing to.
+ * Logging a spend without leaving the wall.
  *
- * Sorted by amount, because the question is never "what am I subscribed to",
- * it is "what is the expensive one".
+ * This replaced the subscriptions pane, which was the right idea and the
+ * wrong pane: it could only show what the receipt scanner had already found,
+ * so on an account with nothing scanned it was a permanently empty box. The
+ * thing he actually does several times a day is record that he spent
+ * something, and that required opening the portfolio page.
+ *
+ * The form is inline and always visible rather than behind the pane's `+`.
+ * A modal is correct for editing — rare, needs room — and wrong for an entry
+ * you make while standing in a shop: three fields and a key press.
+ *
+ * Recurring charges have not gone anywhere; they are the "of which N
+ * recurring" line, which is the form the information was actually useful in.
  */
-interface Sub { merchant: string; amount: number }
+interface Spend {
+  total: number;
+  byCategory: Record<string, number>;
+  recurring: { merchant: string; amount: number }[];
+}
+interface Row { id: string; amount: number; merchant: string; category: string; date: string }
 
-export function SubscriptionsTile({ n }: { n?: number }) {
-  const [subs, setSubs] = useState<Sub[] | null | undefined>(undefined);
+const CATS = ["food", "transport", "shopping", "bills", "subscriptions", "entertainment", "health", "other"];
 
-  /* shareJson, not fetch: the spend pane reads the same route in the same
-     tick, and two identical requests to a route that scans receipts is one
-     request wasted on every refresh. */
-  useLive(
-    () => shareJson<{ data?: { summary?: { recurring?: unknown } } }>("/api/expenses")
-      .then((j) => setSubs(asArray<Sub>(j?.data?.summary?.recurring)))
-      .catch(() => setSubs(null)),
-    { everyMs: 600_000 },
+export function ExpenseTile({ n }: { n?: number }) {
+  const [sum, setSum] = useState<Spend | null | undefined>(undefined);
+  const [recent, setRecent] = useState<Row[]>([]);
+  const [amount, setAmount] = useState("");
+  const [merchant, setMerchant] = useState("");
+  const [cat, setCat] = useState("food");
+  const [busy, setBusy] = useState(false);
+
+  /*
+   * `fresh` matters, and the absence of it was a real bug.
+   *
+   * shareJson holds a resolved response for ten seconds so a dozen panels
+   * mounting in one tick make one request. That is right for reads and wrong
+   * immediately after a write: logging an expense and then re-reading inside
+   * the window returns the response from BEFORE the write, so the row he just
+   * added does not appear and the total does not move. It looks like the save
+   * failed. Passing 0 as the freshness window opts this one call out.
+   */
+  const pull = useCallback(
+    (fresh = false) => shareJson<{ data?: { summary?: Spend; expenses?: unknown } }>(
+      "/api/expenses", fresh ? 0 : undefined,
+    )
+      .then((j) => {
+        setSum(j?.data?.summary ?? null);
+        setRecent(asArray<Row>(j?.data?.expenses).slice(0, 6));
+      })
+      .catch(() => setSum(null)),
+    [],
   );
+  useLive(() => pull(), { everyMs: 600_000 });
 
-  const rows = [...(subs ?? [])].sort((a, b) => b.amount - a.amount);
-  const monthly = rows.reduce((a, s) => a + s.amount, 0);
+  const save = async () => {
+    const amt = Number(amount);
+    /* A number field must post a number — `amount: "250"` against a
+       z.number() schema is a 400 that reads as "the form is broken". */
+    if (!Number.isFinite(amt) || amt <= 0 || !merchant.trim() || busy) return;
+    setBusy(true);
+    try {
+      await fetch("/api/expenses", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ amount: amt, merchant: merchant.trim(), category: cat }),
+      });
+      sound.blip();
+      setAmount(""); setMerchant("");
+      await pull(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const subs = sum?.recurring ?? [];
+  const subTotal = subs.reduce((a, x) => a + x.amount, 0);
 
   return (
     <Pane
       n={n}
-      title="Subscriptions"
-      status={rows.length ? `${rows.length} recurring` : "none found"}
-      live={rows.length > 0}
+      title="Expenses"
+      status={sum?.total ? `${rupees(sum.total)} · 30d` : "nothing logged"}
+      live={!!sum?.total}
     >
-      {subs === undefined && <div className="tile-wait">READING…</div>}
-      {subs !== undefined && rows.length === 0 && (
-        <Empty reason="No recurring charges found in the last 30 days" action="Scan receipts" href="/portfolio" />
+      <div className="xp-form">
+        <input
+          className="xp-amt num" inputMode="decimal" value={amount} placeholder="₹"
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
+          aria-label="Amount in rupees"
+        />
+        <input
+          className="xp-who" value={merchant} placeholder="Where…"
+          onChange={(e) => setMerchant(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void save(); }}
+          aria-label="Merchant"
+        />
+        <select className="xp-cat" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Category">
+          {CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <button className="xp-go" onClick={() => void save()} disabled={busy} aria-label="Log this expense">
+          {busy ? "…" : "LOG"}
+        </button>
+      </div>
+
+      {sum === undefined && <div className="tile-wait">READING…</div>}
+
+      {sum && sum.total > 0 && (
+        <div className="xp-sum">
+          <span className="xp-tot num">{rupees(sum.total)}</span>
+          <span className="xp-k">
+            LAST 30 DAYS{subs.length ? ` · ${rupees(subTotal)} RECURRING` : ""}
+          </span>
+        </div>
       )}
-      {rows.length > 0 && (
-        <>
-          <div className="tstat">
-            <span className="tstat-v">{rupees(monthly)}</span>
-            <span className="tstat-k">A MONTH, RECURRING</span>
-          </div>
-          {rows.slice(0, 8).map((s) => (
-            <div className="sub-row" key={s.merchant}>
-              <span className="sub-m">{s.merchant}</span>
-              {/* A bar against the largest one, so the expensive subscription
-                  is visible without reading eight numbers. */}
-              <span className="sub-bar" aria-hidden>
-                <i style={{ width: `${(s.amount / rows[0].amount) * 100}%` }} />
-              </span>
-              <span className="sub-a num">{rupees(s.amount)}</span>
-            </div>
-          ))}
-        </>
+
+      {recent.map((r) => (
+        <div className="xp-row" key={r.id}>
+          <span className="xp-m">{r.merchant}</span>
+          <span className="xp-c">{r.category}</span>
+          <span className="xp-a num">{rupees(r.amount)}</span>
+        </div>
+      ))}
+
+      {sum !== undefined && recent.length === 0 && (
+        <Empty reason="Nothing logged yet — the form above is the whole flow" />
       )}
     </Pane>
   );

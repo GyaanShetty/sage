@@ -7,7 +7,21 @@ import { ShieldCheck } from "lucide-react";
 
 interface Alert { level: "info" | "warn" | "high"; icon: string; text: string }
 
-/** Proactive situation report strip — SAGE surfaces what needs attention. */
+/**
+ * What needs him, ranked.
+ *
+ * This was a flat row of chips in source order, so a "high" sat wherever the
+ * route happened to emit it and the eye had to read all of them to find the
+ * one that mattered. Three changes make it a status board rather than a list:
+ *
+ *  - Ranked by severity, then alphabetically inside a tier, so position
+ *    carries meaning and the order is stable between refreshes. A board that
+ *    reshuffles on every poll cannot be skimmed.
+ *  - A tally in the header — "1 HIGH · 3 WARN" — which is the answer to "do I
+ *    need to read this" without reading it.
+ *  - Severity on a reserved status ramp, never the series palette, and always
+ *    with the tier's word beside it. Status colour is never the only cue.
+ */
 export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [read, setRead] = useState<string | null>(null);
@@ -81,24 +95,38 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
   const worst = alerts.some((a) => a.level === "high") ? "danger"
     : alerts.some((a) => a.level === "warn") ? "signal" : null;
 
+  const RANK: Record<Alert["level"], number> = { high: 0, warn: 1, info: 2 };
+  const ranked = [...alerts].sort((a, b) => RANK[a.level] - RANK[b.level] || a.text.localeCompare(b.text));
+  const count = (l: Alert["level"]) => alerts.filter((a) => a.level === l).length;
+  const tally = (["high", "warn", "info"] as const)
+    .filter((l) => count(l) > 0)
+    .map((l) => `${count(l)} ${l.toUpperCase()}`)
+    .join(" · ");
+
   // Compact form lives inside the dashboard rail, where vertical space is tight.
   if (compact) {
     return (
       <div className="cell sitrep-cell">
         {worst && <Hazard tone={worst} />}
-        <div className="bh"><span className="t">Sitrep</span><span className="i">SIT</span><span className="r">{at}</span></div>
+        <div className="bh">
+          <span className="t">Sitrep</span>
+          <span className="i">{tally}</span>
+          <span className="r">{at}</span>
+        </div>
         {/*
-          The read sits above the chips, because it is the thing that says
-          which chip to look at. It is absent rather than filled with a
+          The read sits above the rows, because it is the thing that says
+          which row to look at. It is absent rather than filled with a
           placeholder when there is no model — a status board that pads itself
           teaches you to skim it.
         */}
         {read && <p className="sitrep-read">{read}</p>}
-        <div className="sitrep-row compact">
-          {alerts.map((a, i) => (
-            <div className={`sitrep-chip ${a.level}`} key={i}>
-              <span className="sc-ic">{a.icon}</span>
-              <span className="sc-tx">{a.text}</span>
+        <div className="sr-list">
+          {ranked.map((a, i) => (
+            <div className={`sr-row ${a.level}`} key={i}>
+              {/* The tier's own word, not only its colour. */}
+              <span className="sr-tier">{a.level === "high" ? "HIGH" : a.level === "warn" ? "WARN" : "INFO"}</span>
+              <span className="sr-ic" aria-hidden>{a.icon}</span>
+              <span className="sr-tx">{a.text}</span>
             </div>
           ))}
         </div>
@@ -112,7 +140,7 @@ export function SitrepBand({ compact = false }: { compact?: boolean } = {}) {
       {worst && <Hazard tone={worst} />}
       {read && <p className="sitrep-read">{read}</p>}
       <div className="sitrep-row">
-        {alerts.map((a, i) => (
+        {ranked.map((a, i) => (
           <div className={`sitrep-chip ${a.level}`} key={i}>
             <span className="sc-ic">{a.icon}</span>
             <span className="sc-tx">{a.text}</span>

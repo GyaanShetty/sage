@@ -2708,7 +2708,20 @@ test("the disk bridge only serves what was actually shared", async () => {
   process.env.SAGE_URL = "http://127.0.0.1:1";
   process.env.BRIDGE_SECRET = "test";
   process.env.SAGE_ROOTS = shared;
-  const bridge = await import(`/home/user/SAGE/ops/disk-bridge/bridge.mjs?t=${Date.now()}`);
+  /*
+   * Resolved from the repo root, not an absolute path.
+   *
+   * This was hard-coded to `/home/user/SAGE/ops/...`, which is one
+   * particular machine. Every CI run since has failed on
+   * ERR_MODULE_NOT_FOUND — the runner checks out to
+   * /home/runner/work/sage/sage — and the failure was invisible from the
+   * outside because GitHub serves job logs from a host some environments
+   * cannot reach. The cache-busting query stays: this module reads its
+   * configuration from the environment at import time, so each case needs a
+   * fresh copy.
+   */
+  const bridgeUrl = new URL(`../ops/disk-bridge/bridge.mjs?t=${Date.now()}`, import.meta.url);
+  const bridge = await import(bridgeUrl.href);
 
   // What was shared is readable.
   const ok = await bridge.run({ op: "read", path: path.join(shared, "note.md") });
@@ -5398,4 +5411,25 @@ test("the full-screen board rules do not apply to the embedded one", async () =>
     "main.hud-grid:has(.bd) must exclude .bd-embed, or the dashboard stops scrolling");
   assert.match(css, /main\.hud-grid:has\(\.bd:not\(\.bd-embed\)\)/,
     "the scoped selector should still be there");
+});
+
+/*
+ * No machine-specific absolute paths anywhere in the suite.
+ *
+ * One test imported `/home/user/SAGE/ops/disk-bridge/bridge.mjs`. It passed
+ * on the machine it was written on and failed every CI run since with
+ * ERR_MODULE_NOT_FOUND, because the runner checks out to
+ * /home/runner/work/sage/sage. It stayed invisible for weeks: GitHub serves
+ * job logs from a blob host, the check annotations said only "Process
+ * completed with exit code 1", and the suite was green everywhere anyone
+ * looked.
+ */
+test("the test suite has no absolute paths from one machine", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("tests/logic.test.ts", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  const hits = [...src.matchAll(/["'`](\/(?:home|Users|var\/folders)\/[^"'`\n]+)/g)].map((m) => m[1]);
+  assert.deepEqual(hits, [], `absolute paths will not resolve on CI: ${hits.join(", ")}`);
 });

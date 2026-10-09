@@ -257,20 +257,27 @@
 .bd-ix button.new { color: var(--signal); border: 1px dashed var(--rule-strong); }
 
 /*
- * The board owns the whole frame.
+ * The board owns the whole frame — when the board IS the whole frame.
  *
  * `main.hud-grid` is a padded scroll container, which is right for a document
  * and wrong for an infinite canvas: the canvas has to be exactly the size of
  * the space it is given, or its own panning fights the page's scrolling and
  * pointer coordinates stop matching what is under the cursor.
+ *
+ * `:not(.bd-embed)` is why this is scoped. The board also lives in a tile on
+ * the dashboard now, and there this rule turned the entire wall's scroll
+ * container off — so once the board had mounted, the page below it could not
+ * be reached at all. That was the "glitch" he hit, and it was not the wheel
+ * handler or the clipping I spent a while suspecting: the page had simply
+ * stopped being scrollable, from a stylesheet two directories away.
  */
-main.hud-grid:has(.bd) {
+main.hud-grid:has(.bd:not(.bd-embed)) {
   padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
-main.hud-grid:has(.bd) > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+main.hud-grid:has(.bd:not(.bd-embed)) > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 /* ── shapes ────────────────────────────────────────────────────────────── */
 

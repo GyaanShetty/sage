@@ -240,6 +240,21 @@ export function BoardCanvas({ initial, embedded = false }: { initial: BoardDoc; 
      * and the board scrolls away underneath it.
      */
     const onWheel = (e: WheelEvent) => {
+      /*
+       * Embedded, a plain wheel belongs to the page.
+       *
+       * On its own page the board owns the viewport, so swallowing every
+       * wheel event to pan the canvas is right. In a tile on the dashboard
+       * it meant the wall stopped scrolling the moment the pointer crossed
+       * the board — and the board is 750px tall and full width, so that is
+       * most of the way down the page. You could not get past it.
+       *
+       * So: embedded, only a deliberate zoom (ctrl/⌘ + wheel, which is also
+       * what a trackpad pinch sends) is the board's. Everything else falls
+       * through to the page. Panning is still available with the hand tool,
+       * space-drag, and the scrollbars of the browser doing what he meant.
+       */
+      if (embedded && !e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const r = host.getBoundingClientRect();
       const px = e.clientX - r.left, py = e.clientY - r.top;
@@ -257,7 +272,7 @@ export function BoardCanvas({ initial, embedded = false }: { initial: BoardDoc; 
     };
     host.addEventListener("wheel", onWheel, { passive: false });
     return () => host.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [embedded]);
 
   /* ── pointer ──────────────────────────────────────────────────────────── */
 

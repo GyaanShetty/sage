@@ -29,6 +29,7 @@ import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { sound } from "@/lib/sound";
 
 interface Channel { id: string; label: string; note: string }
+interface Airing { live: string | null; fallback: { id: string; title: string } | null; via: "api" | "unknown" }
 interface Vid { id: string; title: string; channel: string; thumb: string }
 
 /*
@@ -82,6 +83,26 @@ export function LiveTv({ n }: { n?: number }) {
    * screens. The live streams are what is on now; this is what he missed.
    */
   const [videos, setVideos] = useState<Vid[]>([]);
+  /*
+   * What each screen can actually play.
+   *
+   * Embedding `/embed/live_stream?channel=…` and hoping is what produced
+   * "This video is unavailable" and a playback-ID error on two of the three
+   * screens: that endpoint renders YouTube's own error page when the channel
+   * is not broadcasting. The route says what is live and what the newest
+   * upload is, so a screen with nothing on it plays something real and
+   * labels itself rather than showing an error.
+   */
+  const [air, setAir] = useState<Record<string, Airing>>({});
+  const watching = slots.map((i) => CHANNELS[i].id).join(",");
+  useEffect(() => {
+    if (!watching) return;
+    fetch(`/api/tv/live?ids=${watching}`, { signal: AbortSignal.timeout(20_000) })
+      .then((r) => r.json())
+      .then((j) => { if (j?.ok) setAir((prev) => ({ ...prev, ...(j.data as Record<string, Airing>) })); })
+      .catch(() => {});
+  }, [watching]);
+
   useEffect(() => {
     fetch("/api/youtube", { signal: AbortSignal.timeout(25_000) })
       .then((r) => r.json())
@@ -126,16 +147,35 @@ export function LiveTv({ n }: { n?: number }) {
       <div className="tv3">
         {slots.map((ci, slot) => {
           const c = CHANNELS[ci];
+          const a = air[c.id];
+          /*
+           * Three cases, in order of what the viewer would prefer:
+           *   · a known live broadcast → play it by video id, which never
+           *     renders an error page the way live_stream does;
+           *   · no key to ask with → try live_stream, the no-key path, which
+           *     is right whenever the channel happens to be on;
+           *   · asked and nothing is live → the newest upload, labelled, so
+           *     the screen is showing something true rather than grey.
+           */
+          const mode = a?.live ? "live" : a?.via === "api" && a.fallback ? "recent" : "stream";
+          const src = mode === "live"
+            ? `https://www.youtube-nocookie.com/embed/${a!.live}?autoplay=1&mute=1&playsinline=1`
+            : mode === "recent"
+              ? `https://www.youtube-nocookie.com/embed/${a!.fallback!.id}?autoplay=1&mute=1&playsinline=1`
+              : `https://www.youtube-nocookie.com/embed/live_stream?channel=${c.id}&autoplay=1&mute=1&playsinline=1`;
           return (
             <div className="tv3-cell" key={slot}>
               <div className="tv3-stage">
                 <iframe
-                  key={c.id}
-                  src={`https://www.youtube-nocookie.com/embed/live_stream?channel=${c.id}&autoplay=1&mute=1&playsinline=1`}
+                  key={src}
+                  src={src}
                   title={c.label}
                   allow="autoplay; encrypted-media; picture-in-picture"
                   allowFullScreen
                 />
+                {mode === "recent" && (
+                  <span className="tv3-badge" title={a!.fallback!.title}>NOT LIVE · LATEST</span>
+                )}
               </div>
               <div className="tv3-bar">
                 <button className="tv3-nav" onClick={() => step(slot, -1)}

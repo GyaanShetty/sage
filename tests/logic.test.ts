@@ -5378,3 +5378,24 @@ test("the embedded board scopes its shortcuts and drops the unload prompt", asyn
   assert.match(src, /tabIndex=\{embedded \? 0 : undefined\}/,
     "the host must be focusable for the scoping to be reachable by keyboard");
 });
+
+/*
+ * The board may only switch off the page's scrolling when it IS the page.
+ *
+ * `main.hud-grid:has(.bd)` turns the wall's scroll container off, which is
+ * right for the full-screen board at /board and was catastrophic once the
+ * board also lived in a dashboard tile: the moment it mounted, everything
+ * below it on the wall became unreachable. Scoping it to
+ * `.bd:not(.bd-embed)` is the fix, and it is the kind of rule that gets
+ * "simplified" back by someone who has not hit the bug.
+ */
+test("the full-screen board rules do not apply to the embedded one", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync("features/board/board.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  const unscoped = /main\.hud-grid:has\(\.bd\)/.test(css);
+  assert.equal(unscoped, false,
+    "main.hud-grid:has(.bd) must exclude .bd-embed, or the dashboard stops scrolling");
+  assert.match(css, /main\.hud-grid:has\(\.bd:not\(\.bd-embed\)\)/,
+    "the scoped selector should still be there");
+});

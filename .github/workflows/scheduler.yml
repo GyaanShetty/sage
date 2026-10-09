@@ -16,11 +16,14 @@ on:
     - cron: "30 23 * * *" # 5:00 IST — morning
     - cron: "30 3 * * *"  # 9:00 IST — markets
     - cron: "30 12 * * *" # 18:00 IST — pending tasks
+    - cron: "*/5 * * * *" # the heartbeat — see the `beat` job below
   workflow_dispatch: {}
 
 jobs:
   tick:
     runs-on: ubuntu-latest
+    # Only on the three daily windows, not on every five-minute heartbeat.
+    if: github.event.schedule != '*/5 * * * *'
     steps:
       - name: Hit /api/cron
         run: |
@@ -28,6 +31,36 @@ jobs:
             echo "SAGE_URL variable not set — skipping."; exit 0
           fi
           curl -sS -m 120 -X GET "${SAGE_URL%/}/api/cron" \
+            -H "authorization: Bearer ${CRON_SECRET}" \
+            -w "\nHTTP %{http_code}\n" || true
+        env:
+          SAGE_URL: ${{ vars.SAGE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+  # ── the clock ────────────────────────────────────────────────────────────
+  #
+  # /api/beat is what drives reminders, price alerts, automations and the
+  # night shift. Without something calling it they simply never run, which is
+  # what the dashboard means by "nothing is driving the clock".
+  #
+  # The repo ships a Cloudflare Worker for this (ops/heartbeat-worker) that
+  # fires every minute. This is the no-extra-account version: GitHub's
+  # minimum granularity is five minutes and scheduled runs can be delayed
+  # under load, so it is a coarser clock than the Worker — but it is free, it
+  # is already wired to the same SAGE_URL and CRON_SECRET this file uses, and
+  # five minutes against "never" is the whole difference.
+  #
+  # Cadence is enforced server-side, so calling it more often than a job is
+  # due costs one indexed read and does nothing.
+  beat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/beat
+        run: |
+          if [ -z "${SAGE_URL}" ]; then
+            echo "SAGE_URL variable not set — skipping."; exit 0
+          fi
+          curl -sS -m 120 -X GET "${SAGE_URL%/}/api/beat" \
             -H "authorization: Bearer ${CRON_SECRET}" \
             -w "\nHTTP %{http_code}\n" || true
         env:

@@ -1189,7 +1189,12 @@ body::after, body::before { display: none; }
    canvas owns the viewport, here it owns a rectangle. */
 .bt-host > .bd {
   position: relative; flex: 1; min-width: 0; min-height: 0;
-  height: 100%; overflow: hidden;
+  height: 100%;
+  /* `clip` rather than `hidden`: it clips identically without making the
+     box a scroll container, so nothing here can end the page's scroll
+     chain. (Not what was breaking scrolling — that was a rule in board.css
+     — but the right default for a clipped canvas either way.) */
+  overflow: clip;
 }
 .bd-embed { border: 0; }
 /* It is focusable so the tool shortcuts can be scoped to it; the focus ring
@@ -1211,4 +1216,62 @@ body::after, body::before { display: none; }
 .bt-link { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; }
 
 /* The pane body has padding everywhere else; a canvas wants the whole box. */
-.pane:has(.bt-host) .pane-body { padding: 0; overflow: hidden; }
+.pane:has(.bt-host) .pane-body { padding: 0; overflow: clip; }
+
+/* A screen playing a recent upload rather than a broadcast says so. The
+   alternative — silently showing yesterday's clip under a panel headed
+   LIVE — is the kind of small lie that makes a dashboard untrustworthy. */
+.tv3-badge {
+  position: absolute; top: 6px; left: 6px; z-index: 3;
+  font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: .14em;
+  padding: 2px 5px; color: var(--deep); background: var(--amber);
+}
+
+/* ── budget planning ──────────────────────────────────────────────────────── */
+
+/*
+ * Plan against actual, per bucket. One bar per bucket against its own limit
+ * answers "am I over on wants"; it does not answer the question a 50-30-20
+ * budget exists for, which is whether the SHAPE of the month matches the
+ * shape he planned. Two bars from a shared baseline do, and both are
+ * direct-labelled so the comparison never rests on judging two lengths.
+ */
+.bg-pair {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) 36px;
+  gap: 4px 7px; align-items: center; margin-top: 6px;
+}
+.bg-plab {
+  font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .12em;
+  color: var(--ink-4);
+}
+.bg-ptrack { display: block; height: 7px; background: var(--line); }
+.bg-ptrack i { display: block; height: 7px; background: var(--ink-4); border-radius: 0 2px 2px 0; }
+.bg-ptrack i.is-under { background: var(--s2); }
+.bg-ptrack i.is-over { background: var(--down); }
+.bg-pval {
+  font-family: var(--font-mono-f), monospace; font-size: 9.5px;
+  font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-3);
+}
+.bg-pval.is-over { color: var(--down); }
+.bg-bkpct span { color: var(--ink-4); }
+
+/*
+ * A bar behind each envelope row, with a tick where the month is projected
+ * to land. "₹4,100 of ₹6,000" is a fact; the tick is the part you can still
+ * act on, because it says whether carrying on like this blows the envelope.
+ * Behind the inputs — the row stays editable.
+ */
+.bg-row { position: relative; }
+.bg-rowbar {
+  position: absolute; inset: auto 0 0 0; height: 2px; display: block;
+  background: var(--line); pointer-events: none;
+}
+.bg-rowbar i { display: block; height: 2px; background: var(--s2); }
+.bg-rowbar i.is-watch { background: var(--amber); }
+.bg-rowbar i.is-over { background: var(--down); }
+/* The projection tick stands above the bar so it is not read as part of it. */
+.bg-rowbar b {
+  position: absolute; top: -3px; width: 1px; height: 8px;
+  background: var(--ink-2); transform: translateX(-0.5px);
+}
+.bg-rowbar b.is-over { background: var(--down); }

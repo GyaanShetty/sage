@@ -199,23 +199,48 @@ export function BudgetPanel({ reloadKey }: { reloadKey?: number }) {
           {/* spend vs an even month */}
           {curve.length > 0 && <Curve points={curve} />}
 
-          {/* buckets */}
+          {/*
+            Buckets, as plan against reality.
+            
+            This was one bar per bucket showing spend against its own limit,
+            which answers "am I over on wants" and not the question a 50-30-20
+            budget exists to answer: whether the SHAPE of the month matches
+            the shape he planned. Two bars from a shared baseline do that —
+            the target above, the actual below — and the gap between them is
+            the whole reading. The percentage figures are direct-labelled, so
+            the comparison never depends on judging two lengths by eye.
+          */}
           {status && (
             <div className="bg-buckets">
               {BUCKETS.map((b) => {
                 const s = status.buckets.find((x) => x.bucket === b);
                 if (!s) return null;
-                const pct = s.limit > 0 ? Math.min(140, (s.spent / s.limit) * 100) : 0;
+                const over = s.limit > 0 && s.spent > s.limit;
+                /* Both bars are scaled to the same maximum, or "30% planned"
+                   and "30% actual" would be drawn at different lengths. */
+                const scale = Math.max(50, s.targetPct, s.actualPct);
                 return (
                   <div className="bg-bucket" key={b}>
                     <div className="bg-bkhead">
                       <span className="bg-bkname">{b}</span>
-                      <span className="bg-bkpct">{s.targetPct}%</span>
+                      <span className="bg-bkpct">{inr(s.spent)} <span>/ {inr(s.limit)}</span></span>
                     </div>
-                    <div className="bg-bkbar">
-                      <i style={{ width: `${Math.min(100, pct)}%`, background: pct > 100 ? STATE_COLOUR.over : STATE_COLOUR.under }} />
+                    <div className="bg-pair">
+                      <span className="bg-plab">PLAN</span>
+                      <span className="bg-ptrack"><i style={{ width: `${(s.targetPct / scale) * 100}%` }} /></span>
+                      <span className="bg-pval num">{Math.round(s.targetPct)}%</span>
+
+                      <span className="bg-plab">ACTUAL</span>
+                      <span className="bg-ptrack">
+                        <i
+                          className={over ? "is-over" : "is-under"}
+                          style={{ width: `${Math.min(100, (s.actualPct / scale) * 100)}%` }}
+                        />
+                      </span>
+                      <span className={`bg-pval num${over ? " is-over" : ""}`}>
+                        {Math.round(s.actualPct)}%
+                      </span>
                     </div>
-                    <div className="bg-bkfoot">{inr(s.spent)} <span>/ {inr(s.limit)}</span></div>
                   </div>
                 );
               })}
@@ -231,6 +256,29 @@ export function BudgetPanel({ reloadKey }: { reloadKey?: number }) {
               const st = spentFor.get(l.id);
               return (
                 <div className="bg-row" key={l.id}>
+                  {/*
+                    A bar behind the row: how much of the envelope is gone,
+                    with a tick where this month is PROJECTED to land. A
+                    number says "₹4,100 of ₹6,000"; the tick says whether
+                    carrying on like this blows it, which is the thing you
+                    can still act on. Drawn behind the inputs so the row
+                    stays editable.
+                  */}
+                  {st && l.limit > 0 && (
+                    <span className="bg-rowbar" aria-hidden>
+                      <i
+                        className={st.state === "over" ? "is-over" : st.state === "watch" ? "is-watch" : ""}
+                        style={{ width: `${Math.min(100, st.usedPct)}%` }}
+                      />
+                      {st.projected > 0 && (
+                        <b
+                          className={st.projected > l.limit ? "is-over" : ""}
+                          style={{ left: `${Math.min(100, (st.projected / l.limit) * 100)}%` }}
+                          title={`On pace for ${inr(st.projected)}`}
+                        />
+                      )}
+                    </span>
+                  )}
                   <input
                     className="bg-cell"
                     value={l.category}

@@ -23,7 +23,24 @@ jobs:
         run: npx tsc --noEmit
       - name: Lint
         run: npx eslint .
+      # Failures are echoed as workflow `::error::` commands as well as to
+      # the log. GitHub turns those into check-run annotations, which are
+      # readable through the API — the raw logs are served from a blob host
+      # that some environments cannot reach, and "Process completed with
+      # exit code 1" is not a diagnosis.
       - name: Test
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee /tmp/test.log || true
+          if grep -q "^# fail [^0]" /tmp/test.log; then
+            grep -E "^not ok " /tmp/test.log | while read -r line; do
+              echo "::error title=Test failure::${line}"
+            done
+            sed -n "/^  error:/,/^  code:/p" /tmp/test.log | head -40 | while read -r line; do
+              echo "::error title=Assertion::${line}"
+            done
+            exit 1
+          fi
+          grep -E "^# (tests|pass|fail)" /tmp/test.log
       - name: Build
         run: npx next build

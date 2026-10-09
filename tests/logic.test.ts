@@ -5330,3 +5330,51 @@ test("the validated series palette is intact", async () => {
   assert.match(css, /--up:\s*#199e70/i);
   assert.match(css, /--down:\s*#e66767/i);
 });
+
+/*
+ * Channel ids must be distinct and well-formed, and labels must not repeat.
+ *
+ * The middle screen rendered "This video is unavailable" for days because
+ * the id labelled CNBC-TV18 was in fact CNBC Television — a clips channel
+ * with no 24/7 stream. Two different channels under one name is the failure
+ * this catches; whether a given id is live can only be checked against
+ * YouTube, and that endpoint rate-limits with a 500 indistinguishable from a
+ * dead channel, so it is not something a test should assert.
+ */
+test("the television channel list has no duplicate ids or labels", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("features/dashboard/components/live-tv.tsx", "utf8");
+  const block = src.slice(src.indexOf("const CHANNELS"), src.indexOf("const START"));
+  const ids = [...block.matchAll(/id:\s*"([^"]+)"/g)].map((m) => m[1]);
+  const labels = [...block.matchAll(/label:\s*"([^"]+)"/g)].map((m) => m[1]);
+
+  assert.ok(ids.length >= 3, "the wall shows three screens at once");
+  assert.equal(new Set(ids).size, ids.length, "a channel id appears twice");
+  assert.equal(new Set(labels).size, labels.length, "two channels share a label");
+  for (const id of ids) assert.match(id, /^UC[A-Za-z0-9_-]{22}$/, `${id} is not a channel id`);
+  // The one that was actually dead, rather than merely rate-limited.
+  assert.ok(!ids.includes("UCef5ZDkM0d-X2Au6GpSZxCA"), "WION 404s and was removed");
+});
+
+/*
+ * The embedded board must not grab the keyboard.
+ *
+ * BoardCanvas binds single letters to tools (n = sticky, t = text, p = pen).
+ * On its own page that is right. In a tile on the dashboard it would mean
+ * pressing a key anywhere, with nothing focused, silently arms a drawing
+ * tool — and the unsaved-changes prompt would block leaving the dashboard
+ * over a stray stroke.
+ */
+test("the embedded board scopes its shortcuts and drops the unload prompt", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("features/board/board-canvas.tsx", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  assert.match(src, /if \(embedded && !hostRef\.current\?\.contains\(document\.activeElement\)\) return;/,
+    "tool shortcuts must be scoped to focus when embedded");
+  assert.match(src, /if \(embedded\) return;[\s\S]{0,200}beforeunload/,
+    "the beforeunload warning must be skipped when embedded");
+  assert.match(src, /tabIndex=\{embedded \? 0 : undefined\}/,
+    "the host must be focusable for the scoping to be reachable by keyboard");
+});

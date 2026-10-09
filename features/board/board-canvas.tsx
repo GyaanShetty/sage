@@ -89,7 +89,21 @@ const TOOLS: [Tool, typeof MousePointer2, string][] = [
   ["arrow", ArrowRight, "Arrow — drag from a node's edge dot (A)"],
 ];
 
-export function BoardCanvas({ initial }: { initial: BoardDoc }) {
+export function BoardCanvas({ initial, embedded = false }: { initial: BoardDoc; embedded?: boolean }) {
+  /*
+   * `embedded` is for the copy that lives in a tile on the dashboard rather
+   * than on its own page. Two things have to change when the board is not
+   * the whole screen:
+   *
+   *  - The single-key tool shortcuts (v, n, t, r, p, e …) are bound to the
+   *    window. On a page that is only this board, that is right. On the
+   *    dashboard it means pressing "n" anywhere — with nothing focused,
+   *    reading the wire — silently arms the sticky tool. So when embedded
+   *    the keys only count while the board actually holds focus.
+   *  - The unsaved-changes warning on `beforeunload` is right for a page you
+   *    opened to draw on and wrong for a tile you scrolled past: it would
+   *    block leaving the dashboard over a stray pen stroke.
+   */
   const [doc, setDoc] = useState<BoardDoc>(initial);
   const [view, setView] = useState({ x: 0, y: 0, k: 1 });
   const [tool, setTool] = useState<Tool>("select");
@@ -199,12 +213,15 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
     return () => clearTimeout(t);
   }, [doc]);
 
-  // A board with unsaved edits should say so before the tab closes.
+  // A board with unsaved edits should say so before the tab closes — unless
+  // it is one tile among twenty, where that is an ambush rather than a
+  // warning. The embedded copy saves on the same debounce either way.
   useEffect(() => {
+    if (embedded) return;
     const warn = (e: BeforeUnloadEvent) => { if (dirty.current) e.preventDefault(); };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, []);
+  }, [embedded]);
 
   /* ── view ─────────────────────────────────────────────────────────────── */
 
@@ -671,6 +688,9 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.tagName === "TEXTAREA" || t.tagName === "INPUT") return;
+      /* Embedded, the board only answers keys while it holds focus — see the
+         note on the prop. The host is focusable for exactly this reason. */
+      if (embedded && !hostRef.current?.contains(document.activeElement)) return;
       /*
        * And not while a node is open for editing, even if focus has slipped
        * off the textarea for a frame. Otherwise typing a note runs the
@@ -727,7 +747,7 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sel, selEdge, editing, undo, redo, copy, paste, zoomToFit, restack, mutate]);
+  }, [sel, selEdge, editing, undo, redo, copy, paste, zoomToFit, restack, mutate, embedded]);
 
   /* ── files ────────────────────────────────────────────────────────────── */
 
@@ -847,8 +867,10 @@ export function BoardCanvas({ initial }: { initial: BoardDoc }) {
        * the thing underneath swallowed the press. Those are not edge cases;
        * they are what a frame is for.
        */
+      tabIndex={embedded ? 0 : undefined}
       className={[
         "bd",
+        embedded ? "bd-embed" : "",
         gesture.current?.kind === "move" ? "is-dragging" : "",
         tool === "pan" ? "is-pan" : "",
         tool === "pen" ? "is-ink" : "",

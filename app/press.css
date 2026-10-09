@@ -1118,3 +1118,97 @@ body::after, body::before { display: none; }
    wearing the series colour. */
 .pf-alloclg i { width: 9px; height: 9px; flex: none; border-radius: 1px; }
 .pf-alloclg b { color: var(--ink); font-family: var(--font-mono-f), monospace; font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* ── fixes from the screenshots he sent ───────────────────────────────────── */
+
+/*
+ * The agenda's clock column was a fixed 34px and the time painted straight
+ * over the title: "04:3Leetcode", "09:0CSE". A grid track does not clip its
+ * child, so the five characters of a time set in the real webfont simply ran
+ * past 34px into the next column. My headless measurement missed it because
+ * the webfont had not loaded there and the fallback was narrower — which is
+ * the lesson, not the bug: measure with the fonts the page actually ships.
+ *
+ * `auto` lets the track be whatever a time needs, and the overflow guard
+ * means a longer format can never do this again.
+ */
+.tlv-ev { grid-template-columns: 11px auto minmax(0, 1fr); }
+.tlv-t { overflow: hidden; white-space: nowrap; }
+/* The hour labels sat flush against the pane edge and lost a digit to it. */
+.tlv { padding-left: 44px; }
+.tlv-h { padding-left: 4px; }
+
+/*
+ * The morning wire's source tabs wrapped onto two lines and still clipped —
+ * "FIN EXP" over two rows, "WATCH" cut to "WATC" — which cost the headlines
+ * a line of height AND lost a filter. Ten tabs do not fit across a quarter
+ * pane at any font size worth reading, so the row scrolls sideways instead
+ * of pretending to fit.
+ */
+.mw-tabs, .wire-tabs {
+  display: flex; flex-wrap: nowrap; overflow-x: auto;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.mw-tabs::-webkit-scrollbar, .wire-tabs::-webkit-scrollbar { display: none; }
+.mw-tabs > *, .wire-tabs > * { flex: none; white-space: nowrap; }
+
+/*
+ * Charts. The sector labels truncated to "PHA…", "MET…", "ENE…", the values
+ * lost their percent sign off the right edge, and the breadth donut and the
+ * mood line were cut in half by the bottom of the pane. The pane is a row
+ * taller now and the columns are sized for the content rather than guessed.
+ */
+.cx-srow { grid-template-columns: 74px minmax(0, 1fr) 72px; }
+.cx-sval { font-size: 10px; }
+/* The axis is the thing every bar is read against, so it may not be the
+   faintest line in the pane. */
+.cx-axis { background: var(--ink-4); }
+.cx-pair { grid-template-columns: 78px minmax(0, 1fr); }
+.cx-donut, .cx-donut svg { width: 78px; height: 78px; }
+.cx-mlab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/*
+ * The expense row overflowed its pane and cut "LOG" in half. Fixed pixel
+ * columns for a select and a button is a guess about text width in a font
+ * that was not loaded when I guessed; `auto` is not a guess.
+ */
+.xp-form { grid-template-columns: 52px minmax(0, 1fr) auto auto; }
+.xp-form input, .xp-form select, .xp-form button { padding: 7px 6px; }
+.xp-cat { max-width: 86px; }
+.xp-go { padding-inline: 9px; }
+
+/* The topic bars were still the old grey while the publisher bars beside
+   them had moved to the palette — two bar charts in one pane in two
+   different colours, saying nothing by the difference. */
+.ht-bar i { background: var(--s2); border-radius: 0 2px 2px 0; }
+
+/* ── the whiteboard tile ──────────────────────────────────────────────────── */
+
+.bt-host { position: relative; height: 100%; min-height: 0; display: flex; }
+/* The embedded board fills its tile and clips to it — on its own page the
+   canvas owns the viewport, here it owns a rectangle. */
+.bt-host > .bd {
+  position: relative; flex: 1; min-width: 0; min-height: 0;
+  height: 100%; overflow: hidden;
+}
+.bd-embed { border: 0; }
+/* It is focusable so the tool shortcuts can be scoped to it; the focus ring
+   is the thing that tells him the keys are live. */
+.bd-embed:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
+
+.bt-switch { display: inline-flex; align-items: center; gap: 1px; }
+.bt-tab {
+  background: none; border: 0; cursor: pointer; padding: 2px 7px;
+  font-family: var(--font-disp), sans-serif; font-size: 8.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-4);
+  max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bt-tab:hover { color: var(--ink-2); }
+.bt-tab.on { color: var(--amber); box-shadow: inset 0 -2px 0 var(--amber); }
+.bt-new { color: var(--ink-3); }
+.bt-open { display: inline-flex; padding: 2px 6px; color: var(--ink-4); }
+.bt-open:hover { color: var(--amber); }
+.bt-link { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; }
+
+/* The pane body has padding everywhere else; a canvas wants the whole box. */
+.pane:has(.bt-host) .pane-body { padding: 0; overflow: hidden; }

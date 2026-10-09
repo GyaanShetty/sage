@@ -23,7 +23,8 @@ import { MorningBlock } from "@/features/morning/morning-block";
 import { ChartsPanel } from "./charts-panel";
 import { SitrepBand } from "./sitrep-band";
 import { HotTopics } from "./hot-topics";
-import { ExpenseTile, WhiteboardTile, DirectivesPanel } from "./routine-tiles";
+import { ExpenseTile, DirectivesPanel } from "./routine-tiles";
+import { BoardTile } from "./board-tile";
 import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
 import { BudgetTile } from "./ops-tiles";
 import { StudyTile } from "./chart-tiles";
@@ -225,14 +226,14 @@ export function CommandView({
           {/* 7 — plan the day. */}
           <div className="t-12x6"><TileGuard name="MORNINGBLOCK"><div className="wall-cell mb-cell"><MorningBlock /></div></TileGuard></div>
 
-          <Pane n={6} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x4" frame noZoom>
+          <Pane n={6} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x5" frame noZoom>
             <AtlasMap lat={12.9352} lon={77.6245} compact />
           </Pane>
-          <div className="t-4x4"><TileGuard name="CHARTS"><ChartsPanel n={7} /></TileGuard></div>
+          <div className="t-4x5"><TileGuard name="CHARTS"><ChartsPanel n={7} /></TileGuard></div>
           {/* Hot topics earns its place by breadth: a term only shows once two
               separate publishers are running it, so this is what the desk is
               actually chasing rather than what one outlet happens to repeat. */}
-          <div className="t-4x4"><TileGuard name="HOTTOPICS"><HotTopics n={8} /></TileGuard></div>
+          <div className="t-4x5"><TileGuard name="HOTTOPICS"><HotTopics n={8} /></TileGuard></div>
 
           {/* 5 · 4 — skim the markets, then the day's problem. */}
           <div className="t-3x4"><TileGuard name="MARKETS"><MarketsList n={9} limit={12} /></TileGuard></div>
@@ -240,23 +241,33 @@ export function CommandView({
           <div className="t-3x4"><TileGuard name="LEETCODE"><CodeTile n={11} /></TileGuard></div>
           <div className="t-3x4"><TileGuard name="STUDY"><StudyTile n={12} /></TileGuard></div>
 
-          {/* 11 · 12 · 13 — the evening: the budget, what went out, logging
-              what just went out, the board. Subscriptions had this slot and
-              lost it: it could only ever show what the receipt scanner had
-              already found, so it was an empty box, and the thing he does
-              several times a day is record a spend. The recurring total
-              lives on the expense pane now, which is where it was useful. */}
+          {/* 11 · 12 — the evening: the budget, what went out, logging what
+              just went out. Subscriptions had the third slot and lost it: it
+              could only ever show what the receipt scanner had already
+              found, so it was an empty box, and the thing he does several
+              times a day is record a spend. */}
           <div className="t-3x4"><TileGuard name="BUDGET"><BudgetTile n={13} /></TileGuard></div>
           <div className="t-3x4"><TileGuard name="SPEND"><SpendTile n={14} /></TileGuard></div>
           <div className="t-3x4"><TileGuard name="EXPENSES"><ExpenseTile n={15} /></TileGuard></div>
-          <div className="t-3x4"><TileGuard name="WHITEBOARD"><WhiteboardTile n={16} /></TileGuard></div>
+          <div className="t-3x4"><TileGuard name="REVIEW"><ReviewTile n={16} /></TileGuard></div>
 
-          <div className="t-3x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="KEYMETRICS">
-            <KeyMetricsTile n={17} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
+          {/*
+           * 13 — the whiteboard, with room to work.
+           *
+           * It was a quarter tile listing board names, which told him his
+           * boards existed and sent him elsewhere to use one. He calls it his
+           * main workspace, so it gets the full width and eight rows — about
+           * 740px, taller than anything else on the wall including the
+           * television. The canvas mounts when the tile comes near the
+           * viewport rather than on first paint.
+           */}
+          <div className="t-12x8"><TileGuard name="WHITEBOARD"><BoardTile n={17} /></TileGuard></div>
+
+          <div className="t-4x3"><TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="KEYMETRICS">
+            <KeyMetricsTile n={18} week={week} doy={doy} quarter={quarter} open={open} focusMin={focusMin} />
           </TileGuard></div>
-          <div className="t-3x3"><TileGuard name="REVIEW"><ReviewTile n={18} /></TileGuard></div>
-          <div className="t-3x3"><TileGuard name="LAUNCH"><QuickLaunch n={19} /></TileGuard></div>
+          <div className="t-4x3"><TileGuard name="LAUNCH"><QuickLaunch n={19} /></TileGuard></div>
 
           <div className="t-12x2"><TileGuard name="DEBRIEF"><div className="wall-cell"><BriefBlock /></div></TileGuard></div>
         </div>

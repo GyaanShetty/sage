@@ -791,6 +791,10 @@ main.hud-grid:has(.wall-shell) { padding-bottom: 0; }
      players down to a letterbox. */
   .wall-pack > .t-12x5 { grid-column: span 12; grid-row: span 5; }
   .wall-pack > .t-12x6 { grid-column: span 12; grid-row: span 6; }
+  /* Eight rows — about 740px — for the whiteboard. It is the only thing on
+     the wall he works IN rather than reads, and a canvas you cannot fit a
+     diagram on is a link to a canvas. */
+  .wall-pack > .t-12x8 { grid-column: span 12; grid-row: span 8; }
 
   /*
    * There was a rule here that gave wide screens MORE tiles to a band, on the

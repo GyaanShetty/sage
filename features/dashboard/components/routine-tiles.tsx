@@ -10,7 +10,6 @@
  */
 
 import { useState, useCallback, type Dispatch, type SetStateAction } from "react";
-import Link from "next/link";
 import { Pane, Empty } from "@/components/pane";
 import { useLive } from "@/lib/live";
 import { sound } from "@/lib/sound";
@@ -155,61 +154,6 @@ export function ExpenseTile({ n }: { n?: number }) {
       {sum !== undefined && recent.length === 0 && (
         <Empty reason="Nothing logged yet — the form above is the whole flow" />
       )}
-    </Pane>
-  );
-}
-
-/* ── the whiteboard ────────────────────────────────────────────────────────
- *
- * He calls the board his main workspace, and it was reachable only from the
- * nav rail. This is the index: the boards he has, newest first, each a link
- * straight into it, plus what is on it — a board with four nodes and a board
- * with two hundred are different objects and the count is the only thing
- * that distinguishes them at a glance.
- */
-interface BoardRow { id: string; title: string; nodes: number; strokes: number; updatedAt: string }
-
-const ago = (iso: string) => {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms)) return "";
-  const m = Math.round(ms / 60_000);
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h`;
-  return `${Math.round(h / 24)}d`;
-};
-
-export function WhiteboardTile({ n }: { n?: number }) {
-  const [boards, setBoards] = useState<BoardRow[] | null | undefined>(undefined);
-
-  useLive(
-    () => fetch("/api/board").then((r) => r.json())
-      .then((j) => setBoards(asArray<BoardRow>(j?.data)))
-      .catch(() => setBoards(null)),
-    { everyMs: 300_000 },
-  );
-
-  const rows = [...(boards ?? [])].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
-
-  return (
-    <Pane
-      n={n}
-      title="Whiteboard"
-      status={rows.length ? `${rows.length} board${rows.length === 1 ? "" : "s"}` : "empty"}
-      live={rows.length > 0}
-    >
-      {boards === undefined && <div className="tile-wait">READING…</div>}
-      {boards !== undefined && rows.length === 0 && (
-        <Empty reason="No boards yet" action="Open the workspace" href="/workspace" />
-      )}
-      {rows.slice(0, 7).map((b) => (
-        <Link className="wb-row" key={b.id} href={`/workspace?board=${encodeURIComponent(b.id)}`}>
-          <span className="wb-t">{b.title || "Untitled"}</span>
-          <span className="wb-c num">{b.nodes + b.strokes}</span>
-          <span className="wb-w num">{ago(b.updatedAt)}</span>
-        </Link>
-      ))}
     </Pane>
   );
 }

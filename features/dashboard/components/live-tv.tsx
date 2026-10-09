@@ -40,16 +40,31 @@ interface Vid { id: string; title: string; channel: string; thumb: string }
  */
 const CHANNELS: Channel[] = [
   { id: "UCIALMKvObZNtJ6AmdCLP7Lg", label: "Bloomberg", note: "Markets · global" },
-  { id: "UCrp_UI8XtuYfpiqluWLD7Lw", label: "CNBC-TV18", note: "India · markets" },
+  /*
+   * The real CNBC-TV18. The id here used to be UCrp_UI8XtuYfpiqluWLD7Lw,
+   * which I had labelled CNBC-TV18 and which is in fact CNBC Television —
+   * a clips channel with no 24/7 stream, so the middle screen rendered
+   * "This video is unavailable" every time. Both are in the list now, each
+   * under its own name.
+   *
+   * Every id below was checked against
+   * youtube.com/feeds/videos.xml?channel_id=… and the returned <title>
+   * compared to the label. Worth noting for the next person: that endpoint
+   * rate-limits with a 500 that looks exactly like a dead channel, so a
+   * single failed check proves nothing — three of these "failed" on the
+   * first pass and resolved fine on a retry. WION is the one real
+   * casualty; it 404s consistently and is gone.
+   */
+  { id: "UCmRbHAgG2k2vDUvb3xsEunQ", label: "CNBC-TV18", note: "India · markets" },
   { id: "UCNye-wNBqNL5ZzHSJj3l8Bg", label: "Al Jazeera", note: "World" },
-  { id: "UCvJJ_dzjViJCoLf5uKUTwoA", label: "CNBC", note: "US · markets" },
+  { id: "UCrp_UI8XtuYfpiqluWLD7Lw", label: "CNBC Television", note: "US · markets" },
+  { id: "UCvJJ_dzjViJCoLf5uKUTwoA", label: "CNBC", note: "US · business" },
   { id: "UCUMZ7gohGI9HcU9VNsr2FJQ", label: "Bloomberg Originals", note: "Features" },
   { id: "UC16niRr50-MSBwiO3YDb3RA", label: "BBC News", note: "World" },
   { id: "UCknLrEdhRCp1aegoMqRaCZg", label: "DW News", note: "Europe" },
   { id: "UCupvZG-5ko_eiXAupbDfxWw", label: "CNN", note: "World" },
   { id: "UCYfdidRxbB8Qhf0Nx7ioOYw", label: "NBC News", note: "US" },
   { id: "UC7fWeaHhqgM4Ry-RMpM2YYw", label: "TRT World", note: "World" },
-  { id: "UCef5ZDkM0d-X2Au6GpSZxCA", label: "WION", note: "India · world" },
   { id: "UCt4t-jeY85JegMlZ-E5UWtA", label: "Aaj Tak", note: "India" },
 ];
 

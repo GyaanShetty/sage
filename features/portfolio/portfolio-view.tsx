@@ -257,7 +257,35 @@ export function PortfolioView() {
   const movers = priced.filter((p) => p.change24h != null).sort((a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0));
   const topGainer = [...movers].sort((a, b) => (b.change24h ?? 0) - (a.change24h ?? 0))[0];
   const topLoser = [...movers].sort((a, b) => (a.change24h ?? 0) - (b.change24h ?? 0))[0];
-  const allocTint = ["#f4f5f7", "#a855f7", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#f87171", "#c4b5fd"];
+  /*
+   * Allocation colours: the validated series slots, assigned in fixed order
+   * and never cycled.
+   *
+   * This was eight hand-picked hues indexed with `% length`, which breaks two
+   * rules at once. The hues themselves were never checked — #a855f7 beside
+   * #c4b5fd is two violets a colourblind reader cannot separate — and the
+   * modulo meant a ninth holding silently reused slot one, so two different
+   * positions were drawn in the same colour in the same bar.
+   *
+   * Six slots and an explicit "Other", so the palette never runs out and the
+   * legend always accounts for the whole bar. A ninth series is not a
+   * generated hue; it folds.
+   */
+  const SLOTS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)"];
+  const OTHER = "var(--ink-4)";
+
+  /* The six largest holdings keep their own colour; everything past that is
+     one "Other" segment. The bar and the legend are generated from the same
+     array, so they cannot disagree — previously the bar drew every position
+     and the legend showed six, which left unlabelled colours on screen. */
+  const allocShown = (() => {
+    const head = allocation.slice(0, SLOTS.length).map((a, i) => ({ ...a, tint: SLOTS[i] }));
+    const restPct = allocation.slice(SLOTS.length).reduce((t, a) => t + a.pct, 0);
+    const restN = allocation.length - head.length;
+    return restPct > 0
+      ? [...head, { symbol: `Other (${restN})`, kind: "stock" as const, value: 0, pct: restPct, change24h: null, tint: OTHER }]
+      : head;
+  })();
 
   /* Daily returns as percentages, from consecutive snapshots. A zero-valued
      snapshot is skipped rather than treated as a −100% day: the portfolio was
@@ -376,11 +404,16 @@ export function PortfolioView() {
           <div className="pf-alloc">
             <div className="sectitle" style={{ margin: "0 0 10px" }}><span className="sn"><PieChart className="size-3.5" /></span><h2 style={{ fontSize: 14 }}>Allocation</h2><span className="line" /></div>
             <div className="pf-allocbar">
-              {allocation.map((a, i) => <span key={a.symbol} style={{ width: `${a.pct}%`, background: allocTint[i % allocTint.length] }} title={`${a.symbol} · ${fmt(a.pct, 1)}%`} />)}
+              {allocShown.map((a) => (
+                <span key={a.symbol} style={{ width: `${a.pct}%`, background: a.tint }} title={`${a.symbol} · ${fmt(a.pct, 1)}%`} />
+              ))}
             </div>
+            {/* The legend is always present — two or more series means identity
+                is never carried by colour alone — and lists exactly what the
+                bar draws, in the same order. */}
             <div className="pf-alloclegend">
-              {allocation.slice(0, 6).map((a, i) => (
-                <span key={a.symbol} className="pf-alloclg"><i style={{ background: allocTint[i % allocTint.length] }} />{a.symbol} <b>{fmt(a.pct, 1)}%</b></span>
+              {allocShown.map((a) => (
+                <span key={a.symbol} className="pf-alloclg"><i style={{ background: a.tint }} />{a.symbol} <b>{fmt(a.pct, 1)}%</b></span>
               ))}
             </div>
           </div>

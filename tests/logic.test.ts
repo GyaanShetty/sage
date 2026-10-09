@@ -5283,3 +5283,50 @@ test("every span class used on the wall is defined in the grid", async () => {
     );
   }
 });
+
+/*
+ * Categorical colour is assigned in fixed order and never cycled.
+ *
+ * The allocation bar used eight hand-picked hues indexed with `% length`,
+ * which fails twice over: the hues were never validated (#a855f7 beside
+ * #c4b5fd is two violets a colourblind reader cannot separate), and the
+ * modulo meant a ninth holding silently reused slot one — two different
+ * positions drawn in the same colour in the same bar. Six slots and an
+ * explicit "Other" instead.
+ */
+test("the portfolio allocation never cycles its palette", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("features/portfolio/portfolio-view.tsx", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  assert.doesNotMatch(src, /%\s*allocTint\.length/, "the allocation palette is being cycled with a modulo");
+  assert.doesNotMatch(src, /allocTint/, "allocTint should be gone entirely");
+  assert.match(src, /const SLOTS = \[[^\]]*var\(--s1\)/, "slots must come from the validated series tokens");
+  assert.match(src, /Other \(\$\{restN\}\)/, "positions past the slots must fold into one Other segment");
+});
+
+/*
+ * The series tokens themselves. These values are not a preference — they are
+ * the output of the palette validator run against this surface, and the
+ * ORDER is the colourblind-safety mechanism. Changing one without re-running
+ * `validate_palette.js --mode dark --surface "#131211"` silently breaks the
+ * guarantee, so the set is pinned.
+ */
+test("the validated series palette is intact", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync("app/press.css", "utf8");
+  const want: [string, string][] = [
+    ["--s1", "#199e70"], ["--s2", "#3987e5"], ["--s3", "#e66767"],
+    ["--s4", "#9085e9"], ["--s5", "#d55181"], ["--s6", "#008300"],
+  ];
+  for (const [name, hex] of want) {
+    assert.ok(
+      new RegExp(`${name}:\\s*${hex}\\b`, "i").test(css),
+      `${name} must be ${hex} — re-run the palette validator before changing it`,
+    );
+  }
+  // up/down sit in the CVD warn band, which is legal only alongside ▲/▽.
+  assert.match(css, /--up:\s*#199e70/i);
+  assert.match(css, /--down:\s*#e66767/i);
+});

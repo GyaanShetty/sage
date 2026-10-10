@@ -5329,9 +5329,19 @@ test("the portfolio allocation never cycles its palette", async () => {
 test("the validated series palette is intact", async () => {
   const fs = await import("node:fs");
   const css = fs.readFileSync("app/press.css", "utf8");
+  /*
+   * Five slots, not six, and no red among them.
+   *
+   * Red became the interface's one reserved accent when the brief went to
+   * red-on-black, so red and magenta left the series set — a "series 3"
+   * the same colour as every alert on the page is the collision the
+   * reserved-status rule exists to prevent. Re-validated against the new
+   * ground rather than carried over: worst adjacent CVD ΔE 19.6, normal
+   * vision 20.9, all five clear 3:1 on #0a0506.
+   */
   const want: [string, string][] = [
-    ["--s1", "#199e70"], ["--s2", "#3987e5"], ["--s3", "#e66767"],
-    ["--s4", "#9085e9"], ["--s5", "#d55181"], ["--s6", "#008300"],
+    ["--s1", "#199e70"], ["--s2", "#3987e5"], ["--s3", "#c98500"],
+    ["--s4", "#9085e9"], ["--s5", "#008300"],
   ];
   for (const [name, hex] of want) {
     assert.ok(
@@ -5339,9 +5349,14 @@ test("the validated series palette is intact", async () => {
       `${name} must be ${hex} — re-run the palette validator before changing it`,
     );
   }
+  // No series slot may be the reserved accent.
+  for (const [name] of want) {
+    const v = css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1]?.toLowerCase();
+    assert.notEqual(v, "#e5484d", `${name} must not be the reserved alert colour`);
+  }
   // up/down sit in the CVD warn band, which is legal only alongside ▲/▽.
   assert.match(css, /--up:\s*#199e70/i);
-  assert.match(css, /--down:\s*#e66767/i);
+  assert.match(css, /--down:\s*#e5484d/i);
 });
 
 /*

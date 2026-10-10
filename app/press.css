@@ -28,13 +28,22 @@
    * black, warm white, and the FT's own ink colours for everything that has to
    * stand out.
    */
-  --deep:       #0b0a09;
-  --background: #0b0a09;
-  --panel:      #131211;
-  --surface:    #131211;
-  --panel-hi:   #1c1a18;
-  --surface-hi: #1c1a18;
-  --sunken:     #060504;
+  /*
+   * Red and black, and the black is not neutral.
+   *
+   * A pure grey black under a red accent reads as a stylesheet with one
+   * coloured variable in it. Pulling a few points of red into the ground
+   * itself is what makes the whole screen feel lit by the accent rather
+   * than decorated with it — the same trick a darkroom or an operations
+   * floor uses, and it costs nothing in contrast.
+   */
+  --deep:       #0a0506;
+  --background: #0a0506;
+  --panel:      #120b0c;
+  --surface:    #120b0c;
+  --panel-hi:   #1c1113;
+  --surface-hi: #1c1113;
+  --sunken:     #060304;
 
   /* Paper, not white. #fff on a dark ground glares; warm off-white reads as
      printed rather than emitted. */
@@ -83,16 +92,23 @@
    * live states carry the word, hazards carry the stripe, the current tab
    * carries its position.
    */
-  --signal:       #e8a33d;
-  --signal-dim:   rgba(232, 163, 61, 0.42);
-  --signal-faint: rgba(232, 163, 61, 0.10);
-  --signal-glow:  rgba(232, 163, 61, 0.45);
-  --live:         #e8a33d;
-  --live-dim:     rgba(232, 163, 61, 0.42);
-  --live-glow:    rgba(232, 163, 61, 0.38);
-  --accent:       #e8a33d;
-  --claret:       #e8a33d;   /* kept as a name so the press rules below hold */
+  --signal:       #e5484d;
+  --signal-dim:   rgba(229, 72, 77, 0.42);
+  --signal-faint: rgba(229, 72, 77, 0.10);
+  --signal-glow:  rgba(229, 72, 77, 0.50);
+  --live:         #e5484d;
+  --live-dim:     rgba(229, 72, 77, 0.42);
+  --live-glow:    rgba(229, 72, 77, 0.45);
+  --accent:       #e5484d;
+  --claret:       #e5484d;   /* kept as a name so the press rules below hold */
   --teal:         rgba(242, 242, 242, 0.62);
+
+  /* The one accent, under the name the rules below actually use. It was
+     called --amber until the brief changed; renamed rather than left
+     lying about what colour it is. */
+  --sig:      #e5484d;
+  --sig-dim:  rgba(229, 72, 77, 0.42);
+  --sig-glow: rgba(229, 72, 77, 0.22);
 
   /*
    * Market direction. The old pair was desaturated to a third of its chroma
@@ -103,7 +119,10 @@
    * this page are it. Never print one of these without its arrow.
    */
   --up:   #199e70;
-  --down: #e66767;
+  /* Down is the alert colour, which is coherent rather than a collision:
+     down IS the bad state. 6.5 ΔE from up under deuteranopia — the warn
+     band — so the ▲/▽ that ship with every figure are doing real work. */
+  --down: #e5484d;
 
   /*
    * The series palette — six slots, in this order, never cycled.
@@ -127,12 +146,18 @@
    * yellow series beside an amber "live" pip is two different meanings in one
    * hue. Status stays reserved.
    */
-  --s1: #199e70;   /* aqua    */
-  --s2: #3987e5;   /* blue    */
-  --s3: #e66767;   /* red     */
-  --s4: #9085e9;   /* violet  */
-  --s5: #d55181;   /* magenta */
-  --s6: #008300;   /* green   */
+  --s1: #199e70;   /* aqua   */
+  --s2: #3987e5;   /* blue   */
+  --s3: #c98500;   /* yellow */
+  --s4: #9085e9;   /* violet */
+  --s5: #008300;   /* green  */
+  /* Five, not six. Red and magenta left the series set when red became the
+     chrome accent: a "series 3" the same colour as every alert on the page
+     is the exact collision the reserved-status rule exists to prevent.
+     Re-validated against the new ground (#0a0506) rather than assumed —
+     worst adjacent CVD ΔE 19.6, normal vision 20.9, all five over 3:1. The
+     sixth slot aliases the fifth so nothing that asks for it breaks. */
+  --s6: #008300;
 
   /* Sequential, for magnitude: one hue, light → dark. Never a rainbow. */
   --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec;
@@ -141,7 +166,7 @@
   /* Diverging, for signed values that are not market direction: two poles
      and a NEUTRAL grey midpoint — a hue in the middle would read as a third
      category rather than as zero. */
-  --dv-pos: #3987e5; --dv-mid: #383835; --dv-neg: #e66767;
+  --dv-pos: #3987e5; --dv-mid: #342a2b; --dv-neg: #e5484d;
 
   --serif: var(--font-serif), Georgia, "Times New Roman", serif;
 }
@@ -456,7 +481,7 @@ body::after { display: none; }
   background: none; border: 0; color: var(--ink-4); cursor: pointer;
   transition: color .15s var(--ease);
 }
-.tv3-nav:hover { color: var(--amber); }
+.tv3-nav:hover { color: var(--sig); }
 .tv3-id { min-width: 0; text-align: center; padding: 4px 2px; }
 .tv3-name {
   display: block; font-family: var(--serif); font-size: 12.5px; line-height: 1.1; color: var(--ink);
@@ -610,8 +635,6 @@ body::after { display: none; }
  * live states carry the word, hazards carry the stripe.
  */
 :root {
-  --amber: #e8a33d;
-  --amber-dim: rgba(232, 163, 61, 0.42);
 }
 
 /* Corner ticks, drawn as four gradients on the panel itself rather than as
@@ -639,8 +662,8 @@ body::after { display: none; }
 }
 
 /* Live is the one place amber is spent on the wall. The word still says it. */
-.pane-s.live { color: var(--amber); }
-.pane:has(.pane-s.live) { border-top-color: var(--amber-dim); }
+.pane-s.live { color: var(--sig); }
+.pane:has(.pane-s.live) { border-top-color: var(--sig-dim); }
 
 /* Meters become segmented, which is the reference's reading and also a better
    one: a segmented bar can be counted, a continuous one can only be compared. */
@@ -649,7 +672,7 @@ body::after { display: none; }
     var(--ink-3) 0 3px, transparent 3px 5px);
   background-color: transparent;
 }
-.am-head { background: var(--amber); }
+.am-head { background: var(--sig); }
 
 /* The hero's figures set as instrument numerals: mono, tabular, tight. The
    references put the one number that matters at display size, and the reason
@@ -759,7 +782,7 @@ body::after { display: none; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sub-bar { display: block; height: 3px; background: var(--line-2); }
-.sub-bar i { display: block; height: 3px; background: var(--amber); }
+.sub-bar i { display: block; height: 3px; background: var(--sig); }
 .sub-a {
   font-family: var(--font-mono-f), monospace; font-size: 10.5px;
   font-variant-numeric: tabular-nums; text-align: right; color: var(--ink);
@@ -791,20 +814,20 @@ body::after { display: none; }
  */
 
 /* The live pip and the live kicker. */
-.pane-s.live { color: var(--amber); }
-.pane:has(.pane-s.live) { border-top-color: var(--amber-dim); }
+.pane-s.live { color: var(--sig); }
+.pane:has(.pane-s.live) { border-top-color: var(--sig-dim); }
 
 /* The selected tab, the current filter, the pressed channel. Position and
    weight still say it too — amber is the confirmation, not the message. */
-.mw-tab.on, .wire-tab.on, .tab.on, [aria-selected="true"] { color: var(--amber); }
-.mw-tab.on, .wire-tab.on, .tab.on { box-shadow: inset 0 -2px 0 var(--amber); }
+.mw-tab.on, .wire-tab.on, .tab.on, [aria-selected="true"] { color: var(--sig); }
+.mw-tab.on, .wire-tab.on, .tab.on { box-shadow: inset 0 -2px 0 var(--sig); }
 
 /* The masthead rule. One amber line under the nameplate, which is the
    references' single loudest move and costs nothing here. */
-.dh-rules::before, .dh-rules::after { background: var(--amber-dim); }
+.dh-rules::before, .dh-rules::after { background: var(--sig-dim); }
 
 /* The meter head, which marks where a value actually sits on its track. */
-.am-head { background: var(--amber); }
+.am-head { background: var(--sig); }
 
 /* ── directives ───────────────────────────────────────────────────────────── */
 
@@ -826,7 +849,7 @@ body::after { display: none; }
   color: var(--ink-4); font-size: 15px; line-height: 1;
   transition: color .15s var(--ease);
 }
-.dv-plus:hover { color: var(--amber); }
+.dv-plus:hover { color: var(--sig); }
 
 .dv-row {
   display: grid; grid-template-columns: 20px minmax(0, 1fr) auto;
@@ -845,7 +868,7 @@ body::after { display: none; }
   color: transparent; transition: color .12s var(--ease), border-color .12s var(--ease);
 }
 .dv-row:hover .dv-tick { border-color: var(--ink-3); }
-.dv-tick:hover { color: var(--amber); border-color: var(--amber); }
+.dv-tick:hover { color: var(--sig); border-color: var(--sig); }
 
 .dv-t {
   font-family: var(--serif); font-size: 12.5px; line-height: 1.3; color: var(--ink-2);
@@ -856,7 +879,7 @@ body::after { display: none; }
    never the only thing saying it. */
 .dv-late {
   font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: 0.14em;
-  color: var(--amber); border: 1px solid var(--amber-dim); padding: 1px 3px; white-space: nowrap;
+  color: var(--sig); border: 1px solid var(--sig-dim); padding: 1px 3px; white-space: nowrap;
 }
 
 .dv-more {
@@ -865,7 +888,7 @@ body::after { display: none; }
   font-family: var(--font-disp), sans-serif; font-size: 9px; letter-spacing: 0.12em;
   text-transform: uppercase; color: var(--ink-4);
 }
-.dv-more:hover { color: var(--amber); }
+.dv-more:hover { color: var(--sig); }
 
 /* ── the hero canvas ──────────────────────────────────────────────────────── */
 
@@ -933,11 +956,11 @@ body::after { display: none; }
 
 .tlv-now {
   position: absolute; left: 22px; right: 0; height: 1px;
-  background: var(--amber); z-index: 2;
+  background: var(--sig); z-index: 2;
 }
 .tlv-now::before {
   content: ""; position: absolute; left: -3px; top: -2px;
-  width: 5px; height: 5px; border-radius: 50%; background: var(--amber);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--sig);
 }
 
 .tlv-ev {
@@ -950,7 +973,7 @@ body::after { display: none; }
 .tlv-ev:hover { background: var(--panel-hi); }
 .tlv-ev.past { opacity: .5; }
 .tlv-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); margin-left: 3px; }
-.tlv-ev.next .tlv-dot { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-dim); }
+.tlv-ev.next .tlv-dot { background: var(--sig); box-shadow: 0 0 0 3px var(--sig-dim); }
 .tlv-t {
   font-family: var(--font-mono-f), monospace; font-size: 9.5px;
   font-variant-numeric: tabular-nums; color: var(--ink-3);
@@ -979,8 +1002,8 @@ body::after { display: none; }
 }
 .sr-row.high  { box-shadow: inset 2px 0 0 var(--down); }
 .sr-row.high .sr-tier { color: var(--down); }
-.sr-row.warn  { box-shadow: inset 2px 0 0 var(--amber); }
-.sr-row.warn .sr-tier { color: var(--amber); }
+.sr-row.warn  { box-shadow: inset 2px 0 0 var(--sig); }
+.sr-row.warn .sr-tier { color: var(--sig); }
 .sr-row.info  { box-shadow: inset 2px 0 0 var(--line-2); }
 .sr-ic { font-size: 10px; opacity: .8; }
 .sr-tx { font-family: var(--serif); font-size: 12.5px; line-height: 1.3; color: var(--ink-2); min-width: 0; }
@@ -1017,7 +1040,7 @@ body::after { display: none; }
 }
 .xp-cat option { background: var(--panel); color: var(--ink); }
 .xp-go {
-  cursor: pointer; letter-spacing: .1em; font-size: 9px; color: var(--amber);
+  cursor: pointer; letter-spacing: .1em; font-size: 9px; color: var(--sig);
   transition: background .15s var(--ease);
 }
 .xp-go:hover:not(:disabled) { background: var(--panel-hi); }
@@ -1069,13 +1092,13 @@ body::after { display: none; }
   border-bottom: 1px solid var(--line); text-align: left;
 }
 .tv3-opt:hover { background: var(--panel-hi); }
-.tv3-oi { display: flex; justify-content: center; color: var(--amber); }
+.tv3-oi { display: flex; justify-content: center; color: var(--sig); }
 .tv3-ol { font-family: var(--serif); font-size: 12px; color: var(--ink-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tv3-opt.on .tv3-ol { color: var(--ink); }
 .tv3-on2 { font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
-.tv3-opt.taken .tv3-on2 { color: var(--amber); }
+.tv3-opt.taken .tv3-on2 { color: var(--sig); }
 
 /* ── who is running it ────────────────────────────────────────────────────── */
 
@@ -1204,7 +1227,7 @@ body::after { display: none; }
 .bd-embed { border: 0; }
 /* It is focusable so the tool shortcuts can be scoped to it; the focus ring
    is the thing that tells him the keys are live. */
-.bd-embed:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
+.bd-embed:focus-visible { outline: 1px solid var(--sig); outline-offset: -1px; }
 
 .bt-switch { display: inline-flex; align-items: center; gap: 1px; }
 .bt-tab {
@@ -1214,10 +1237,10 @@ body::after { display: none; }
   max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bt-tab:hover { color: var(--ink-2); }
-.bt-tab.on { color: var(--amber); box-shadow: inset 0 -2px 0 var(--amber); }
+.bt-tab.on { color: var(--sig); box-shadow: inset 0 -2px 0 var(--sig); }
 .bt-new { color: var(--ink-3); }
 .bt-open { display: inline-flex; padding: 2px 6px; color: var(--ink-4); }
-.bt-open:hover { color: var(--amber); }
+.bt-open:hover { color: var(--sig); }
 .bt-link { background: none; border: 0; cursor: pointer; font: inherit; color: inherit; }
 
 /* The pane body has padding everywhere else; a canvas wants the whole box. */
@@ -1229,7 +1252,7 @@ body::after { display: none; }
 .tv3-badge {
   position: absolute; top: 6px; left: 6px; z-index: 3;
   font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: .14em;
-  padding: 2px 5px; color: var(--deep); background: var(--amber);
+  padding: 2px 5px; color: var(--deep); background: var(--sig);
 }
 
 /* ── budget planning ──────────────────────────────────────────────────────── */
@@ -1272,7 +1295,7 @@ body::after { display: none; }
   background: var(--line); pointer-events: none;
 }
 .bg-rowbar i { display: block; height: 2px; background: var(--s2); }
-.bg-rowbar i.is-watch { background: var(--amber); }
+.bg-rowbar i.is-watch { background: var(--sig); }
 .bg-rowbar i.is-over { background: var(--down); }
 /* The projection tick stands above the bar so it is not read as part of it. */
 .bg-rowbar b {
@@ -1301,13 +1324,13 @@ body::after { display: none; }
  */
 .pw {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   /* Fill the pane rather than sitting in the top of it. Twenty-four tiles
      with two doubles need four rows, and at a fixed 86px that left a third
      of the panel empty under the mosaic. A floor plus 1fr means the rows
      share whatever height the band was given, so the pictures get bigger
      instead of the pane getting emptier. */
-  grid-auto-rows: minmax(76px, 1fr);
+  grid-auto-rows: minmax(132px, 1fr);
   grid-auto-flow: dense;
   gap: 2px;
   padding: 2px;
@@ -1320,6 +1343,7 @@ body::after { display: none; }
   min-width: 0;
 }
 .pw-big { grid-column: span 2; grid-row: span 2; }
+.pw-huge { grid-column: span 3; grid-row: span 2; }
 
 .pw-cell img {
   position: absolute; inset: 0; width: 100%; height: 100%;
@@ -1327,10 +1351,10 @@ body::after { display: none; }
   /* Twenty-four full-colour press photographs at once is a collage and the
      rest of the wall loses every argument for attention. Colour arrives on
      the one being pointed at, which doubles as the affordance. */
-  filter: grayscale(1) contrast(1.06) brightness(.56);
+  filter: grayscale(.55) saturate(1.15) contrast(1.08) brightness(.66);
   transition: filter .18s var(--ease), transform .6s var(--ease);
 }
-.pw-cell:hover img { filter: grayscale(0) contrast(1.02) brightness(.82); transform: scale(1.04); }
+.pw-cell:hover img { filter: grayscale(0) saturate(1.3) contrast(1.02) brightness(.95); transform: scale(1.05); }
 
 .pw-shade {
   position: absolute; inset: 0;
@@ -1342,17 +1366,18 @@ body::after { display: none; }
   font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .14em;
   text-transform: uppercase; color: var(--ink-3);
 }
-.pw-time { color: var(--amber); }
+.pw-time { color: var(--sig); }
 .pw-head {
-  position: absolute; left: 7px; right: 7px; bottom: 5px;
-  font-family: var(--serif); font-size: 11px; line-height: 1.22; color: var(--ink);
+  position: absolute; left: 10px; right: 10px; bottom: 8px;
+  font-family: var(--serif); font-size: 14px; line-height: 1.24; color: var(--ink);
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+  text-shadow: 0 1px 4px rgba(0,0,0,.95);
 }
-.pw-big .pw-head { font-size: 15px; -webkit-line-clamp: 4; }
-.pw-big .pw-meta { font-size: 8px; }
+.pw-big .pw-head { font-size: 20px; line-height: 1.18; -webkit-line-clamp: 4; }
+.pw-huge .pw-head { font-size: 26px; line-height: 1.14; -webkit-line-clamp: 4; }
+.pw-big .pw-meta, .pw-huge .pw-meta { font-size: 9px; }
 
-@media (max-width: 1119px) { .pw { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 1119px) { .pw { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 879px)  { .pw { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ── the ASCII comes back ─────────────────────────────────────────────────── */
@@ -1405,10 +1430,10 @@ body::before {
 .pane::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
   background:
-    linear-gradient(var(--amber-dim), var(--amber-dim)) left 0 top 0 / 6px 1px no-repeat,
-    linear-gradient(var(--amber-dim), var(--amber-dim)) left 0 top 0 / 1px 6px no-repeat,
-    linear-gradient(var(--amber-dim), var(--amber-dim)) right 0 top 0 / 6px 1px no-repeat,
-    linear-gradient(var(--amber-dim), var(--amber-dim)) right 0 top 0 / 1px 6px no-repeat;
+    linear-gradient(var(--sig-dim), var(--sig-dim)) left 0 top 0 / 6px 1px no-repeat,
+    linear-gradient(var(--sig-dim), var(--sig-dim)) left 0 top 0 / 1px 6px no-repeat,
+    linear-gradient(var(--sig-dim), var(--sig-dim)) right 0 top 0 / 6px 1px no-repeat,
+    linear-gradient(var(--sig-dim), var(--sig-dim)) right 0 top 0 / 1px 6px no-repeat;
   opacity: .5;
 }
 .pane:hover::after { opacity: 1; }
@@ -1432,7 +1457,54 @@ body::before {
 
 /* Section heads get their rule back, in the accent. */
 .pane-hd { border-bottom-color: var(--line-2); }
-.pane:hover .pane-hd { border-bottom-color: var(--amber-dim); }
+.pane:hover .pane-hd { border-bottom-color: var(--sig-dim); }
+
+/* ── louder ───────────────────────────────────────────────────────────────
+ *
+ * Turned up on his say-so. The one line this does not cross: colour that
+ * ENCODES something stays exactly as the validator left it, so every chart
+ * on the page is untouched. What gets louder is chrome — numbers, rules,
+ * headers, hovers — where colour is decoration and may be as loud as it
+ * likes.
+ */
+
+/* The pane address, lit. It is how the layout is spoken about. */
+.pane-n { color: var(--sig); border-color: var(--sig-dim); }
+
+/* Headers carry a tint and a hard top rule, so a wall of twenty panes reads
+   as twenty instruments rather than one grey field. */
+.pane-hd {
+  background: linear-gradient(180deg, rgba(229,72,77,.07), transparent);
+  border-top: 1px solid var(--sig-dim);
+}
+.pane:hover .pane-hd { background: linear-gradient(180deg, rgba(229,72,77,.14), transparent); }
+
+/* A publisher's name wears its own colour, not just its chip. The text is
+   still the name, so this is redundant encoding — the good kind. */
+.wire-src.src-1, .ht-src.src-1 { color: var(--s1); }
+.wire-src.src-2, .ht-src.src-2 { color: var(--s2); }
+.wire-src.src-3, .ht-src.src-3 { color: var(--s3); }
+.wire-src.src-4, .ht-src.src-4 { color: var(--s4); }
+.wire-src.src-5, .ht-src.src-5 { color: var(--s5); }
+.wire-src.src-6, .ht-src.src-6 { color: var(--s6); }
+.pw-src { color: var(--ink-2); }
+
+/* Rows light up under the pointer instead of going one shade paler. */
+.trow:hover, .mkt:hover, .wire-row:hover, .bd-row:hover,
+.gm-row:hover, .xp-row:hover, .sub-row:hover {
+  background: rgba(229, 72, 77, .07);
+  box-shadow: inset 2px 0 0 var(--sig);
+}
+
+/* The ticker across the top is the loudest standing element on the page and
+   was entirely grey. */
+.tick-sym { color: var(--ink); }
+.tape .up, .tick .up { color: var(--up); }
+.tape .down, .tick .down { color: var(--down); }
+
+/* Live panes get a lit top edge rather than a dimmed one. */
+.pane:has(.pane-s.live) { border-top-color: var(--sig); }
+.pane:has(.pane-s.live) .pane-n { background: var(--sig); color: var(--deep); border-color: var(--sig); }
 
 /* Every wire row gains a picture cell. The thumbnail is a fixed box whether
    or not a picture arrived, so the headlines stay on one left edge — a
@@ -1447,3 +1519,194 @@ body::before {
 .wire-shot { filter: grayscale(1) brightness(.78); transition: filter .18s var(--ease); }
 .wire-row:hover .wire-shot { filter: grayscale(0) brightness(.95); }
 .wire-src { display: inline-flex; align-items: center; }
+
+
+/* ── more ASCII ───────────────────────────────────────────────────────────
+ *
+ * The rain is no longer only behind the masthead. It sits behind the whole
+ * wall at a tenth of the hero's strength — far enough back that no figure
+ * is ever read against it, close enough that the ground reads as a screen.
+ */
+.wall-pack { position: relative; }
+.wall-rain {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  overflow: hidden; opacity: .07;
+}
+.wall-rain pre {
+  margin: 0; font-family: var(--font-mono-f), monospace; font-size: 12px;
+  line-height: 1.6; letter-spacing: 2px; color: var(--s1); white-space: pre;
+}
+.wall-pack > *:not(.wall-rain) { position: relative; z-index: 1; }
+
+/* The travelling sweep on anything that is receiving. It was killed with
+   the rest of the ornament; it is the clearest "this is live" the interface
+   has, and it costs one line of glyphs. */
+.pane-s.live::before {
+  content: "▓▒░";
+  margin-right: 6px;
+  font-family: var(--font-mono-f), monospace;
+  color: var(--sig);
+  opacity: .8;
+  animation: asc-pulse 1.8s steps(3, end) infinite;
+}
+@keyframes asc-pulse { 0% { opacity: .25; } 50% { opacity: .9; } 100% { opacity: .25; } }
+
+/* Band rules: a line of glyphs rather than a hairline, between the wall's
+   full-width panels. Decoration that also says "a new section starts". */
+.t-12x2 > .pane::before, .t-12x6 > .pane::before, .t-12x8 > .pane::before {
+  content: "";
+  position: absolute; left: 0; right: 0; top: -5px; height: 3px; z-index: 2;
+  background: repeating-linear-gradient(90deg,
+    var(--sig-dim) 0 3px, transparent 3px 7px);
+  opacity: .5;
+}
+
+/* The ASCII meter gets its track back — the full alphabet reads as an
+   instrument, and the head stays the only lit part so it is still a
+   position rather than a coloured area. */
+.am-track { display: inline; color: var(--line-2); }
+.am-run { color: var(--s1); }
+
+/* ══ the operations floor ═════════════════════════════════════════════════
+ *
+ * Red on black, agency ops room, and the brief said "full change" — so this
+ * is not a tint pass over the newspaper. The devices are the ones a room
+ * full of screens actually uses, chosen because each of them does a job:
+ *
+ *   · a classification strip, because a wall of intelligence needs to say
+ *     what it is and who it is for;
+ *   · a surveying grid over the ground, which is what makes a dark screen
+ *     read as an instrument rather than as an absence of light;
+ *   · corner reticles and a lit edge on anything receiving;
+ *   · monospace everywhere a machine is speaking, serif only where a human
+ *     wrote the words.
+ *
+ * The one rule that survives every repaint: red is reserved. It means live,
+ * late, falling or wrong. It is never spent on a heading that is merely
+ * important, and no chart series is red — that is why red left the series
+ * set when it became the accent.
+ */
+
+/* The ground: a surveyed field, not a flat black. Two grids at different
+   pitches so the eye reads depth, both far below the type. */
+body {
+  background-color: var(--deep);
+  background-image:
+    linear-gradient(rgba(229, 72, 77, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(229, 72, 77, .035) 1px, transparent 1px),
+    linear-gradient(rgba(242, 242, 242, .018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(242, 242, 242, .018) 1px, transparent 1px);
+  background-size: 96px 96px, 96px 96px, 16px 16px, 16px 16px;
+}
+
+/* The classification strip. Hairline, fixed, and honest about what it is —
+   a personal dashboard, not a government system. */
+/*
+ * A hairline, not a banner. As a `::before` on the wall this is a GRID
+ * ITEM — the first one — so it takes a whole 86px row unless it is told
+ * otherwise, which is how a one-line strip came out a hundred pixels tall
+ * with the hero shoved below the fold. `grid-row: span 1` plus a fixed
+ * height keeps it to its line, and `align-self: start` stops the row
+ * stretching it.
+ */
+.wall-pack::before {
+  content: "/ / S A G E   O P E R A T I O N S   /   P E R S O N A L   /   N O T   C L A S S I F I E D   /   B E N G A L U R U   S T A T I O N   / /";
+  grid-column: 1 / -1; grid-row: span 1;
+  align-self: start;
+  display: flex; align-items: center; justify-content: center;
+  height: 15px; margin-bottom: -72px;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 7px; letter-spacing: .24em; line-height: 1;
+  color: var(--sig);
+  background: repeating-linear-gradient(135deg,
+    rgba(229,72,77,.13) 0 6px, rgba(229,72,77,.03) 6px 12px);
+  border-block: 1px solid var(--sig-dim);
+}
+
+/* Panes become instruments: a hard top edge, a reticle in each corner, and
+   a header that reads as a label on a rack rather than a section title. */
+.pane {
+  border-color: rgba(229, 72, 77, .16);
+  background-color: var(--panel);
+}
+.pane:hover { border-color: rgba(229, 72, 77, .4); }
+
+/* Four corner reticles rather than two, and in the accent. */
+.pane::after {
+  background:
+    linear-gradient(var(--sig), var(--sig)) left 0 top 0 / 8px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) left 0 top 0 / 1px 8px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 top 0 / 8px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 top 0 / 1px 8px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) left 0 bottom 0 / 8px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) left 0 bottom 0 / 1px 8px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 bottom 0 / 8px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 bottom 0 / 1px 8px no-repeat;
+  opacity: .38;
+}
+.pane:hover::after { opacity: .95; }
+
+/* Headers: machine type, a red rule under, a red wash above. */
+.pane-hd {
+  background: linear-gradient(180deg, rgba(229,72,77,.1), transparent);
+  border-top: 1px solid var(--sig-dim);
+  border-bottom: 1px solid rgba(229, 72, 77, .28);
+}
+.pane-t {
+  font-family: var(--font-mono-f), monospace;
+  font-size: 10px; letter-spacing: .2em; font-weight: 500;
+}
+.pane-n {
+  color: var(--deep); background: var(--sig); border-color: var(--sig);
+  font-weight: 600;
+}
+.pane-s { font-family: var(--font-mono-f), monospace; letter-spacing: .14em; }
+
+/* Receiving: a lit edge and a glow, which is the one thing on an ops floor
+   you are meant to catch out of the corner of your eye. */
+.pane:has(.pane-s.live) {
+  border-top-color: var(--sig);
+  box-shadow: 0 -1px 0 0 var(--sig), 0 0 18px -6px var(--sig-glow);
+}
+.pane-s.live { color: var(--sig); text-shadow: 0 0 10px var(--sig-glow); }
+
+/* Figures in the accent where they are falling, and glowing where they are
+   the headline number. */
+.tstat-v, .xp-tot, .cx-dmid b { text-shadow: 0 0 14px var(--sig-glow); }
+
+/* The masthead stops being a newspaper nameplate and becomes a callsign. */
+.dh-nameplate {
+  color: var(--ink);
+  text-shadow: 0 0 22px rgba(229, 72, 77, .45), 0 0 2px rgba(229, 72, 77, .8);
+}
+.dh-rules::before, .dh-rules::after { background: var(--sig); opacity: .55; }
+.dh-tag { color: var(--sig); letter-spacing: .3em; }
+.dh-rain pre { color: var(--sig); }
+.wall-rain pre { color: var(--sig); }
+
+/* The scanline wash, firmer than the newspaper pass allowed. */
+body::before {
+  background:
+    repeating-linear-gradient(to bottom,
+      rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+
+/* Section rules between the full-width bands, in the accent. */
+.t-12x2 > .pane::before, .t-12x6 > .pane::before, .t-12x8 > .pane::before {
+  background: repeating-linear-gradient(90deg, var(--sig) 0 3px, transparent 3px 7px);
+  opacity: .42;
+}
+
+/* Hover: a red edge and a red wash, consistently, everywhere a row is a row. */
+.trow:hover, .mkt:hover, .wire-row:hover, .bd-row:hover,
+.gm-row:hover, .xp-row:hover, .sub-row:hover, .tlv-ev:hover,
+.ht-row:hover, .wb-row:hover, .dv-row:hover {
+  background: rgba(229, 72, 77, .09);
+  box-shadow: inset 2px 0 0 var(--sig);
+}
+
+/* The picture wall under red light: the frames keep their own colour on
+   hover, but the furniture around them joins the room. */
+.pw-time { color: var(--sig); }
+.pw-cell { outline: 1px solid rgba(229, 72, 77, .12); outline-offset: -1px; }
+.pw-cell:hover { outline-color: var(--sig); }

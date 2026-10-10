@@ -6,12 +6,12 @@
  * being read. Hashing the name rather than keeping a lookup table means a
  * feed added tomorrow gets a slot without anyone remembering to assign one.
  *
- * Six slots, never cycled past six in a way that matters: two publishers
+ * Five slots, never cycled past five in a way that matters: two publishers
  * sharing a colour is acceptable here in a way it is not in a chart,
  * because this is a secondary cue — the name is always written beside it —
  * rather than the encoding itself. A chart may not do this.
  */
-const SLOTS = 6;
+const SLOTS = 5;
 
 export function sourceTint(name: string): string {
   let h = 2166136261;

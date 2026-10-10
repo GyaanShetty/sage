@@ -98,9 +98,39 @@ const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_
 
 interface RssItem { title?: string | { "#text"?: string }; link?: string | { "@_href"?: string }; pubDate?: string; published?: string }
 
+/**
+ * Entities, decoded once more than the parser does.
+ *
+ * fast-xml-parser decodes the XML layer, which leaves whatever the
+ * publisher encoded on top of it. Feeds routinely carry HTML-escaped text
+ * inside an already-escaped XML node, so "S&P 500" arrives as "S&amp;amp;P"
+ * and reaches the page as the literal "S&amp;P 500" — which is what the
+ * picture wall was showing. One more pass handles the common five plus
+ * numeric references; it is deliberately not a full HTML entity table,
+ * because these are headlines, not documents.
+ */
+function decodeEntities(s: string): string {
+  let out = s;
+  for (let i = 0; i < 2; i++) {
+    const next = out
+      .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&nbsp;/g, " ")
+      // Ampersand last, or "&amp;lt;" would become "<" in one pass.
+      .replace(/&amp;/g, "&");
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
+
+/** Exported under a deliberately awkward name: this is for the test, not an API. */
+export const __decodeForTest = decodeEntities;
+
 function text(v: unknown): string {
-  if (typeof v === "string") return v;
-  if (v && typeof v === "object" && "#text" in v) return String((v as { "#text": string })["#text"] ?? "");
+  if (typeof v === "string") return decodeEntities(v);
+  if (v && typeof v === "object" && "#text" in v) return decodeEntities(String((v as { "#text": string })["#text"] ?? ""));
   return "";
 }
 function href(link: unknown): string {

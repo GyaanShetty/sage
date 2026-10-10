@@ -25,6 +25,7 @@ import { SitrepBand } from "./sitrep-band";
 import { HotTopics } from "./hot-topics";
 import { ExpenseTile, DirectivesPanel } from "./routine-tiles";
 import { BoardTile } from "./board-tile";
+import { PictureWall } from "./picture-wall";
 import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
 import { BudgetTile } from "./ops-tiles";
 import { StudyTile } from "./chart-tiles";
@@ -224,6 +225,10 @@ export function CommandView({
           <div className="t-3x5"><TileGuard name="AGENDA"><AgendaPanel n={5} events={events} /></TileGuard></div>
 
           {/* 7 — plan the day. */}
+          {/* The wire, in pictures. Every story already arrived with a
+              photograph and the wall showed one of them, at 78px. */}
+          <div className="t-12x6"><TileGuard name="PICTURES"><PictureWall n={20} /></TileGuard></div>
+
           <div className="t-12x6"><TileGuard name="MORNINGBLOCK"><div className="wall-cell mb-cell"><MorningBlock /></div></TileGuard></div>
 
           <Pane n={6} title="Atlas Map" status="ONLINE · © OSM" live className="wall-map t-4x5" frame noZoom>

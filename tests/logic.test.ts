@@ -5433,3 +5433,67 @@ test("the test suite has no absolute paths from one machine", async () => {
   const hits = [...src.matchAll(/["'`](\/(?:home|Users|var\/folders)\/[^"'`\n]+)/g)].map((m) => m[1]);
   assert.deepEqual(hits, [], `absolute paths will not resolve on CI: ${hits.join(", ")}`);
 });
+
+/*
+ * Headlines reach the page as text, not as entities.
+ *
+ * Feeds carry HTML-escaped text inside already-escaped XML, so "S&P 500"
+ * arrives double-encoded and renders as the literal "S&amp;P 500". The
+ * picture wall made it obvious because the headline is set large over the
+ * photograph.
+ */
+test("feed text is decoded past the XML layer", async () => {
+  const mod = await import("../infrastructure/news/index");
+  const decode = (mod as unknown as { __decodeForTest?: (s: string) => string }).__decodeForTest;
+  // Exported for the test rather than reaching into the module's internals.
+  assert.ok(decode, "decodeEntities should be exported for testing");
+  assert.equal(decode("S&amp;amp;P 500"), "S&P 500");
+  assert.equal(decode("Mint &amp; Co"), "Mint & Co");
+  assert.equal(decode("caf&#233;"), "café");
+  assert.equal(decode("&amp;lt;b&amp;gt;"), "<b>");
+  assert.equal(decode("nothing to do"), "nothing to do");
+});
+
+/*
+ * Nothing is both switched off and restyled.
+ *
+ * The newspaper pass put `.dh-rain` in a `display: none` list. When the
+ * rain was asked for again it was restyled six hundred lines below — new
+ * position, new mask, new opacity — and stayed invisible, because a later
+ * rule can change where a thing sits and what colour it is but cannot
+ * un-say `display: none`. It measured 0x0 with sixteen rows of text inside
+ * it through three rounds of turning the opacity up.
+ *
+ * This catches the shape of that mistake: a selector that appears in a
+ * `display: none` rule and also gets a layout property somewhere later.
+ */
+test("no selector in press.css is hidden and then restyled", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync("app/press.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // Every selector that some rule sets display:none on.
+  const hidden = new Set<string>();
+  for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    if (!/display:\s*none/.test(m[2])) continue;
+    for (const sel of m[1].split(",")) {
+      const s = sel.trim();
+      // Only simple class selectors — compound ones are usually a different
+      // element state and not the trap this is about.
+      if (/^\.[a-z0-9-]+$/i.test(s)) hidden.add(s);
+    }
+  }
+
+  const offenders: string[] = [];
+  for (const m of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+    const body = m[2];
+    if (/display:\s*none/.test(body)) continue;
+    if (!/(position|inset|top|left|opacity|grid-area|width|height)\s*:/.test(body)) continue;
+    for (const sel of m[1].split(",")) {
+      const s = sel.trim();
+      if (hidden.has(s)) offenders.push(s);
+    }
+  }
+
+  assert.deepEqual([...new Set(offenders)], [],
+    "these are display:none somewhere and given layout somewhere else — the layout will never apply");
+});

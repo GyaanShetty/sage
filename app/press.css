@@ -279,13 +279,18 @@ body {
 
 /* Crosshairs on the map, corner ticks on the frame, the travelling sweep over
    a live header, the scanline wash on the body, the matrix rain behind the
-   masthead. Every one of these is ornament that reads as "spacecraft". */
+   masthead. Every one of these is ornament that reads as "spacecraft".
+
+   The rain, the scanlines and the scan motif have since been asked for
+   back and are restyled near the bottom of this file. They are NOT listed
+   here any more — a later rule can change where a thing sits and what
+   colour it is, but it cannot un-say `display: none`, and leaving the rain
+   in this list while restyling it 600 lines below is why it measured 0x0
+   with sixteen rows of text in it while I turned its opacity up. */
 .deck-map-marks,
-.dh-rain,
 .dh-sweep,
-.pane:has(.pane-s.live) .pane-hd::after,
-.asc-scan { display: none; }
-body::after, body::before { display: none; }
+.pane:has(.pane-s.live) .pane-hd::after { display: none; }
+body::after { display: none; }
 
 /* The ASCII meter becomes a rule with a mark on it — the same reading, drawn
    the way a printed chart would draw it. */
@@ -1275,3 +1280,170 @@ body::after, body::before { display: none; }
   background: var(--ink-2); transform: translateX(-0.5px);
 }
 .bg-rowbar b.is-over { background: var(--down); }
+
+/* ══ maximalism ═══════════════════════════════════════════════════════════ */
+
+/*
+ * He has asked for the opposite of restraint, so this layer puts back the
+ * things the newspaper pass stripped out and adds the ones it never had.
+ * The rule that keeps it from becoming noise is unchanged and is the only
+ * rule here: ornament may not occupy the same channel as meaning. Texture
+ * is dim and behind; colour that MEANS something stays in the palette slots;
+ * amber still only ever says live or wrong.
+ */
+
+/* ── the picture wall ─────────────────────────────────────────────────────── */
+
+/*
+ * A mosaic, not a grid. `grid-auto-flow: dense` with two oversized cells
+ * gives it a focal point — an even grid of equal squares is wallpaper, and
+ * this panel exists to be the thing the eye lands on first.
+ */
+.pw {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  /* Fill the pane rather than sitting in the top of it. Twenty-four tiles
+     with two doubles need four rows, and at a fixed 86px that left a third
+     of the panel empty under the mosaic. A floor plus 1fr means the rows
+     share whatever height the band was given, so the pictures get bigger
+     instead of the pane getting emptier. */
+  grid-auto-rows: minmax(76px, 1fr);
+  grid-auto-flow: dense;
+  gap: 2px;
+  padding: 2px;
+  height: 100%;
+}
+.pane:has(.pw) .pane-body { padding: 0; }
+.pw-cell {
+  position: relative; display: block; overflow: hidden;
+  background: var(--sunken); text-decoration: none; color: inherit;
+  min-width: 0;
+}
+.pw-big { grid-column: span 2; grid-row: span 2; }
+
+.pw-cell img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover;
+  /* Twenty-four full-colour press photographs at once is a collage and the
+     rest of the wall loses every argument for attention. Colour arrives on
+     the one being pointed at, which doubles as the affordance. */
+  filter: grayscale(1) contrast(1.06) brightness(.56);
+  transition: filter .18s var(--ease), transform .6s var(--ease);
+}
+.pw-cell:hover img { filter: grayscale(0) contrast(1.02) brightness(.82); transform: scale(1.04); }
+
+.pw-shade {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.92) 0, rgba(0,0,0,.35) 46%, rgba(0,0,0,.05) 100%);
+}
+.pw-meta {
+  position: absolute; top: 5px; left: 6px; right: 6px;
+  display: flex; justify-content: space-between; gap: 6px;
+  font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.pw-time { color: var(--amber); }
+.pw-head {
+  position: absolute; left: 7px; right: 7px; bottom: 5px;
+  font-family: var(--serif); font-size: 11px; line-height: 1.22; color: var(--ink);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9);
+}
+.pw-big .pw-head { font-size: 15px; -webkit-line-clamp: 4; }
+.pw-big .pw-meta { font-size: 8px; }
+
+@media (max-width: 1119px) { .pw { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 879px)  { .pw { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ── the ASCII comes back ─────────────────────────────────────────────────── */
+
+/*
+ * These were switched off when the page went newspaper. They are texture —
+ * never a reading — so they live at the bottom of the z-order and at an
+ * opacity where you notice them only if you look for them.
+ */
+.dh-rain {
+  /*
+   * `grid-area` matters here and its absence made this invisible.
+   *
+   * An absolutely-positioned child of a GRID container resolves `inset`
+   * against its grid area, not against the container — and with no
+   * placement of its own this got auto-placed into a fresh implicit row of
+   * zero height. It measured 0x0 with sixteen rows of text inside it, which
+   * is why turning the opacity up three times changed nothing.
+   *
+   * Spanning every track gives it the whole band to resolve against.
+   */
+  grid-area: 1 / 1 / -1 / -1;
+  position: absolute; inset: 0; z-index: 0; overflow: hidden;
+  /* .13 was invisible at this font size — the point of putting it back was
+     that he can see it. The radial mask keeps the centre clear so nothing
+     falls through the counters of the wordmark, which is what made the old
+     version look muddy. */
+  pointer-events: none; opacity: .3;
+  -webkit-mask-image: radial-gradient(ellipse 46% 120% at center, transparent 0 30%, #000 72%);
+          mask-image: radial-gradient(ellipse 46% 120% at center, transparent 0 30%, #000 72%);
+}
+.dh-rain pre {
+  margin: 0; font-family: var(--font-mono-f), monospace; font-size: 11px;
+  line-height: 1.5; color: var(--s1); white-space: pre; letter-spacing: 1px;
+}
+.dash-hero > .dh-centre, .dash-hero > .dhf, .dash-hero > .dh-canvas { position: relative; z-index: 1; }
+
+/* The scanline wash, at a quarter of what it was: enough to make the ground
+   read as a screen rather than as paper, not enough to sit on the type. */
+.asc-scan { display: block; }
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  display: block;
+  background: repeating-linear-gradient(
+    to bottom, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+}
+
+/* Corner brackets on every pane rather than the few that asked for them —
+   which is the maximalist reading of the same device. */
+.pane::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  background:
+    linear-gradient(var(--amber-dim), var(--amber-dim)) left 0 top 0 / 6px 1px no-repeat,
+    linear-gradient(var(--amber-dim), var(--amber-dim)) left 0 top 0 / 1px 6px no-repeat,
+    linear-gradient(var(--amber-dim), var(--amber-dim)) right 0 top 0 / 6px 1px no-repeat,
+    linear-gradient(var(--amber-dim), var(--amber-dim)) right 0 top 0 / 1px 6px no-repeat;
+  opacity: .5;
+}
+.pane:hover::after { opacity: 1; }
+
+/* ── colour, spent on identity ────────────────────────────────────────────── */
+
+/*
+ * A chip per publisher, coloured from the series slots. This is the one new
+ * place colour carries meaning rather than mood: the same outlet is the same
+ * colour everywhere on the wall, so a column of stories shows its spread at
+ * a glance. The name is always written out beside it — the chip is the
+ * shortcut, never the only cue.
+ */
+.src-chip {
+  display: inline-block; width: 6px; height: 6px; flex: none;
+  margin-right: 5px; border-radius: 1px; background: var(--ink-4);
+}
+.src-1 { background: var(--s1); } .src-2 { background: var(--s2); }
+.src-3 { background: var(--s3); } .src-4 { background: var(--s4); }
+.src-5 { background: var(--s5); } .src-6 { background: var(--s6); }
+
+/* Section heads get their rule back, in the accent. */
+.pane-hd { border-bottom-color: var(--line-2); }
+.pane:hover .pane-hd { border-bottom-color: var(--amber-dim); }
+
+/* Every wire row gains a picture cell. The thumbnail is a fixed box whether
+   or not a picture arrived, so the headlines stay on one left edge — a
+   column that jogs in and out depending on which publisher attached art is
+   harder to scan than one with no pictures at all. */
+.mw-row { grid-template-columns: 42px 46px minmax(0, 1fr) 14px; }
+.mw-row:has(.wire-src) { grid-template-columns: 42px 46px minmax(0, 1fr) auto 14px; }
+.wire-shot, .wire-noshot {
+  display: block; width: 46px; height: 32px; object-fit: cover;
+  background: var(--sunken); border: 1px solid var(--line);
+}
+.wire-shot { filter: grayscale(1) brightness(.78); transition: filter .18s var(--ease); }
+.wire-row:hover .wire-shot { filter: grayscale(0) brightness(.95); }
+.wire-src { display: inline-flex; align-items: center; }

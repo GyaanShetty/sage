@@ -22,6 +22,7 @@
 
 import { useEffect, useState } from "react";
 import { APP_NAME, APP_MOTTO, TZ } from "@/lib/config";
+import { AsciiRain } from "@/components/ascii/motifs";
 import { HeroCanvas } from "./hero-canvas";
 import type { EventRow } from "./command-view";
 import { HeroTime, HeroMachine } from "./hero-flanks";
@@ -77,6 +78,14 @@ export function DashHero({
 
   return (
     <section className="dash-hero">
+      {/* Rain, behind everything. It was killed when this went newspaper and
+          it is back because he asked for maximalism: texture that never
+          resolves into anything you are meant to read, well under the type.
+          The wordmark assembles once and holds — a banner that re-scrambles
+          its own name is a screensaver. */}
+      <div className="dh-rain" aria-hidden>
+        <AsciiRain cols={220} rows={16} density={0.22} />
+      </div>
       {/* The day, drawn. This replaced a dot-globe that was decoration: it
           marked Bengaluru and otherwise said nothing that changed. The
           canvas says what hour it is, what is open, and what is coming. */}

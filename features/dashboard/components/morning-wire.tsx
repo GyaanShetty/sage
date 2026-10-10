@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pane, Empty } from "@/components/pane";
 import { Play, ExternalLink } from "lucide-react";
 import { TZ } from "@/lib/config";
+import { sourceTint } from "@/lib/source-tint";
 import { asArray } from "@/lib/as-array";
 import { sound } from "@/lib/sound";
 
@@ -61,6 +62,14 @@ function LeadImage({ src }: { src?: string }) {
   if (!src || dead) return null;
   // eslint-disable-next-line @next/next/no-img-element
   return <img src={src} alt="" loading="lazy" onError={() => setDead(true)} />;
+}
+
+/** A row thumbnail that takes itself out when the publisher blocks it. */
+function RowShot({ src }: { src?: string }) {
+  const [dead, setDead] = useState(false);
+  if (!src || dead) return <span className="wire-noshot" aria-hidden />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className="wire-shot" src={src} alt="" loading="lazy" onError={() => setDead(true)} />;
 }
 
 export function MorningWire({ n }: { n?: number }) {
@@ -164,11 +173,24 @@ export function MorningWire({ n }: { n?: number }) {
                   <span className="wl-m">{lead.source} · {hhmm(lead.published)}</span>
                 </a>
               )}
+              {/*
+                * Every story that came with a picture now shows it, not just
+                * the lead. These feeds were returning several hundred
+                * photographs a morning and the wall was using one.
+                */}
               {rest.map((h) => (
                 <a key={h.link} className="wire-row mw-row" href={h.link} target="_blank" rel="noopener noreferrer" title={h.title}>
                   <span className="wire-t">{hhmm(h.published)}</span>
+                  <RowShot src={h.image} />
                   <span className="wire-h">{h.title}</span>
-                  {tab === "all" && <span className="wire-src">{h.source}</span>}
+                  {tab === "all" && (
+                    <span className="wire-src">
+                      {/* The chip is a shortcut, never the only cue — the
+                          name is right beside it. */}
+                      <i className={`src-chip ${sourceTint(h.source)}`} aria-hidden />
+                      {h.source}
+                    </span>
+                  )}
                   <ExternalLink className="mw-out size-3" aria-hidden />
                 </a>
               ))}

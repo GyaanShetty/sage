@@ -1710,3 +1710,104 @@ body::before {
 .pw-time { color: var(--sig); }
 .pw-cell { outline: 1px solid rgba(229, 72, 77, .12); outline-offset: -1px; }
 .pw-cell:hover { outline-color: var(--sig); }
+
+/* ══ v2 · the docket ══════════════════════════════════════════════════════
+ *
+ * The pane where SAGE asks. Its visual job is different from every other
+ * pane on the wall: those are read, this one is answered, so the rows are
+ * taller than anything else here and the two buttons are the same weight.
+ * An interface that makes "yes" a big green button and "no" a grey link is
+ * not asking a question.
+ */
+.dk-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px; align-items: center;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+}
+.dk-row:hover { background: rgba(229, 72, 77, .07); }
+.dk-main { min-width: 0; }
+.dk-t {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--serif); font-size: 14px; color: var(--ink); line-height: 1.25;
+}
+/* The reason is set at reading size, not as small print. It is the thing
+   actually being judged — the title only says which thing. */
+.dk-why {
+  margin-top: 3px; font-family: var(--serif); font-size: 12px; line-height: 1.35;
+  color: var(--ink-3);
+}
+.dk-out {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .14em;
+  color: var(--sig); border: 1px solid var(--sig-dim); padding: 1px 4px;
+}
+
+.dk-acts { display: flex; gap: 1px; flex: none; }
+/* Equal footprint, deliberately. */
+.dk-yes, .dk-no {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 30px; cursor: pointer;
+  background: var(--sunken); border: 1px solid var(--line-2); color: var(--ink-3);
+  transition: color .14s var(--ease), border-color .14s var(--ease), background .14s var(--ease);
+}
+.dk-yes:hover { color: var(--up); border-color: var(--up); background: rgba(25, 158, 112, .12); }
+.dk-no:hover  { color: var(--sig); border-color: var(--sig); background: rgba(229, 72, 77, .12); }
+.dk-yes:disabled, .dk-no:disabled { opacity: .45; cursor: default; }
+
+.dk-scan {
+  background: none; border: 0; cursor: pointer; padding: 0;
+  font-family: var(--font-mono-f), monospace; font-size: 9px; letter-spacing: .14em;
+  color: var(--sig);
+}
+.dk-scan:hover { text-decoration: underline; }
+.dk-scan:disabled { color: var(--ink-4); cursor: default; }
+
+/* A failure is shown in the pane rather than logged to a console he will
+   never open. */
+.dk-note {
+  padding: 7px 12px; background: rgba(229, 72, 77, .12);
+  border-bottom: 1px solid var(--sig-dim);
+  font-family: var(--serif); font-size: 12px; color: var(--ink);
+}
+
+.dk-h {
+  padding: 8px 12px 4px;
+  font-family: var(--font-disp), sans-serif; font-size: 7.5px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-4);
+}
+.dk-done { border-top: 1px solid var(--rule-strong); }
+.dk-drow {
+  display: grid; grid-template-columns: minmax(0, 1fr) 30px auto;
+  gap: 8px; align-items: center; padding: 4px 12px;
+  font-size: 12px; border-bottom: 1px solid var(--line);
+}
+.dk-dt {
+  font-family: var(--serif); color: var(--ink-2); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dk-dt a { color: var(--ink); text-decoration: none; }
+.dk-dt a:hover { text-decoration: underline; }
+.dk-drow.is-failed .dk-dt { color: var(--ink-4); }
+.dk-auto, .dk-fail, .dk-dis {
+  font-style: normal; margin-left: 7px;
+  font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .12em;
+}
+.dk-auto { color: var(--s2); }
+.dk-fail { color: var(--sig); }
+.dk-dis  { color: var(--ink-4); }
+.dk-when { font-family: var(--font-mono-f), monospace; font-size: 9px; color: var(--ink-4); text-align: right; }
+.dk-undo {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  background: none; border: 1px solid var(--line-2); color: var(--ink-4);
+  padding: 1px 5px; font-family: var(--font-disp), sans-serif; font-size: 7px; letter-spacing: .12em;
+}
+.dk-undo:hover { color: var(--sig); border-color: var(--sig); }
+
+.dk-perms { border-top: 1px solid var(--rule-strong); padding-bottom: 8px; }
+.dk-perm {
+  display: flex; align-items: center; gap: 8px; padding: 3px 12px; cursor: pointer;
+  font-family: var(--font-disp), sans-serif; font-size: 9.5px; letter-spacing: .06em;
+  color: var(--ink-3);
+}
+.dk-perm:hover { color: var(--ink); }
+.dk-perm input { accent-color: var(--sig); }

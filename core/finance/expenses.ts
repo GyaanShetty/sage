@@ -102,14 +102,28 @@ const scanSchema = z.object({
 
 /** Scan Gmail for payment receipts & subscription renewals → expenses.
  *  Deduped against existing by merchant+amount+day. */
-export async function scanExpenses(): Promise<{ added: number }> {
+/**
+ * What the mailbox says he spent, without writing any of it down.
+ *
+ * Split out of `scanExpenses` so v2's agency layer can PROPOSE these rather
+ * than file them silently. The extraction is the expensive, fallible part —
+ * an LLM reading receipts — and the decision about whether its output lands
+ * in his ledger should not be welded to it.
+ */
+export interface ExpenseCandidate {
+  amount: number; merchant: string; category: string; date: string; recurring: boolean;
+  /** The line the model read, so a proposal can say where it got this. */
+  evidence: string;
+}
+
+export async function findExpenseCandidates(): Promise<ExpenseCandidate[]> {
   const model = getModel("smart");
-  if (!model) return { added: 0 };
+  if (!model) return [];
   const emails = await searchGmail(
     'newer_than:45d (receipt OR "payment of" OR debited OR "you paid" OR subscription OR renewed OR invoice OR "order confirmed" OR "transaction" OR UPI)',
     30,
   ).catch(() => null);
-  if (!emails?.length) return { added: 0 };
+  if (!emails?.length) return [];
 
   // Scanned expenses must land in the same envelopes he budgets with, or the
   // budget reports them as unbudgeted spending in categories he never made.
@@ -125,8 +139,9 @@ export async function scanExpenses(): Promise<{ added: number }> {
   const existing = await listExpenses(60);
   const key = (m: string, a: number, d: string) => `${m.toLowerCase()}|${Math.round(a)}|${d.slice(0, 10)}`;
   const seen = new Set(existing.map((e) => key(e.merchant, e.amount, e.date)));
-  let added = 0;
   const allowedSet = new Set(allowed.map(normaliseCategory));
+
+  const out: ExpenseCandidate[] = [];
   for (const x of object.expenses) {
     if (x.amount <= 0) continue;
     if (seen.has(key(x.merchant, x.amount, x.date))) continue;
@@ -134,10 +149,24 @@ export async function scanExpenses(): Promise<{ added: number }> {
     // invented category would show up as a new envelope in his budget, so
     // anything off-list becomes "other" — visible and easy to reassign.
     const cat = normaliseCategory(x.category);
-    await addExpense({ ...x, category: allowedSet.has(cat) ? cat : "other", source: "gmail" });
-    added++;
+    out.push({
+      amount: x.amount, merchant: x.merchant,
+      category: allowedSet.has(cat) ? cat : "other",
+      date: x.date, recurring: !!x.recurring,
+      evidence: `${x.merchant} · ${new Date(x.date).toISOString().slice(0, 10)}`,
+    });
   }
-  return { added };
+  return out;
+}
+
+/** The v1 path: find them and file them immediately. Still used by the
+ *  manual "scan receipts" button, where he asked for exactly that. */
+export async function scanExpenses(): Promise<{ added: number }> {
+  const found = await findExpenseCandidates();
+  for (const x of found) {
+    await addExpense({ ...x, source: "gmail" });
+  }
+  return { added: found.length };
 }
 
 export interface ExpenseSummary { total: number; byCategory: Record<string, number>; recurring: { merchant: string; amount: number }[] }

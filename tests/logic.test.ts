@@ -5512,3 +5512,83 @@ test("no selector in press.css is hidden and then restyled", async () => {
   assert.deepEqual([...new Set(offenders)], [],
     "these are display:none somewhere and given layout somewhere else — the layout will never apply");
 });
+
+/* ══ SAGE v2 · agency ═════════════════════════════════════════════════════
+ *
+ * The safety rules are the whole design, so they are tested as rules rather
+ * than exercised through a UI. If `mayAutoRun` is ever wrong, SAGE does
+ * something outward-facing on its own and there is no second line of
+ * defence.
+ */
+
+test("nothing outward-facing can ever run automatically", async () => {
+  const { SAFETY, mayAutoRun } = await import("../core/agency/types");
+  const kinds = Object.keys(SAFETY) as (keyof typeof SAFETY)[];
+
+  // Even with standing permission explicitly granted for every kind — which
+  // the UI will not offer and the route refuses — outward kinds must refuse.
+  const permissive = { auto: Object.fromEntries(kinds.map((k) => [k, true])) };
+  for (const k of kinds) {
+    if (SAFETY[k].outward) {
+      assert.equal(mayAutoRun(k, permissive), false,
+        `${k} leaves the machine and must never run unattended`);
+    }
+  }
+  // And an irreversible kind, should one ever be added.
+  for (const k of kinds) {
+    if (!SAFETY[k].reversible) {
+      assert.equal(mayAutoRun(k, permissive), false, `${k} cannot be undone, so it must be asked`);
+    }
+  }
+});
+
+test("nothing runs automatically until it is switched on", async () => {
+  const { SAFETY, mayAutoRun } = await import("../core/agency/types");
+  const kinds = Object.keys(SAFETY) as (keyof typeof SAFETY)[];
+  for (const k of kinds) {
+    assert.equal(mayAutoRun(k, { auto: {} }), false,
+      `${k} must be off by default — trust is earned by being watched, not assumed`);
+  }
+});
+
+test("an inward reversible kind can be switched on", async () => {
+  const { mayAutoRun } = await import("../core/agency/types");
+  // The feature has to actually work, or the two tests above pass trivially.
+  assert.equal(mayAutoRun("expense.file", { auto: { "expense.file": true } }), true);
+});
+
+test("every proposal kind has a safety classification and a label", async () => {
+  const { SAFETY, KIND_LABEL } = await import("../core/agency/types");
+  const a = Object.keys(SAFETY).sort();
+  const b = Object.keys(KIND_LABEL).sort();
+  assert.deepEqual(a, b, "a kind without a safety entry would default to nothing being checked");
+});
+
+/*
+ * Undo is only ever performed from the record written at the time of acting.
+ * A generic "work out how to reverse this" path is how an undo button comes
+ * to delete the wrong row, so its absence is worth pinning.
+ */
+test("undo refuses without the record written when the action ran", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("core/agency/act.ts", "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  assert.match(src, /No undo record was written for this one/);
+  assert.match(src, /if \(!SAFETY\[p\.kind\]\.reversible\) return/);
+  // Only the operations with an explicit branch are reachable.
+  assert.match(src, /Unknown undo operation/);
+});
+
+/*
+ * Producers run every half hour. Without a stable dedupe key the same
+ * receipt is proposed forty times before lunch, which is the behaviour that
+ * gets an assistant switched off.
+ */
+test("every producer supplies a dedupe key", async () => {
+  const fs = await import("node:fs");
+  const src = fs.readFileSync("core/agency/producers/index.ts", "utf8");
+  const proposals = src.match(/await propose\(\{/g)?.length ?? 0;
+  const dedupes = src.match(/^\s*dedupe:/gm)?.length ?? 0;
+  assert.ok(proposals > 0, "expected at least one producer");
+  assert.equal(dedupes, proposals, "every propose() call must carry a dedupe key");
+});

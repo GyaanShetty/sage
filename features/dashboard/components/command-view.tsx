@@ -26,6 +26,7 @@ import { HotTopics } from "./hot-topics";
 import { ExpenseTile, DirectivesPanel } from "./routine-tiles";
 import { BoardTile } from "./board-tile";
 import { PictureWall } from "./picture-wall";
+import { Docket } from "./docket";
 import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
 import { BudgetTile } from "./ops-tiles";
 import { StudyTile } from "./chart-tiles";
@@ -209,6 +210,16 @@ export function CommandView({
            * which is the one rule this grid cannot bend — a tile with no span
            * class takes the implicit minimum and renders as a sliver.
            */}
+          {/*
+           * v2 sits at the top, above the television.
+           *
+           * Everything below this line answers a question; this is the only
+           * pane that proposes work and then does it, and a thing that waits
+           * for a decision has to be where decisions get made. Below the
+           * fold it would be a notifications screen nobody opens.
+           */}
+          <div className="t-12x4"><TileGuard name="DOCKET"><Docket n={0} /></TileGuard></div>
+
           <div className="t-12x5"><TileGuard name="LIVETV"><LiveTv n={1} /></TileGuard></div>
 
           {/* 1 · 3 · 6 · 7 — the mail, the wire, the day, the list.

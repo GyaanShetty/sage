@@ -9,6 +9,10 @@ import { runBackup, lastBackup } from "@/core/ops/backup";
 import { syncHevy } from "@/core/health/hevy";
 import { runNightShift } from "@/core/night/shift";
 import { machineAuth } from "@/lib/security";
+import { runProducers } from "@/core/agency/producers";
+import { listProposals, getSettings } from "@/core/agency/store";
+import { execute } from "@/core/agency/act";
+import { mayAutoRun } from "@/core/agency/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,6 +31,32 @@ export const maxDuration = 60;
  * API is deliberately slower.
  */
 const JOBS: Job[] = [
+  {
+    /*
+     * v2: notice things worth doing, and do the ones standing permission
+     * covers.
+     *
+     * Half-hourly rather than every minute, and that is about cost, not
+     * caution. The receipts producer reads the mailbox and runs an LLM over
+     * what it finds; at one-minute cadence that is a free tier spent by
+     * lunchtime on re-reading the same thirty emails. Nothing here is
+     * time-critical — a receipt filed twenty minutes later is filed.
+     */
+    name: "agency",
+    everyMin: 30,
+    run: async () => {
+      const reports = await runProducers();
+      const settings = await getSettings();
+      const open = await listProposals({ status: ["proposed"] });
+      let acted = 0;
+      for (const p of open) {
+        if (!mayAutoRun(p.kind, settings)) continue;
+        await execute(p, true);
+        acted++;
+      }
+      return { proposed: reports.reduce((a, r) => a + r.proposed, 0), acted };
+    },
+  },
   {
     // The whole reason this exists. Twice-daily crons made a 3pm reminder
     // arrive at 9pm, as a note about something already missed.

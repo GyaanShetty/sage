@@ -118,6 +118,14 @@ export function Docket({ n }: { n?: number }) {
       }
       live={open.length > 0}
       alert={open.length > 0 ? "signal" : undefined}
+      /*
+       * Tells the grid this pane has nothing to show, so it can take two
+       * rows instead of four. A 370px box holding one sentence is the
+       * single thing that made the top of the wall look unfinished — the
+       * pane was sized by its span, and a span is a guess about content
+       * that has not arrived yet.
+       */
+      className={open.length || recent.length ? undefined : "dk-quiet"}
     >
       {note && <div className="dk-note">{note}</div>}
 

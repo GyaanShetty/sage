@@ -1811,3 +1811,244 @@ body::before {
 }
 .dk-perm:hover { color: var(--ink); }
 .dk-perm input { accent-color: var(--sig); }
+
+/* ══ the refinement pass ══════════════════════════════════════════════════
+ *
+ * He says it is overwhelming and basic at the same time, which sounds like a
+ * contradiction and is not. Measured, the page had nineteen distinct type
+ * steps, all of them between 8px and 14px — 107 elements at 10px, 64 at 9px.
+ * When everything is set at the same volume nothing leads, so the eye has
+ * nowhere to land (overwhelming) and no single element looks considered
+ * (basic). Add hard 1px rectangles at zero radius and prose set in all-caps
+ * monospace, and you get a wireframe of a dashboard rather than a dashboard.
+ *
+ * So this pass does not add or remove features. It does four things:
+ *
+ *   1. One type scale with real contrast, instead of nineteen near-identical
+ *      sizes. Five steps, each about 1.35x the last.
+ *   2. Prose stops being monospace and stops shouting. Mono is for numbers,
+ *      where tabular alignment is the point; caps are for labels, which are
+ *      short. Sentences get a reading face at a reading size.
+ *   3. Surfaces soften — a small radius, a quieter border, real padding.
+ *      The red chrome moves to hover and live states, where it means
+ *      something, instead of outlining everything equally.
+ *   4. One motion curve and one duration, applied consistently, so the
+ *      interface moves like a single object.
+ *
+ * The information density is unchanged. It is the DECORATION density that
+ * was competing with it.
+ */
+
+:root {
+  /* The scale. Five steps, ~1.35x apart, so hierarchy is visible rather
+     than inferred. Everything below references these. */
+  --t-display: 32px;
+  --t-title:   20px;
+  --t-body:    14.5px;
+  --t-label:   11px;
+  --t-micro:   9.5px;
+
+  /* One curve, one duration. Two easings in one interface is two
+     interfaces. */
+  --ease: cubic-bezier(.32, .72, 0, 1);
+  --fast: 140ms;
+  --slow: 320ms;
+
+  --r:    8px;   /* panes */
+  --r-sm: 5px;   /* controls */
+}
+
+/* ── surfaces ─────────────────────────────────────────────────────────── */
+
+.pane, .mk-card, .keycard {
+  border-radius: var(--r);
+  /* A hairline in the ink colour rather than the accent. Twenty-four red
+     outlines made every pane shout its own edge; the accent is for the one
+     pane that is doing something. */
+  border: 1px solid rgba(242, 242, 242, .08);
+  background-color: var(--panel);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--slow) var(--ease);
+}
+.pane:hover {
+  border-color: rgba(242, 242, 242, .18);
+  box-shadow: 0 2px 24px -12px rgba(0, 0, 0, .9);
+}
+/* Reticles on hover only. As a permanent fixture on every pane they were
+   not a marker of anything — they were a texture. */
+.pane::after { opacity: 0; transition: opacity var(--slow) var(--ease); }
+.pane:hover::after { opacity: .55; }
+
+/* Live still reads instantly, and now it is the only thing wearing red. */
+.pane:has(.pane-s.live) {
+  border-color: rgba(229, 72, 77, .45);
+  box-shadow: 0 0 0 1px rgba(229, 72, 77, .12), 0 2px 28px -14px rgba(229, 72, 77, .5);
+}
+
+/* ── headers ──────────────────────────────────────────────────────────── */
+
+.pane-hd {
+  background: none;
+  border-top: 0;
+  border-bottom: 1px solid rgba(242, 242, 242, .07);
+  padding: 11px 14px 9px;
+  gap: 10px;
+}
+.pane-t {
+  font-family: var(--font-disp), sans-serif;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.pane:hover .pane-hd { border-bottom-color: rgba(242, 242, 242, .14); }
+/* The address recedes to what it is: a reference, not a headline. */
+.pane-n {
+  background: none; border: 0; padding: 0; margin-right: 9px;
+  color: var(--ink-4); font-weight: 400; font-size: var(--t-micro);
+}
+.pane:has(.pane-s.live) .pane-n { background: none; color: var(--sig); }
+.pane-s {
+  font-family: var(--font-disp), sans-serif;
+  font-size: var(--t-micro); letter-spacing: .1em; color: var(--ink-4);
+}
+
+/* ── type ─────────────────────────────────────────────────────────────── */
+
+/*
+ * Prose gets a reading face at a reading size. This is the single biggest
+ * change: headlines, reasons, event names and messages were set at 11–12px
+ * in a condensed display face, and three hundred of those on one page is
+ * what "basic" actually looked like.
+ */
+.wire-h, .tl-s, .tlv-s, .gm-sub, .ht-h, .dk-t, .dk-why, .sr-tx,
+.xp-m, .wb-t, .dv-t, .tv3-name, .pw-head, .wl-h, .ag-what {
+  font-family: var(--serif);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.wire-h, .tlv-s, .gm-sub, .ht-h, .sr-tx, .xp-m, .wb-t, .dv-t { font-size: var(--t-body); line-height: 1.4; }
+.dk-t { font-size: var(--t-title); line-height: 1.3; }
+.dk-why { font-size: var(--t-body); line-height: 1.45; color: var(--ink-3); }
+.pw-head { font-size: var(--t-title); }
+.pw-big .pw-head { font-size: 26px; }
+.pw-huge .pw-head { font-size: 30px; }
+
+/* Figures keep the mono, because tabular alignment is the whole reason. */
+.num, .tlv-t, .wire-t, .gm-when, .xp-a, .dk-when, .hs-n, .ht-n {
+  font-family: var(--font-mono-f), monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Empty states stop shouting. An all-caps monospace sentence is a system
+   error; this is just information. */
+.empty-state .es-t, .empty .empty-r, .tile-wait {
+  font-family: var(--serif);
+  font-size: var(--t-body);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-3);
+}
+
+/* ── space ────────────────────────────────────────────────────────────── */
+
+.wall-pack { gap: 10px; padding: 10px 12px 28px; }
+.gm-row, .wire-row, .tlv-ev, .xp-row, .wb-row, .dv-row, .sr-row, .ht-row {
+  padding-block: 8px;
+}
+
+/* ── chrome, turned down ──────────────────────────────────────────────── */
+
+/*
+ * The grid and the scanlines were doing the same job as the data and losing.
+ * Both stay — they are what keeps the ground from being flat black — at
+ * roughly a third of what they were.
+ */
+body {
+  background-image:
+    linear-gradient(rgba(229, 72, 77, .016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(229, 72, 77, .016) 1px, transparent 1px);
+  background-size: 128px 128px, 128px 128px;
+}
+body::before { background: repeating-linear-gradient(to bottom, rgba(0,0,0,.1) 0 1px, transparent 1px 4px); }
+.dh-rain { opacity: .12; }
+.wall-rain { opacity: .04; }
+.wall-pack::before { opacity: .5; }
+.t-12x2 > .pane::before, .t-12x6 > .pane::before, .t-12x8 > .pane::before { display: none; }
+
+/* ── motion ───────────────────────────────────────────────────────────── */
+
+/* Rows settle rather than snap. */
+.gm-row, .wire-row, .tlv-ev, .xp-row, .wb-row, .dv-row, .ht-row,
+.dk-row, .pw-cell, .tv3-opt, .bt-tab {
+  transition: background var(--fast) var(--ease), box-shadow var(--fast) var(--ease),
+              color var(--fast) var(--ease);
+}
+.pw-cell img { transition: filter var(--slow) var(--ease), transform 600ms var(--ease); }
+
+/* The wall arrives rather than appearing. One animation, no stagger per
+   tile — twenty-four staggered entrances is a loading screen. */
+@media (prefers-reduced-motion: no-preference) {
+  .wall-pack > * { animation: wall-in var(--slow) var(--ease) both; }
+}
+@keyframes wall-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Buttons and inputs get the same radius as everything else. */
+.dk-yes, .dk-no, .xp-form input, .xp-form select, .xp-form button,
+.dv-in, .dv-plus, .tv3-menu, .bt-tab { border-radius: var(--r-sm); }
+.xp-form { gap: 6px; background: none; padding: 8px 12px; }
+.xp-form input, .xp-form select, .xp-form button { border: 1px solid rgba(242,242,242,.1); }
+
+/*
+ * A floor under the labels.
+ *
+ * Most small text on this page is small for a good reason — a timestamp, an
+ * axis label, a key/value readout. The fault was never that labels are
+ * 10px; it was that PROSE was 11px and there was no larger tier above it,
+ * so the page had no top to its hierarchy. That is fixed above.
+ *
+ * What remains is a handful of things set at 7 and 8px, which is below the
+ * size at which letterforms survive on a normal screen. Nothing on this
+ * wall needs to be smaller than 9.5px, and the few that were are the ones
+ * he would have to lean in to read.
+ */
+.pane-s, .tstat-k, .xp-k, .dk-auto, .dk-fail, .dk-dis, .pw-meta,
+.hs-h, .ht-src, .tv3-note, .sr-tier, .dh-tag, .bt-tab, .dk-h,
+.wall-pack::before, .tlv-h, .tl-tick, .bg-plab, .pf-alloclg {
+  font-size: var(--t-micro);
+  letter-spacing: .1em;
+}
+.tv3-name { font-size: var(--t-body); }
+
+/* The hero's flanks are a readout, not a table of record — give them the
+   label size and let the figures carry the mono. */
+.dhf-k, .dhf-v { font-size: var(--t-micro); }
+
+/* The magnify control was 12px of monospace on every single pane: 21 of
+   them on one screen, all competing with the titles beside them. */
+.pane-zoom { font-size: var(--t-label); color: var(--ink-4); opacity: 0; transition: opacity var(--fast) var(--ease); }
+.pane:hover .pane-zoom { opacity: 1; }
+.pane-zoom:hover { color: var(--sig); }
+
+/*
+ * Panes that have nothing to say take less room.
+ *
+ * `:has()` lets the grid wrapper react to its own content, which is the
+ * only way a fixed-span grid can be content-aware without the component
+ * knowing its own layout. A pane whose span is four rows and whose content
+ * is one sentence is 300px of empty box, and a column of those is exactly
+ * what "basic" looks like — the geometry promising something the data never
+ * delivers.
+ *
+ * Deliberately only for the states that are genuinely empty. A pane that is
+ * merely SHORT keeps its height, because a wall whose every tile resizes as
+ * data arrives is a wall that never stops moving.
+ */
+@media (min-width: 880px) {
+  .wall-pack > div:has(.dk-quiet) { grid-row: span 2; }
+  .wall-pack > div:has(.pane-body > .empty-state:only-child),
+  .wall-pack > div:has(.pane-body > .empty:only-child) { grid-row: span 2; }
+}

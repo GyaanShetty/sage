@@ -16,6 +16,7 @@
 
 import { db, DEFAULT_USER_ID } from "@/infrastructure/db/supabase";
 import { addExpense, deleteExpense } from "@/core/finance/expenses";
+import { archiveGmail, unarchiveGmail, ScopeError } from "@/infrastructure/integrations/google";
 import { patchProposal } from "./store";
 import { SAFETY, type Proposal } from "./types";
 
@@ -87,7 +88,46 @@ async function scheduleStudy(p: Proposal): Promise<Outcome> {
   return { ok: true, label: title, href: "/study", undo: { op: "task.delete", id } };
 }
 
+/**
+ * Archive a pile of mail.
+ *
+ * Partial success is reported as success with a count rather than rolled
+ * back. Gmail has no transaction, so "undo the eleven that worked because
+ * the twelfth failed" would be a second batch of API calls that can also
+ * fail halfway. The undo record carries exactly the ids that moved, so the
+ * undo is precise even when the archive was not complete.
+ */
+async function archiveMail(p: Proposal): Promise<Outcome> {
+  const ids = Array.isArray(p.payload.ids) ? (p.payload.ids as string[]) : [];
+  const who = String(p.payload.sender ?? "mail");
+  if (!ids.length) return { ok: false, error: "The proposal lists no messages." };
+
+  const moved: string[] = [];
+  for (const id of ids) {
+    try {
+      await archiveGmail(id);
+      moved.push(id);
+    } catch (e) {
+      // A missing scope is not a per-message failure — nothing will work, so
+      // stop and say the one thing he can act on.
+      if (e instanceof ScopeError) {
+        return moved.length
+          ? { ok: true, label: `${moved.length} of ${ids.length} from ${who}`, undo: { op: "mail.unarchive", ids: moved } }
+          : { ok: false, error: e.message };
+      }
+    }
+  }
+  if (!moved.length) return { ok: false, error: "Gmail refused every message." };
+  return {
+    ok: true,
+    label: moved.length === ids.length ? `${moved.length} from ${who}` : `${moved.length} of ${ids.length} from ${who}`,
+    href: "/mail",
+    undo: { op: "mail.unarchive", ids: moved },
+  };
+}
+
 const RUN: Partial<Record<Proposal["kind"], (p: Proposal) => Promise<Outcome>>> = {
+  "mail.archive": archiveMail,
   "expense.file": fileExpense,
   "task.create": createTask,
   "study.schedule": scheduleStudy,
@@ -136,12 +176,17 @@ export async function execute(p: Proposal, auto = false): Promise<Outcome> {
  */
 export async function undo(p: Proposal): Promise<Outcome> {
   if (!SAFETY[p.kind].reversible) return { ok: false, error: "This kind cannot be undone." };
-  const rec = p.result?.undo as { op?: string; id?: string } | undefined;
-  if (!rec?.op || !rec.id) return { ok: false, error: "No undo record was written for this one." };
+  const rec = p.result?.undo as { op?: string; id?: string; ids?: string[] } | undefined;
+  if (!rec?.op || (!rec.id && !rec.ids?.length)) {
+    return { ok: false, error: "No undo record was written for this one." };
+  }
 
   try {
-    if (rec.op === "expense.delete") await deleteExpense(rec.id);
-    else if (rec.op === "task.delete") await db.from("Task").delete().eq("userId", DEFAULT_USER_ID).eq("id", rec.id);
+    if (rec.op === "expense.delete" && rec.id) await deleteExpense(rec.id);
+    else if (rec.op === "task.delete" && rec.id) await db.from("Task").delete().eq("userId", DEFAULT_USER_ID).eq("id", rec.id);
+    else if (rec.op === "mail.unarchive" && rec.ids) {
+      for (const id of rec.ids) await unarchiveGmail(id);
+    }
     else return { ok: false, error: `Unknown undo operation "${rec.op}".` };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

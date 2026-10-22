@@ -17,6 +17,8 @@ import { listExpenses, findExpenseCandidates } from "@/core/finance/expenses";
 import { listUpcomingEvents } from "@/infrastructure/integrations/google";
 import { listSubjects } from "@/core/study/subjects";
 import { propose } from "../store";
+import { mailDirectives } from "./mail";
+import { readNewsletters } from "./newsletters";
 import type { ProposalKind } from "../types";
 
 export interface ProducerReport { name: string; proposed: number; error?: string }
@@ -131,6 +133,8 @@ async function recurringReview(): Promise<number> {
 
 const PRODUCERS: { name: string; run: () => Promise<number> }[] = [
   { name: "receipts", run: receipts },
+  { name: "mail", run: mailDirectives },
+  { name: "newsletters", run: readNewsletters },
   { name: "study", run: studyBlock },
   { name: "subscriptions", run: recurringReview },
 ];

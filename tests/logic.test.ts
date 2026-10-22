@@ -5592,3 +5592,65 @@ test("every producer supplies a dedupe key", async () => {
   assert.ok(proposals > 0, "expected at least one producer");
   assert.equal(dedupes, proposals, "every propose() call must carry a dedupe key");
 });
+
+/*
+ * Archiving touches the mailbox, so it is outward and can never be
+ * automatic — but it is also the first kind whose EXECUTOR can fail for a
+ * reason the user can fix, and saying "Gmail refused" when the real answer
+ * is "SAGE was never given permission" sends him looking in the wrong
+ * place. The distinction is a type, so it cannot be collapsed by accident.
+ */
+test("a missing Gmail scope is reported as a scope problem, not a refusal", async () => {
+  const fs = await import("node:fs");
+  const g = fs.readFileSync("infrastructure/integrations/google.ts", "utf8");
+  assert.match(g, /class ScopeError/);
+  assert.match(g, /res\.status === 403 \|\| res\.status === 401.*\n?.*throw new ScopeError/);
+  assert.match(g, /Reconnect Google in Settings/);
+
+  const act = fs.readFileSync("core/agency/act.ts", "utf8");
+  assert.match(act, /e instanceof ScopeError/,
+    "the executor must stop the batch on a scope error rather than failing message by message");
+});
+
+/*
+ * The archive helper is deliberately narrow. A general "modify labels"
+ * function in a codebase where a model decides what to call is a loaded
+ * gun — the only operations that exist are add and remove INBOX.
+ */
+test("the mail helper can only archive and unarchive", async () => {
+  const fs = await import("node:fs");
+  const g = fs.readFileSync("infrastructure/integrations/google.ts", "utf8");
+  const labels = [...g.matchAll(/(addLabelIds|removeLabelIds):\s*\[([^\]]*)\]/g)].map((m) => m[2].trim());
+  assert.deepEqual([...new Set(labels)], ['"INBOX"'],
+    "no label other than INBOX may be written — anything else is a path to trashing mail");
+  assert.doesNotMatch(g, /\bTRASH\b|\bSPAM\b/, "trash and spam must not be reachable");
+});
+
+/*
+ * The briefing has to be producible without a request. It was not: the
+ * whole generator lived in a GET handler, so the only thing that could make
+ * one was a browser, and the pane that displays them stayed empty forever.
+ */
+test("the briefing can be generated off a cron, not only off a request", async () => {
+  const fs = await import("node:fs");
+  const core = fs.readFileSync("core/brief/debrief.ts", "utf8");
+  assert.match(core, /export async function generateDebrief/);
+  assert.doesNotMatch(core, /NextResponse|req\.url|req\.headers/,
+    "the generator must not depend on a request object");
+  // And the heartbeat actually calls it.
+  const beat = fs.readFileSync("app/api/beat/route.ts", "utf8");
+  assert.match(beat, /name: "briefing"/);
+  assert.match(beat, /generateDebrief\(\)/);
+});
+
+/*
+ * A serverless function fetching its own origin is a second cold start, a
+ * second billed invocation, and a request that needs the caller's cookie to
+ * get past the app gate — which a cron does not have.
+ */
+test("the briefing does not call the app's own HTTP API", async () => {
+  const fs = await import("node:fs");
+  const core = fs.readFileSync("core/brief/debrief.ts", "utf8");
+  assert.doesNotMatch(core, /fetch\(`\$\{origin\}/);
+  assert.match(core, /from "@\/infrastructure\/markets\/quotes"/);
+});

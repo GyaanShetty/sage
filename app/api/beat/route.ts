@@ -13,6 +13,7 @@ import { runProducers } from "@/core/agency/producers";
 import { listProposals, getSettings } from "@/core/agency/store";
 import { execute } from "@/core/agency/act";
 import { mayAutoRun } from "@/core/agency/types";
+import { briefBucket, cachedDebrief, generateDebrief } from "@/core/brief/debrief";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -63,6 +64,28 @@ const JOBS: Job[] = [
     name: "reminders",
     everyMin: 1,
     run: async () => ({ fired: (await fireDueReminders()).length }),
+  },
+  {
+    /*
+     * The briefing writes itself.
+     *
+     * It never did. Generating one required a browser to ask, and the only
+     * thing that ever asked was a component that runs at boot — so the
+     * debrief pane said "no briefings recorded yet" indefinitely, which is
+     * not a missing feature so much as a feature nothing could reach.
+     *
+     * Hourly, and cheap: `cachedDebrief` returns the existing text for the
+     * current half-day, so this is one indexed read on fifty-odd beats a
+     * day and a model call on two.
+     */
+    name: "briefing",
+    everyMin: 60,
+    run: async () => {
+      const bucket = briefBucket();
+      if (await cachedDebrief(bucket)) return { bucket, wrote: false };
+      await generateDebrief();
+      return { bucket, wrote: true };
+    },
   },
   {
     // Prep nudges for anything newly in the calendar. Quarter-hourly is

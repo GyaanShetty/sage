@@ -10,6 +10,21 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.readonly",
   // compose = create drafts (safe: nothing sends without you hitting Send)
   "https://www.googleapis.com/auth/gmail.compose",
+  /*
+   * modify = change labels, which is what archiving is.
+   *
+   * This is a real widening: the same scope would permit trashing mail.
+   * SAGE does not and will not — the only label operation implemented is
+   * removing INBOX, and the executor refuses anything else — but the grant
+   * itself is broader than the use, and that is worth knowing.
+   *
+   * It cannot take effect quietly. Tokens carry the scopes they were issued
+   * with, so an existing connection keeps the narrower set and archiving
+   * simply fails with "reconnect Google" until he goes through Google's own
+   * consent screen, which lists exactly what he is granting. Nothing here
+   * can escalate a permission behind his back.
+   */
+  "https://www.googleapis.com/auth/gmail.modify",
 ].join(" ");
 
 export function appUrl(): string {
@@ -562,3 +577,40 @@ export async function createGmailDraft(to: string, subject: string, body: string
   });
   return res.ok;
 }
+
+
+/* ── archiving ─────────────────────────────────────────────────────────────
+ *
+ * Archiving in Gmail is removing the INBOX label; the message is untouched
+ * and still in All Mail, which is what makes it reversible. Deliberately
+ * narrow: this takes no label argument, so there is no path through it that
+ * trashes, spams or re-files anything. A general "modify labels" helper
+ * would be more useful and would also be a loaded gun in a codebase where
+ * an LLM decides what to call.
+ */
+
+/** Distinguishes "the API said no" from "SAGE was never granted this". */
+export class ScopeError extends Error {
+  constructor() {
+    super("SAGE's Google connection does not include permission to change mail labels. Reconnect Google in Settings to grant it.");
+    this.name = "ScopeError";
+  }
+}
+
+async function setInbox(id: string, inInbox: boolean): Promise<void> {
+  const token = await getGoogleAccessToken();
+  if (!token) throw new Error("Google is not connected.");
+  const res = await proxyFetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/modify`,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify(inInbox ? { addLabelIds: ["INBOX"] } : { removeLabelIds: ["INBOX"] }),
+    },
+  );
+  if (res.status === 403 || res.status === 401) throw new ScopeError();
+  if (!res.ok) throw new Error(`Gmail refused the change (${res.status}).`);
+}
+
+export const archiveGmail = (id: string) => setInbox(id, false);
+export const unarchiveGmail = (id: string) => setInbox(id, true);

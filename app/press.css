@@ -2052,3 +2052,17 @@ body::before { background: repeating-linear-gradient(to bottom, rgba(0,0,0,.1) 0
   .wall-pack > div:has(.pane-body > .empty-state:only-child),
   .wall-pack > div:has(.pane-body > .empty:only-child) { grid-row: span 2; }
 }
+
+/* The wall's way back to the console. Pinned rather than in the flow: as a
+   grid child it would take a row of its own and push the hero down. */
+.wall-back {
+  position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
+  z-index: 60; cursor: pointer;
+  padding: 6px 14px; border-radius: 999px;
+  background: rgba(18, 11, 12, .92); border: 1px solid var(--sig-dim);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-disp), sans-serif; font-size: var(--t-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2);
+  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+.wall-back:hover { color: var(--sig); border-color: var(--sig); }

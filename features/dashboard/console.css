@@ -1,0 +1,250 @@
+/* ══ the console ══════════════════════════════════════════════════════════
+ *
+ * Built to the reference he sent: a mission console, not a wall.
+ *
+ * The thing that makes that reference work is not its colours or its type —
+ * it is the COMPOSITION, and it is the one thing SAGE never had. Four
+ * decisions carry the whole layout:
+ *
+ *   1. ONE SCREEN. Nothing scrolls the page. SAGE's wall was 4.4 screens of
+ *      equally-weighted panes, which is why it read as overwhelming: there
+ *      was no "this is the view", only an endless strip. Here the viewport
+ *      IS the view, and the rails scroll inside themselves if they must.
+ *   2. ONE DOMINANT VISUAL. The stage takes over half the width and most of
+ *      the height. An interface with a focal point can be dense everywhere
+ *      else without feeling busy, because the eye has somewhere to start.
+ *   3. RAILS ARE LISTS, NOT CARDS. Thin rows, hairline separators, label
+ *      left and value right. Twenty rows of that is legible; four cards
+ *      with padding and headers is not denser, just bigger.
+ *   4. A TIMELINE ACROSS THE BOTTOM. In the reference it is mission
+ *      playback. Here it is the day — which SAGE already draws.
+ *
+ * Panels are separated by 3px of ground and a hairline, not by shadow and
+ * radius. At this density, elevation is noise.
+ */
+
+/*
+ * Fills its container rather than the viewport.
+ *
+ * `position: fixed` was the obvious choice and the wrong one: an ancestor
+ * in the shell carries `perspective`, which makes it the containing block
+ * for fixed descendants, so the console anchored to that box instead of the
+ * window — a hundred pixels of dead band above it and a bottom edge in the
+ * wrong place. Filling the main region is both simpler and immune to
+ * whatever the shell does with transforms.
+ */
+.console {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(210px, 19fr) minmax(0, 55fr) minmax(250px, 26fr);
+  grid-template-rows: 24px minmax(0, 1fr) clamp(118px, 17vh, 180px);
+  grid-template-areas:
+    "strip strip strip"
+    "left  stage right"
+    "foot  foot  foot";
+  gap: 3px;
+  padding: 3px;
+  background: var(--deep);
+  overflow: hidden;
+}
+
+/* ── the status strip ─────────────────────────────────────────────────── */
+
+.cs-strip {
+  grid-area: strip;
+  display: flex; align-items: center; gap: 0;
+  padding: 0 10px;
+  background: var(--panel);
+  border: 1px solid rgba(242, 242, 242, .07);
+  font-family: var(--font-mono-f), monospace;
+  font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-4);
+  overflow: hidden; white-space: nowrap;
+}
+.cs-id { color: var(--ink-2); margin-right: 18px; }
+.cs-id b { color: var(--ink); font-weight: 500; letter-spacing: .2em; }
+.cs-nav { display: flex; align-items: center; gap: 0; margin-left: auto; }
+.cs-tab {
+  background: none; border: 0; cursor: pointer; padding: 3px 11px;
+  font: inherit; letter-spacing: .14em; color: var(--ink-4);
+  transition: color var(--fast) var(--ease);
+}
+.cs-tab:hover { color: var(--ink-2); }
+.cs-tab.on { color: var(--sig); }
+.cs-right { margin-left: 18px; color: var(--ink-3); }
+.cs-right b { color: var(--sig); font-weight: 400; }
+
+/* ── rails ────────────────────────────────────────────────────────────── */
+
+.cs-left  { grid-area: left; }
+.cs-right-rail { grid-area: right; }
+.cs-left, .cs-right-rail {
+  display: flex; flex-direction: column; gap: 3px;
+  min-height: 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+  /* The last panel was running past the rail into the footer. A flex column
+     in a grid cell needs the cell's height declared, or the children size
+     themselves and the parent dutifully overflows. */
+  height: 100%;
+}
+.cs-left::-webkit-scrollbar, .cs-right-rail::-webkit-scrollbar { display: none; }
+
+/*
+ * Panels in a rail give up the wall's chrome. No radius, no shadow, no
+ * reticles — at this size those are three decorations fighting over an
+ * 18px row. A hairline and a header is the whole vocabulary.
+ */
+.cs-left .pane, .cs-right-rail .pane, .cs-left .wall-cell, .cs-right-rail .wall-cell {
+  border-radius: 0;
+  border: 1px solid rgba(242, 242, 242, .07);
+  box-shadow: none;
+  flex: none;
+}
+.cs-left .pane::after, .cs-right-rail .pane::after { display: none; }
+.cs-left .pane-hd, .cs-right-rail .pane-hd {
+  padding: 6px 9px 5px;
+  background: rgba(242, 242, 242, .025);
+  border-bottom: 1px solid rgba(242, 242, 242, .06);
+}
+.cs-left .pane-t, .cs-right-rail .pane-t { font-size: 9px; letter-spacing: .16em; }
+.cs-left .pane-s, .cs-right-rail .pane-s { font-size: 8.5px; }
+.cs-left .pane-body, .cs-right-rail .pane-body { max-height: 268px; }
+
+/* Rows shrink to rail density. The wall's 15px serif is right for a
+   half-width pane and wrong for a 210px rail. */
+.cs-left .gm-row, .cs-right-rail .gm-row,
+.cs-left .dv-row, .cs-right-rail .dv-row,
+.cs-left .tlv-ev, .cs-right-rail .tlv-ev,
+.cs-left .mkt, .cs-right-rail .mkt,
+.cs-left .ht-row, .cs-right-rail .ht-row,
+.cs-left .sr-row, .cs-right-rail .sr-row,
+.cs-left .xp-row, .cs-right-rail .xp-row { padding-block: 4px; }
+.cs-left .tlv-s, .cs-right-rail .tlv-s,
+.cs-left .gm-sub, .cs-right-rail .gm-sub,
+.cs-left .dv-t, .cs-right-rail .dv-t,
+.cs-left .ht-h, .cs-right-rail .ht-h,
+.cs-left .sr-tx, .cs-right-rail .sr-tx,
+.cs-left .wire-h, .cs-right-rail .wire-h { font-size: 11.5px; line-height: 1.3; }
+.cs-left .dk-t, .cs-right-rail .dk-t { font-size: 13px; }
+.cs-left .dk-why, .cs-right-rail .dk-why { font-size: 11px; }
+
+/* ── the stage ────────────────────────────────────────────────────────── */
+
+.cs-stage {
+  grid-area: stage;
+  position: relative;
+  min-width: 0; min-height: 0;
+  background: var(--sunken);
+  border: 1px solid rgba(242, 242, 242, .07);
+  overflow: hidden;
+}
+.cs-stage .wall-map, .cs-stage .pane { border: 0; border-radius: 0; height: 100%; }
+.cs-stage .pane-hd { display: none; }
+.cs-stage .pane-body { padding: 0; height: 100%; }
+.cs-stage .leaflet-container { height: 100%; }
+/*
+ * The map's own toolbar sat underneath the top-left readout. On a stage
+ * this size the controls are redundant — the map pans and zooms by wheel
+ * and drag — and the corner is worth more as a readout than as a row of
+ * buttons.
+ */
+.cs-stage .leaflet-top, .cs-stage .deck-map-tools, .cs-stage .atlas-tools { display: none; }
+.cs-stage .leaflet-control-container .leaflet-bottom { bottom: 26px; }
+
+/*
+ * HUD over the stage. Corner readouts rather than a header bar: the
+ * reference puts its labels in the corners of the image so the image keeps
+ * the middle, which is the only part of a map worth looking at.
+ */
+.cs-hud {
+  position: absolute; inset: 0; z-index: 500;
+  pointer-events: none;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+}
+.cs-hud > * { position: absolute; pointer-events: auto; }
+.cs-hud-tl { top: 8px; left: 10px; }
+.cs-hud-tr { top: 8px; right: 10px; text-align: right; }
+.cs-hud-bl { bottom: 8px; left: 10px; }
+.cs-hud-br { bottom: 8px; right: 10px; text-align: right; }
+.cs-hud b { display: block; color: var(--ink); font-weight: 500; font-size: 11px; letter-spacing: .1em; }
+.cs-hud span { display: block; color: var(--ink-4); }
+.cs-hud .lit { color: var(--sig); }
+
+/* Reticle marks at the stage corners — the one place the wall's corner
+   brackets belong, because here there is exactly one frame to mark. */
+.cs-stage::after {
+  content: ""; position: absolute; inset: 6px; z-index: 400; pointer-events: none;
+  background:
+    linear-gradient(var(--sig), var(--sig)) left 0 top 0 / 14px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) left 0 top 0 / 1px 14px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 top 0 / 14px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 top 0 / 1px 14px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) left 0 bottom 0 / 14px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) left 0 bottom 0 / 1px 14px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 bottom 0 / 14px 1px no-repeat,
+    linear-gradient(var(--sig), var(--sig)) right 0 bottom 0 / 1px 14px no-repeat;
+  opacity: .5;
+}
+
+/* ── the footer timeline ──────────────────────────────────────────────── */
+
+.cs-foot {
+  grid-area: foot;
+  display: grid; grid-template-rows: 20px minmax(0, 1fr);
+  background: var(--panel);
+  border: 1px solid rgba(242, 242, 242, .07);
+  min-height: 0; overflow: hidden;
+}
+.cs-foot-hd {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 10px;
+  border-bottom: 1px solid rgba(242, 242, 242, .06);
+  font-family: var(--font-mono-f), monospace;
+  font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-4);
+}
+.cs-foot-hd b { color: var(--ink-2); font-weight: 500; }
+.cs-foot-hd .lit { color: var(--sig); }
+.cs-foot-body { position: relative; min-height: 0; }
+.cs-foot-body .dh-canvas { width: 100%; height: 100%; display: block; }
+
+/* ── narrow ───────────────────────────────────────────────────────────── */
+
+/* The shell's main region becomes the frame: no padding, no scrolling, and
+   no flex sizing of its own to argue with the grid inside. */
+main.hud-grid:has(.console) {
+  padding: 0;
+  overflow: hidden;
+  display: block;
+}
+/*
+ * Two levels, not one.
+ *
+ * The dashboard renders inside a wrapper inside `.h-full`, and `height:
+ * 100%` only resolves against a parent that HAS a height. Bounding the
+ * first child left the second at `auto`, so the console sized to its own
+ * content — 1138px inside a 976px region — and the footer timeline hung
+ * 144px below the window with no way to scroll to it.
+ */
+main.hud-grid:has(.console) > *,
+main.hud-grid:has(.console) > * > * { height: 100%; min-height: 0; }
+
+@media (max-width: 1119px) {
+  /* A three-column console on a narrow window is three unusable columns.
+     The stage keeps the top half, the rails become one scrolling column
+     under it, and the page is allowed to scroll again. */
+  main.hud-grid:has(.console) { overflow-y: auto; }
+  main.hud-grid:has(.console) > *,
+  main.hud-grid:has(.console) > * > * { height: auto; }
+  .console {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 24px 46vh auto auto auto;
+    grid-template-areas: "strip" "stage" "foot" "left" "right";
+    height: auto; overflow: visible;
+  }
+  .cs-left, .cs-right-rail { overflow: visible; }
+  .cs-left .pane-body, .cs-right-rail .pane-body { max-height: none; }
+}

@@ -27,6 +27,7 @@ import { ExpenseTile, DirectivesPanel } from "./routine-tiles";
 import { BoardTile } from "./board-tile";
 import { PictureWall } from "./picture-wall";
 import { Docket } from "./docket";
+import { ConsoleView } from "./console-view";
 import { CodeTile, SpendTile, ReviewTile } from "./wall-tiles";
 import { BudgetTile } from "./ops-tiles";
 import { StudyTile } from "./chart-tiles";
@@ -101,6 +102,28 @@ export function CommandView({
   weather: WeatherRow | null;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
+  /*
+   * Console by default, wall one click away.
+   *
+   * The console is the view he asked for and the right one for actually
+   * working; the wall is still the right view for reading everything at
+   * once on a Sunday. Kept in localStorage so the choice survives a reload
+   * — a view toggle that resets on every visit is not a choice, it is a
+   * setting he has to make again every morning.
+   */
+  const [view, setView] = useState<"console" | "wall">("console");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("sage-view") === "wall") setView("wall");
+    } catch {
+      /* private window, blocked storage — the default is fine. */
+    }
+  }, []);
+  const pick = (v: "console" | "wall") => {
+    setView(v);
+    try { localStorage.setItem("sage-view", v); } catch { /* not worth failing over */ }
+  };
+
   const [focusSec, setFocusSec] = useState(25 * 60);
   const [focusRun] = useState(false);
   const [taskModal, setTaskModal] = useState(false);
@@ -133,6 +156,17 @@ export function CommandView({
   const focusMin = Math.round((25 * 60 - focusSec) / 60);
   const agentRunning = log.some((l) => l.type.startsWith("agent."));
 
+  if (view === "console") {
+    return (
+      <ConsoleView
+        tasks={tasks}
+        events={events}
+        weather={weather ? `${Math.round(weather.temp)}°` : null}
+        onWall={() => pick("wall")}
+      />
+    );
+  }
+
   return (
     <div className="wall-shell">
       {/*
@@ -162,6 +196,10 @@ export function CommandView({
         what these panes actually contain.
       */}
         <div className="wall-pack has-hero">
+          {/* The way back. Without it the wall is a one-way door, which is
+              how a view toggle becomes a trap. */}
+          <button className="wall-back" onClick={() => pick("console")}>← Console</button>
+
           {/* The band the eye lands on before it starts reading numbers. It
               pays for its height by taking eight tiles off this wall — the
               biometrics, sky, clocks, spend, focus and task-rhythm readouts

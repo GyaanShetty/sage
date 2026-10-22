@@ -28,11 +28,15 @@ jobs:
       - name: Hit /api/cron
         run: |
           if [ -z "${SAGE_URL}" ]; then
-            echo "SAGE_URL variable not set — skipping."; exit 0
+            echo "::warning::SAGE_URL variable not set — nothing was called."; exit 0
           fi
-          curl -sS -m 120 -X GET "${SAGE_URL%/}/api/cron" \
-            -H "authorization: Bearer ${CRON_SECRET}" \
-            -w "\nHTTP %{http_code}\n" || true
+          code=$(curl -sS -m 120 -o /tmp/out -w "%{http_code}" \
+            -X GET "${SAGE_URL%/}/api/cron" -H "authorization: Bearer ${CRON_SECRET}") || code=000
+          echo "HTTP $code"; head -c 400 /tmp/out || true
+          if [ "$code" != "200" ]; then
+            echo "::error title=Cron tick failed::HTTP $code from /api/cron — check CRON_SECRET matches Vercel"
+            exit 1
+          fi
         env:
           SAGE_URL: ${{ vars.SAGE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -58,11 +62,18 @@ jobs:
       - name: Hit /api/beat
         run: |
           if [ -z "${SAGE_URL}" ]; then
-            echo "SAGE_URL variable not set — skipping."; exit 0
+            echo "::warning::SAGE_URL variable not set — the clock is not running."; exit 0
           fi
-          curl -sS -m 120 -X GET "${SAGE_URL%/}/api/beat" \
-            -H "authorization: Bearer ${CRON_SECRET}" \
-            -w "\nHTTP %{http_code}\n" || true
+          code=$(curl -sS -m 120 -o /tmp/out -w "%{http_code}" \
+            -X GET "${SAGE_URL%/}/api/beat" -H "authorization: Bearer ${CRON_SECRET}") || code=000
+          echo "HTTP $code"; head -c 600 /tmp/out || true
+          # `|| true` used to swallow this. A job that reports success whether
+          # or not SAGE was reached is worse than no job: it is a green tick
+          # that means nothing, and it hid a 401 for as long as it existed.
+          if [ "$code" != "200" ]; then
+            echo "::error title=Heartbeat failed::HTTP $code from /api/beat — check CRON_SECRET matches Vercel"
+            exit 1
+          fi
         env:
           SAGE_URL: ${{ vars.SAGE_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}

@@ -101,7 +101,7 @@ export function PulsePanel() {
    */
   const heat = (v: number | null) => {
     if (v == null) return "rgba(255,255,255,.03)";
-    return v >= 0 ? "rgba(95,185,138,.10)" : "rgba(226,140,147,.10)";
+    return v >= 0 ? "rgba(168, 168, 168,.10)" : "rgba(164, 164, 164,.10)";
   };
 
   /** How far the magnitude bar runs, as a percentage. 2.5% of move is full. */
@@ -170,7 +170,7 @@ function Dial({ value }: { value: number }) {
    * an interface that otherwise has one accent read as a children's toy, and
    * the middle three were indistinguishable at 96px anyway.
    */
-  const col = value < 40 ? "#e28c93" : value > 60 ? "#5fb98a" : "#8b8d96";
+  const col = value < 40 ? "#a4a4a4" : value > 60 ? "#a8a8a8" : "#8d8d8d";
   return (
     <svg viewBox="0 0 96 58" className="mk-dial">
       <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,.12)" strokeWidth="7" strokeLinecap="round" />
@@ -213,7 +213,7 @@ export function EventsCorrelationPanel({ symbols }: { symbols: string[] }) {
 
   const cell = (v: number) => {
     const m = Math.min(1, Math.abs(v));
-    return v >= 0 ? `rgba(255, 255, 255,${0.08 + m * 0.6})` : `rgba(248,113,113,${0.08 + m * 0.6})`;
+    return v >= 0 ? `rgba(255, 255, 255,${0.08 + m * 0.6})` : `rgba(155, 155, 155,${0.08 + m * 0.6})`;
   };
 
   return (

@@ -31,8 +31,8 @@ interface Row {
 }
 
 const SEVERITY: Record<Triage["severity"], string> = {
-  "breaks-feature": "text-red-300",
-  degrades: "text-amber-300",
+  "breaks-feature": "text-neutral-300",
+  degrades: "text-neutral-300",
   cosmetic: "text-subtle",
   noise: "text-subtle",
 };

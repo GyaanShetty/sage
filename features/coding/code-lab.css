@@ -2,7 +2,7 @@
 
 .cl-wrap { padding: 0 14px 40px; max-width: 1250px; margin: 0 auto; }
 .cl-dim { font-size: 12px; color: var(--subtle); padding: 10px 0; }
-.cl-err { color: #fca5a5; font-size: 13px; border: 1px dashed var(--border-glass); padding: 16px; margin-top: 14px; }
+.cl-err { color: #bcbcbc; font-size: 13px; border: 1px dashed var(--border-glass); padding: 16px; margin-top: 14px; }
 
 .cl-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-top: 14px; }
 .cl-title { font-size: 19px; font-weight: 500; }
@@ -13,7 +13,7 @@
 
 .tag.d-easy { color: var(--live); }
 .tag.d-med { color: var(--signal); }
-.tag.d-hard { color: #f87171; }
+.tag.d-hard { color: #9b9b9b; }
 
 .cl-fold { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.3px; color: var(--subtle); background: none; border: 0; padding: 12px 0 6px; cursor: pointer; }
 .cl-fold:hover { color: var(--foreground); }
@@ -38,10 +38,10 @@
 
 .cl-out { margin-top: 10px; border: 1px solid var(--border-glass); border-left-width: 2px; padding: 9px 11px; }
 .cl-out.ok { border-left-color: var(--live); }
-.cl-out.bad { border-left-color: #f87171; }
+.cl-out.bad { border-left-color: #9b9b9b; }
 .cl-outhead { font-family: var(--mono); font-size: 8px; letter-spacing: 1.5px; color: var(--subtle); }
 .cl-out pre { font-family: var(--mono), monospace; font-size: 12px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; word-break: break-word; margin-top: 6px; max-height: 220px; overflow-y: auto; }
-.cl-out pre.cl-stderr { color: #fca5a5; }
+.cl-out pre.cl-stderr { color: #bcbcbc; }
 
 .cl-coachcol { border: 1px solid var(--border-glass); padding: 12px; }
 .cl-coachnote { font-size: 11.5px; line-height: 1.5; color: var(--subtle); margin-top: 7px; }
@@ -89,5 +89,5 @@
 .cl-rnum { font-family: var(--mono); font-size: 10px; color: var(--subtle); font-variant-numeric: tabular-nums; }
 .cl-rtitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl-rrate { font-family: var(--mono); font-size: 9.5px; color: var(--subtle); font-variant-numeric: tabular-nums; }
-.cl-rlock { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: #f59e0b; }
+.cl-rlock { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; color: #b1b1b1; }
 @media (max-width: 520px) { .cl-result { grid-template-columns: 36px 1fr auto; } .cl-rrate { display: none; } }

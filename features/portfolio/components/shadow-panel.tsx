@@ -57,7 +57,7 @@ export function ShadowPanel() {
           <span className="sn"><Ghost className="size-3.5" /></span>
           <h2>Shadow book</h2><span className="line" />
           {s && s.scored > 0 && (
-            <span className={cn("tag", s.netPnl > 0 && "!text-[#f87171]")}>
+            <span className={cn("tag", s.netPnl > 0 && "!text-[#9b9b9b]")}>
               {money(s.netPnl)} {s.netPnl >= 0 ? "MISSED" : "SAVED"}
             </span>
           )}

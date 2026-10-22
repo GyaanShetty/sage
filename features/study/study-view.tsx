@@ -26,15 +26,17 @@ import {
   scheduledMinutes, weeklyActual, clockOf, WEEKDAYS,
   type Session, type Subject, type Unit,
 } from "@/core/study/model";
+import { TONE_CSS } from "@/core/board/types";
 import "@/features/dashboard/wall.css";
 import "@/features/dashboard/command.css";
 import "./study.css";
 
 interface Exam { id: string; subject: string; at: string; doneAt?: string | null }
 
-const TONE_VAR: Record<string, string> = {
-  signal: "var(--signal)", amber: "#ff9f0a", cyan: "#35c7ff", green: "#2fd07a", plain: "var(--muted)",
-};
+/* The same five tones the whiteboard uses, from the same table — these had
+   drifted into their own near-identical shades, which is exactly what one
+   shared ramp prevents. */
+const TONE_VAR: Record<string, string> = TONE_CSS;
 
 const hours = (min: number) => (min >= 60 ? `${(min / 60).toFixed(1)}H` : `${Math.round(min)}M`);
 const pct = (f: number) => `${Math.round(f * 100)}%`;

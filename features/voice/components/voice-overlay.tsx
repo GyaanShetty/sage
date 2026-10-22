@@ -336,7 +336,7 @@ export function VoiceOverlay() {
                     aria-label={live.micMuted ? "Unmute microphone" : "Mute microphone"}
                     className={cn(
                       "rounded-lg p-2 transition-colors",
-                      live.micMuted ? "text-red-400 hover:text-red-300" : "text-muted hover:text-foreground",
+                      live.micMuted ? "text-neutral-400 hover:text-neutral-300" : "text-muted hover:text-foreground",
                     )}
                   >
                     {live.micMuted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
@@ -406,9 +406,9 @@ export function VoiceOverlay() {
                 ))}
 
                 {error && (
-                  <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-3.5 py-2.5 text-[13px] text-red-300">
+                  <div className="rounded-xl border border-neutral-500/30 bg-neutral-500/5 px-3.5 py-2.5 text-[13px] text-neutral-300">
                     {error}
-                    <button onClick={engage} className="mt-1 block text-xs underline underline-offset-2 hover:text-red-200">
+                    <button onClick={engage} className="mt-1 block text-xs underline underline-offset-2 hover:text-neutral-200">
                       Reconnect
                     </button>
                   </div>

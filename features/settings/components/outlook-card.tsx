@@ -121,7 +121,7 @@ export function OutlookCard() {
         {probes && (
           <div className="mt-2 space-y-0.5 font-mono text-[10px]">
             {probes.map((p) => (
-              <p key={p.tenant} className={p.ok ? "text-[var(--up,#2fd07a)]" : "text-subtle"}>
+              <p key={p.tenant} className={p.ok ? "text-[var(--up,#b7b7b7)]" : "text-subtle"}>
                 {p.ok ? "PASS" : "FAIL"} · {p.label}
                 {!p.ok && p.code ? ` · ${p.code}` : ""}
               </p>

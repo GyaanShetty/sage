@@ -54,7 +54,7 @@ export function WorldMap({
     ro.observe(cv);
 
     const accent = () =>
-      getComputedStyle(document.body).getPropertyValue("--signal").trim() || "#f0a020";
+      getComputedStyle(document.body).getPropertyValue("--signal").trim() || "#b1b1b1";
 
     const draw = (t: number) => {
       if (stop) return;
@@ -62,7 +62,7 @@ export function WorldMap({
       ctx.clearRect(0, 0, w, h);
 
       // Land.
-      ctx.fillStyle = "#6f757f";
+      ctx.fillStyle = "#757575";
       for (let i = 0; i < COAST.length; i += 2) {
         const p = proj(COAST[i], COAST[i + 1], w, h);
         ctx.globalAlpha = 0.55;
@@ -109,14 +109,14 @@ export function WorldMap({
         ctx.fill();
 
         ctx.globalAlpha = 0.85;
-        ctx.fillStyle = "#e6e9ef";
+        ctx.fillStyle = "#e9e9e9";
         ctx.font = `${8 * dpr}px ui-monospace, monospace`;
         ctx.textAlign = P.x > w * 0.82 ? "right" : "left";
         const dx = P.x > w * 0.82 ? -6 * dpr : 6 * dpr;
         ctx.fillText(p.label.toUpperCase(), P.x + dx, P.y - 4 * dpr);
         if (p.note) {
           ctx.globalAlpha = 0.6;
-          ctx.fillStyle = "#9aa0aa";
+          ctx.fillStyle = "#a0a0a0";
           ctx.fillText(p.note, P.x + dx, P.y + 7 * dpr);
         }
       }
@@ -134,7 +134,7 @@ export function WorldMap({
       ctx.arc(H.x, H.y, 7 * dpr, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 0.85;
-      ctx.fillStyle = "#e6e9ef";
+      ctx.fillStyle = "#e9e9e9";
       ctx.font = `${8 * dpr}px ui-monospace, monospace`;
       ctx.textAlign = "left";
       ctx.fillText(hm.label.toUpperCase(), H.x + 9 * dpr, H.y + 3 * dpr);

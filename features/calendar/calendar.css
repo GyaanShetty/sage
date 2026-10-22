@@ -1,7 +1,7 @@
 /* Calendar — month grid plus the selected day. Shares command.css tokens. */
 
 .cal-wrap { max-width: 1100px; margin: 0 auto; padding: 18px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
-.cal-err { font-size: 12.5px; color: #f87171; display: flex; align-items: center; gap: 6px; }
+.cal-err { font-size: 12.5px; color: #9b9b9b; display: flex; align-items: center; gap: 6px; }
 
 .cal-nav { display: flex; align-items: center; gap: 8px; }
 .cal-nav button { display: flex; align-items: center; color: var(--muted); background: none; border: 1px solid var(--border-glass); border-radius: 5px; padding: 5px; cursor: pointer; }
@@ -14,7 +14,7 @@
 .cal-feed { font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--subtle); border: 1px solid var(--border-glass); padding: 2px 7px; border-radius: 3px; }
 .cal-feed.own { color: var(--live); border-color: var(--live-dim); }
 .cal-feed.off { opacity: .45; }
-.cal-feed.bad { color: #f59e0b; border-color: rgba(245,158,11,.35); }
+.cal-feed.bad { color: #b1b1b1; border-color: rgba(177, 177, 177,.35); }
 
 /* ── month grid ──────────────────────────────────────────────────────── */
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border-glass); border: 1px solid var(--border-glass); }
@@ -29,7 +29,7 @@
 .cal-chip { font-size: 10px; line-height: 1.35; color: var(--muted); border-left: 2px solid var(--live-dim); padding-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-chip i { font-style: normal; font-family: var(--mono); font-size: 8.5px; color: var(--subtle); }
 /* Someone else's calendar reads differently from your own. */
-.cal-chip.feed { border-left-color: #a855f7; }
+.cal-chip.feed { border-left-color: #808080; }
 .cal-chip.allday { border-left-color: var(--border-glass-strong); }
 .cal-more { font-family: var(--mono); font-size: 8px; color: var(--subtle); padding-left: 6px; }
 
@@ -53,7 +53,7 @@
 .cal-row:last-child { border-bottom: 0; }
 .cal-when { font-family: var(--mono); font-size: 10px; color: var(--live); white-space: nowrap; min-width: 86px; }
 .cal-title { flex: 1; min-width: 0; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cal-src { font-style: normal; margin-left: 8px; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: #a855f7; }
+.cal-src { font-style: normal; margin-left: 8px; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: #808080; }
 .cal-where { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--subtle); white-space: nowrap; }
 .cal-readonly { font-family: var(--mono); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: var(--subtle); }
 .cal-hint { margin-top: 11px; font-size: 10.5px; color: var(--subtle); display: flex; align-items: center; gap: 5px; }
@@ -139,11 +139,11 @@
 /* Categories inferred from the title — Google's own colours are not exposed
    through the API, and a week where lectures, training and revision look the
    same is a wall of one colour. */
-.wk-ev.class { border-left-color: #8b8cf0; background: color-mix(in srgb, #8b8cf0 16%, transparent); }
-.wk-ev.body  { border-left-color: #f87171; background: color-mix(in srgb, #f87171 15%, transparent); }
-.wk-ev.study { border-left-color: #f0c674; background: color-mix(in srgb, #f0c674 14%, transparent); }
+.wk-ev.class { border-left-color: #969696; background: color-mix(in srgb, #969696 16%, transparent); }
+.wk-ev.body  { border-left-color: #9b9b9b; background: color-mix(in srgb, #9b9b9b 15%, transparent); }
+.wk-ev.study { border-left-color: #cccccc; background: color-mix(in srgb, #cccccc 14%, transparent); }
 .wk-ev.sharp { border-left-color: var(--live); background: color-mix(in srgb, var(--live) 15%, transparent); }
-.wk-ev.feed  { border-left-color: #a855f7; background: color-mix(in srgb, #a855f7 13%, transparent); }
+.wk-ev.feed  { border-left-color: #808080; background: color-mix(in srgb, #808080 13%, transparent); }
 .wk-ev.plain { border-left-color: var(--border-glass-strong); }
 
 @media (max-width: 780px) {

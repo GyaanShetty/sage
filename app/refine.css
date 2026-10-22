@@ -8,7 +8,7 @@
    Four faults, all systemic, which is why one file fixes every page:
 
    1. THE SURFACES WERE ALL THE SAME COLOUR. --deep #07080a, --panel #0c0d0f,
-      --surface #0e1013, --surface-hi #14171b — four tokens inside seven points
+      --surface #0e1013, --surface-hi #171717 — four tokens inside seven points
       of each other, all neutral grey. On a real display that is one plane, so
       thirty panels read as thirty rectangles drawn on a wall rather than
       thirty objects sitting on one.
@@ -46,10 +46,10 @@
    */
   --deep:       #05060a;   /* the wall behind everything */
   --background: #05060a;
-  --panel:      #0b0d13;   /* a panel at rest */
-  --surface:    #0b0d13;
-  --panel-hi:   #121520;   /* raised: headers, hover, the active tab */
-  --surface-hi: #121520;
+  --panel:      #0d0d0d;   /* a panel at rest */
+  --surface:    #0d0d0d;
+  --panel-hi:   #151515;   /* raised: headers, hover, the active tab */
+  --surface-hi: #151515;
   --sunken:     #030409;   /* wells: chart grounds, inputs, empty bodies */
 
   /* ── THE LIGHT ────────────────────────────────────────────────────────────
@@ -84,12 +84,12 @@
    * say. These read as green and red at a glance and stop shouting, which
    * leaves the intensity available for when it is earned.
    */
-  --up:   #5fb98a;   /* 8.13:1 */
-  --down: #e28c93;   /* 7.77:1 */
-  --up-dim:   rgba(95, 185, 138, 0.45);
-  --down-dim: rgba(226, 140, 147, 0.45);
-  --up-wash:   rgba(95, 185, 138, 0.10);
-  --down-wash: rgba(226, 140, 147, 0.10);
+  --up:   #a8a8a8;   /* 8.13:1 */
+  --down: #a4a4a4;   /* 7.77:1 */
+  --up-dim:   rgba(168, 168, 168, 0.45);
+  --down-dim: rgba(164, 164, 164, 0.45);
+  --up-wash:   rgba(168, 168, 168, 0.10);
+  --down-wash: rgba(164, 164, 164, 0.10);
 
   /*
    * The two are matched on contrast, not on saturation.
@@ -130,7 +130,7 @@
   /* ── THE INK TIERS ────────────────────────────────────────────────────────
    *
    * Measured, not chosen by eye. Every one of these was checked against the
-   * panel background (#0b0d13) and the ratio is written beside it, because
+   * panel background (#0d0d0d) and the ratio is written beside it, because
    * "looks about right on this monitor" is how the first draft of this file
    * ended up with body copy at 2.23:1 — a third of the way to the contrast a
    * sentence needs, in exactly the places a sentence appears.
@@ -156,7 +156,7 @@
  */
 body {
   background-color: var(--deep);
-  background-image: radial-gradient(120% 80% at 50% -10%, rgba(120, 140, 190, 0.07), transparent 62%);
+  background-image: radial-gradient(120% 80% at 50% -10%, rgba(141, 141, 141, 0.07), transparent 62%);
   background-attachment: fixed;
 }
 
@@ -211,7 +211,7 @@ body {
 
 /* Live earns the accent, and earns it alone. */
 .pane-s.live { color: var(--signal); }
-.pane:has(.pane-s.live) { border-top-color: hsl(var(--hue) 100% 59% / 0.30); }
+.pane:has(.pane-s.live) { border-top-color: rgba(150, 150, 150, 0.30); }
 
 /* ── figures ────────────────────────────────────────────────────────────────
  *
@@ -304,7 +304,7 @@ body {
   border-right: 1px solid var(--lit-side);
 }
 .rail-stop.on {
-  background: linear-gradient(90deg, hsl(var(--hue) 100% 59% / 0.14), transparent 70%);
+  background: linear-gradient(90deg, rgba(150, 150, 150, 0.14), transparent 70%);
   box-shadow: inset 2px 0 0 var(--signal);
   color: var(--foreground);
 }
@@ -320,7 +320,7 @@ body {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.5), 0 8px 24px -16px rgba(0, 0, 0, 1);
 }
 .tb-search { background: var(--sunken); border-color: var(--lit-side); }
-.tb-search:hover { border-color: var(--edge-hi); background: #05070d; }
+.tb-search:hover { border-color: var(--edge-hi); background: #070707; }
 .tb-name { letter-spacing: 0.3em; }
 
 /* ── sector blocks ──────────────────────────────────────────────────────────
@@ -385,8 +385,8 @@ body {
   background: linear-gradient(
     180deg,
     #ffffff 0%,
-    rgba(238, 242, 252, 0.94) 42%,
-    rgba(150, 163, 190, 0.72) 100%
+    rgba(242, 242, 242, 0.94) 42%,
+    rgba(163, 163, 163, 0.72) 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
@@ -394,7 +394,7 @@ body {
   /* A glow on transparent text has nothing to sit on, so the halo is a drop
      shadow on the clipped shape instead — which is also what makes it follow
      the letterforms rather than the box around them. */
-  filter: drop-shadow(0 0 14px rgba(190, 210, 255, 0.22))
+  filter: drop-shadow(0 0 14px rgba(210, 210, 210, 0.22))
           drop-shadow(0 2px 1px rgba(0, 0, 0, 0.9));
   text-shadow: none;
 }
@@ -403,7 +403,7 @@ body {
    in something rather than floating on nothing. */
 .dash-hero {
   background:
-    radial-gradient(90% 120% at 50% 0%, rgba(120, 145, 205, 0.09), transparent 60%),
+    radial-gradient(90% 120% at 50% 0%, rgba(146, 146, 146, 0.09), transparent 60%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 55%);
   border-bottom: 1px solid var(--lit-side);
 }
@@ -431,7 +431,7 @@ body {
  *
  * --muted and --subtle predate this file and are used in several hundred
  * places, including for whole sentences. Measured against the new panel
- * colour, --subtle at #5c5d64 came to 2.8:1 — under the sentence floor
+ * colour, --subtle at #5d5d5d came to 2.8:1 — under the sentence floor
  * wherever it was carrying prose, which it frequently was.
  *
  * Raised to the measured tiers rather than removed: a token used that widely

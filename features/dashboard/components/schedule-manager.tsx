@@ -49,7 +49,7 @@ export function ScheduleManager({ events }: { events: EventRow[] | null }) {
         <input className="sm-when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         <button onClick={add} disabled={busy} aria-label="Add event"><Plus className="size-4" /> ADD</button>
       </div>
-      {err && <p className="lbl" style={{ color: "#e07070", marginBottom: 10 }}>{err.toUpperCase()}</p>}
+      {err && <p className="lbl" style={{ color: "#929292", marginBottom: 10 }}>{err.toUpperCase()}</p>}
 
       <div className="tm-list">
         {local.length === 0 && (

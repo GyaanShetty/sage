@@ -41,8 +41,8 @@ const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 
 const STATE_COLOUR: Record<LineStatus["state"], string> = {
   under: "var(--live)",
-  watch: "#ff3b30",
-  over: "#f87171",
+  watch: "#888888",
+  over: "#9b9b9b",
 };
 
 function monthLabel(m: string) {
@@ -383,7 +383,7 @@ function Curve({ points }: { points: Point[] }) {
         {/* The even-month pace: where a perfectly steady month would be. */}
         <path d={line(points, (p) => p.planned)} fill="none" stroke="var(--border-glass-strong)" strokeWidth="0.6" strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
         {/* Actual spend, only for days that have happened. */}
-        <path d={line(real, (p) => p.spent)} fill="none" stroke={over ? "#f87171" : "var(--live)"} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+        <path d={line(real, (p) => p.spent)} fill="none" stroke={over ? "#9b9b9b" : "var(--live)"} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="bg-curvefoot">
         <span><i className="bg-key live" /> spent</span>

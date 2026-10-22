@@ -38,11 +38,11 @@ export default function GlobalError({
       <body style={{ margin: 0, background: "#070708", color: "#e7e7ea", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
         <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24 }}>
           <div style={{ maxWidth: 560, width: "100%", border: "1px solid #26262b", background: "#0b0b0d" }}>
-            <div style={{ borderBottom: "1px solid #26262b", padding: "8px 12px", fontSize: 11, letterSpacing: ".14em", color: "#ff3b30" }}>
+            <div style={{ borderBottom: "1px solid #26262b", padding: "8px 12px", fontSize: 11, letterSpacing: ".14em", color: "#888888" }}>
               SAGE · UNHANDLED FAULT
             </div>
             <div style={{ padding: 16, display: "grid", gap: 12 }}>
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "#a1a1aa" }}>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "#a2a2a2" }}>
                 SAGE stopped rendering. Nothing was lost — everything on the wall is
                 read from the server on load, so a reload restores it.
               </p>
@@ -66,8 +66,8 @@ const btn: React.CSSProperties = {
   flex: 1,
   padding: "8px 12px",
   background: "transparent",
-  border: "1px solid #ff3b30",
-  color: "#ff3b30",
+  border: "1px solid #888888",
+  color: "#888888",
   fontFamily: "inherit",
   fontSize: 11,
   letterSpacing: ".14em",

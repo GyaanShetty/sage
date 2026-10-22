@@ -140,7 +140,7 @@ export function AmbientMode() {
             className="pointer-events-none absolute -inset-1/2 opacity-40"
             style={{
               background:
-                "radial-gradient(closest-side, rgba(255, 255, 255,0.10), transparent 70%), radial-gradient(closest-side, rgba(120,140,255,0.08), transparent 70%)",
+                "radial-gradient(closest-side, rgba(255, 255, 255,0.10), transparent 70%), radial-gradient(closest-side, rgba(149, 149, 149,0.08), transparent 70%)",
             }}
             animate={{ rotate: 360 }}
             transition={{ duration: 120, repeat: Infinity, ease: "linear" }}
@@ -179,9 +179,9 @@ export function AmbientMode() {
                   className={
                     "flex items-center gap-2 text-sm md:text-base " +
                     (current.level === "high"
-                      ? "text-red-300"
+                      ? "text-neutral-300"
                       : current.level === "warn"
-                        ? "text-amber-300"
+                        ? "text-neutral-300"
                         : "text-muted")
                   }
                 >

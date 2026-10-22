@@ -205,7 +205,7 @@ export function CorpusTile({ n }: { n?: number }) {
     { label: "Memories", value: memories.s?.total ?? 0, tone: "var(--signal)" },
     { label: "Notes", value: notes.s?.total ?? 0, tone: "var(--warn)" },
     { label: "Journal", value: journal.s?.total ?? 0, tone: "var(--up)" },
-    { label: "Reading", value: reading.s?.total ?? 0, tone: "#35c7ff" },
+    { label: "Reading", value: reading.s?.total ?? 0, tone: "#bababa" },
   ];
   const loaded = memories.s && notes.s && journal.s && reading.s;
   const total = parts.reduce((t, p) => t + p.value, 0);

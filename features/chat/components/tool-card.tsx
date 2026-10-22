@@ -42,7 +42,7 @@ export function ToolCard({
       className="my-2 inline-flex items-center gap-2.5 rounded-lg border border-border-glass bg-glass px-3 py-2 text-[13px] text-muted"
     >
       {failed ? (
-        <XCircle className="size-4 text-red-400" />
+        <XCircle className="size-4 text-neutral-400" />
       ) : done ? (
         <CheckCircle2 className="size-4 text-accent" />
       ) : (

@@ -37,13 +37,15 @@
    * than decorated with it — the same trick a darkroom or an operations
    * floor uses, and it costs nothing in contrast.
    */
-  --deep:       #0a0506;
-  --background: #0a0506;
-  --panel:      #120b0c;
-  --surface:    #120b0c;
-  --panel-hi:   #1c1113;
-  --surface-hi: #1c1113;
-  --sunken:     #060304;
+  /* Neutral black. The warm cast existed to make the red feel like it lit
+     the room; with no red there is nothing for it to serve. */
+  --deep:       #090909;
+  --background: #090909;
+  --panel:      #111111;
+  --surface:    #111111;
+  --panel-hi:   #191919;
+  --surface-hi: #191919;
+  --sunken:     #050505;
 
   /* Paper, not white. #fff on a dark ground glares; warm off-white reads as
      printed rather than emitted. */
@@ -92,23 +94,32 @@
    * live states carry the word, hazards carry the stripe, the current tab
    * carries its position.
    */
-  --signal:       #e5484d;
-  --signal-dim:   rgba(229, 72, 77, 0.42);
-  --signal-faint: rgba(229, 72, 77, 0.10);
-  --signal-glow:  rgba(229, 72, 77, 0.50);
-  --live:         #e5484d;
-  --live-dim:     rgba(229, 72, 77, 0.42);
-  --live-glow:    rgba(229, 72, 77, 0.45);
-  --accent:       #e5484d;
-  --claret:       #e5484d;   /* kept as a name so the press rules below hold */
+  /*
+   * Monochrome, on his instruction. No hue anywhere in the chrome.
+   *
+   * The accent becomes pure white, which still works as an accent because
+   * everything around it is held well below it: body text sits at 76%,
+   * labels at 40%, rules at 8%. "Live" reads as the brightest thing on a
+   * dim screen rather than as the only coloured thing — a weaker signal
+   * than red, and the one he asked for.
+   */
+  --signal:       #ffffff;
+  --signal-dim:   rgba(255, 255, 255, 0.34);
+  --signal-faint: rgba(255, 255, 255, 0.08);
+  --signal-glow:  rgba(255, 255, 255, 0.30);
+  --live:         #ffffff;
+  --live-dim:     rgba(255, 255, 255, 0.34);
+  --live-glow:    rgba(255, 255, 255, 0.28);
+  --accent:       #ffffff;
+  --claret:       #ffffff;   /* kept as a name so the press rules below hold */
   --teal:         rgba(242, 242, 242, 0.62);
 
   /* The one accent, under the name the rules below actually use. It was
-     called --amber until the brief changed; renamed rather than left
+     called --accent-2 until the brief changed; renamed rather than left
      lying about what colour it is. */
-  --sig:      #e5484d;
-  --sig-dim:  rgba(229, 72, 77, 0.42);
-  --sig-glow: rgba(229, 72, 77, 0.22);
+  --sig:      #ffffff;
+  --sig-dim:  rgba(255, 255, 255, 0.30);
+  --sig-glow: rgba(255, 255, 255, 0.16);
 
   /*
    * Market direction. The old pair was desaturated to a third of its chroma
@@ -118,11 +129,11 @@
    * with a secondary encoding, and the ▲/▽ that ship with every figure on
    * this page are it. Never print one of these without its arrow.
    */
-  --up:   #199e70;
+  --up:   #f2f2f2;
   /* Down is the alert colour, which is coherent rather than a collision:
      down IS the bad state. 6.5 ΔE from up under deuteranopia — the warn
      band — so the ▲/▽ that ship with every figure are doing real work. */
-  --down: #e5484d;
+  --down: #8a8a8a;
 
   /*
    * The series palette — six slots, in this order, never cycled.
@@ -146,27 +157,44 @@
    * yellow series beside an amber "live" pip is two different meanings in one
    * hue. Status stays reserved.
    */
-  --s1: #199e70;   /* aqua   */
-  --s2: #3987e5;   /* blue   */
-  --s3: #c98500;   /* yellow */
-  --s4: #9085e9;   /* violet */
-  --s5: #008300;   /* green  */
-  /* Five, not six. Red and magenta left the series set when red became the
-     chrome accent: a "series 3" the same colour as every alert on the page
-     is the exact collision the reserved-status rule exists to prevent.
-     Re-validated against the new ground (#0a0506) rather than assumed —
-     worst adjacent CVD ΔE 19.6, normal vision 20.9, all five over 3:1. The
-     sixth slot aliases the fifth so nothing that asks for it breaks. */
-  --s6: #008300;
+  /*
+   * Grey steps, and the distinction matters.
+   *
+   * These are no longer a CATEGORICAL palette — monochrome cannot be one.
+   * Measured early in this project: a five-step grey ramp puts 12.5 ΔE
+   * between neighbours against a floor of 15, so two arbitrary categories
+   * in grey are two categories a reader cannot separate, colourblind or
+   * not. Nothing here encodes identity by shade any more.
+   *
+   * What they are now is an ORDINAL ramp, which monochrome does honestly:
+   * every chart still using them is sorted, so lightness tracks rank and
+   * carries real meaning. Where identity was the job — one colour per
+   * publisher — the job is done by the written name instead, and the chips
+   * are gone.
+   */
+  --s1: #f2f2f2;
+  --s2: #c9c9c9;
+  --s3: #a3a3a3;
+  --s4: #808080;
+  --s5: #606060;
+  /* Five steps, and five is the ceiling rather than a preference. The
+     ground is #090909, and the darkest grey that still clears 3:1 against
+     it is about #5d5d5d — a sixth step has to go below that, where it
+     stops being a mark and becomes a hole in the page. --s6 is gone with
+     the sixth slot; anything that needs a sixth series folds into one
+     "Other" instead of inventing a shade it cannot show. */
 
-  /* Sequential, for magnitude: one hue, light → dark. Never a rainbow. */
-  --q1: #cde2fb; --q2: #9ec5f4; --q3: #6da7ec;
-  --q4: #3987e5; --q5: #256abf; --q6: #184f95;
+  /* Sequential, for magnitude: light → dark, which is the one scale
+     monochrome does better than colour. Respaced to stop at the contrast
+     floor — the old sixth step was #3f3f3f, 1.9:1 on this ground. */
+  --q1: #f2f2f2; --q2: #d4d4d4; --q3: #b6b6b6;
+  --q4: #999999; --q5: #7b7b7b; --q6: #5d5d5d;
 
-  /* Diverging, for signed values that are not market direction: two poles
-     and a NEUTRAL grey midpoint — a hue in the middle would read as a third
-     category rather than as zero. */
-  --dv-pos: #3987e5; --dv-mid: #342a2b; --dv-neg: #e5484d;
+  /* No diverging ramp. It is not an omission: a diverging scale needs two
+     directions away from a neutral middle, and lightness has only one
+     axis, so "strongly negative" and "strongly positive" must end up the
+     same grey. A signed value is drawn from a zero line with the sign in a
+     glyph — the way --up and --down do it above — not from a ramp. */
 
   --serif: var(--font-serif), Georgia, "Times New Roman", serif;
 }
@@ -1438,23 +1466,6 @@ body::before {
 }
 .pane:hover::after { opacity: 1; }
 
-/* ── colour, spent on identity ────────────────────────────────────────────── */
-
-/*
- * A chip per publisher, coloured from the series slots. This is the one new
- * place colour carries meaning rather than mood: the same outlet is the same
- * colour everywhere on the wall, so a column of stories shows its spread at
- * a glance. The name is always written out beside it — the chip is the
- * shortcut, never the only cue.
- */
-.src-chip {
-  display: inline-block; width: 6px; height: 6px; flex: none;
-  margin-right: 5px; border-radius: 1px; background: var(--ink-4);
-}
-.src-1 { background: var(--s1); } .src-2 { background: var(--s2); }
-.src-3 { background: var(--s3); } .src-4 { background: var(--s4); }
-.src-5 { background: var(--s5); } .src-6 { background: var(--s6); }
-
 /* Section heads get their rule back, in the accent. */
 .pane-hd { border-bottom-color: var(--line-2); }
 .pane:hover .pane-hd { border-bottom-color: var(--sig-dim); }
@@ -1474,25 +1485,21 @@ body::before {
 /* Headers carry a tint and a hard top rule, so a wall of twenty panes reads
    as twenty instruments rather than one grey field. */
 .pane-hd {
-  background: linear-gradient(180deg, rgba(229,72,77,.07), transparent);
+  background: linear-gradient(180deg, rgba(255,255,255,.07), transparent);
   border-top: 1px solid var(--sig-dim);
 }
-.pane:hover .pane-hd { background: linear-gradient(180deg, rgba(229,72,77,.14), transparent); }
+.pane:hover .pane-hd { background: linear-gradient(180deg, rgba(255,255,255,.14), transparent); }
 
 /* A publisher's name wears its own colour, not just its chip. The text is
    still the name, so this is redundant encoding — the good kind. */
-.wire-src.src-1, .ht-src.src-1 { color: var(--s1); }
-.wire-src.src-2, .ht-src.src-2 { color: var(--s2); }
-.wire-src.src-3, .ht-src.src-3 { color: var(--s3); }
-.wire-src.src-4, .ht-src.src-4 { color: var(--s4); }
-.wire-src.src-5, .ht-src.src-5 { color: var(--s5); }
-.wire-src.src-6, .ht-src.src-6 { color: var(--s6); }
+/* The per-publisher tint on the source name is gone with the chips: the
+   same five-grey problem, and the name was already the cue. */
 .pw-src { color: var(--ink-2); }
 
 /* Rows light up under the pointer instead of going one shade paler. */
 .trow:hover, .mkt:hover, .wire-row:hover, .bd-row:hover,
 .gm-row:hover, .xp-row:hover, .sub-row:hover {
-  background: rgba(229, 72, 77, .07);
+  background: rgba(255, 255, 255, .07);
   box-shadow: inset 2px 0 0 var(--sig);
 }
 
@@ -1592,8 +1599,8 @@ body::before {
 body {
   background-color: var(--deep);
   background-image:
-    linear-gradient(rgba(229, 72, 77, .035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(229, 72, 77, .035) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .035) 1px, transparent 1px),
     linear-gradient(rgba(242, 242, 242, .018) 1px, transparent 1px),
     linear-gradient(90deg, rgba(242, 242, 242, .018) 1px, transparent 1px);
   background-size: 96px 96px, 96px 96px, 16px 16px, 16px 16px;
@@ -1619,17 +1626,17 @@ body {
   font-size: 7px; letter-spacing: .24em; line-height: 1;
   color: var(--sig);
   background: repeating-linear-gradient(135deg,
-    rgba(229,72,77,.13) 0 6px, rgba(229,72,77,.03) 6px 12px);
+    rgba(255,255,255,.13) 0 6px, rgba(255,255,255,.03) 6px 12px);
   border-block: 1px solid var(--sig-dim);
 }
 
 /* Panes become instruments: a hard top edge, a reticle in each corner, and
    a header that reads as a label on a rack rather than a section title. */
 .pane {
-  border-color: rgba(229, 72, 77, .16);
+  border-color: rgba(255, 255, 255, .16);
   background-color: var(--panel);
 }
-.pane:hover { border-color: rgba(229, 72, 77, .4); }
+.pane:hover { border-color: rgba(255, 255, 255, .4); }
 
 /* Four corner reticles rather than two, and in the accent. */
 .pane::after {
@@ -1648,9 +1655,9 @@ body {
 
 /* Headers: machine type, a red rule under, a red wash above. */
 .pane-hd {
-  background: linear-gradient(180deg, rgba(229,72,77,.1), transparent);
+  background: linear-gradient(180deg, rgba(255,255,255,.1), transparent);
   border-top: 1px solid var(--sig-dim);
-  border-bottom: 1px solid rgba(229, 72, 77, .28);
+  border-bottom: 1px solid rgba(255, 255, 255, .28);
 }
 .pane-t {
   font-family: var(--font-mono-f), monospace;
@@ -1677,7 +1684,7 @@ body {
 /* The masthead stops being a newspaper nameplate and becomes a callsign. */
 .dh-nameplate {
   color: var(--ink);
-  text-shadow: 0 0 22px rgba(229, 72, 77, .45), 0 0 2px rgba(229, 72, 77, .8);
+  text-shadow: 0 0 22px rgba(255, 255, 255, .45), 0 0 2px rgba(255, 255, 255, .8);
 }
 .dh-rules::before, .dh-rules::after { background: var(--sig); opacity: .55; }
 .dh-tag { color: var(--sig); letter-spacing: .3em; }
@@ -1701,14 +1708,14 @@ body::before {
 .trow:hover, .mkt:hover, .wire-row:hover, .bd-row:hover,
 .gm-row:hover, .xp-row:hover, .sub-row:hover, .tlv-ev:hover,
 .ht-row:hover, .wb-row:hover, .dv-row:hover {
-  background: rgba(229, 72, 77, .09);
+  background: rgba(255, 255, 255, .09);
   box-shadow: inset 2px 0 0 var(--sig);
 }
 
 /* The picture wall under red light: the frames keep their own colour on
    hover, but the furniture around them joins the room. */
 .pw-time { color: var(--sig); }
-.pw-cell { outline: 1px solid rgba(229, 72, 77, .12); outline-offset: -1px; }
+.pw-cell { outline: 1px solid rgba(255, 255, 255, .12); outline-offset: -1px; }
 .pw-cell:hover { outline-color: var(--sig); }
 
 /* ══ v2 · the docket ══════════════════════════════════════════════════════
@@ -1724,7 +1731,7 @@ body::before {
   gap: 12px; align-items: center;
   padding: 10px 12px; border-bottom: 1px solid var(--line);
 }
-.dk-row:hover { background: rgba(229, 72, 77, .07); }
+.dk-row:hover { background: rgba(255, 255, 255, .07); }
 .dk-main { min-width: 0; }
 .dk-t {
   display: flex; align-items: center; gap: 8px;
@@ -1750,8 +1757,8 @@ body::before {
   background: var(--sunken); border: 1px solid var(--line-2); color: var(--ink-3);
   transition: color .14s var(--ease), border-color .14s var(--ease), background .14s var(--ease);
 }
-.dk-yes:hover { color: var(--up); border-color: var(--up); background: rgba(25, 158, 112, .12); }
-.dk-no:hover  { color: var(--sig); border-color: var(--sig); background: rgba(229, 72, 77, .12); }
+.dk-yes:hover { color: var(--up); border-color: var(--up); background: rgba(139, 139, 139, .12); }
+.dk-no:hover  { color: var(--sig); border-color: var(--sig); background: rgba(255, 255, 255, .12); }
 .dk-yes:disabled, .dk-no:disabled { opacity: .45; cursor: default; }
 
 .dk-scan {
@@ -1765,7 +1772,7 @@ body::before {
 /* A failure is shown in the pane rather than logged to a console he will
    never open. */
 .dk-note {
-  padding: 7px 12px; background: rgba(229, 72, 77, .12);
+  padding: 7px 12px; background: rgba(255, 255, 255, .12);
   border-bottom: 1px solid var(--sig-dim);
   font-family: var(--serif); font-size: 12px; color: var(--ink);
 }
@@ -1880,8 +1887,8 @@ body::before {
 
 /* Live still reads instantly, and now it is the only thing wearing red. */
 .pane:has(.pane-s.live) {
-  border-color: rgba(229, 72, 77, .45);
-  box-shadow: 0 0 0 1px rgba(229, 72, 77, .12), 0 2px 28px -14px rgba(229, 72, 77, .5);
+  border-color: rgba(255, 255, 255, .45);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 2px 28px -14px rgba(255, 255, 255, .5);
 }
 
 /* ── headers ──────────────────────────────────────────────────────────── */
@@ -1966,8 +1973,8 @@ body::before {
  */
 body {
   background-image:
-    linear-gradient(rgba(229, 72, 77, .016) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(229, 72, 77, .016) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, .016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .016) 1px, transparent 1px);
   background-size: 128px 128px, 128px 128px;
 }
 body::before { background: repeating-linear-gradient(to bottom, rgba(0,0,0,.1) 0 1px, transparent 1px 4px); }
@@ -2059,10 +2066,37 @@ body::before { background: repeating-linear-gradient(to bottom, rgba(0,0,0,.1) 0
   position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%);
   z-index: 60; cursor: pointer;
   padding: 6px 14px; border-radius: 999px;
-  background: rgba(18, 11, 12, .92); border: 1px solid var(--sig-dim);
+  background: rgba(13, 13, 13, .92); border: 1px solid var(--sig-dim);
   backdrop-filter: blur(8px);
   font-family: var(--font-disp), sans-serif; font-size: var(--t-micro);
   letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2);
   transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease);
 }
 .wall-back:hover { color: var(--sig); border-color: var(--sig); }
+
+/* ── monochrome ───────────────────────────────────────────────────────── */
+
+/*
+ * He asked for black and white, so this is black and white including the
+ * pictures. Photographs and video are content rather than chrome, and a
+ * case could be made for leaving them — but "only black and white, no
+ * colours" is not ambiguous, and a wall of colour press photography in an
+ * otherwise greyscale room is exactly the thing he has twice said he does
+ * not want. One line to revert if he misses it.
+ */
+.pw-cell img, .wire-shot, .tv-vid img, .tv3-stage iframe, .tv3-still {
+  filter: grayscale(1) contrast(1.04) brightness(.78);
+}
+.pw-cell:hover img, .wire-row:hover .wire-shot {
+  filter: grayscale(1) contrast(1.02) brightness(1);
+}
+
+/* Direction keeps its arrows and gives up its hue. ▲ and ▽ were always the
+   required secondary encoding — now they are the whole encoding, which is
+   why they may never be dropped. */
+.up, .cx-sval.up, .tape .up, .tick .up { color: var(--ink); }
+.down, .cx-sval.down, .tape .down, .tick .down { color: var(--ink-3); }
+
+/* The stage picker, inline in the strip like the reference's tabs. */
+.cs-stage-pick { display: flex; align-items: center; gap: 0; margin-left: 24px; }
+.cs-pick-k { color: var(--ink-4); margin-right: 8px; }

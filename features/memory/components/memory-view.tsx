@@ -328,7 +328,7 @@ export function MemoryView({ memories, retired = 0 }: { memories: MemoryItem[]; 
                           <button
                             onClick={() => forget(memory.id)}
                             title="Forget"
-                            className="rounded-md p-1.5 text-subtle opacity-0 transition-all hover:bg-glass-strong hover:text-red-400 group-hover:opacity-100"
+                            className="rounded-md p-1.5 text-subtle opacity-0 transition-all hover:bg-glass-strong hover:text-neutral-400 group-hover:opacity-100"
                           >
                             <Trash2 className="size-4" />
                           </button>

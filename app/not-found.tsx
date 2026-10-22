@@ -44,7 +44,7 @@ export default function NotFound() {
             noise the same way the cold boot does. */}
         <AsciiMark className="nf-mark" />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--signal, #ff3b30)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--signal, #888888)" }}>
           <SageMark size={26} />
           <span style={{ fontSize: 11, letterSpacing: "0.22em" }}>SAGE · 404</span>
         </div>
@@ -52,7 +52,7 @@ export default function NotFound() {
         <h1 style={{ margin: 0, fontSize: 20, fontWeight: 400, letterSpacing: "0.02em" }}>
           No such address.
         </h1>
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--muted, #9a9ba1)" }}>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "var(--muted, #9b9b9b)" }}>
           Either the URL was mistyped, or whatever used to be here has been
           deleted. Nothing is broken — this screen just does not exist.
         </p>
@@ -75,7 +75,7 @@ export default function NotFound() {
               }}
             >
               <span>{d.label}</span>
-              <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--subtle, #5c5d64)" }}>
+              <span style={{ fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--subtle, #5d5d5d)" }}>
                 {d.hint}
               </span>
             </Link>

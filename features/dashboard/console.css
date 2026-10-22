@@ -139,18 +139,9 @@
   border: 1px solid rgba(242, 242, 242, .07);
   overflow: hidden;
 }
-.cs-stage .wall-map, .cs-stage .pane { border: 0; border-radius: 0; height: 100%; }
+.cs-stage .pane { border: 0; border-radius: 0; height: 100%; }
 .cs-stage .pane-hd { display: none; }
 .cs-stage .pane-body { padding: 0; height: 100%; }
-.cs-stage .leaflet-container { height: 100%; }
-/*
- * The map's own toolbar sat underneath the top-left readout. On a stage
- * this size the controls are redundant — the map pans and zooms by wheel
- * and drag — and the corner is worth more as a readout than as a row of
- * buttons.
- */
-.cs-stage .leaflet-top, .cs-stage .deck-map-tools, .cs-stage .atlas-tools { display: none; }
-.cs-stage .leaflet-control-container .leaflet-bottom { bottom: 26px; }
 
 /*
  * HUD over the stage. Corner readouts rather than a header bar: the
@@ -166,8 +157,20 @@
 .cs-hud > * { position: absolute; pointer-events: auto; }
 .cs-hud-tl { top: 8px; left: 10px; }
 .cs-hud-tr { top: 8px; right: 10px; text-align: right; }
-.cs-hud-bl { bottom: 8px; left: 10px; }
-.cs-hud-br { bottom: 8px; right: 10px; text-align: right; }
+.cs-hud-bl { bottom: var(--cs-hud-foot, 8px); left: 10px; }
+.cs-hud-br { bottom: var(--cs-hud-foot, 8px); right: 10px; text-align: right; }
+
+/*
+ * The bottom readouts clear whatever the stage puts along its own bottom
+ * edge, rather than printing over it.
+ *
+ * On the live stage that is 92px of caption row and saved-channel strip,
+ * measured; the readouts were landing in the middle of both. The other two
+ * stages fill their box edge to edge and keep the 8px default. If a stage
+ * grows a footer, this is the number to re-measure — the overlap is
+ * invisible in a screenshot until you read the words.
+ */
+.cs-stage[data-stage="live"] { --cs-hud-foot: 100px; }
 .cs-hud b { display: block; color: var(--ink); font-weight: 500; font-size: 11px; letter-spacing: .1em; }
 .cs-hud span { display: block; color: var(--ink-4); }
 .cs-hud .lit { color: var(--sig); }

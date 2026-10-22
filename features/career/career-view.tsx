@@ -15,10 +15,10 @@ import { companyFromSender, alreadyTracked } from "@/core/career/inbox";
 const STAGES = ["applied", "assessment", "interview", "offer", "rejected"] as const;
 type Stage = (typeof STAGES)[number];
 const STAGE_META: Record<Stage, { label: string; color: string }> = {
-  applied: { label: "Applied", color: "#7b8cff" },
-  assessment: { label: "Assessment / OA", color: "#ff3b30" },
+  applied: { label: "Applied", color: "#959595" },
+  assessment: { label: "Assessment / OA", color: "#888888" },
   interview: { label: "Interview", color: "#f4f5f7" },
-  offer: { label: "Offer", color: "#54c98a" },
+  offer: { label: "Offer", color: "#b4b4b4" },
   rejected: { label: "Closed", color: "#8a8a90" },
 };
 
@@ -34,10 +34,10 @@ interface Opp {
 
 /** Everything the strip needs to say about a mail, in the order it matters. */
 const KIND_META: Record<string, { label: string; color: string }> = {
-  deadline: { label: "DEADLINE", color: "#ff3b30" },
+  deadline: { label: "DEADLINE", color: "#888888" },
   interview: { label: "INTERVIEW", color: "#f4f5f7" },
-  form: { label: "FORM", color: "#7b8cff" },
-  internship: { label: "INTERNSHIP", color: "#54c98a" },
+  form: { label: "FORM", color: "#959595" },
+  internship: { label: "INTERNSHIP", color: "#b4b4b4" },
 };
 
 

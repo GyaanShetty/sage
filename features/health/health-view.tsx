@@ -152,9 +152,9 @@ export function HealthView() {
           {/* today's rings */}
           <div className="hl-rings">
             <Ring icon={<Footprints className="size-4" />} label="STEPS" value={n0(t?.steps)} sub={`/ ${n0(g?.steps)}`} pct={ringPct(t?.steps, g?.steps)} tint="#f4f5f7" />
-            <Ring icon={<Moon className="size-4" />} label="SLEEP" value={n1(t?.sleepHours)} sub={`/ ${g?.sleepHours}h`} pct={ringPct(t?.sleepHours, g?.sleepHours)} tint="#a855f7" />
-            <Ring icon={<Flame className="size-4" />} label="ACTIVE" value={n0(t?.activeKcal)} sub={`/ ${n0(g?.activeKcal)} kcal`} pct={ringPct(t?.activeKcal, g?.activeKcal)} tint="#f59e0b" />
-            <Ring icon={<Droplets className="size-4" />} label="WATER" value={n0(t?.waterMl)} sub={`/ ${n0(g?.waterMl)} ml`} pct={ringPct(t?.waterMl, g?.waterMl)} tint="#60a5fa" />
+            <Ring icon={<Moon className="size-4" />} label="SLEEP" value={n1(t?.sleepHours)} sub={`/ ${g?.sleepHours}h`} pct={ringPct(t?.sleepHours, g?.sleepHours)} tint="#808080" />
+            <Ring icon={<Flame className="size-4" />} label="ACTIVE" value={n0(t?.activeKcal)} sub={`/ ${n0(g?.activeKcal)} kcal`} pct={ringPct(t?.activeKcal, g?.activeKcal)} tint="#b1b1b1" />
+            <Ring icon={<Droplets className="size-4" />} label="WATER" value={n0(t?.waterMl)} sub={`/ ${n0(g?.waterMl)} ml`} pct={ringPct(t?.waterMl, g?.waterMl)} tint="#a2a2a2" />
           </div>
 
           <div className="hl-quickrow">
@@ -178,7 +178,7 @@ export function HealthView() {
             </div>
             <div className="hl-card">
               <div className="hl-cardhead"><Moon className="size-3.5" /><h3>SLEEP · 30 DAYS</h3><span className="hl-avg">avg {n1(d.averages.sleepHours)}h</span></div>
-              <Bars series={d.series} pick={(x) => x.sleepHours} goal={g?.sleepHours} tint="#a855f7" />
+              <Bars series={d.series} pick={(x) => x.sleepHours} goal={g?.sleepHours} tint="#808080" />
             </div>
           </div>
 

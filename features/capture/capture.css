@@ -25,28 +25,31 @@
 .cp-btn:hover:not(:disabled) { color: var(--foreground); border-color: var(--live-dim); }
 .cp-btn:disabled { opacity: .45; cursor: default; }
 .cp-btn.go { color: var(--live); border-color: var(--live-dim); }
-.cp-btn.rec { color: #f87171; border-color: #f87171; }
-.cp-pulse { width: 6px; height: 6px; border-radius: 50%; background: #f87171; animation: cp-blink 1s infinite; }
+.cp-btn.rec { color: #9b9b9b; border-color: #9b9b9b; }
+.cp-pulse { width: 6px; height: 6px; border-radius: 50%; background: #9b9b9b; animation: cp-blink 1s infinite; }
 @keyframes cp-blink { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
 .cp-spin { animation: cp-rot 1s linear infinite; }
 @keyframes cp-rot { to { transform: rotate(360deg) } }
 .cp-nomic { font-size: 11px; color: var(--subtle); }
-.cp-error { font-size: 12px; color: #f87171; line-height: 1.6; margin: 0; }
+.cp-error { font-size: 12px; color: #9b9b9b; line-height: 1.6; margin: 0; }
 
 /* ── proposed items ─────────────────────────────────────────── */
 .cp-list { display: flex; flex-direction: column; gap: 8px; }
 .cp-item { display: grid; grid-template-columns: 22px 1fr 22px; gap: 9px; align-items: start; border: 1px solid var(--border-glass); border-left: 2px solid var(--border-glass-strong); border-radius: 7px; padding: 10px; background: var(--glass); }
 .cp-item.off { opacity: .42; }
-.cp-item.k-memory { border-left-color: #a78bfa; }
-.cp-item.k-expense { border-left-color: #f59e0b; }
-.cp-item.k-reminder { border-left-color: #60a5fa; }
-.cp-item.k-task { border-left-color: var(--live); }
-.cp-item.k-decision { border-left-color: #f472b6; }
-.cp-item.k-question { border-left-color: #38bdf8; }
+/* The per-kind border colour is gone rather than greyed.
+   Six kinds cannot be told apart by six shades of one colour — two of the
+   old hues already desaturated onto the same grey — and they never needed
+   to be: every item shows its kind twice over, as the icon and as the
+   dropdown's own label. One accent, and the words do the work. */
+.cp-item.k-memory, .cp-item.k-expense, .cp-item.k-reminder,
+.cp-item.k-task, .cp-item.k-decision, .cp-item.k-question {
+  border-left-color: var(--border-glass-strong);
+}
 
 .cp-tick, .cp-drop { display: grid; place-items: center; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 0 0; }
 .cp-tick:hover { color: var(--live); }
-.cp-drop:hover { color: #f87171; }
+.cp-drop:hover { color: #9b9b9b; }
 
 .cp-body { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .cp-row { display: flex; align-items: center; gap: 7px; }
@@ -72,7 +75,7 @@
 .cp-filed { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
 .cp-filed > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: var(--muted); }
 .cp-filed .ok > svg { color: var(--live); }
-.cp-filed .bad > svg, .cp-filed .bad b { color: #f87171; }
+.cp-filed .bad > svg, .cp-filed .bad b { color: #9b9b9b; }
 .cp-filed b { font-family: var(--mono); font-size: 8.5px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 500; color: var(--subtle); }
 .cp-filed span { color: var(--foreground); }
 .cp-filed i { font-style: normal; font-family: var(--mono); font-size: 9px; letter-spacing: .6px; color: var(--subtle); }

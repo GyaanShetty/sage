@@ -104,13 +104,13 @@ export function CalendarFeeds() {
                 title={f.enabled ? "Reading this calendar" : "Ignored"}
                 className={cn(
                   "size-2 shrink-0 rounded-full",
-                  f.lastError ? "bg-amber-400" : f.enabled ? "bg-[var(--live)]" : "bg-subtle opacity-40",
+                  f.lastError ? "bg-neutral-400" : f.enabled ? "bg-[var(--live)]" : "bg-subtle opacity-40",
                 )}
               />
               <span className={cn("min-w-0 flex-1 truncate", !f.enabled && "opacity-50")}>
                 {f.label}
                 {f.lastError && (
-                  <em className="ml-2 not-italic text-[10px] text-amber-300">
+                  <em className="ml-2 not-italic text-[10px] text-neutral-300">
                     <AlertTriangle className="inline size-2.5" /> unreadable
                   </em>
                 )}

@@ -194,7 +194,7 @@ export function AutomationsView({ automations, health }: { automations: Automati
               {health.failed24h > 0 && (
                 <>
                   <span>·</span>
-                  <span className="flex items-center gap-1 !text-red-400">
+                  <span className="flex items-center gap-1 !text-neutral-400">
                     <AlertTriangle className="size-3" /> {health.failed24h} FAILED
                   </span>
                 </>
@@ -315,7 +315,7 @@ export function AutomationsView({ automations, health }: { automations: Automati
                   <p className="flex items-center gap-2 font-mono text-sm font-medium">
                     {automation.name}
                     {automation.lastStatus === "failed" && (
-                      <span className="hud-label flex items-center gap-1 border border-red-500/40 px-1.5 py-0.5 !text-red-400">
+                      <span className="hud-label flex items-center gap-1 border border-neutral-500/40 px-1.5 py-0.5 !text-neutral-400">
                         <AlertTriangle className="size-2.5" /> FAILING
                       </span>
                     )}
@@ -359,7 +359,7 @@ export function AutomationsView({ automations, health }: { automations: Automati
                 <button
                   onClick={() => remove(automation.id)}
                   title="Delete"
-                  className="p-1.5 text-subtle opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
+                  className="p-1.5 text-subtle opacity-0 transition-all hover:text-neutral-400 group-hover:opacity-100"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -424,15 +424,15 @@ export function AutomationsView({ automations, health }: { automations: Automati
                           <span
                             className={cn(
                               "size-1.5 rounded-full",
-                              r.status === "failed" ? "bg-red-400" : r.status === "running" ? "bg-subtle" : "bg-[var(--live)]",
+                              r.status === "failed" ? "bg-neutral-400" : r.status === "running" ? "bg-subtle" : "bg-[var(--live)]",
                             )}
                           />
-                          <span className={cn(r.status === "failed" && "!text-red-400")}>{r.status.toUpperCase()}</span>
+                          <span className={cn(r.status === "failed" && "!text-neutral-400")}>{r.status.toUpperCase()}</span>
                           <span>·</span>
                           <span>{stamp(r.startedAt)}</span>
                         </p>
                         {(r.report ?? r.error) && (
-                          <p className={cn("mt-1.5 text-sm", r.error ? "text-red-300" : "text-muted")}>
+                          <p className={cn("mt-1.5 text-sm", r.error ? "text-neutral-300" : "text-muted")}>
                             {r.error ?? r.report}
                           </p>
                         )}

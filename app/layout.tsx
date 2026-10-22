@@ -83,23 +83,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               "document.documentElement.setAttribute('data-density','compact')}catch(e){}",
           }}
         />
-        {/*
-          The accent hue, for the same reason and by the same route. Setting
-          it in an effect would paint one frame of stock red before snapping
-          to the chosen hue — on every navigation, which is worse than it
-          sounds when the hue is the only colour on the screen.
-        */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html:
-              "try{var h=localStorage.getItem('sage-hue');" +
-              // Anything that is not a number in range is ignored rather than
-              // written through: a junk value here would tint the entire
-              // application with no obvious way back to default.
-              "if(h!==null&&isFinite(+h)&&+h>=0&&+h<360)" +
-              "document.documentElement.style.setProperty('--hue',String(+h))}catch(e){}",
-          }}
-        />
       </head>
       <body className={`${disp.variable} ${mono.variable} ${brand.variable} ${serif.variable} antialiased`}>
         <Providers>{children}</Providers>

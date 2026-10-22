@@ -66,7 +66,7 @@ export function AttributionPanel({ reloadKey }: { reloadKey?: number }) {
                 <span className="w-14 shrink-0 truncate font-mono text-[11px]">{c.symbol}</span>
                 <span className="relative h-1.5 min-w-0 flex-1 bg-glass-strong">
                   <i
-                    className={cn("absolute top-0 block h-full", c.pnl >= 0 ? "bg-[var(--live)]" : "bg-red-400/70")}
+                    className={cn("absolute top-0 block h-full", c.pnl >= 0 ? "bg-[var(--live)]" : "bg-neutral-400/70")}
                     style={{
                       width: `${(Math.abs(c.pnl) / peak) * 50}%`,
                       left: c.pnl >= 0 ? "50%" : undefined,

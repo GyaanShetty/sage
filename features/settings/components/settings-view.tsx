@@ -160,7 +160,7 @@ export function SettingsView({
                   window.location.href = "/login";
                 });
               }}
-              className="flex items-center gap-2 border border-border-glass px-3.5 py-1.5 text-xs text-muted transition-colors hover:border-red-500/40 hover:text-red-300"
+              className="flex items-center gap-2 border border-border-glass px-3.5 py-1.5 text-xs text-muted transition-colors hover:border-neutral-500/40 hover:text-neutral-300"
             >
               <LogOut className="size-3.5" /> Log out
             </button>

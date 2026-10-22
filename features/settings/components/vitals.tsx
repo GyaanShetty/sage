@@ -137,7 +137,7 @@ export function Vitals() {
       <div className="mt-4 border-t border-border-glass pt-3">
         <div className="flex flex-wrap items-center gap-3">
           <p className="flex items-center gap-2 text-sm font-medium"><Database className="size-3.5" /> Backup</p>
-          <span className={cn("text-xs", stale ? "text-amber-300" : "text-subtle")}>
+          <span className={cn("text-xs", stale ? "text-neutral-300" : "text-subtle")}>
             {v.backup
               ? v.backup.ageDays === 0
                 ? `taken today · ${v.backup.rows.toLocaleString()} rows`
@@ -147,7 +147,7 @@ export function Vitals() {
         </div>
 
         {stale && (
-          <p className="mt-2 flex items-start gap-2 text-[11px] text-amber-300/90">
+          <p className="mt-2 flex items-start gap-2 text-[11px] text-neutral-300/90">
             <AlertTriangle className="mt-0.5 size-3 shrink-0" />
             {v.backupConfigured
               ? "Nothing has been copied off this database recently. Everything in SAGE lives in one Supabase project with no point-in-time recovery — if it goes, it goes."
@@ -265,7 +265,7 @@ function ManagedKeys({ onChanged }: { onChanged: () => void }) {
       {open && (
         <div className="mt-2 border-l-2 border-border-glass pl-3">
           {!available && (
-            <p className="mb-2 flex items-start gap-2 text-[11px] text-amber-300/90">
+            <p className="mb-2 flex items-start gap-2 text-[11px] text-neutral-300/90">
               <AlertTriangle className="mt-0.5 size-3 shrink-0" />
               Set <code className="font-mono">KEY_SECRET</code> in the environment first. SAGE
               won&apos;t store a key it can&apos;t encrypt, and that secret has to live outside
@@ -306,7 +306,7 @@ function ManagedKeys({ onChanged }: { onChanged: () => void }) {
                   <span className="font-mono text-subtle">{k.provider}</span>
                   <span className="font-mono text-muted">…{k.tail}</span>
                   {!k.readable && (
-                    <span className="text-amber-300" title="KEY_SECRET has changed since this was stored, so it can no longer be decrypted.">
+                    <span className="text-neutral-300" title="KEY_SECRET has changed since this was stored, so it can no longer be decrypted.">
                       unreadable
                     </span>
                   )}

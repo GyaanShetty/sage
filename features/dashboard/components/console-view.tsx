@@ -12,9 +12,12 @@
  * Everything shown here already existed. Nothing new was built to fill it;
  * the pieces were only given a hierarchy:
  *
- *   · the STAGE is the map, because it is the one thing read by looking
- *     rather than by reading, and a console needs a place for the eye to
- *     start;
+ *   · the STAGE is whichever of three things he wants to be looking at —
+ *     the live screens, today's wire photographs, or the whiteboard. It
+ *     was the map, and the map was the wrong answer: a fixed view of
+ *     Bengaluru does not change, so 55% of the screen was spent on
+ *     something with nothing to say. A console's stage should be the thing
+ *     that is HAPPENING;
  *   · the LEFT RAIL is control — what is standing, what is due, what is
  *     next — which is what you check before you do anything;
  *   · the RIGHT RAIL is intelligence — what SAGE wants, the markets, what
@@ -28,9 +31,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pane } from "@/components/pane";
 import { TileGuard } from "@/components/tile-guard";
-import { AtlasMap } from "@/features/atlas/atlas-map";
+import { LiveTv } from "./live-tv";
+import { PictureWall } from "./picture-wall";
+import { BoardTile } from "./board-tile";
 import { HeroCanvas } from "./hero-canvas";
 import { Docket } from "./docket";
 import { DirectivesPanel } from "./routine-tiles";
@@ -62,6 +66,23 @@ export function ConsoleView({
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [now, setNow] = useState<string>("");
+  /*
+   * Which of the three the stage is showing, remembered.
+   *
+   * A switcher rather than my choosing for him again: the stage is 55% of
+   * the screen, and what deserves that is different at 7am and 7pm.
+   */
+  const [stage, setStage] = useState<"live" | "wire" | "board">("live");
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("sage-stage");
+      if (v === "wire" || v === "board" || v === "live") setStage(v);
+    } catch { /* blocked storage — the default stands */ }
+  }, []);
+  const pickStage = (v: "live" | "wire" | "board") => {
+    setStage(v);
+    try { localStorage.setItem("sage-stage", v); } catch { /* not worth failing over */ }
+  };
 
   /* Rendered client-side only. A clock in the server's markup is a clock
      that is wrong by however long the page took to arrive, and React will
@@ -94,6 +115,22 @@ export function ConsoleView({
         <span className="cs-right">BENGALURU STATION</span>
         <span className="cs-right num">{now}</span>
 
+        <nav className="cs-stage-pick" aria-label="Stage">
+          <span className="cs-pick-k">Stage</span>
+          {/* "Canvas", not "Board" — the views nav below already has a Board,
+              which goes to the full-screen one. Two buttons reading the same
+              word in the same strip, doing different things, is a trap. */}
+          {([["live", "Screens"], ["wire", "Wire"], ["board", "Canvas"]] as const).map(([id, label]) => (
+            <button
+              key={id}
+              data-stage={id}
+              aria-pressed={stage === id}
+              className={`cs-tab${stage === id ? " on" : ""}`}
+              onClick={() => pickStage(id)}
+            >{label}</button>
+          ))}
+        </nav>
+
         <nav className="cs-nav" aria-label="Views">
           <button className="cs-tab on">Console</button>
           <button className="cs-tab" onClick={onWall}>Wall</button>
@@ -119,21 +156,23 @@ export function ConsoleView({
       </div>
 
       {/* ── the stage ───────────────────────────────────────────────── */}
-      <div className="cs-stage">
+      <div className="cs-stage" data-stage={stage}>
         <TileGuard name="STAGE">
-          <Pane title="Atlas" bare noZoom className="wall-map">
-            <AtlasMap lat={12.9352} lon={77.6245} compact />
-          </Pane>
+          {stage === "live" && <LiveTv n={9} />}
+          {stage === "wire" && <PictureWall n={9} />}
+          {stage === "board" && <BoardTile n={9} />}
         </TileGuard>
         {/*
-          The readouts sit in the corners so the middle of the map stays the
-          map. Everything here is already on the page elsewhere — this is the
-          glance version, for when you are looking at the stage anyway.
+          The readouts sit in the corners so the middle of the stage stays
+          the stage. Everything here is already on the page elsewhere — this
+          is the glance version, for when you are looking at the stage
+          anyway. data-stage is on the wrapper because the bottom two have
+          to clear whatever that stage puts along its own bottom edge.
         */}
         <div className="cs-hud" aria-hidden>
           <div className="cs-hud-tl">
-            <b>12.9352°N 77.6245°E</b>
-            <span>Bengaluru · {weather ?? "—"}</span>
+            <b>Bengaluru · {weather ?? "—"}</b>
+            <span>{today.length} on the calendar</span>
           </div>
           <div className="cs-hud-tr">
             <b>{open.toString().padStart(2, "0")} OPEN</b>
@@ -146,8 +185,8 @@ export function ConsoleView({
             <span>{next ? `next · ${next.summary}` : "calendar clear"}</span>
           </div>
           <div className="cs-hud-br">
-            <b className="lit">LIVE</b>
-            <span>© OpenStreetMap</span>
+            <b className="lit">{stage === "live" ? "ON AIR" : stage === "wire" ? "WIRE" : "CANVAS"}</b>
+            <span>{now}</span>
           </div>
         </div>
       </div>

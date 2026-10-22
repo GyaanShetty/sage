@@ -11,10 +11,10 @@ interface TickTask { id: string; title: string; projectId: string; projectName: 
 
 // TickTick's Eisenhower convention: priority IS the axis.
 const QUADRANTS = [
-  { key: "q1", roman: "I", label: "Urgent & Important", sub: "Do first", priority: 5, color: "#e86a6a" },
-  { key: "q2", roman: "II", label: "Not Urgent & Important", sub: "Schedule", priority: 3, color: "#ff3b30" },
-  { key: "q3", roman: "III", label: "Urgent & Unimportant", sub: "Delegate", priority: 1, color: "#7b8cff" },
-  { key: "q4", roman: "IV", label: "Not Urgent & Unimportant", sub: "Eliminate", priority: 0, color: "#54c98a" },
+  { key: "q1", roman: "I", label: "Urgent & Important", sub: "Do first", priority: 5, color: "#919191" },
+  { key: "q2", roman: "II", label: "Not Urgent & Important", sub: "Schedule", priority: 3, color: "#888888" },
+  { key: "q3", roman: "III", label: "Urgent & Unimportant", sub: "Delegate", priority: 1, color: "#959595" },
+  { key: "q4", roman: "IV", label: "Not Urgent & Unimportant", sub: "Eliminate", priority: 0, color: "#b4b4b4" },
 ] as const;
 
 const ORDER: Quadrant[] = ["do", "schedule", "delegate", "drop"];

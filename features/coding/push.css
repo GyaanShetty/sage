@@ -7,7 +7,7 @@
 .pu-avg { margin-left: auto; font-family: var(--mono); font-size: 9px; letter-spacing: .8px; color: var(--subtle); }
 .pu-path { color: var(--live); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
 .pu-dim { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--subtle); }
-.pu-err { font-size: 12.5px; color: #f87171; display: flex; align-items: center; gap: 6px; }
+.pu-err { font-size: 12.5px; color: #9b9b9b; display: flex; align-items: center; gap: 6px; }
 
 .pu-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 10px; }
 .pu-row:last-child { margin-bottom: 0; }
@@ -46,7 +46,7 @@
 /* The code box is the point of the page, so it gets the room. */
 .pu-code {
   width: 100%; margin-top: 4px; background: #0b0c0e; border: 1px solid var(--border-glass);
-  color: #e7e9ee; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+  color: #e9e9e9; font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
   padding: 12px; border-radius: 8px; outline: none; resize: vertical; tab-size: 4;
 }
 .pu-code:focus { border-color: var(--live-dim); }
@@ -55,9 +55,9 @@
 .pu-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 10px; }
 .pu-result { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .pu-result.ok { color: var(--live); }
-.pu-result.bad { color: #f87171; }
+.pu-result.bad { color: #9b9b9b; }
 .pu-link { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--live); background: none; border: 0; cursor: pointer; padding: 0; margin-left: 6px; }
-.pu-conflict { margin-top: 9px; font-size: 12px; line-height: 1.6; color: #f59e0b; }
+.pu-conflict { margin-top: 9px; font-size: 12px; line-height: 1.6; color: #b1b1b1; }
 
 .pu-list { display: flex; flex-direction: column; }
 .pu-item { display: flex; align-items: baseline; gap: 10px; padding: 8px 2px; border-bottom: 1px solid var(--border-glass); text-decoration: none; font-size: 12.5px; }
@@ -73,7 +73,7 @@
 }
 
 /* A token that cannot write is the one failure worth interrupting for. */
-.pu-warn { border-color: rgba(245,158,11,.4); }
-.pu-warn p { font-size: 12.5px; line-height: 1.6; color: #f59e0b; display: flex; align-items: baseline; gap: 6px; }
+.pu-warn { border-color: rgba(177, 177, 177,.4); }
+.pu-warn p { font-size: 12.5px; line-height: 1.6; color: #b1b1b1; display: flex; align-items: baseline; gap: 6px; }
 .pu-warnhow { margin-top: 7px; font-size: 11.5px; color: var(--muted); display: block; }
 .pu-warnhow b { color: var(--foreground); font-weight: 500; }

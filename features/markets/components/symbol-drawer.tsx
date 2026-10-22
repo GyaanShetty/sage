@@ -59,7 +59,7 @@ function Chart({ s }: { s: Series }) {
   return (
     <div className="sd-chart">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
-        <polyline points={path} fill="none" stroke={up ? "#4fb477" : "#e07070"} strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
+        <polyline points={path} fill="none" stroke={up ? "#a1a1a1" : "#929292"} strokeWidth="0.8" vectorEffect="non-scaling-stroke" />
       </svg>
       <span className="sd-ax hi">{money(high, s.currency)}</span>
       <span className="sd-ax lo">{money(low, s.currency)}</span>

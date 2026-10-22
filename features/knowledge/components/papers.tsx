@@ -79,7 +79,7 @@ export function Papers() {
         </button>
       </div>
 
-      {error && <p className="mt-2 text-[11px] text-amber-300">{error}</p>}
+      {error && <p className="mt-2 text-[11px] text-neutral-300">{error}</p>}
 
       {papers && papers.length === 0 && !error && (
         <p className="mt-3 text-[11px] text-subtle">Nothing on arXiv for that.</p>

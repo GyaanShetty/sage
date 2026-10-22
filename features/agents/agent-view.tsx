@@ -132,7 +132,7 @@ export function AgentView() {
         {!trace.length && !running && (
           <div className="chips">{SUGGEST.map((s) => <button key={s} className="chip" onClick={() => { setTask(s); run(s); }}>{s}</button>)}</div>
         )}
-        {error && <p className="lbl" style={{ color: "#e07070", marginTop: 10 }}>{error.toUpperCase()}</p>}
+        {error && <p className="lbl" style={{ color: "#929292", marginTop: 10 }}>{error.toUpperCase()}</p>}
 
         {(running || trace.length > 0) && (
           <div className="agent-trace">

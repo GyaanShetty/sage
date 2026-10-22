@@ -108,7 +108,7 @@ export function KnowledgeView({ sources }: { sources: SourceItem[] }) {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-3 flex items-center gap-2 text-sm text-red-400"
+            className="mt-3 flex items-center gap-2 text-sm text-neutral-400"
           >
             <AlertCircle className="size-4" /> {error}
           </motion.p>
@@ -150,7 +150,7 @@ export function KnowledgeView({ sources }: { sources: SourceItem[] }) {
                   )}
                   <button
                     onClick={() => remove(source.id)}
-                    className="rounded-md p-1.5 text-subtle opacity-0 transition-all hover:bg-glass-strong hover:text-red-400 group-hover:opacity-100"
+                    className="rounded-md p-1.5 text-subtle opacity-0 transition-all hover:bg-glass-strong hover:text-neutral-400 group-hover:opacity-100"
                   >
                     <Trash2 className="size-4" />
                   </button>

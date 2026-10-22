@@ -66,7 +66,7 @@ export function HeroCanvas({ events }: { events: EventRow[] | null }) {
 
     const ink = v("--ink", "#f2f2f2");
     const line = v("--line-2", "rgba(242,242,242,.24)");
-    const amber = v("--amber", "#e8a33d");
+    const accent = v("--accent-2", "#b0b0b0");
 
     let w = 0, h = 0;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -151,7 +151,7 @@ export function HeroCanvas({ events }: { events: EventRow[] | null }) {
         if (Number.isNaN(d.getTime())) continue;
         if (d.toDateString() !== now.toDateString()) continue;
         const px = x(hoursInto(d));
-        ctx.fillStyle = amber;
+        ctx.fillStyle = accent;
         ctx.fillRect(Math.round(px) - 1, evTop, 2, 22);
         ctx.beginPath();
         ctx.arc(Math.round(px), evTop, 2.5, 0, Math.PI * 2);

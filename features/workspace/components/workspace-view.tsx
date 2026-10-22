@@ -265,7 +265,7 @@ function TasksPanel({ tasks: initial }: { tasks: TaskRow[] }) {
                 )}
                 <button
                   onClick={() => remove(task.id)}
-                  className="rounded-md p-1 text-subtle opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
+                  className="rounded-md p-1 text-subtle opacity-0 transition-all hover:text-neutral-400 group-hover:opacity-100"
                 >
                   <Trash2 className="size-4" />
                 </button>

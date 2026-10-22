@@ -11,6 +11,7 @@ import {
   anchorPoint, centreOf, screenToBoard, simplify, strokeNear, edgePath, inkPath,
   snap, intersects, rectBetween, alignNodes, distributeNodes, contentBounds, fitView, guidesFor, GRID,
   nodesInside, distToSegment, midpoint, searchNodes,
+  TONE_CSS,
 } from "@/core/board/types";
 import { type History, emptyHistory, record, undo as undoStep, redo as redoStep } from "./history";
 import { exportPng } from "./export";
@@ -49,16 +50,11 @@ const PEN_SIZES = [2, 5, 10] as const;
 /** Text sizes, for the text tool. Same reasoning as the pen. */
 const TEXT_SIZES = [14, 22, 34] as const;
 
-const TONES: { id: Tone; css: string }[] = [
-  { id: "plain", css: "#9a9ba1" },
-  { id: "signal", css: "#ff3b30" },
-  { id: "amber", css: "#ff6b35" },
-  { id: "cyan", css: "#35c7ff" },
-  { id: "green", css: "#2fd07a" },
-];
-const TONE_CSS: Record<Tone, string> = {
-  plain: "#9a9ba1", signal: "#ff3b30", amber: "#ff6b35", cyan: "#35c7ff", green: "#2fd07a",
-};
+/* The swatch row, in the ramp's own order: lightest tone first, so the
+   picker reads as the scale it now is. */
+const TONES: { id: Tone; css: string }[] =
+  (["signal", "cyan", "green", "plain", "amber"] as Tone[])
+    .map((id) => ({ id, css: TONE_CSS[id] }));
 
 const MIN_K = 0.1;
 const MAX_K = 4;
@@ -976,7 +972,7 @@ export function BoardCanvas({ initial, embedded = false }: { initial: BoardDoc; 
           ))}
           {marquee && (
             <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h}
-              fill="rgba(255,59,48,0.07)" stroke={TONE_CSS.signal}
+              fill="rgba(255, 255, 255, 0.07)" stroke={TONE_CSS.signal}
               strokeWidth={1 / view.k} strokeDasharray={`${4 / view.k} ${3 / view.k}`} />
           )}
           {/* The node an in-flight arrow would attach to, outlined before you

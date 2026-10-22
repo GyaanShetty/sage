@@ -62,7 +62,7 @@ export function Minimap({
             key={s.id}
             x1={s.pts[0] * k + ox} y1={s.pts[1] * k + oy}
             x2={s.pts[(n - 1) * 2] * k + ox} y2={s.pts[(n - 1) * 2 + 1] * k + oy}
-            stroke="var(--subtle, #5c5d64)" strokeWidth={1}
+            stroke="var(--subtle, #5d5d5d)" strokeWidth={1}
           />
         );
       })}
@@ -73,13 +73,13 @@ export function Minimap({
             key={n.id}
             x={r.x} y={r.y} width={Math.max(2, r.w)} height={Math.max(2, r.h)}
             fill={n.kind === "frame" ? "none" : "var(--rule-strong, rgba(244,245,247,0.2))"}
-            stroke={n.kind === "frame" ? "var(--subtle, #5c5d64)" : "none"}
+            stroke={n.kind === "frame" ? "var(--subtle, #5d5d5d)" : "none"}
           />
         );
       })}
       <rect
         x={port.x} y={port.y} width={port.w} height={port.h}
-        fill="rgba(255,59,48,0.08)" stroke="var(--signal, #ff3b30)" strokeWidth={1}
+        fill="rgba(255, 255, 255, 0.08)" stroke="var(--signal, #ffffff)" strokeWidth={1}
       />
     </svg>
   );

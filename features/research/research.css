@@ -24,7 +24,7 @@
 .rs-thread.on > button:first-child { color: var(--foreground); }
 .rs-kill { color: var(--subtle); background: none; border: 0; cursor: pointer; padding: 0 6px; opacity: 0; }
 .rs-thread:hover .rs-kill { opacity: 1; }
-.rs-kill:hover { color: #f87171; }
+.rs-kill:hover { color: #9b9b9b; }
 
 /* ── main ───────────────────────────────────────────────────────────── */
 .rs-main { display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--border-glass); border-radius: 10px; background: var(--panel); overflow: hidden; }
@@ -45,16 +45,16 @@
 }
 /* What SAGE can do with it, at a glance. */
 .rs-file.read { border-color: var(--live-dim); }
-.rs-file.seen { border-color: #a855f7; }
+.rs-file.seen { border-color: #808080; }
 .rs-file.uploading { color: var(--subtle); }
 .rs-filename { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rs-file i { font-style: normal; font-family: var(--mono); font-size: 8px; color: var(--subtle); }
 .rs-file button { color: var(--subtle); background: none; border: 0; cursor: pointer; display: flex; }
-.rs-file button:hover { color: #f87171; }
+.rs-file button:hover { color: #9b9b9b; }
 .rs-thumb { width: 22px; height: 22px; object-fit: cover; border-radius: 3px; flex: 0 0 22px; }
 
 .rs-notes { padding: 8px 12px; border-bottom: 1px solid var(--border-glass); }
-.rs-notes p { font-size: 11px; line-height: 1.5; color: #f59e0b; }
+.rs-notes p { font-size: 11px; line-height: 1.5; color: #b1b1b1; }
 .rs-notes b { color: var(--foreground); font-weight: 500; }
 
 /* ── log ────────────────────────────────────────────────────────────── */
@@ -69,7 +69,7 @@
 .rs-msg.user .rs-body { color: var(--muted); border-left: 2px solid var(--border-glass); padding-left: 12px; }
 .rs-caret { display: inline-block; width: 7px; height: 14px; margin-left: 2px; background: var(--live); vertical-align: text-bottom; animation: rs-blink 1s steps(2) infinite; }
 @keyframes rs-blink { 50% { opacity: 0; } }
-.rs-err { font-size: 12px; color: #f87171; display: flex; align-items: center; gap: 6px; }
+.rs-err { font-size: 12px; color: #9b9b9b; display: flex; align-items: center; gap: 6px; }
 
 /* ── ask ────────────────────────────────────────────────────────────── */
 .rs-ask { display: flex; align-items: flex-end; gap: 8px; padding: 12px; border-top: 1px solid var(--border-glass); }
@@ -108,5 +108,5 @@
 
 /* A failed upload stays visible until dismissed — a file that quietly
    disappears reads as success until you ask a question about it. */
-.rs-file.failed { border-color: rgba(248,113,113,.5); color: #f87171; }
-.rs-file.failed i { color: #f87171; }
+.rs-file.failed { border-color: rgba(155, 155, 155,.5); color: #9b9b9b; }
+.rs-file.failed i { color: #9b9b9b; }

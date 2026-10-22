@@ -19,8 +19,8 @@
   --panel: #0c0d0f;
   --panel-hi: #101113;      /* raised elevation */
   --foreground: #f4f5f7;
-  --muted: #9a9ba1;
-  --subtle: #5c5d64;
+  --muted: #9b9b9b;
+  --subtle: #5d5d5d;
   --faint: #2a2b30;
   --hairbg: #1b1c20;
 
@@ -54,46 +54,54 @@
      restate — I had added a second --up and --down here and the later pair
      silently won, which is how a token ends up meaning two things. These are
      only the ones that were genuinely missing. */
-  --amber: #f0a020;
-  --amber-dim: rgba(240, 160, 32, 0.5);
-  --amber-faint: rgba(240, 160, 32, 0.12);
-  --cyan: #22d3ee;
-  --cyan-dim: rgba(34, 211, 238, 0.5);
+  --accent-2: #b1b1b1;
+  --accent-2-dim: rgba(177, 177, 177, 0.5);
+  --accent-2-faint: rgba(177, 177, 177, 0.12);
+  --accent-3: #c1c1c1;
+  --accent-3-dim: rgba(193, 193, 193, 0.5);
 
   /* Surfaces lift a step: the reference is dark but not the near-black the
      wall used, and panels have to read as separate objects on it. */
   --deep: #07080a;
   --surface: #0e1013;
-  --surface-hi: #14171b;
+  --surface-hi: #171717;
   --edge: rgba(255, 255, 255, 0.07);
   --edge-hi: rgba(255, 255, 255, 0.14);
 
-  --hue: 32;
-  --hue-warn: calc(var(--hue) + 13);
-  --hue-danger: calc(var(--hue) - 11);
-
-  --warn: hsl(var(--hue-warn) 100% 60%);
-  /* Alert red sits close to the signal red on purpose. The two are told apart
-     by motion and by the hazard rule, not by hue — the reference sheets are
-     one red and white on black, and inventing a second hue to carry "urgent"
-     would break the thing that makes them read as one instrument. */
-  --danger: hsl(var(--hue-danger) 100% 56%);
+  /*
+   * The hue is gone, and so is the machinery that carried it.
+   *
+   * There used to be a --hue token here, three colours composed from it,
+   * and a dial in Settings that retuned the lot. All of it is removed
+   * rather than set to zero saturation: press.css, which loads last, now
+   * states its greys outright, so a dial could have moved without
+   * changing a pixel — and a control that does nothing is worse than no
+   * control. Attention is carried by weight, motion and the hazard rule
+   * instead, which is what the hue was really doing anyway.
+   */
+  --warn: #b0b0b0;
+  /* Warn and danger are 33 points apart, which is deliberate: they are the
+     two states that can appear on the same screen, and in grey a 10-point
+     gap is not a distinction. Neither is ever the only cue — both come
+     with a glyph or a word. */
+  --danger: #8f8f8f;
 
   /* ── SIGNAL ────────────────────────────────────────────────────────────
-     Red, and the only hue in the system.
+     What is live, current, or asking for a decision.
 
-     The palette was monochrome with meaning carried by luminance alone, which
-     reads as elegant and reads as flat: nothing on screen tells you where to
-     look. One restrained hue, used strictly for what is ACTIVE, LIVE or
-     WARRANTS ATTENTION, does what a whole colour scheme cannot — everything
-     else stays grey, so the amber is never competing with anything.
+     It was a hue, which made this easy: one colour meant "look here" and
+     everything else was grey. Monochrome has to earn the same thing with
+     lightness, so the signal is simply the brightest thing on the page
+     and nothing else is allowed up there. press.css takes it all the way
+     to white; this value is the floor, for the surfaces that load before
+     it.
 
-     Never decorative. If a thing is not live, current, or asking for a
-     decision, it is grey. */
-  --signal: hsl(var(--hue) 100% 59%);
-  --signal-dim: hsl(var(--hue) 100% 59% / 0.5);
-  --signal-faint: hsl(var(--hue) 100% 59% / 0.13);
-  --signal-glow: hsl(var(--hue) 100% 59% / 0.6);
+     Still never decorative. If a thing is not live, current, or asking
+     for a decision, it is dimmer than this. */
+  --signal: #969696;
+  --signal-dim: rgba(150, 150, 150, 0.5);
+  --signal-faint: rgba(150, 150, 150, 0.13);
+  --signal-glow: rgba(150, 150, 150, 0.6);
 
   /* ── INSTRUMENT CHROME ─────────────────────────────────────────────────
      The measurements that make a panel read as instrumentation rather than a
@@ -416,7 +424,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
 
 /* luxe headline: soft metallic gradient on the greeting + section titles */
 .greeting .g2, .sectitle h2 {
-  background: linear-gradient(180deg, #ffffff 15%, #d8d9dd 55%, #8c8e96 100%);
+  background: linear-gradient(180deg, #ffffff 15%, #d8d9dd 55%, #8e8e8e 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
 }
 .greeting .g2 { text-shadow: 0 0 34px rgba(255, 255, 255,0.14); }
@@ -612,7 +620,7 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
   box-shadow: 0 0 6px var(--signal-glow);
 }
 .sig-dot.idle { background: var(--subtle); box-shadow: none; }
-.sig-dot.alert { background: var(--danger); box-shadow: 0 0 6px rgba(229, 72, 77, 0.6); }
+.sig-dot.alert { background: var(--danger); box-shadow: 0 0 6px rgba(129, 129, 129, 0.6); }
 @keyframes sig-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .sig-dot.on { animation: sig-breathe 2.8s var(--ease) infinite; }
 @media (prefers-reduced-motion: reduce) { .sig-dot.on { animation: none; } }
@@ -789,12 +797,12 @@ body::before { content: ""; position: fixed; inset: -20%; z-index: 0; pointer-ev
    shadow, no translucency — those belong to the floating-card idiom this
    replaces. */
 :root {
-  --up: #4fb477;
-  --up-dim: rgba(79, 180, 119, 0.5);
-  --down: #d4585c;
-  --down-dim: rgba(212, 88, 92, 0.5);
-  --mark: #6f7178;          /* default instrument grey */
-  --pane-hd: hsl(var(--hue) 100% 59% / 0.06);
+  --up: #a1a1a1;
+  --up-dim: rgba(161, 161, 161, 0.5);
+  --down: #808080;
+  --down-dim: rgba(128, 128, 128, 0.5);
+  --mark: #717171;          /* default instrument grey */
+  --pane-hd: rgba(150, 150, 150, 0.06);
 }
 
 /* ── pane ── */

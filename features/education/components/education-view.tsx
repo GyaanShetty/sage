@@ -257,7 +257,7 @@ export function EducationView() {
                     <button
                       onClick={() => remove(s.id)}
                       title="Remove"
-                      className="p-1.5 text-subtle opacity-0 transition-all hover:text-red-400 group-hover:opacity-100"
+                      className="p-1.5 text-subtle opacity-0 transition-all hover:text-neutral-400 group-hover:opacity-100"
                     >
                       <Trash2 className="size-4" />
                     </button>

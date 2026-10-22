@@ -262,19 +262,20 @@ export function PortfolioView() {
    * and never cycled.
    *
    * This was eight hand-picked hues indexed with `% length`, which breaks two
-   * rules at once. The hues themselves were never checked — #a855f7 beside
-   * #c4b5fd is two violets a colourblind reader cannot separate — and the
-   * modulo meant a ninth holding silently reused slot one, so two different
-   * positions were drawn in the same colour in the same bar.
+   * rules at once. The hues themselves were never checked — two of them were
+   * violets a colourblind reader could not separate — and the modulo meant a
+   * ninth holding silently reused slot one, so two different positions were
+   * drawn in the same colour in the same bar.
    *
-   * Six slots and an explicit "Other", so the palette never runs out and the
-   * legend always accounts for the whole bar. A ninth series is not a
-   * generated hue; it folds.
+   * Five slots and an explicit "Other", so the palette never runs out and
+   * the legend always accounts for the whole bar. A sixth series is not a
+   * generated shade; it folds. Five because the ramp is grey now and the
+   * sixth step would sit below 3:1 on this ground — see --s1..--s5.
    */
-  const SLOTS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)", "var(--s6)"];
+  const SLOTS = ["var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)", "var(--s5)"];
   const OTHER = "var(--ink-4)";
 
-  /* The six largest holdings keep their own colour; everything past that is
+  /* The five largest holdings keep their own shade; everything past that is
      one "Other" segment. The bar and the legend are generated from the same
      array, so they cannot disagree — previously the bar drew every position
      and the legend showed six, which left unlabelled colours on screen. */
@@ -320,7 +321,7 @@ export function PortfolioView() {
 
           <Pane n={2} title="Allocation" status={`${priced.length} HOLDINGS`} live={priced.length > 0}>
             {priced.length === 0
-              ? <PaneEmpty reason="No priced holdings" action="Add one" href="#add" />
+              ? <PaneEmpty reason="No priced holdings" action="Add one" href="#d3d3d3" />
               : <Donut slices={allocation.map((a) => ({ label: a.symbol.replace(/\.(NS|BO)$/, ""), value: a.value }))} />}
           </Pane>
 

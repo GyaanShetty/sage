@@ -48,7 +48,7 @@ export function AmbientCanvas() {
 
     const draw = (t: number) => {
       raf = requestAnimationFrame(draw);
-      const drift = themed("--signal", "#ff3b30");
+      const drift = themed("--signal", "#888888");
       if (t - last < 33) return; // ~30fps cap
       last = t;
       ctx.clearRect(0, 0, w, h);

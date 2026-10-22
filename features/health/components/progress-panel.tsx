@@ -46,7 +46,7 @@ const WINDOWS = [60, 120, 365];
 
 const TREND: Record<Lift["trend"], { mark: string; cls: string }> = {
   up: { mark: "▲", cls: "text-[var(--live)]" },
-  down: { mark: "▼", cls: "text-red-300" },
+  down: { mark: "▼", cls: "text-neutral-300" },
   flat: { mark: "–", cls: "text-subtle" },
   new: { mark: "·", cls: "text-subtle" },
 };

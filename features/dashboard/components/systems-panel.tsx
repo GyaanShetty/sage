@@ -68,9 +68,9 @@ export function SystemsPanel({ n }: { n?: number }) {
     <Pane n={n} title="Systems" status={d ? "MEASURED" : "READING"} live={!!d}>
       <div className="sys">
         <div className="sys-dials">
-          <Gauge label="HEAP" pct={heapPct} tone="var(--cyan)"
+          <Gauge label="HEAP" pct={heapPct} tone="var(--accent-3)"
             read={d?.heapUsed != null ? mb(d.heapUsed) : "not exposed"} />
-          <Gauge label="STORE" pct={storePct} tone="var(--amber)"
+          <Gauge label="STORE" pct={storePct} tone="var(--accent-2)"
             read={d?.storeUsed != null ? mb(d.storeUsed) : "not exposed"} />
           <Gauge label="FRAME" pct={fpsPct} tone="var(--up)"
             read={fps === null ? "—" : `${fps} FPS`} />

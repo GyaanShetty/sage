@@ -96,7 +96,7 @@ export function Globe({
     ro.observe(cv);
 
     const accent = () =>
-      getComputedStyle(document.body).getPropertyValue("--signal").trim() || "#f0a020";
+      getComputedStyle(document.body).getPropertyValue("--signal").trim() || "#b1b1b1";
 
     const draw = (t: number) => {
       if (stop) return;
@@ -119,7 +119,7 @@ export function Globe({
         if (z < 0) continue;                       // back of the sphere
         const depth = z;                           // 0 at the limb, 1 facing us
         ctx.globalAlpha = 0.05 + depth * 0.16;
-        ctx.fillStyle = "#8a8f99";
+        ctx.fillStyle = "#8f8f8f";
         const r = (0.4 + depth * 0.5) * dpr;
         ctx.beginPath();
         ctx.arc(cx + x * R, cy - p.y * R, r, 0, Math.PI * 2);
@@ -127,7 +127,7 @@ export function Globe({
       }
 
       // The coastlines, bright, on top.
-      ctx.fillStyle = "#e4e8ef";
+      ctx.fillStyle = "#e8e8e8";
       for (const p of land) {
         const x = p.x * cosA - p.z * sinA;
         const z = p.x * sinA + p.z * cosA;

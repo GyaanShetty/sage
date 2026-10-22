@@ -1,4 +1,4 @@
-import { type BoardDoc, type BoardNode, type Tone, anchorPoint, centreOf, contentBounds, edgePath, inkPath } from "@/core/board/types";
+import { type BoardDoc, type BoardNode, TONE_CSS, anchorPoint, centreOf, contentBounds, edgePath, inkPath } from "@/core/board/types";
 
 /**
  * Render a board to a PNG.
@@ -15,9 +15,6 @@ import { type BoardDoc, type BoardNode, type Tone, anchorPoint, centreOf, conten
  * alternative is an export that silently fails on any board with a photo.
  */
 
-const TONE_CSS: Record<Tone, string> = {
-  plain: "#9a9ba1", signal: "#ff3b30", amber: "#ff6b35", cyan: "#35c7ff", green: "#2fd07a",
-};
 const GROUND = "#08090b";
 const PANEL = "#0c0d0f";
 const TEXT = "#f4f5f7";

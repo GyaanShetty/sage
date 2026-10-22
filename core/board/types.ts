@@ -42,6 +42,28 @@ export interface BoardNode {
 
 export type Tone = "signal" | "amber" | "cyan" | "green" | "plain";
 
+/*
+ * What each tone is worth, now that none of them is a colour.
+ *
+ * The ids are persisted on every saved note, so they stay as they are and
+ * the names read as history rather than description. What changed is the
+ * ramp underneath: five tones that used to differ by hue have to differ by
+ * lightness instead, and the old values were bunched inside 50 points —
+ * three of them inside 20, which is nobody's idea of a distinction. These
+ * sit at least 34 points apart, which is the gap at which a 2px border
+ * reads as deliberately different rather than as a rendering accident.
+ *
+ * Both the canvas renderer and the PNG export read this table, so a tone
+ * cannot drift between what you see and what you export.
+ */
+export const TONE_CSS: Record<Tone, string> = {
+  signal: "#ffffff",
+  cyan:   "#d2d2d2",
+  green:  "#b0b0b0",
+  plain:  "#8a8a8a",
+  amber:  "#686868",
+};
+
 /** Which face of a box an arrow leaves or meets. */
 export type Side = "t" | "r" | "b" | "l";
 

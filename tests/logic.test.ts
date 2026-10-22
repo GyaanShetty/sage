@@ -5320,43 +5320,122 @@ test("the portfolio allocation never cycles its palette", async () => {
 });
 
 /*
- * The series tokens themselves. These values are not a preference — they are
- * the output of the palette validator run against this surface, and the
- * ORDER is the colourblind-safety mechanism. Changing one without re-running
- * `validate_palette.js --mode dark --surface "#131211"` silently breaks the
- * guarantee, so the set is pinned.
+ * The series ramp. It is no longer a validated CATEGORICAL palette — it
+ * cannot be one, because the interface is monochrome and a five-step grey
+ * ramp puts about 12.5 ΔE between neighbours against a categorical floor
+ * of 15. What is pinned instead is the property monochrome CAN guarantee:
+ * the ramp is strictly ORDINAL and every step clears the contrast floor on
+ * the ground it is drawn against. Both are mechanical, so both are checked
+ * rather than asserted in a comment.
  */
-test("the validated series palette is intact", async () => {
+test("the series ramp is ordinal, grey, and above the contrast floor", async () => {
   const fs = await import("node:fs");
   const css = fs.readFileSync("app/press.css", "utf8");
+
+  const steps = ["--s1", "--s2", "--s3", "--s4", "--s5"].map((name) => {
+    const hex = css.match(new RegExp(`${name}:\\s*#([0-9a-f]{6})`, "i"))?.[1];
+    assert.ok(hex, `${name} must be defined as a six-digit hex`);
+    const [r, g, b] = [0, 2, 4].map((k) => parseInt(hex!.slice(k, k + 2), 16));
+    return { name, r, g, b };
+  });
+
+  // Grey, by construction and not by eye: all three channels equal.
+  for (const { name, r, g, b } of steps) {
+    assert.ok(r === g && g === b, `${name} is not a grey — the interface is monochrome`);
+  }
+
+  // Strictly descending, so position in the ramp means rank.
+  for (let k = 1; k < steps.length; k++) {
+    assert.ok(steps[k].r < steps[k - 1].r,
+      `${steps[k].name} must be darker than ${steps[k - 1].name} — the ramp is the encoding`);
+  }
+
   /*
-   * Five slots, not six, and no red among them.
-   *
-   * Red became the interface's one reserved accent when the brief went to
-   * red-on-black, so red and magenta left the series set — a "series 3"
-   * the same colour as every alert on the page is the collision the
-   * reserved-status rule exists to prevent. Re-validated against the new
-   * ground rather than carried over: worst adjacent CVD ΔE 19.6, normal
-   * vision 20.9, all five clear 3:1 on #0a0506.
+   * Every step clears 3:1 against the ground, which is the WCAG floor for a
+   * graphical object. This is what caps the ramp at five: the ground is
+   * #090909 and the darkest grey that still clears 3:1 on it is about
+   * #5d5d5d, so a sixth step would be a hole rather than a mark.
    */
-  const want: [string, string][] = [
-    ["--s1", "#199e70"], ["--s2", "#3987e5"], ["--s3", "#c98500"],
-    ["--s4", "#9085e9"], ["--s5", "#008300"],
-  ];
-  for (const [name, hex] of want) {
-    assert.ok(
-      new RegExp(`${name}:\\s*${hex}\\b`, "i").test(css),
-      `${name} must be ${hex} — re-run the palette validator before changing it`,
-    );
+  const lin = (c: number) => {
+    const x = c / 255;
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = (r: number, g: number, b: number) =>
+    0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const ground = css.match(/--deep:\s*#([0-9a-f]{6})/i)?.[1];
+  assert.ok(ground, "--deep (the ground every series mark sits on) must be defined");
+  const gl = lum(...[0, 2, 4].map((k) => parseInt(ground!.slice(k, k + 2), 16)) as [number, number, number]);
+  for (const { name, r, g, b } of steps) {
+    const ratio = (lum(r, g, b) + 0.05) / (gl + 0.05);
+    assert.ok(ratio >= 3,
+      `${name} is ${ratio.toFixed(2)}:1 on the ground — below the 3:1 floor for a mark`);
   }
-  // No series slot may be the reserved accent.
-  for (const [name] of want) {
-    const v = css.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1]?.toLowerCase();
-    assert.notEqual(v, "#e5484d", `${name} must not be the reserved alert colour`);
+
+  // Nothing may reintroduce a sixth step by the back door.
+  assert.doesNotMatch(css, /--s6\s*:/, "--s6 is gone; a sixth series folds into Other");
+
+  /*
+   * Direction keeps ▲/▽ and gives up hue entirely. up/down are now two
+   * greys, which means the glyphs are no longer a secondary encoding —
+   * they are the whole encoding, and may never be dropped.
+   */
+  assert.match(css, /--up:\s*#f2f2f2/i);
+  assert.match(css, /--down:\s*#8a8a8a/i);
+});
+
+/*
+ * The whole interface, not just the dashboard, in black and white.
+ *
+ * This is the guard that keeps it that way. Colour comes back one hex at a
+ * time — a borrowed Tailwind `text-red-400`, an hsl() with a saturation,
+ * an rgba() copied out of a reference — and none of those look wrong in a
+ * diff. So the rule is mechanical: no value anywhere in app/, features/,
+ * components/ or core/ may have a channel spread over 6, which is the most
+ * a rounding artefact can account for.
+ */
+test("nothing in the interface is chromatic", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+
+  const files: string[] = [];
+  (function walk(d: string) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name);
+      if (/node_modules|\.next|\.git/.test(p)) continue;
+      if (e.isDirectory()) walk(p);
+      else if (/\.(css|tsx|ts)$/.test(e.name)) files.push(p);
+    }
+  })(".");
+
+  const roots = ["app", "features", "components", "core"];
+  const spread = (r: number, g: number, b: number) =>
+    Math.max(r, g, b) - Math.min(r, g, b);
+  const found: string[] = [];
+
+  for (const f of files) {
+    if (!roots.some((r) => f === r || f.startsWith(r + path.sep))) continue;
+    const txt = fs.readFileSync(f, "utf8");
+    txt.split("\n").forEach((line, n) => {
+      const at = `${f}:${n + 1}`;
+      for (const m of line.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g)) {
+        const h = m[1].length === 3 ? m[1].split("").map((c) => c + c).join("") : m[1];
+        const [r, g, b] = [0, 2, 4].map((k) => parseInt(h.slice(k, k + 2), 16));
+        if (spread(r, g, b) > 6) found.push(`${at} ${m[0]}`);
+      }
+      for (const m of line.matchAll(/\brgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)/g)) {
+        if (spread(+m[1], +m[2], +m[3]) > 6) found.push(`${at} ${m[0]})`);
+      }
+      // A literal saturation in an hsl(); `var(--sat)` is the one allowed form.
+      for (const m of line.matchAll(/\bhsla?\(\s*[^)]*?\s([\d.]+)%/g)) {
+        if (+m[1] > 3) found.push(`${at} ${m[0]}`);
+      }
+      // Tailwind's colour scales, which never reach a stylesheet to be overridden.
+      const tw = /\b(?:text|bg|border|ring|from|to|via|shadow|fill|stroke|decoration|outline|divide|accent|caret|placeholder)-(?:red|rose|pink|fuchsia|purple|violet|indigo|blue|sky|cyan|teal|emerald|green|lime|yellow|amber|orange)-\d{2,3}\b/g;
+      for (const m of line.matchAll(tw)) found.push(`${at} ${m[0]}`);
+    });
   }
-  // up/down sit in the CVD warn band, which is legal only alongside ▲/▽.
-  assert.match(css, /--up:\s*#199e70/i);
-  assert.match(css, /--down:\s*#e5484d/i);
+
+  assert.deepEqual(found, [], `chromatic values in a black-and-white interface:\n  ${found.join("\n  ")}`);
 });
 
 /*

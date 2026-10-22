@@ -18,7 +18,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Pane, Empty } from "@/components/pane";
 import { Play, ExternalLink } from "lucide-react";
 import { TZ } from "@/lib/config";
-import { sourceTint } from "@/lib/source-tint";
 import { asArray } from "@/lib/as-array";
 import { sound } from "@/lib/sound";
 
@@ -183,14 +182,12 @@ export function MorningWire({ n }: { n?: number }) {
                   <span className="wire-t">{hhmm(h.published)}</span>
                   <RowShot src={h.image} />
                   <span className="wire-h">{h.title}</span>
-                  {tab === "all" && (
-                    <span className="wire-src">
-                      {/* The chip is a shortcut, never the only cue — the
-                          name is right beside it. */}
-                      <i className={`src-chip ${sourceTint(h.source)}`} aria-hidden />
-                      {h.source}
-                    </span>
-                  )}
+                  {/* The colour chip is gone with the colour. It encoded the
+                      publisher by hue, and in monochrome that becomes
+                      identity-by-shade — five greys 12.5 ΔE apart, below the
+                      floor at which anyone can separate them. The name was
+                      always doing the real work. */}
+                  {tab === "all" && <span className="wire-src">{h.source}</span>}
                   <ExternalLink className="mw-out size-3" aria-hidden />
                 </a>
               ))}

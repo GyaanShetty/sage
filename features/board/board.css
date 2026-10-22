@@ -116,12 +116,16 @@
 /* Tones are palette slots, so changing the palette moves every board. */
 .bd-n.t-signal { border-color: var(--signal); }
 .bd-n.t-signal .bd-n-hd { background: var(--signal-faint); color: var(--signal); }
-.bd-n.t-amber { border-color: var(--warn); }
-.bd-n.t-amber .bd-n-hd { background: hsl(var(--hue-warn) 100% 60% / 0.13); color: var(--warn); }
-.bd-n.t-cyan { border-color: #35c7ff; }
-.bd-n.t-cyan .bd-n-hd { background: rgba(53, 199, 255, 0.13); color: #35c7ff; }
-.bd-n.t-green { border-color: #2fd07a; }
-.bd-n.t-green .bd-n-hd { background: rgba(47, 208, 122, 0.13); color: #2fd07a; }
+/* The four chosen tones, spread down the grey axis instead of around the
+   colour wheel. The values match TONE_CSS in core/board/types.ts, which is
+   what the canvas and the PNG export draw with — a note must not change
+   shade when you export it. */
+.bd-n.t-cyan { border-color: #d2d2d2; }
+.bd-n.t-cyan .bd-n-hd { background: rgba(210, 210, 210, 0.13); color: #d2d2d2; }
+.bd-n.t-green { border-color: #b0b0b0; }
+.bd-n.t-green .bd-n-hd { background: rgba(176, 176, 176, 0.13); color: #b0b0b0; }
+.bd-n.t-amber { border-color: #686868; }
+.bd-n.t-amber .bd-n-hd { background: rgba(104, 104, 104, 0.13); color: #a8a8a8; }
 
 .bd-n-file { display: grid; gap: 4px; font-size: 11px; }
 .bd-n-file .nm { color: var(--foreground); word-break: break-all; }
@@ -228,7 +232,7 @@
   z-index: 4;
   display: grid;
   place-items: center;
-  background: hsl(var(--hue) 100% 59% / 0.08);
+  background: rgba(150, 150, 150, 0.08);
   border: 1px dashed var(--signal);
   color: var(--signal);
   font-size: 11px;
@@ -507,9 +511,9 @@ main.hud-grid:has(.bd:not(.bd-embed)) > * { flex: 1; min-height: 0; display: fle
 /* A sticky note that is only outlined in a colour is not a coloured note.
    The tint is what lets you sort a board by glance. */
 .bd-n.k-sticky.t-signal { background: color-mix(in srgb, var(--signal) 9%, var(--panel)); }
-.bd-n.k-sticky.t-amber  { background: color-mix(in srgb, var(--warn) 9%, var(--panel)); }
-.bd-n.k-sticky.t-cyan   { background: color-mix(in srgb, #35c7ff 9%, var(--panel)); }
-.bd-n.k-sticky.t-green  { background: color-mix(in srgb, #2fd07a 9%, var(--panel)); }
+.bd-n.k-sticky.t-amber  { background: color-mix(in srgb, #686868 9%, var(--panel)); }
+.bd-n.k-sticky.t-cyan   { background: color-mix(in srgb, #d2d2d2 9%, var(--panel)); }
+.bd-n.k-sticky.t-green  { background: color-mix(in srgb, #b0b0b0 9%, var(--panel)); }
 
 /*
  * Selection is handles, not a red edge.

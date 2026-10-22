@@ -77,7 +77,7 @@ function ReadInner() {
             </button>
           </div>
           {message && (
-            <p className="lbl" style={{ marginTop: 10, color: state === "error" ? "#e07070" : state === "done" ? "var(--live)" : undefined }}>
+            <p className="lbl" style={{ marginTop: 10, color: state === "error" ? "#929292" : state === "done" ? "var(--live)" : undefined }}>
               {message.toUpperCase()}
             </p>
           )}

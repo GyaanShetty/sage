@@ -130,7 +130,7 @@ export function ResearchPanel({ seed }: { seed?: string[] }) {
       )}
 
       {busy && <p className="mt-2 text-xs text-subtle">Reading sources on “{q}”…</p>}
-      {err && <p className="mt-2 text-xs text-red-300">{err}</p>}
+      {err && <p className="mt-2 text-xs text-neutral-300">{err}</p>}
 
       {brief && (
         <div className="mt-3 border-l border-border-glass pl-3">

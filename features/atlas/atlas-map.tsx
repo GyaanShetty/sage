@@ -33,7 +33,8 @@ const INITIAL: LayerDef[] = [
   ...(HAS_TRAFFIC ? [{ key: "traffic", label: "TRAFFIC", icon: "🚦", on: false, live: true }] : []),
 ];
 
-const CYAN = "#f4f5f7";
+/* The track colour. It was cyan; the name outlived the hue. */
+const TRACK = "#f4f5f7";
 
 /**
  * `compact` is the wall variant.
@@ -209,7 +210,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
 
       // air corridors (static great-circle arcs)
       for (const c of AIR_CORRIDORS) {
-        L.polyline(greatCircle(c.from, c.to), { color: CYAN, weight: 1, opacity: 0.35, dashArray: "1 5" })
+        L.polyline(greatCircle(c.from, c.to), { color: TRACK, weight: 1, opacity: 0.35, dashArray: "1 5" })
           .bindTooltip(`✦ ${c.name}`, { sticky: true })
           .addTo(groups.current.air);
       }
@@ -221,7 +222,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
       }
       // conflict zones (static, indicative)
       for (const z of CONFLICT_ZONES) {
-        L.circleMarker(z.at, { radius: 5 + z.intensity * 3, color: "#e0706a", weight: 1, fillColor: "#e0706a", fillOpacity: 0.12 })
+        L.circleMarker(z.at, { radius: 5 + z.intensity * 3, color: "#919191", weight: 1, fillColor: "#919191", fillOpacity: 0.12 })
           .bindTooltip(`⚔ ${z.name} · tension ${z.intensity}/3 (indicative)`, { sticky: true })
           .addTo(groups.current.conflict);
       }
@@ -405,7 +406,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
         const j = await fetch("/api/atlas/seismic").then((r) => r.json());
         g.clearLayers();
         for (const q of asArray<{ lat: number; lon: number; mag: number; place: string; time: string }>(j?.data)) {
-          L.circleMarker([q.lat, q.lon], { radius: 2 + q.mag * 1.6, color: "#ff3b30", weight: 1, fillColor: "#ff3b30", fillOpacity: 0.15 })
+          L.circleMarker([q.lat, q.lon], { radius: 2 + q.mag * 1.6, color: "#888888", weight: 1, fillColor: "#888888", fillOpacity: 0.15 })
             .bindTooltip(`◈ M${q.mag.toFixed(1)} · ${q.place} · ${new Date(q.time).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })} IST`, { sticky: true })
             .addTo(g);
         }
@@ -457,10 +458,10 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
     const g = L.layerGroup();
     L.circle([position.lat, position.lon], {
       radius: Math.max(position.accuracy, 12),
-      color: "#ff3b30", weight: 1, fillColor: "#ff3b30", fillOpacity: 0.07,
+      color: "#888888", weight: 1, fillColor: "#888888", fillOpacity: 0.07,
     }).addTo(g);
     L.circleMarker([position.lat, position.lon], {
-      radius: 4, color: "#0c0d0f", weight: 2, fillColor: "#ff3b30", fillOpacity: 1,
+      radius: 4, color: "#0c0d0f", weight: 2, fillColor: "#888888", fillOpacity: 1,
     }).bindTooltip(`YOU · ±${Math.round(position.accuracy)}m`, { direction: "top" }).addTo(g);
     g.addTo(map);
     meRef.current = g;
@@ -523,7 +524,7 @@ export function AtlasMap({ lat = 20, lon = 40, onZoomOut, center, compact = fals
       .then((j) => {
         if (cancelled || !j?.ok) return;
         routeRef.current?.remove();
-        const line = L.polyline(j.data.points, { color: "#ff3b30", weight: 3, opacity: 0.85 });
+        const line = L.polyline(j.data.points, { color: "#888888", weight: 3, opacity: 0.85 });
         line.addTo(map);
         routeRef.current = line;
         setRoute({ meters: j.data.meters, seconds: j.data.seconds, name: target.name });

@@ -98,7 +98,7 @@ export function Passkeys() {
                   ? `used ${new Date(k.lastUsedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`
                   : "never used"}
               </span>
-              <button onClick={() => void remove(k.ref)} className="text-subtle hover:text-red-400" title="Remove">
+              <button onClick={() => void remove(k.ref)} className="text-subtle hover:text-neutral-400" title="Remove">
                 <Trash2 className="size-3.5" />
               </button>
             </div>

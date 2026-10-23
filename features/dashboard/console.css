@@ -1,253 +1,652 @@
-/* ══ the console ══════════════════════════════════════════════════════════
+/* ══ THE CONSOLE ══════════════════════════════════════════════════════════
  *
- * Built to the reference he sent: a mission console, not a wall.
+ * Rebuilt to the Gotham reference. Everything below is one system, and it
+ * is deliberately the LAST word on this screen: five global stylesheets
+ * load before it, each one having restyled the last, and the reason the
+ * console read as "basic" was never a missing feature — it was that
+ * nothing owned the look. This file owns it, under `.console`, and does
+ * not negotiate.
  *
- * The thing that makes that reference work is not its colours or its type —
- * it is the COMPOSITION, and it is the one thing SAGE never had. Four
- * decisions carry the whole layout:
+ * What makes the reference premium, in the order it matters:
  *
- *   1. ONE SCREEN. Nothing scrolls the page. SAGE's wall was 4.4 screens of
- *      equally-weighted panes, which is why it read as overwhelming: there
- *      was no "this is the view", only an endless strip. Here the viewport
- *      IS the view, and the rails scroll inside themselves if they must.
- *   2. ONE DOMINANT VISUAL. The stage takes over half the width and most of
- *      the height. An interface with a focal point can be dense everywhere
- *      else without feeling busy, because the eye has somewhere to start.
- *   3. RAILS ARE LISTS, NOT CARDS. Thin rows, hairline separators, label
- *      left and value right. Twenty rows of that is legible; four cards
- *      with padding and headers is not denser, just bigger.
- *   4. A TIMELINE ACROSS THE BOTTOM. In the reference it is mission
- *      playback. Here it is the day — which SAGE already draws.
+ *   1. TRUE BLACK. Not near-black. A #000 ground is what makes a 1px
+ *      hairline at 8% opacity read as a drawn line rather than as a
+ *      lighter grey, and it is the whole reason that interface looks
+ *      etched instead of printed.
+ *   2. FRAMES, NOT CARDS. One hairline, four corner ticks, no radius, no
+ *      shadow, no fill. A card says "this is a thing on a surface". A
+ *      frame says "this is an instrument panel", which is the claim being
+ *      made.
+ *   3. ONE FRAME PER RAIL. The reference's left panel is a single frame
+ *      divided by labelled rules — not four boxes with gaps. Four boxes
+ *      is four times the chrome for the same content, and it is why
+ *      eight panels felt like forty.
+ *   4. MICRO-TYPE, LOUD NUMBERS. Labels live at 8px with .22em tracking
+ *      and 44% white. Numbers are the only thing allowed to be bright.
+ *      The contrast between those two is the entire typographic idea.
+ *   5. EMPTY SPACE IS DRAWN. The reference is mostly black. Its density
+ *      comes from a few dense things against a lot of nothing, which is
+ *      the opposite of filling the screen evenly.
  *
- * Panels are separated by 3px of ground and a hairline, not by shadow and
- * radius. At this density, elevation is noise.
+ * Nothing here is decorative-by-default: every tick, rule and chip either
+ * separates two things or names one.
  */
 
 /*
- * Fills its container rather than the viewport.
+ * Namespace: `cns-`, not `cx-`.
  *
- * `position: fixed` was the obvious choice and the wrong one: an ancestor
- * in the shell carries `perspective`, which makes it the containing block
- * for fixed descendants, so the console anchored to that box instead of the
- * window — a hundred pixels of dead band above it and a bottom edge in the
- * wrong place. Filling the main region is both simpler and immune to
- * whatever the shell does with transforms.
+ * `cx-` was the obvious choice and it was already spoken for — the charts
+ * panel uses .cx-bar, .cx-track and .cx-sectors, and press.css gives
+ * .cx-bar `position: absolute`. The command bar inherited that and left
+ * the grid entirely, landing in the top-left corner over the stage tabs
+ * and swallowing their clicks. A prefix collision does not look like a
+ * collision; it looks like your layout is broken for no reason.
  */
 .console {
+  /* ── ground ──────────────────────────────────────────────────────────
+     Four steps and no more. The void is true black so the hairlines
+     read; the plate is barely off it so a module is felt rather than
+     seen; the raised step is for headers only. */
+  --cns-void:     #000000;
+  --cns-plate:    #040404;
+  --cns-raised:   #0b0b0b;
+  --cns-sunken:   #020202;
+
+  /* ── rules ───────────────────────────────────────────────────────────
+     One hairline weight, two brightnesses. The dim one divides rows, the
+     bright one frames modules and draws corner ticks. A third weight
+     would start a hierarchy that the labels already carry. */
+  --cns-rule:     rgba(255, 255, 255, .075);
+  --cns-rule-hi:  rgba(255, 255, 255, .17);
+  --cns-rule-lit: rgba(255, 255, 255, .42);
+
+  /* ── ink ─────────────────────────────────────────────────────────────
+     Four steps, each one a job: values, prose, labels, scales. */
+  --cns-t1: #ffffff;
+  --cns-t2: rgba(255, 255, 255, .72);
+  --cns-t3: rgba(255, 255, 255, .44);
+  --cns-t4: rgba(255, 255, 255, .24);
+
+  /* ── type ────────────────────────────────────────────────────────────
+     Mono throughout the chrome. The sizes are a real scale rather than
+     nineteen hand-picked values: each step is roughly 1.22x the last,
+     which is close enough to a minor third to look intentional and far
+     enough apart that two adjacent steps never look like a mistake. */
+  --cns-mono: var(--font-mono-f), ui-monospace, "SF Mono", Menlo, monospace;
+  --cns-micro: 7.5px;   /* scales, tick labels, ids */
+  --cns-label: 8.5px;   /* module names, column heads */
+  --cns-small: 10.5px;  /* dense list rows */
+  --cns-body:  12px;    /* list rows that carry sentences */
+  --cns-value: 14px;    /* the number in a row */
+  --cns-num:   19px;    /* the number a module exists for */
+
+  --cns-track: .22em;   /* tracking for anything uppercase and small */
+  --cns-gap:   2px;     /* the ground showing between modules */
+  --cns-pad:   9px;     /* the one inner padding */
+  --cns-ease:  cubic-bezier(.32, .72, 0, 1);
+
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(210px, 19fr) minmax(0, 55fr) minmax(250px, 26fr);
-  grid-template-rows: 24px minmax(0, 1fr) clamp(118px, 17vh, 180px);
+  grid-template-columns:
+    18px
+    minmax(198px, 17fr)
+    minmax(0, 52fr)
+    minmax(238px, 25fr);
+  grid-template-rows:
+    22px
+    minmax(0, 1fr)
+    clamp(92px, 12.5vh, 146px)
+    19px;
   grid-template-areas:
-    "strip strip strip"
-    "left  stage right"
-    "foot  foot  foot";
-  gap: 3px;
-  padding: 3px;
-  background: var(--deep);
+    "vert top   top   top"
+    "vert left  stage right"
+    "vert foot  foot  foot"
+    "bar  bar   bar   bar";
+  gap: var(--cns-gap);
+  padding: var(--cns-gap);
+  background: var(--cns-void);
   overflow: hidden;
+  font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* ── the status strip ─────────────────────────────────────────────────── */
-
-.cs-strip {
-  grid-area: strip;
-  display: flex; align-items: center; gap: 0;
-  padding: 0 10px;
-  background: var(--panel);
-  border: 1px solid rgba(242, 242, 242, .07);
-  font-family: var(--font-mono-f), monospace;
-  font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--ink-4);
-  overflow: hidden; white-space: nowrap;
-}
-.cs-id { color: var(--ink-2); margin-right: 18px; }
-.cs-id b { color: var(--ink); font-weight: 500; letter-spacing: .2em; }
-.cs-nav { display: flex; align-items: center; gap: 0; margin-left: auto; }
-.cs-tab {
-  background: none; border: 0; cursor: pointer; padding: 3px 11px;
-  font: inherit; letter-spacing: .14em; color: var(--ink-4);
-  transition: color var(--fast) var(--ease);
-}
-.cs-tab:hover { color: var(--ink-2); }
-.cs-tab.on { color: var(--sig); }
-.cs-right { margin-left: 18px; color: var(--ink-3); }
-.cs-right b { color: var(--sig); font-weight: 400; }
-
-/* ── rails ────────────────────────────────────────────────────────────── */
-
-.cs-left  { grid-area: left; }
-.cs-right-rail { grid-area: right; }
-.cs-left, .cs-right-rail {
-  display: flex; flex-direction: column; gap: 3px;
-  min-height: 0; overflow-y: auto; overflow-x: hidden;
-  scrollbar-width: none;
-  /* The last panel was running past the rail into the footer. A flex column
-     in a grid cell needs the cell's height declared, or the children size
-     themselves and the parent dutifully overflows. */
-  height: 100%;
-}
-.cs-left::-webkit-scrollbar, .cs-right-rail::-webkit-scrollbar { display: none; }
+/* ══ PRIMITIVES ═══════════════════════════════════════════════════════════
+ *
+ * Three of them, and everything on screen is made of these.
+ */
 
 /*
- * Panels in a rail give up the wall's chrome. No radius, no shadow, no
- * reticles — at this size those are three decorations fighting over an
- * 18px row. A hairline and a header is the whole vocabulary.
+ * A frame. Hairline box plus four corner ticks.
+ *
+ * The ticks are drawn as eight background slices on the element itself
+ * rather than on a pseudo-element, because both pseudos are spoken for —
+ * the panels underneath use ::after for their own marks, and a frame that
+ * steals one breaks whatever it wraps. Eight gradients in one declaration
+ * is also one paint instead of two boxes.
  */
-.cs-left .pane, .cs-right-rail .pane, .cs-left .wall-cell, .cs-right-rail .wall-cell {
-  border-radius: 0;
-  border: 1px solid rgba(242, 242, 242, .07);
-  box-shadow: none;
-  flex: none;
+.console .cns-fr {
+  position: relative;
+  background: var(--cns-plate);
+  border: 1px solid var(--cns-rule);
+  min-width: 0; min-height: 0;
 }
-.cs-left .pane::after, .cs-right-rail .pane::after { display: none; }
-.cs-left .pane-hd, .cs-right-rail .pane-hd {
-  padding: 6px 9px 5px;
-  background: rgba(242, 242, 242, .025);
-  border-bottom: 1px solid rgba(242, 242, 242, .06);
+.console .cns-fr::before {
+  content: ""; position: absolute; inset: 3px; pointer-events: none; z-index: 3;
+  background:
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) left    top    / 7px 1px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) left    top    / 1px 7px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) right   top    / 7px 1px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) right   top    / 1px 7px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) left    bottom / 7px 1px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) left    bottom / 1px 7px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) right   bottom / 7px 1px no-repeat,
+    linear-gradient(var(--cns-rule-hi), var(--cns-rule-hi)) right   bottom / 1px 7px no-repeat;
 }
-.cs-left .pane-t, .cs-right-rail .pane-t { font-size: 9px; letter-spacing: .16em; }
-.cs-left .pane-s, .cs-right-rail .pane-s { font-size: 8.5px; }
-.cs-left .pane-body, .cs-right-rail .pane-body { max-height: 268px; }
 
-/* Rows shrink to rail density. The wall's 15px serif is right for a
-   half-width pane and wrong for a 210px rail. */
-.cs-left .gm-row, .cs-right-rail .gm-row,
-.cs-left .dv-row, .cs-right-rail .dv-row,
-.cs-left .tlv-ev, .cs-right-rail .tlv-ev,
-.cs-left .mkt, .cs-right-rail .mkt,
-.cs-left .ht-row, .cs-right-rail .ht-row,
-.cs-left .sr-row, .cs-right-rail .sr-row,
-.cs-left .xp-row, .cs-right-rail .xp-row { padding-block: 4px; }
-.cs-left .tlv-s, .cs-right-rail .tlv-s,
-.cs-left .gm-sub, .cs-right-rail .gm-sub,
-.cs-left .dv-t, .cs-right-rail .dv-t,
-.cs-left .ht-h, .cs-right-rail .ht-h,
-.cs-left .sr-tx, .cs-right-rail .sr-tx,
-.cs-left .wire-h, .cs-right-rail .wire-h { font-size: 11.5px; line-height: 1.3; }
-.cs-left .dk-t, .cs-right-rail .dk-t { font-size: 13px; }
-.cs-left .dk-why, .cs-right-rail .dk-why { font-size: 11px; }
+/* A label. Everything small and uppercase on this screen is one of these. */
+.console .cns-k {
+  font-family: var(--cns-mono);
+  font-size: var(--cns-label);
+  letter-spacing: var(--cns-track);
+  text-transform: uppercase;
+  color: var(--cns-t3);
+  white-space: nowrap;
+}
+.console .cns-k-micro { font-size: var(--cns-micro); color: var(--cns-t4); }
 
-/* ── the stage ────────────────────────────────────────────────────────── */
+/* A chip. A word in a hairline box — the reference's WHITE / PORTUGUESE /
+   ONLINE boxes. Reserved for state, never for a name. */
+.console .cns-chip {
+  display: inline-block;
+  padding: 1px 5px 0;
+  border: 1px solid var(--cns-rule-hi);
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--cns-t2);
+  line-height: 1.5;
+}
+.console .cns-chip.on { border-color: var(--cns-rule-lit); color: var(--cns-t1); }
 
-.cs-stage {
+/* ══ THE TOP BAR ══════════════════════════════════════════════════════════ */
+
+.console .cns-top {
+  grid-area: top;
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--cns-plate);
+  border: 1px solid var(--cns-rule);
+  font-family: var(--cns-mono);
+  font-size: var(--cns-label);
+  letter-spacing: var(--cns-track);
+  text-transform: uppercase;
+  color: var(--cns-t3);
+  overflow: hidden; white-space: nowrap;
+}
+/* Sections of the bar are divided by the same hairline as everything
+   else, so the bar reads as one strip of instruments rather than as a
+   row of floating words. */
+.console .cns-top > * {
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 11px;
+  border-right: 1px solid var(--cns-rule);
+}
+.console .cns-top > :last-child { border-right: 0; }
+.console .cns-mark { color: var(--cns-t2); }
+.console .cns-mark b {
+  color: var(--cns-t1); font-weight: 500; letter-spacing: .3em;
+}
+.console .cns-top .num {
+  color: var(--cns-t1); font-variant-numeric: tabular-nums; letter-spacing: .1em;
+}
+/* A group of buttons gives up the strip's own padding — the buttons carry
+   their hit area themselves, and 11px of parent padding beside a 9px
+   button padding is a 20px gap that looks like a mistake. */
+.console .cns-top .cns-grp { padding: 0; gap: 0; }
+/* The one flexible gap. It is what pushes the right-hand readouts to the
+   right edge, and it keeps its rule so the strip stays divided. */
+.console .cns-top .cns-sp { flex: 1; padding: 0; }
+
+/* Menus and view tabs share one button, because they are the same gesture. */
+.console .cns-mi {
+  background: none; border: 0; cursor: pointer; padding: 0 9px;
+  align-self: stretch; display: inline-flex; align-items: center;
+  font: inherit; letter-spacing: var(--cns-track); text-transform: uppercase;
+  color: var(--cns-t3);
+  transition: color 120ms var(--cns-ease), background-color 120ms var(--cns-ease);
+}
+.console .cns-mi:hover { color: var(--cns-t1); background: rgba(255, 255, 255, .05); }
+.console .cns-mi.on { color: var(--cns-t1); }
+/* The active tab is marked on the rule, not with a fill: a lit 1px edge is
+   the loudest thing you can do here without adding a colour. */
+.console .cns-mi.on::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: var(--cns-t1);
+}
+.console .cns-mi { position: relative; }
+
+/* ══ THE VERTICAL STRIP ═══════════════════════════════════════════════════
+ *
+ * The reference's left edge: a rotated identifier and a ladder of ticks.
+ * It carries no information you need, and that is the point — it is the
+ * frame of the instrument, the way the bezel of a watch is not the watch.
+ * It costs 18px and it is what stops the layout reading as a web page.
+ */
+
+.console .cns-vert {
+  grid-area: vert;
+  position: relative;
+  background: var(--cns-plate);
+  border: 1px solid var(--cns-rule);
+  overflow: hidden;
+  display: grid; place-items: center;
+}
+.console .cns-vert-t {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: var(--cns-t4);
+  white-space: nowrap;
+}
+/* A tick every 11px down both edges. Drawn, not placed: one gradient is
+   cheaper than forty elements and cannot drift out of alignment. */
+.console .cns-vert::after {
+  content: ""; position: absolute; inset: 7px 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      var(--cns-rule-hi) 0 1px, transparent 1px 11px
+    ) left 2px top 0 / 3px 100% no-repeat,
+    repeating-linear-gradient(
+      to bottom,
+      var(--cns-rule-hi) 0 1px, transparent 1px 11px
+    ) right 2px top 0 / 3px 100% no-repeat;
+  opacity: .8;
+}
+
+/* ══ THE RAILS ════════════════════════════════════════════════════════════
+ *
+ * One frame each, sections inside, divided by a rule.
+ *
+ * This is the single biggest change from the last pass. Eight panels each
+ * with its own border, header bar, radius and 3px of gap is eight times
+ * the chrome and reads as clutter at any density. One frame with eight
+ * labelled sections is the same content with one border — and it is what
+ * the reference actually does.
+ */
+
+.console .cns-left  { grid-area: left; }
+.console .cns-right { grid-area: right; }
+.console .cns-left, .console .cns-right {
+  display: grid; grid-template-rows: minmax(0, 1fr);
+  min-height: 0; height: 100%;
+}
+/*
+ * The frame and the scroller are two elements on purpose.
+ *
+ * The corner ticks are an absolutely-positioned layer on the frame, and
+ * an absolute child of a scrolling box scrolls with the content — the
+ * ticks would slide up out of their own corners the moment a rail was
+ * long enough to scroll. The frame stays put; the rail inside it moves.
+ */
+.console .cns-rail {
+  min-height: 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+  display: flex; flex-direction: column;
+}
+.console .cns-rail::-webkit-scrollbar { display: none; }
+
+/* Every panel in a rail is a section of the one frame: no box of its own,
+   a rule above it, and nothing else. */
+.console .cns-rail > * { flex: none; min-height: 0; }
+.console .cns-rail :where(.pane, .wall-cell, .cell) {
+  border: 0; border-radius: 0; box-shadow: none; background: none;
+  border-top: 1px solid var(--cns-rule);
+}
+.console .cns-rail > :first-child .pane,
+.console .cns-rail > :first-child .wall-cell { border-top: 0; }
+.console .cns-rail :where(.pane, .cell)::after,
+.console .cns-rail :where(.pane, .cell)::before { display: none; }
+
+/*
+ * The section header. Index, name, and one piece of meta on the right —
+ * the format the reference uses for every module it draws.
+ *
+ * Two vocabularies are addressed here, not one. Most panels render
+ * .pane-hd/.pane-t/.pane-s from the shared Pane; the sitrep arrived from
+ * the wall with its own .bh/.t/.i/.r. Teaching both the same shape is
+ * three extra selectors, and the alternative is one section of the left
+ * rail that looks like it came from a different program — which is
+ * exactly the impression this pass exists to remove.
+ */
+.console .cns-rail :where(.pane-hd, .bh) {
+  display: flex; align-items: center; gap: 8px;
+  min-height: 19px; padding: 0 var(--cns-pad);
+  background: var(--cns-raised);
+  border-bottom: 1px solid var(--cns-rule);
+}
+.console .cns-rail :where(.pane-t, .bh > .t) {
+  font-family: var(--cns-mono);
+  font-size: var(--cns-label);
+  letter-spacing: var(--cns-track);
+  text-transform: uppercase;
+  color: var(--cns-t2);
+  font-weight: 500;
+}
+.console .cns-rail :where(.pane-n, .bh > .i) {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  color: var(--cns-t4); letter-spacing: .14em; text-transform: uppercase;
+}
+.console .cns-rail :where(.pane-s, .bh > .r) {
+  margin-left: auto;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .cns-rail :where(.pane-body, .cell > :not(.bh)) {
+  max-height: 252px;
+  overflow: auto; scrollbar-width: none;
+}
+.console .cns-rail .pane-body { padding: 5px var(--cns-pad) 7px; }
+.console .cns-rail .cell { background: none; border: 0; padding: 0; }
+.console .cns-rail .cell > :not(.bh) { padding: 5px var(--cns-pad) 7px; }
+.console .pane-body::-webkit-scrollbar { display: none; }
+
+/*
+ * Row density.
+ *
+ * One rhythm for every list in both rails. They arrived from nine
+ * different components with nine different paddings, which is what made
+ * the rails look assembled rather than designed — the eye reads unequal
+ * row heights as unequal importance.
+ */
+.console .cns-rail :where(.gm-row, .dv-row, .tlv-ev, .mkt, .ht-row, .sr-row, .xp-row, .dk-row) {
+  padding-block: 3.5px;
+  border-color: var(--cns-rule);
+}
+.console .cns-rail :where(.tlv-s, .gm-sub, .dv-t, .ht-h, .sr-tx, .wire-h, .dk-why) {
+  font-size: var(--cns-small); line-height: 1.34;
+}
+.console .cns-rail .dk-t { font-size: var(--cns-body); }
+
+/* Every number in a rail is tabular and bright. Numbers are the one thing
+   allowed to be the brightest ink on the screen. */
+.console .cns-rail :where(.num, .mkt-v, .mkt-p, .tlv-t, .xp-amt, .sr-n) {
+  font-family: var(--cns-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+}
+
+/*
+ * Empty states collapse to a line.
+ *
+ * A disconnected mailbox was spending 164px on an icon, a headline and a
+ * link to say one thing. In an instrument a channel with nothing on it is
+ * a dim line, not a poster about being empty — and four such posters in
+ * two rails is most of what made this screen feel like it was shouting
+ * about having nothing to say. This is the bulk of "clean everything".
+ */
+.console .cns-rail :where(.tile-empty, .empty, .pane-empty, .empty-state) {
+  display: flex; align-items: center; gap: 7px;
+  min-height: 0; padding: 6px 0;
+  text-align: left;
+}
+.console .cns-rail :where(.empty, .empty-state) svg,
+.console .cns-rail .es-mark {
+  width: 10px !important; height: 10px !important;
+  flex: none; opacity: .45; margin: 0;
+}
+.console .cns-rail :where(.tile-empty, .empty, .pane-empty, .empty-state)
+  :where(p, div, span, a) {
+  margin: 0;
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--cns-t4);
+}
+/* The one piece of it that is still a control keeps a brighter ink and an
+   underline, because collapsing a link into the surrounding grey is how
+   you make an action impossible to find. */
+.console .cns-rail .es-d a {
+  color: var(--cns-t2); text-decoration: underline;
+  text-underline-offset: 2px; text-decoration-color: var(--cns-rule-hi);
+}
+.console .cns-rail .es-d a:hover { color: var(--cns-t1); }
+/* The ASCII rule is a wall ornament. At rail width it is six characters of
+   noise in front of the sentence that matters. */
+.console .cns-rail .empty-rule { display: none; }
+/* "OPENING…" while a tile mounts: a line, not a centred placeholder the
+   size of the panel it is standing in for. */
+.console .cns-rail .tile-wait {
+  padding: 6px 0; min-height: 0; display: block; text-align: left;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+
+/*
+ * A ceiling on type inside a rail.
+ *
+ * Panels arrived from nine components, three of which set a serif lede at
+ * 15–17px for a half-width pane on the wall. In a 339px rail that is a
+ * headline shouting over a list, and it is why the rails read as
+ * assembled rather than designed. Nothing in a rail is bigger than the
+ * value step; the numbers are allowed to be the loud thing.
+ */
+.console .cns-rail :where(.wire-lede, .wire-h1, .ht-lede, .dk-t, .gm-sub, .wire-h) {
+  font-size: var(--cns-body); line-height: 1.32;
+}
+.console .cns-rail * { max-width: 100%; }
+
+/* ══ THE STAGE ════════════════════════════════════════════════════════════ */
+
+.console .cns-stage {
   grid-area: stage;
   position: relative;
   min-width: 0; min-height: 0;
-  background: var(--sunken);
-  border: 1px solid rgba(242, 242, 242, .07);
+  background: var(--cns-sunken);
+  border: 1px solid var(--cns-rule);
   overflow: hidden;
+  display: grid;
+  /* The stage is a frame around a picture and a strip under it. Declaring
+     that as rows is what lets the HUD sit over the picture only — the
+     readouts used to print across the caption row, which is invisible in
+     a screenshot and unmissable once you read the words. */
+  grid-template-rows: minmax(0, 1fr) 17px;
 }
-.cs-stage .pane { border: 0; border-radius: 0; height: 100%; }
-.cs-stage .pane-hd { display: none; }
-.cs-stage .pane-body { padding: 0; height: 100%; }
+.console .cns-stage-media { position: relative; min-height: 0; overflow: hidden; }
+.console .cns-stage .pane { border: 0; border-radius: 0; height: 100%; background: none; }
+.console .cns-stage .pane-hd { display: none; }
+.console .cns-stage .pane-body { padding: 0; height: 100%; max-height: none; }
 
-/*
- * HUD over the stage. Corner readouts rather than a header bar: the
- * reference puts its labels in the corners of the image so the image keeps
- * the middle, which is the only part of a map worth looking at.
- */
-.cs-hud {
-  position: absolute; inset: 0; z-index: 500;
+/* A tick ruler along the top edge of the picture, as the reference runs
+   above its waveform. It is a scale with nothing to measure, and it is
+   the detail that makes the frame read as an instrument. */
+.console .cns-stage-media::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 5px; z-index: 6;
   pointer-events: none;
-  font-family: var(--font-mono-f), monospace;
-  font-size: 9px; letter-spacing: .12em; text-transform: uppercase;
+  background: repeating-linear-gradient(
+    to right, var(--cns-rule-hi) 0 1px, transparent 1px 9px
+  );
+  opacity: .55;
 }
-.cs-hud > * { position: absolute; pointer-events: auto; }
-.cs-hud-tl { top: 8px; left: 10px; }
-.cs-hud-tr { top: 8px; right: 10px; text-align: right; }
-.cs-hud-bl { bottom: var(--cs-hud-foot, 8px); left: 10px; }
-.cs-hud-br { bottom: var(--cs-hud-foot, 8px); right: 10px; text-align: right; }
+
+/* Corner brackets on the picture. Longer and brighter than a module's
+   ticks: this is the one frame on the screen that is meant to be looked
+   through rather than at. */
+.console .cns-stage-media::after {
+  content: ""; position: absolute; inset: 7px; z-index: 6; pointer-events: none;
+  background:
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) left  top    / 16px 1px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) left  top    / 1px 16px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) right top    / 16px 1px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) right top    / 1px 16px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) left  bottom / 16px 1px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) left  bottom / 1px 16px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) right bottom / 16px 1px no-repeat,
+    linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) right bottom / 1px 16px no-repeat;
+}
+
+/* The HUD: four corner readouts over the picture. */
+.console .cns-hud {
+  position: absolute; inset: 0; z-index: 8; pointer-events: none;
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .16em; text-transform: uppercase;
+}
+.console .cns-hud > * { position: absolute; pointer-events: auto; }
+.console .cns-hud-tl { top: 14px; left: 16px; }
+.console .cns-hud-tr { top: 14px; right: 16px; text-align: right; }
+.console .cns-hud-bl { bottom: var(--cns-hud-foot, 14px); left: 16px; }
+.console .cns-hud-br { bottom: var(--cns-hud-foot, 14px); right: 16px; text-align: right; }
+/*
+ * The bottom readouts clear whatever the stage draws along its own bottom
+ * edge rather than printing over it.
+ *
+ * Moving the HUD inside the media box was supposed to fix this and did
+ * not: the live stage's caption strip is INSIDE that box, 40px of it,
+ * measured. So the offset stays, now as one token with one number in it.
+ * The other two stages fill their box and keep the default.
+ */
+.console .cns-stage[data-stage="live"] { --cns-hud-foot: 50px; }
+.console .cns-hud b {
+  display: block; color: var(--cns-t1); font-weight: 500;
+  font-size: var(--cns-label); letter-spacing: .18em;
+  font-variant-numeric: tabular-nums;
+}
+.console .cns-hud span { display: block; color: var(--cns-t4); margin-top: 1px; }
+.console .cns-hud .lit { color: var(--cns-t1); }
 
 /*
- * The bottom readouts clear whatever the stage puts along its own bottom
- * edge, rather than printing over it.
+ * The stage's own status line, along its bottom edge.
  *
- * On the live stage that is 92px of caption row and saved-channel strip,
- * measured; the readouts were landing in the middle of both. The other two
- * stages fill their box edge to edge and keep the 8px default. If a stage
- * grows a footer, this is the number to re-measure — the overlap is
- * invisible in a screenshot until you read the words.
+ * The reference's is `GOTHAM CITY | ONLINE | x5-0039` — a place, a state
+ * and an identifier, which between them say everything about what you are
+ * looking at. Ours says the same three things.
  */
-.cs-stage[data-stage="live"] { --cs-hud-foot: 100px; }
-.cs-hud b { display: block; color: var(--ink); font-weight: 500; font-size: 11px; letter-spacing: .1em; }
-.cs-hud span { display: block; color: var(--ink-4); }
-.cs-hud .lit { color: var(--sig); }
-
-/* Reticle marks at the stage corners — the one place the wall's corner
-   brackets belong, because here there is exactly one frame to mark. */
-.cs-stage::after {
-  content: ""; position: absolute; inset: 6px; z-index: 400; pointer-events: none;
-  background:
-    linear-gradient(var(--sig), var(--sig)) left 0 top 0 / 14px 1px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) left 0 top 0 / 1px 14px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) right 0 top 0 / 14px 1px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) right 0 top 0 / 1px 14px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) left 0 bottom 0 / 14px 1px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) left 0 bottom 0 / 1px 14px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) right 0 bottom 0 / 14px 1px no-repeat,
-    linear-gradient(var(--sig), var(--sig)) right 0 bottom 0 / 1px 14px no-repeat;
-  opacity: .5;
+.console .cns-stage-bar {
+  display: flex; align-items: center; gap: 0;
+  border-top: 1px solid var(--cns-rule);
+  background: var(--cns-raised);
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--cns-t4);
+  overflow: hidden; white-space: nowrap;
+}
+.console .cns-stage-bar > * { padding: 0 9px; border-right: 1px solid var(--cns-rule); }
+.console .cns-stage-bar > :last-child { border-right: 0; margin-left: auto; }
+.console .cns-stage-bar b {
+  color: var(--cns-t1); font-weight: 500; font-variant-numeric: tabular-nums;
 }
 
-/* ── the footer timeline ──────────────────────────────────────────────── */
+/* A live pip. One dot, breathing — the only animation on the screen, so
+   it reads as "this is the live one" rather than as decoration. */
+.console .cns-pip {
+  display: inline-block; width: 4px; height: 4px; flex: none;
+  background: var(--cns-t1);
+  animation: cns-breathe 2.6s var(--cns-ease) infinite;
+}
+@keyframes cns-breathe { 0%, 100% { opacity: 1 } 50% { opacity: .22 } }
+@media (prefers-reduced-motion: reduce) {
+  .console .cns-pip { animation: none; opacity: .8; }
+}
 
-.cs-foot {
+/* ══ THE DAY ══════════════════════════════════════════════════════════════ */
+
+.console .cns-foot {
   grid-area: foot;
-  display: grid; grid-template-rows: 20px minmax(0, 1fr);
-  background: var(--panel);
-  border: 1px solid rgba(242, 242, 242, .07);
+  display: grid; grid-template-rows: 18px minmax(0, 1fr);
+  background: var(--cns-plate);
+  border: 1px solid var(--cns-rule);
   min-height: 0; overflow: hidden;
 }
-.cs-foot-hd {
-  display: flex; align-items: center; gap: 14px;
-  padding: 0 10px;
-  border-bottom: 1px solid rgba(242, 242, 242, .06);
-  font-family: var(--font-mono-f), monospace;
-  font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
-  color: var(--ink-4);
+.console .cns-foot-hd {
+  display: flex; align-items: center; gap: 0;
+  border-bottom: 1px solid var(--cns-rule);
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--cns-t4);
+  overflow: hidden; white-space: nowrap;
 }
-.cs-foot-hd b { color: var(--ink-2); font-weight: 500; }
-.cs-foot-hd .lit { color: var(--sig); }
-.cs-foot-body { position: relative; min-height: 0; }
-.cs-foot-body .dh-canvas { width: 100%; height: 100%; display: block; }
-
-/* ── narrow ───────────────────────────────────────────────────────────── */
-
-/* The shell's main region becomes the frame: no padding, no scrolling, and
-   no flex sizing of its own to argue with the grid inside. */
-main.hud-grid:has(.console) {
-  padding: 0;
-  overflow: hidden;
-  display: block;
+.console .cns-foot-hd > * { padding: 0 10px; border-right: 1px solid var(--cns-rule); }
+.console .cns-foot-hd > :last-child { border-right: 0; margin-left: auto; }
+.console .cns-foot-hd b {
+  color: var(--cns-t2); font-weight: 500; font-variant-numeric: tabular-nums;
 }
+.console .cns-foot-body { position: relative; min-height: 0; }
+.console .cns-foot-body .dh-canvas { width: 100%; height: 100%; display: block; }
+
+/* ══ THE COMMAND BAR ══════════════════════════════════════════════════════
+ *
+ * The reference's bottom edge: menus on the left, identifiers on the
+ * right. The identifiers are the part that matters — a console that can
+ * tell you which build, which view and which feed it is running is a
+ * console you can trust. SAGE knows all three; it just never said so.
+ */
+
+.console .cns-bar {
+  grid-area: bar;
+  display: flex; align-items: stretch; gap: 0;
+  background: var(--cns-plate);
+  border: 1px solid var(--cns-rule);
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .2em; text-transform: uppercase;
+  color: var(--cns-t4);
+  overflow: hidden; white-space: nowrap;
+}
+.console .cns-bar > * {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px; border-right: 1px solid var(--cns-rule);
+}
+.console .cns-bar > :last-child { border-right: 0; }
+.console .cns-bar-sp { flex: 1; }
+.console .cns-bar b { color: var(--cns-t2); font-weight: 500; }
+.console .cns-bar .num { color: var(--cns-t2); font-variant-numeric: tabular-nums; }
+
+/* ══ THE SHELL ════════════════════════════════════════════════════════════ */
+
+/* The shell's main region becomes the frame: no padding, no scrolling, no
+   flex sizing of its own to argue with the grid inside. */
+main.hud-grid:has(.console) { padding: 0; overflow: hidden; display: block; }
 /*
  * Two levels, not one.
  *
  * The dashboard renders inside a wrapper inside `.h-full`, and `height:
  * 100%` only resolves against a parent that HAS a height. Bounding the
  * first child left the second at `auto`, so the console sized to its own
- * content — 1138px inside a 976px region — and the footer timeline hung
- * 144px below the window with no way to scroll to it.
+ * content — 1138px inside a 976px region — and the footer hung below the
+ * window with no way to scroll to it.
  */
 main.hud-grid:has(.console) > *,
 main.hud-grid:has(.console) > * > * { height: 100%; min-height: 0; }
 
+/* ══ NARROW ═══════════════════════════════════════════════════════════════ */
+
 @media (max-width: 1119px) {
-  /* A three-column console on a narrow window is three unusable columns.
-     The stage keeps the top half, the rails become one scrolling column
-     under it, and the page is allowed to scroll again. */
+  /* Three columns on a narrow window is three unusable columns. The stage
+     keeps the top, the rails stack under it, and the page scrolls again.
+     The vertical strip goes: 18px of bezel is a luxury of a wide screen. */
   main.hud-grid:has(.console) { overflow-y: auto; }
   main.hud-grid:has(.console) > *,
   main.hud-grid:has(.console) > * > * { height: auto; }
   .console {
-    height: auto;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 24px 46vh auto auto auto;
-    grid-template-areas: "strip" "stage" "foot" "left" "right";
     height: auto; overflow: visible;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 22px 46vh auto auto auto 19px;
+    grid-template-areas: "top" "stage" "foot" "left" "right" "bar";
   }
-  .cs-left, .cs-right-rail { overflow: visible; }
-  .cs-left .pane-body, .cs-right-rail .pane-body { max-height: none; }
+  .console .cns-vert { display: none; }
+  .console .cns-left, .console .cns-right { overflow: visible; }
+  .console .cns-rail .pane-body { max-height: none; }
+  /* The rails become frames of their own once they are no longer sharing
+     a column — without the gap between them the sections of one run into
+     the sections of the other. */
+  .console .cns-left, .console .cns-right {
+    border: 1px solid var(--cns-rule); background: var(--cns-plate);
+  }
 }

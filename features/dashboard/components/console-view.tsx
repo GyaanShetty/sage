@@ -3,30 +3,30 @@
 /**
  * The console.
  *
- * Built to the drone-tracker reference: one screen, a dominant stage, two
- * dense rails and a timeline across the bottom. What that reference gets
- * right is not its palette — SAGE already had a palette — but its
- * composition. The wall had twenty-four panes of equal weight over four and
- * a half screens, which is the definition of having no view at all.
+ * Rebuilt to the Gotham reference — the Batman v Superman surveillance
+ * console, which is the clearest statement of this genre anyone has made.
+ * Worth being precise about what was taken from it, because it is not the
+ * palette and it is not the ornament:
  *
- * Everything shown here already existed. Nothing new was built to fill it;
- * the pieces were only given a hierarchy:
+ *   · A BEZEL. The reference is framed on every edge: an identifier strip
+ *     down the left, a status strip across the top, a command bar across
+ *     the bottom. Nothing floats. That frame is most of why it reads as
+ *     equipment rather than as a page, and SAGE had none of it.
+ *   · ONE FRAME PER GROUP. Its left panel is a single bordered module
+ *     divided by labelled rules. SAGE had eight separate bordered cards
+ *     with gaps between them — eight times the chrome for the same
+ *     content, which is the whole reason it felt cluttered.
+ *   · THE PICTURE IS THE SUBJECT. Corner brackets, a tick ruler, four
+ *     corner readouts, and a status line underneath naming the place, the
+ *     state and the feed id. Everything else on the screen is quieter
+ *     than it.
+ *   · IDENTIFIERS EVERYWHERE. `gth-02X.map`, `x5-0039`, `WAYNE IND.05.2016`.
+ *     A console that can tell you which build and which feed it is running
+ *     is one you can trust. SAGE knew all of it and never said any of it.
  *
- *   · the STAGE is whichever of three things he wants to be looking at —
- *     the live screens, today's wire photographs, or the whiteboard. It
- *     was the map, and the map was the wrong answer: a fixed view of
- *     Bengaluru does not change, so 55% of the screen was spent on
- *     something with nothing to say. A console's stage should be the thing
- *     that is HAPPENING;
- *   · the LEFT RAIL is control — what is standing, what is due, what is
- *     next — which is what you check before you do anything;
- *   · the RIGHT RAIL is intelligence — what SAGE wants, the markets, what
- *     the wire is chasing — which is what you check while you work;
- *   · the FOOT is the day, which SAGE was already drawing on a canvas and
- *     which is exactly the reference's mission-playback strip.
- *
- * The wall is not deleted. It is one tab away, because twenty-four panes is
- * the right view for a Sunday afternoon and the wrong one for a Tuesday.
+ * What is NOT taken: the crammed density. The reference is mostly black.
+ * Its authority comes from a few dense things against a lot of nothing,
+ * and the instinct to fill the remaining space is the one to resist.
  */
 
 import { useEffect, useState } from "react";
@@ -53,6 +53,25 @@ const clock = (d: Date) =>
     timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   }).format(d);
 
+const DATE = (d: Date) =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: TZ, day: "2-digit", month: "short", year: "numeric",
+  }).format(d).toUpperCase().replace(/ /g, ".");
+
+type Stage = "live" | "wire" | "board";
+
+/*
+ * What each stage is, in the reference's own three-part grammar: a place,
+ * a state, and a feed identifier. The identifiers are real — they name the
+ * component actually mounted — because an id that is decoration is worse
+ * than no id.
+ */
+const STAGES: { id: Stage; label: string; state: string; feed: string }[] = [
+  { id: "live",  label: "Screens", state: "ON AIR", feed: "tv-03.live" },
+  { id: "wire",  label: "Wire",    state: "WIRE",   feed: "wire-01.img" },
+  { id: "board", label: "Canvas",  state: "CANVAS", feed: "bd-00.draw" },
+];
+
 export function ConsoleView({
   tasks: initialTasks,
   events,
@@ -66,20 +85,22 @@ export function ConsoleView({
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [now, setNow] = useState<string>("");
+  const [today_, setToday_] = useState<string>("");
+
   /*
    * Which of the three the stage is showing, remembered.
    *
-   * A switcher rather than my choosing for him again: the stage is 55% of
+   * A switcher rather than my choosing for him again: the stage is half
    * the screen, and what deserves that is different at 7am and 7pm.
    */
-  const [stage, setStage] = useState<"live" | "wire" | "board">("live");
+  const [stage, setStage] = useState<Stage>("live");
   useEffect(() => {
     try {
       const v = localStorage.getItem("sage-stage");
       if (v === "wire" || v === "board" || v === "live") setStage(v);
     } catch { /* blocked storage — the default stands */ }
   }, []);
-  const pickStage = (v: "live" | "wire" | "board") => {
+  const pickStage = (v: Stage) => {
     setStage(v);
     try { localStorage.setItem("sage-stage", v); } catch { /* not worth failing over */ }
   };
@@ -88,7 +109,7 @@ export function ConsoleView({
      that is wrong by however long the page took to arrive, and React will
      shout about the mismatch besides. */
   useEffect(() => {
-    const tick = () => setNow(clock(new Date()));
+    const tick = () => { const d = new Date(); setNow(clock(d)); setToday_(DATE(d)); };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
@@ -106,110 +127,149 @@ export function ConsoleView({
     .filter((x) => x.t >= Date.now())
     .sort((a, b) => a.t - b.t)[0]?.e;
 
+  const nowStage = STAGES.find((s) => s.id === stage) ?? STAGES[0];
+  const pad2 = (n: number) => n.toString().padStart(2, "0");
+
   return (
     <div className="console">
-      <div className="cs-strip">
-        <span className="cs-id">
-          <b>{APP_NAME}</b> · operations
-        </span>
-        <span className="cs-right">BENGALURU STATION</span>
-        <span className="cs-right num">{now}</span>
 
-        <nav className="cs-stage-pick" aria-label="Stage">
-          <span className="cs-pick-k">Stage</span>
-          {/* "Canvas", not "Board" — the views nav below already has a Board,
-              which goes to the full-screen one. Two buttons reading the same
-              word in the same strip, doing different things, is a trap. */}
-          {([["live", "Screens"], ["wire", "Wire"], ["board", "Canvas"]] as const).map(([id, label]) => (
+      {/* ── the top strip ───────────────────────────────────────────── */}
+      <header className="cns-top">
+        <span className="cns-mark"><b>{APP_NAME}</b> operations</span>
+        <span>Bengaluru station</span>
+        <span className="num">{now || "--:--:--"}</span>
+        <span>IST</span>
+
+        <nav className="cns-grp" aria-label="Stage">
+          {STAGES.map((s) => (
             <button
-              key={id}
-              data-stage={id}
-              aria-pressed={stage === id}
-              className={`cs-tab${stage === id ? " on" : ""}`}
-              onClick={() => pickStage(id)}
-            >{label}</button>
+              key={s.id}
+              data-stage={s.id}
+              aria-pressed={stage === s.id}
+              className={`cns-mi${stage === s.id ? " on" : ""}`}
+              onClick={() => pickStage(s.id)}
+            >{s.label}</button>
           ))}
         </nav>
 
-        <nav className="cs-nav" aria-label="Views">
-          <button className="cs-tab on">Console</button>
-          <button className="cs-tab" onClick={onWall}>Wall</button>
-          <Link className="cs-tab" href="/markets">Markets</Link>
-          <Link className="cs-tab" href="/study">Study</Link>
-          <Link className="cs-tab" href="/workspace">Board</Link>
-          <Link className="cs-tab" href="/gods-eye">God&rsquo;s Eye</Link>
+        <span className="cns-sp" />
+
+        <nav className="cns-grp" aria-label="Views">
+          <button className="cns-mi on">Console</button>
+          <button className="cns-mi" onClick={onWall}>Wall</button>
+          <Link className="cns-mi" href="/markets">Markets</Link>
+          <Link className="cns-mi" href="/study">Study</Link>
+          <Link className="cns-mi" href="/workspace">Board</Link>
+          <Link className="cns-mi" href="/gods-eye">God&rsquo;s Eye</Link>
         </nav>
 
-        <span className="cs-right">
-          {overdue > 0 ? <>THREAT <b>{overdue} LATE</b></> : <>STATUS <b>NOMINAL</b></>}
+        <span>
+          {overdue > 0
+            ? <>threat <b className="num">{pad2(overdue)} late</b></>
+            : <>status <b className="num">nominal</b></>}
         </span>
-      </div>
+      </header>
 
-      {/* ── control ─────────────────────────────────────────────────── */}
-      <div className="cs-left">
-        <TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard>
-        <TileGuard name="DIRECTIVES">
-          <DirectivesPanel n={1} tasks={tasks} setTasks={setTasks} />
-        </TileGuard>
-        <TileGuard name="AGENDA"><AgendaPanel n={2} events={events} /></TileGuard>
-        <TileGuard name="INBOX"><GmailPanel n={3} /></TileGuard>
-      </div>
+      {/* ── the bezel ───────────────────────────────────────────────── */}
+      <aside className="cns-vert" aria-hidden>
+        <span className="cns-vert-t">
+          {APP_NAME} · console · {today_ || "——"}
+        </span>
+      </aside>
+
+      {/* ── control: what is standing, what is due, what is next ────── */}
+      <section className="cns-fr cns-left" aria-label="Control">
+        <div className="cns-rail">
+          <TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard>
+          <TileGuard name="DIRECTIVES">
+            <DirectivesPanel n={1} tasks={tasks} setTasks={setTasks} />
+          </TileGuard>
+          <TileGuard name="AGENDA"><AgendaPanel n={2} events={events} /></TileGuard>
+          <TileGuard name="INBOX"><GmailPanel n={3} /></TileGuard>
+        </div>
+      </section>
 
       {/* ── the stage ───────────────────────────────────────────────── */}
-      <div className="cs-stage" data-stage={stage}>
-        <TileGuard name="STAGE">
-          {stage === "live" && <LiveTv n={9} />}
-          {stage === "wire" && <PictureWall n={9} />}
-          {stage === "board" && <BoardTile n={9} />}
-        </TileGuard>
-        {/*
-          The readouts sit in the corners so the middle of the stage stays
-          the stage. Everything here is already on the page elsewhere — this
-          is the glance version, for when you are looking at the stage
-          anyway. data-stage is on the wrapper because the bottom two have
-          to clear whatever that stage puts along its own bottom edge.
-        */}
-        <div className="cs-hud" aria-hidden>
-          <div className="cs-hud-tl">
-            <b>Bengaluru · {weather ?? "—"}</b>
-            <span>{today.length} on the calendar</span>
-          </div>
-          <div className="cs-hud-tr">
-            <b>{open.toString().padStart(2, "0")} OPEN</b>
-            <span className={overdue ? "lit" : undefined}>
-              {overdue ? `${overdue} overdue` : "nothing late"}
-            </span>
-          </div>
-          <div className="cs-hud-bl">
-            <b>{today.length.toString().padStart(2, "0")} TODAY</b>
-            <span>{next ? `next · ${next.summary}` : "calendar clear"}</span>
-          </div>
-          <div className="cs-hud-br">
-            <b className="lit">{stage === "live" ? "ON AIR" : stage === "wire" ? "WIRE" : "CANVAS"}</b>
-            <span>{now}</span>
+      <section className="cns-stage" data-stage={stage} aria-label="Stage">
+        <div className="cns-stage-media">
+          <TileGuard name="STAGE">
+            {stage === "live" && <LiveTv n={9} />}
+            {stage === "wire" && <PictureWall n={9} />}
+            {stage === "board" && <BoardTile n={9} />}
+          </TileGuard>
+
+          {/*
+            Four corner readouts. Everything here is on the page elsewhere —
+            this is the glance version, for when you are looking at the
+            stage anyway. They sit inside the media box rather than over the
+            whole stage, which is what keeps them off the caption strip.
+          */}
+          <div className="cns-hud" aria-hidden>
+            <div className="cns-hud-tl">
+              <b>Bengaluru · {weather ?? "—"}</b>
+              <span>{pad2(today.length)} on the calendar</span>
+            </div>
+            <div className="cns-hud-tr">
+              <b>{pad2(open)} open</b>
+              <span className={overdue ? "lit" : undefined}>
+                {overdue ? `${pad2(overdue)} overdue` : "nothing late"}
+              </span>
+            </div>
+            <div className="cns-hud-bl">
+              <b>{pad2(today.length)} today</b>
+              <span>{next ? `next · ${next.summary}` : "calendar clear"}</span>
+            </div>
+            <div className="cns-hud-br">
+              <b>{now || "--:--:--"}</b>
+              <span>local</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── intelligence ────────────────────────────────────────────── */}
-      <div className="cs-right-rail">
-        <TileGuard name="DOCKET"><Docket n={0} /></TileGuard>
-        <TileGuard name="MARKETS"><MarketsList n={4} limit={8} /></TileGuard>
-        <TileGuard name="HOTTOPICS"><HotTopics n={5} /></TileGuard>
-        <TileGuard name="MORNINGWIRE"><MorningWire n={6} /></TileGuard>
-      </div>
+        {/* Place, state, feed — the reference's own bottom line. */}
+        <div className="cns-stage-bar">
+          <span>Bengaluru</span>
+          <span><i className="cns-pip" /> <b>{nowStage.state}</b></span>
+          <span>{nowStage.feed}</span>
+          <span className="num"><b>{now || "--:--:--"}</b></span>
+        </div>
+      </section>
+
+      {/* ── intelligence: what SAGE wants, what moved, what is chased ── */}
+      <section className="cns-fr cns-right" aria-label="Intelligence">
+        <div className="cns-rail">
+          <TileGuard name="DOCKET"><Docket n={0} /></TileGuard>
+          <TileGuard name="MARKETS"><MarketsList n={4} limit={8} /></TileGuard>
+          <TileGuard name="HOTTOPICS"><HotTopics n={5} /></TileGuard>
+          <TileGuard name="MORNINGWIRE"><MorningWire n={6} /></TileGuard>
+        </div>
+      </section>
 
       {/* ── the day ─────────────────────────────────────────────────── */}
-      <div className="cs-foot">
-        <div className="cs-foot-hd">
-          <b>Today</b>
+      <section className="cns-foot" aria-label="Today">
+        <div className="cns-foot-hd">
+          <span><b>Today</b></span>
           <span>24h · sessions · calendar</span>
-          <span className="lit">{now}</span>
+          <span>{today_ || "——"}</span>
+          <span><b>{now || "--:--:--"}</b></span>
         </div>
-        <div className="cs-foot-body">
+        <div className="cns-foot-body">
           <TileGuard bare name="TIMELINE"><HeroCanvas events={events} /></TileGuard>
         </div>
-      </div>
+      </section>
+
+      {/* ── the command bar ─────────────────────────────────────────── */}
+      <footer className="cns-bar">
+        <span><b>{APP_NAME}</b> os</span>
+        <span>console.view</span>
+        <span>stage · <b>{nowStage.feed}</b></span>
+        <span>tz · kolkata</span>
+        <span className="cns-bar-sp" />
+        <span>open <b className="num">{pad2(open)}</b></span>
+        <span>today <b className="num">{pad2(today.length)}</b></span>
+        <span>late <b className="num">{pad2(overdue)}</b></span>
+        <span><i className="cns-pip" /> live</span>
+      </footer>
     </div>
   );
 }

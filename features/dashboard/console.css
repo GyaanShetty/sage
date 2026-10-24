@@ -435,8 +435,27 @@
  * assembled rather than designed. Nothing in a rail is bigger than the
  * value step; the numbers are allowed to be the loud thing.
  */
-.console .cns-rail :where(.wire-lede, .wire-h1, .ht-lede, .dk-t, .gm-sub, .wire-h) {
+.console .cns-rail :where(.wire-lead, .dk-t, .gm-sub, .wire-h, .ht-h, .ht-story) {
   font-size: var(--cns-body); line-height: 1.32;
+}
+/* The wire's lead story keeps its serif — it is the one piece of prose on
+   this screen and the contrast against all that mono is the point — but
+   at the rail's own size rather than the wall's. */
+.console .cns-rail .wire-lead { font-weight: 500; }
+
+/*
+ * The trending list had its own rhythm: 28px rows against the 18px
+ * everything else in the rail settled on, and a serif term beside mono
+ * numbers. Two lists in one module, visibly disagreeing about what a row
+ * is, is the exact thing one shared rhythm is for.
+ */
+.console .cns-rail .ht-item { padding-block: 0; }
+.console .cns-rail .ht-row { min-height: 0; padding-block: 2px; }
+.console .cns-rail .ht-term {
+  font-family: var(--cns-mono);
+  font-size: var(--cns-small);
+  letter-spacing: .04em;
+  line-height: 1.5;
 }
 .console .cns-rail * { max-width: 100%; }
 
@@ -489,6 +508,41 @@
     linear-gradient(var(--cns-rule-lit), var(--cns-rule-lit)) right bottom / 1px 16px no-repeat;
 }
 
+/*
+ * What the stage says when it has nothing to show.
+ *
+ * Both of these were landing at the top-left of the picture in a 14px
+ * serif — directly underneath the top-left readout, which is where the
+ * place and the weather live. Two unrelated sentences on one line, one
+ * of them ornamental ASCII, is the kind of collision that only shows up
+ * when a feed happens to be empty, which is to say when you are already
+ * wondering what is wrong.
+ *
+ * Centred, in the chrome's own voice, well below the readouts.
+ */
+.console .cns-stage :where(.empty, .empty-state, .tile-wait) {
+  position: absolute; inset: 56px 16px 32px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 7px;
+  text-align: center; padding: 0; min-height: 0;
+}
+.console .cns-stage :where(.empty, .empty-state, .tile-wait) :where(p, div, span, a) {
+  margin: 0; max-width: 46ch;
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro);
+  letter-spacing: .16em; line-height: 1.8;
+  text-transform: uppercase;
+  color: var(--cns-t4);
+}
+.console .cns-stage .tile-wait {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .16em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .cns-stage .empty-rule { display: none; }
+.console .cns-stage :where(.empty, .empty-state) svg {
+  width: 12px; height: 12px; opacity: .4;
+}
+
 /* The HUD: four corner readouts over the picture. */
 .console .cns-hud {
   position: absolute; inset: 0; z-index: 8; pointer-events: none;
@@ -506,11 +560,13 @@
  * edge rather than printing over it.
  *
  * Moving the HUD inside the media box was supposed to fix this and did
- * not: the live stage's caption strip is INSIDE that box, 40px of it,
- * measured. So the offset stays, now as one token with one number in it.
- * The other two stages fill their box and keep the default.
+ * not, and then the first offset was wrong too. Both for the same reason:
+ * the caption bar is INSIDE the player cell, so measuring where the cell
+ * ends (40px up) misses where its text starts (91px up). Measured at the
+ * caption bar itself this time, plus 8px of air. The other two stages
+ * fill their box edge to edge and keep the default.
  */
-.console .cns-stage[data-stage="live"] { --cns-hud-foot: 50px; }
+.console .cns-stage[data-stage="live"] { --cns-hud-foot: 99px; }
 .console .cns-hud b {
   display: block; color: var(--cns-t1); font-weight: 500;
   font-size: var(--cns-label); letter-spacing: .18em;

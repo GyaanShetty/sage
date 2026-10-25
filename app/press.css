@@ -95,45 +95,61 @@
    * carries its position.
    */
   /*
-   * Monochrome, on his instruction. No hue anywhere in the chrome.
+   * THREE COLOURS, AND A BUDGET.
    *
-   * The accent becomes pure white, which still works as an accent because
-   * everything around it is held well below it: body text sits at 76%,
-   * labels at 40%, rules at 8%. "Live" reads as the brightest thing on a
-   * dim screen rather than as the only coloured thing — a weaker signal
-   * than red, and the one he asked for.
+   * The screen went fully monochrome on his instruction and has now come
+   * back a step: a dark ground, white and grey for everything that is
+   * read, one red for what is live or wrong, and green/red for market
+   * direction. That is the entire allowance, and the guard test in
+   * tests/logic.test.ts enforces it — any other hue anywhere in app/,
+   * features/, components/ or core/ fails the build. A budget only works
+   * if something counts it.
+   *
+   * The red is ONE red, used for two things that are the same thing:
+   * attention, and down. Giving "alert" and "falling" separate reds puts
+   * two nearly-identical hues on one screen meaning different things,
+   * which is worse than sharing — and a market that is down IS the state
+   * you want noticed.
    */
-  --signal:       #ffffff;
-  --signal-dim:   rgba(255, 255, 255, 0.34);
-  --signal-faint: rgba(255, 255, 255, 0.08);
-  --signal-glow:  rgba(255, 255, 255, 0.30);
-  --live:         #ffffff;
-  --live-dim:     rgba(255, 255, 255, 0.34);
-  --live-glow:    rgba(255, 255, 255, 0.28);
-  --accent:       #ffffff;
-  --claret:       #ffffff;   /* kept as a name so the press rules below hold */
+  --signal:       #e5484d;
+  --signal-dim:   rgba(229, 72, 77, 0.34);
+  --signal-faint: rgba(229, 72, 77, 0.10);
+  --signal-glow:  rgba(229, 72, 77, 0.30);
+  --live:         #e5484d;
+  --live-dim:     rgba(229, 72, 77, 0.34);
+  --live-glow:    rgba(229, 72, 77, 0.28);
+  --accent:       #e5484d;
+  --claret:       #e5484d;   /* kept as a name so the press rules below hold */
   --teal:         rgba(242, 242, 242, 0.62);
 
-  /* The one accent, under the name the rules below actually use. It was
-     called --accent-2 until the brief changed; renamed rather than left
-     lying about what colour it is. */
-  --sig:      #ffffff;
-  --sig-dim:  rgba(255, 255, 255, 0.30);
-  --sig-glow: rgba(255, 255, 255, 0.16);
+  /* The one accent, under the name the rules below actually use. */
+  --sig:      #e5484d;
+  --sig-dim:  rgba(229, 72, 77, 0.34);
+  --sig-glow: rgba(229, 72, 77, 0.18);
 
   /*
-   * Market direction. The old pair was desaturated to a third of its chroma
-   * and measured 1.9 ΔE apart under deuteranopia — identical, to a red-green
-   * colourblind reader. These are the validated steps: 6.5 ΔE under protan,
-   * 27.5 under normal vision. 6.5 is in the warn band, which is legal ONLY
-   * with a secondary encoding, and the ▲/▽ that ship with every figure on
-   * this page are it. Never print one of these without its arrow.
+   * Market direction. Measured, not chosen by eye.
+   *
+   * Green beside red is the single most common colourblind failure, and
+   * the obvious pair proves it: #30a46c against this red measures ΔE 4.9
+   * under deuteranopia — indistinguishable. This green is re-stepped
+   * LIGHTER so the pair separates on the lightness axis as well as hue,
+   * which is the axis deuteranopia leaves intact.
+   *
+   * Validated against this ground (OKLab ×100, dark, surface #0b0b0b):
+   *   deuteranopia ΔE 10.7   (target ≥ 8)
+   *   normal vision ΔE 32.5  (floor 15)
+   *   both ≥ 3:1 on the surface; the red is 5.0:1, the green 8.9:1
+   * The validator also flags the pair as outside its lightness band; that
+   * check exists to keep a CATEGORICAL set tonally even, and this is a
+   * two-pole status pair whose uneven lightness is the safety mechanism.
+   *
+   * ▲/▽ ship with every figure drawn in these and are not decoration —
+   * at ΔE 10.7 they are what a colourblind reader is actually reading.
+   * Never print one of these without its arrow.
    */
-  --up:   #f2f2f2;
-  /* Down is the alert colour, which is coherent rather than a collision:
-     down IS the bad state. 6.5 ΔE from up under deuteranopia — the warn
-     band — so the ▲/▽ that ship with every figure are doing real work. */
-  --down: #8a8a8a;
+  --up:   #4cc38a;
+  --down: #e5484d;
 
   /*
    * The series palette — six slots, in this order, never cycled.
@@ -2074,28 +2090,32 @@ body::before { background: repeating-linear-gradient(to bottom, rgba(0,0,0,.1) 0
 }
 .wall-back:hover { color: var(--sig); border-color: var(--sig); }
 
-/* ── monochrome ───────────────────────────────────────────────────────── */
+/* ── pictures ─────────────────────────────────────────────────────────── */
 
 /*
- * He asked for black and white, so this is black and white including the
- * pictures. Photographs and video are content rather than chrome, and a
- * case could be made for leaving them — but "only black and white, no
- * colours" is not ambiguous, and a wall of colour press photography in an
- * otherwise greyscale room is exactly the thing he has twice said he does
- * not want. One line to revert if he misses it.
+ * Mostly desaturated, not fully.
+ *
+ * Under "no colours" these were hard greyscale, which made a wall of
+ * press photography read as one grey smear and the live video look
+ * broken. The brief is now a dark room with a little red in it, so the
+ * pictures come back part of the way: enough colour to tell a newsroom
+ * from a protest at a glance, not enough to compete with the one red
+ * that is supposed to mean something. Hover brings a frame fully back,
+ * because the thing you are pointing at is the thing you want to see.
  */
 .pw-cell img, .wire-shot, .tv-vid img, .tv3-stage iframe, .tv3-still {
-  filter: grayscale(1) contrast(1.04) brightness(.78);
+  filter: grayscale(.55) contrast(1.04) brightness(.82) saturate(.9);
+  transition: filter 180ms var(--ease);
 }
-.pw-cell:hover img, .wire-row:hover .wire-shot {
-  filter: grayscale(1) contrast(1.02) brightness(1);
+.pw-cell:hover img, .wire-row:hover .wire-shot, .tv3-stage:hover iframe {
+  filter: grayscale(0) contrast(1.02) brightness(1);
 }
 
-/* Direction keeps its arrows and gives up its hue. ▲ and ▽ were always the
-   required secondary encoding — now they are the whole encoding, which is
-   why they may never be dropped. */
-.up, .cx-sval.up, .tape .up, .tick .up { color: var(--ink); }
-.down, .cx-sval.down, .tape .down, .tick .down { color: var(--ink-3); }
+/* Direction has its hue back, and keeps its arrows. At ΔE 10.7 under
+   deuteranopia the colour is a strong hint and the ▲/▽ is the reading —
+   which is why they may never be dropped, now any more than before. */
+.up, .cx-sval.up, .tape .up, .tick .up { color: var(--up); }
+.down, .cx-sval.down, .tape .down, .tick .down { color: var(--down); }
 
 /* The stage picker, inline in the strip like the reference's tabs. */
 .cs-stage-pick { display: flex; align-items: center; gap: 0; margin-left: 24px; }

@@ -44,6 +44,12 @@ import { MarketsList } from "./markets-list";
 import { HotTopics } from "./hot-topics";
 import { MorningWire } from "./morning-wire";
 import { SitrepBand } from "./sitrep-band";
+import { TaskBoard } from "./task-board";
+import { ProgressPanel } from "./progress-panel";
+import { TrainingTile } from "./training-tile";
+import { MiniCalendar } from "./mini-calendar";
+import { BriefTile } from "./brief-tile";
+import { ClockTile } from "./clock-tile";
 import { TZ, APP_NAME } from "@/lib/config";
 import type { EventRow, TaskRow } from "./command-view";
 import "../console.css";
@@ -58,7 +64,7 @@ const DATE = (d: Date) =>
     timeZone: TZ, day: "2-digit", month: "short", year: "numeric",
   }).format(d).toUpperCase().replace(/ /g, ".");
 
-type Stage = "live" | "wire" | "board";
+type Stage = "live" | "tasks" | "wire" | "board";
 
 /*
  * What each stage is, in the reference's own three-part grammar: a place,
@@ -68,6 +74,7 @@ type Stage = "live" | "wire" | "board";
  */
 const STAGES: { id: Stage; label: string; state: string; feed: string }[] = [
   { id: "live",  label: "Screens", state: "ON AIR", feed: "tv-03.live" },
+  { id: "tasks", label: "Board",   state: "BOARD",  feed: "tt-01.task" },
   { id: "wire",  label: "Wire",    state: "WIRE",   feed: "wire-01.img" },
   { id: "board", label: "Canvas",  state: "CANVAS", feed: "bd-00.draw" },
 ];
@@ -97,7 +104,7 @@ export function ConsoleView({
   useEffect(() => {
     try {
       const v = localStorage.getItem("sage-stage");
-      if (v === "wire" || v === "board" || v === "live") setStage(v);
+      if (v === "wire" || v === "board" || v === "live" || v === "tasks") setStage(v);
     } catch { /* blocked storage — the default stands */ }
   }, []);
   const pickStage = (v: Stage) => {
@@ -180,12 +187,17 @@ export function ConsoleView({
       {/* ── control: what is standing, what is due, what is next ────── */}
       <section className="cns-fr cns-left" aria-label="Control">
         <div className="cns-rail">
+          {/* The clock sits above everything because it is the only thing
+              here you read without being asked to. */}
+          <ClockTile />
           <TileGuard name="SITREP"><div className="wall-cell"><SitrepBand compact /></div></TileGuard>
+          <TileGuard name="AGENDA"><AgendaPanel n={1} events={events} /></TileGuard>
+          <TileGuard name="CALENDAR"><MiniCalendar n={2} events={events} /></TileGuard>
+          <TileGuard name="TRAINING"><TrainingTile n={3} events={events} /></TileGuard>
           <TileGuard name="DIRECTIVES">
-            <DirectivesPanel n={1} tasks={tasks} setTasks={setTasks} />
+            <DirectivesPanel n={4} tasks={tasks} setTasks={setTasks} />
           </TileGuard>
-          <TileGuard name="AGENDA"><AgendaPanel n={2} events={events} /></TileGuard>
-          <TileGuard name="INBOX"><GmailPanel n={3} /></TileGuard>
+          <TileGuard name="INBOX"><GmailPanel n={5} /></TileGuard>
         </div>
       </section>
 
@@ -194,6 +206,7 @@ export function ConsoleView({
         <div className="cns-stage-media">
           <TileGuard name="STAGE">
             {stage === "live" && <LiveTv n={9} />}
+            {stage === "tasks" && <TaskBoard n={9} />}
             {stage === "wire" && <PictureWall n={9} />}
             {stage === "board" && <BoardTile n={9} />}
           </TileGuard>
@@ -238,10 +251,12 @@ export function ConsoleView({
       {/* ── intelligence: what SAGE wants, what moved, what is chased ── */}
       <section className="cns-fr cns-right" aria-label="Intelligence">
         <div className="cns-rail">
-          <TileGuard name="DOCKET"><Docket n={0} /></TileGuard>
-          <TileGuard name="MARKETS"><MarketsList n={4} limit={8} /></TileGuard>
-          <TileGuard name="HOTTOPICS"><HotTopics n={5} /></TileGuard>
-          <TileGuard name="MORNINGWIRE"><MorningWire n={6} /></TileGuard>
+          <TileGuard name="BRIEF"><BriefTile n={6} /></TileGuard>
+          <TileGuard name="DOCKET"><Docket n={7} /></TileGuard>
+          <TileGuard name="PROGRESS"><ProgressPanel n={8} /></TileGuard>
+          <TileGuard name="MARKETS"><MarketsList n={9} limit={8} /></TileGuard>
+          <TileGuard name="HOTTOPICS"><HotTopics n={10} /></TileGuard>
+          <TileGuard name="MORNINGWIRE"><MorningWire n={11} /></TileGuard>
         </div>
       </section>
 

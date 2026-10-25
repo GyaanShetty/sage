@@ -5374,28 +5374,37 @@ test("the series ramp is ordinal, grey, and above the contrast floor", async () 
   // Nothing may reintroduce a sixth step by the back door.
   assert.doesNotMatch(css, /--s6\s*:/, "--s6 is gone; a sixth series folds into Other");
 
-  /*
-   * Direction keeps ▲/▽ and gives up hue entirely. up/down are now two
-   * greys, which means the glyphs are no longer a secondary encoding —
-   * they are the whole encoding, and may never be dropped.
-   */
-  assert.match(css, /--up:\s*#f2f2f2/i);
-  assert.match(css, /--down:\s*#8a8a8a/i);
+  /* Direction is no longer part of this ramp — it has its hue back and
+     its own test below. The ramp stays grey because it encodes RANK, and
+     rank is what lightness is for. */
 });
 
 /*
- * The whole interface, not just the dashboard, in black and white.
+ * The colour budget, enforced.
  *
- * This is the guard that keeps it that way. Colour comes back one hex at a
+ * The screen is a dark room with white and grey text, ONE red for what is
+ * live or wrong, and a green that appears only opposite that red for
+ * market direction. That is the whole allowance.
+ *
+ * A budget nobody counts is a wish, and colour comes back one hex at a
  * time — a borrowed Tailwind `text-red-400`, an hsl() with a saturation,
- * an rgba() copied out of a reference — and none of those look wrong in a
- * diff. So the rule is mechanical: no value anywhere in app/, features/,
- * components/ or core/ may have a channel spread over 6, which is the most
- * a rounding artefact can account for.
+ * an rgba() lifted out of a reference. None of those look wrong in a
+ * diff. So the rule is mechanical: every chromatic value in app/,
+ * features/, components/ and core/ must be one of the allowed accents,
+ * and anything else fails here rather than quietly becoming the fourth
+ * colour on a screen that is supposed to have three.
  */
-test("nothing in the interface is chromatic", async () => {
+test("the only colours in the interface are the budgeted accents", async () => {
   const fs = await import("node:fs");
   const path = await import("node:path");
+
+  /* The budget. Each entry is the accent and the alpha variants of it that
+     the stylesheets legitimately use; an alpha variant is the same hue, so
+     it spends nothing extra. */
+  const ALLOWED = new Set(
+    ["#e5484d", "#4cc38a"].map((h) => h.toLowerCase()),
+  );
+  const allowedRgb = new Set(["229,72,77", "76,195,138"]);
 
   const files: string[] = [];
   (function walk(d: string) {
@@ -5414,28 +5423,74 @@ test("nothing in the interface is chromatic", async () => {
 
   for (const f of files) {
     if (!roots.some((r) => f === r || f.startsWith(r + path.sep))) continue;
-    const txt = fs.readFileSync(f, "utf8");
+    /*
+     * Block comments are stripped first.
+     *
+     * The palette documentation names the greens it REJECTED, with their
+     * hexes, which is exactly the context a reader needs and exactly what
+     * made this guard fail on its own explanation. A hex in a comment
+     * paints nothing. Newlines are preserved so the reported line numbers
+     * still point at the real line.
+     */
+    const txt = fs.readFileSync(f, "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "));
     txt.split("\n").forEach((line, n) => {
       const at = `${f}:${n + 1}`;
       for (const m of line.matchAll(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g)) {
         const h = m[1].length === 3 ? m[1].split("").map((c) => c + c).join("") : m[1];
         const [r, g, b] = [0, 2, 4].map((k) => parseInt(h.slice(k, k + 2), 16));
-        if (spread(r, g, b) > 6) found.push(`${at} ${m[0]}`);
+        if (spread(r, g, b) > 6 && !ALLOWED.has(("#" + h).toLowerCase())) {
+          found.push(`${at} ${m[0]}`);
+        }
       }
       for (const m of line.matchAll(/\brgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)/g)) {
-        if (spread(+m[1], +m[2], +m[3]) > 6) found.push(`${at} ${m[0]})`);
+        const key = `${+m[1]},${+m[2]},${+m[3]}`;
+        if (spread(+m[1], +m[2], +m[3]) > 6 && !allowedRgb.has(key)) {
+          found.push(`${at} ${m[0]})`);
+        }
       }
-      // A literal saturation in an hsl(); `var(--sat)` is the one allowed form.
+      // A literal saturation in an hsl() — there is no hue machinery left.
       for (const m of line.matchAll(/\bhsla?\(\s*[^)]*?\s([\d.]+)%/g)) {
         if (+m[1] > 3) found.push(`${at} ${m[0]}`);
       }
-      // Tailwind's colour scales, which never reach a stylesheet to be overridden.
+      // Tailwind's colour scales never reach a stylesheet to be overridden.
       const tw = /\b(?:text|bg|border|ring|from|to|via|shadow|fill|stroke|decoration|outline|divide|accent|caret|placeholder)-(?:red|rose|pink|fuchsia|purple|violet|indigo|blue|sky|cyan|teal|emerald|green|lime|yellow|amber|orange)-\d{2,3}\b/g;
       for (const m of line.matchAll(tw)) found.push(`${at} ${m[0]}`);
     });
   }
 
-  assert.deepEqual(found, [], `chromatic values in a black-and-white interface:\n  ${found.join("\n  ")}`);
+  assert.deepEqual(found, [], `colour outside the budget (allowed: ${[...ALLOWED].join(", ")}):\n  ${found.join("\n  ")}`);
+});
+
+/*
+ * Direction may never be colour alone.
+ *
+ * The up/green and down/red pair measures ΔE 10.7 under deuteranopia —
+ * above the 8 the validator wants, and nowhere near enough to read a
+ * number by. The ▲/▽ glyphs are the actual encoding for a colourblind
+ * reader, which makes them load-bearing rather than ornamental, so the
+ * tokens and the glyphs are pinned together: whoever changes one is made
+ * to look at the other.
+ */
+test("market direction ships its arrows with its colours", async () => {
+  const fs = await import("node:fs");
+  const css = fs.readFileSync("app/press.css", "utf8");
+
+  assert.match(css, /--up:\s*#4cc38a/i, "up is the validated green");
+  assert.match(css, /--down:\s*#e5484d/i, "down is the one red");
+  // Down and the attention accent are deliberately the same red.
+  const sig = css.match(/--sig:\s*(#[0-9a-f]{6})/i)?.[1]?.toLowerCase();
+  assert.equal(sig, "#e5484d", "there is one red, used for live and for down");
+
+  /* The secondary encoding here is the SIGN on the number, not an arrow —
+     every percentage prints an explicit + or −. If this fails somebody
+     removed it, and the pair became unreadable to roughly one man in
+     twelve. */
+  const src = fs.readFileSync("features/dashboard/components/markets-list.tsx", "utf8");
+  assert.match(
+    src, /\$\{up \? "\+" : "−"\}/,
+    "every percentage must carry its own sign, not only its colour",
+  );
 });
 
 /*

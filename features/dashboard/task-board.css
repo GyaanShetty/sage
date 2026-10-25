@@ -1,0 +1,162 @@
+/* ══ THE BOARD ════════════════════════════════════════════════════════════
+ *
+ * Four lanes by WHEN, on the stage, in the console's own vocabulary:
+ * hairlines, mono micro-labels, no radius, no shadow. The one thing it is
+ * allowed that the rails are not is the accent — a late task is the
+ * clearest case of "live or wrong" on the whole screen, and if that does
+ * not earn the red then nothing does.
+ */
+
+.brd {
+  height: 100%; min-height: 0;
+  display: grid; grid-template-rows: 26px minmax(0, 1fr);
+  background: #000;
+}
+
+/* ── adding ─────────────────────────────────────────────────────────── */
+
+.brd-add {
+  display: flex; align-items: center; gap: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+}
+.brd-in {
+  flex: 1; min-width: 0;
+  background: none; border: 0; outline: none;
+  padding: 0 11px;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 11px; letter-spacing: .04em;
+  color: var(--ink);
+}
+.brd-in::placeholder { color: rgba(255, 255, 255, .26); letter-spacing: .14em; text-transform: uppercase; font-size: 9px; }
+.brd-plus {
+  display: grid; place-items: center;
+  width: 26px; align-self: stretch;
+  background: none; border: 0; border-left: 1px solid rgba(255, 255, 255, .075);
+  color: rgba(255, 255, 255, .44); cursor: pointer;
+  transition: color 120ms cubic-bezier(.32, .72, 0, 1), background-color 120ms;
+}
+.brd-plus:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, .05); }
+.brd-plus:disabled { opacity: .35; cursor: default; }
+.brd-spin { animation: brd-rot 1s linear infinite; }
+@keyframes brd-rot { to { transform: rotate(360deg) } }
+@media (prefers-reduced-motion: reduce) { .brd-spin { animation: none } }
+
+.brd-err {
+  padding: 0 11px;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--down);
+}
+
+/* ── lanes ──────────────────────────────────────────────────────────── */
+
+.brd-lanes {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: 0;
+}
+.brd-lane {
+  display: grid; grid-template-rows: 20px minmax(0, 1fr);
+  min-width: 0; min-height: 0;
+  border-right: 1px solid rgba(255, 255, 255, .075);
+}
+.brd-lane:last-child { border-right: 0; }
+
+.brd-lane-hd {
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, .025);
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+  font-family: var(--font-mono-f), monospace;
+  font-size: 8.5px; letter-spacing: .22em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .44);
+}
+.brd-lane-n {
+  margin-left: auto; font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, .72);
+}
+/* The one coloured header on the board, and only when it has something in
+   it. An always-red "Late" column is a red column, not a warning. */
+.brd-lane.hot .brd-lane-hd { color: var(--down); background: rgba(229, 72, 77, .07); }
+.brd-lane.hot .brd-lane-n { color: var(--down); }
+
+.brd-cards {
+  min-height: 0; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+  padding: 3px 0;
+}
+.brd-cards::-webkit-scrollbar { display: none; }
+
+.brd-quiet {
+  margin: 0; padding: 7px 10px;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 8px; letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .22);
+}
+
+/* ── cards ──────────────────────────────────────────────────────────── */
+
+.brd-card {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) 18px;
+  align-items: start; gap: 2px;
+  padding: 5px 7px 6px 3px;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+  transition: background-color 120ms cubic-bezier(.32, .72, 0, 1);
+}
+.brd-card:hover { background: rgba(255, 255, 255, .035); }
+.brd-card.busy { opacity: .4; }
+.brd-lane.hot .brd-card { border-left: 2px solid var(--down); }
+
+.brd-tick, .brd-x {
+  display: grid; place-items: center;
+  background: none; border: 0; cursor: pointer; padding: 1px 0 0;
+  color: rgba(255, 255, 255, .26);
+  transition: color 120ms cubic-bezier(.32, .72, 0, 1);
+}
+.brd-tick:hover { color: var(--up); }
+.brd-x:hover { color: var(--down); }
+/* The delete only appears on the card you are pointing at. It is the one
+   irreversible control on the board and it should not be sitting there
+   catching the eye on forty rows at once. */
+.brd-x { opacity: 0; }
+.brd-card:hover .brd-x, .brd-x:focus-visible { opacity: 1; }
+
+.brd-body { min-width: 0; }
+.brd-t {
+  margin: 0; font-size: 11.5px; line-height: 1.3;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.brd-card:hover .brd-t { color: var(--ink); }
+
+.brd-meta {
+  display: flex; align-items: center; gap: 7px; margin-top: 3px;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 8px; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .3);
+  min-width: 0;
+}
+.brd-proj { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brd-due { flex: none; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, .5); }
+/* Priority is a hairline box rather than a colour: MED and HIGH are both
+   "more than nothing", and only HIGH is worth the accent. */
+.brd-pri {
+  flex: none; padding: 0 3px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  color: rgba(255, 255, 255, .5);
+}
+.brd-pri.hi { border-color: var(--down); color: var(--down); }
+
+/* ── narrow ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1119px) {
+  /* Four columns inside a single-column console is four 70px columns.
+     Two lanes over two rows keeps a card wide enough to read. */
+  .brd-lanes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brd-lane:nth-child(2) { border-right: 0; }
+  .brd-lane:nth-child(-n + 2) { border-bottom: 1px solid rgba(255, 255, 255, .075); }
+}
+
+/* The one link in an otherwise read-only column. */
+.brd-link { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.brd-link:hover { color: var(--sig); }
+.brd-in:disabled { opacity: .4; cursor: not-allowed; }

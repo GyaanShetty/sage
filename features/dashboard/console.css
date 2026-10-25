@@ -67,6 +67,17 @@
   --cns-t3: rgba(255, 255, 255, .44);
   --cns-t4: rgba(255, 255, 255, .24);
 
+  /* ── the one accent ──────────────────────────────────────────────────
+     Red, and it has a job description: LIVE, LATE, or FALLING. Nothing
+     else may wear it. An accent used for emphasis becomes decoration
+     within a week, and then the thing that is actually on fire looks
+     like everything else. Green appears only against it, only for market
+     direction, and only beside an arrow. */
+  --cns-red:   #e5484d;
+  --cns-red-d: rgba(229, 72, 77, .34);
+  --cns-red-f: rgba(229, 72, 77, .10);
+  --cns-green: #4cc38a;
+
   /* ── type ────────────────────────────────────────────────────────────
      Mono throughout the chrome. The sizes are a real scale rather than
      nineteen hand-picked values: each step is roughly 1.22x the last,
@@ -221,7 +232,7 @@
    the loudest thing you can do here without adding a colour. */
 .console .cns-mi.on::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-  background: var(--cns-t1);
+  background: var(--cns-red);
 }
 .console .cns-mi { position: relative; }
 
@@ -509,6 +520,20 @@
 }
 
 /*
+ * The HUD belongs over a PICTURE, not over an interface.
+ *
+ * The corner readouts exist so the middle of the stage stays the thing
+ * you are watching. On the board the stage is not something you watch —
+ * it is something you use, and four floating readouts landed on the
+ * column headers and the bottom row of cards. A readout that covers a
+ * control is worse than no readout; everything it says is two feet away
+ * in the rails anyway.
+ */
+.console .cns-stage[data-stage="tasks"] .cns-hud,
+.console .cns-stage[data-stage="tasks"] .cns-stage-media::after,
+.console .cns-stage[data-stage="tasks"] .cns-stage-media::before { display: none; }
+
+/*
  * What the stage says when it has nothing to show.
  *
  * Both of these were landing at the top-left of the picture in a 14px
@@ -573,7 +598,7 @@
   font-variant-numeric: tabular-nums;
 }
 .console .cns-hud span { display: block; color: var(--cns-t4); margin-top: 1px; }
-.console .cns-hud .lit { color: var(--cns-t1); }
+.console .cns-hud .lit { color: var(--cns-red); }
 
 /*
  * The stage's own status line, along its bottom edge.
@@ -602,7 +627,7 @@
    it reads as "this is the live one" rather than as decoration. */
 .console .cns-pip {
   display: inline-block; width: 4px; height: 4px; flex: none;
-  background: var(--cns-t1);
+  background: var(--cns-red);
   animation: cns-breathe 2.6s var(--cns-ease) infinite;
 }
 @keyframes cns-breathe { 0%, 100% { opacity: 1 } 50% { opacity: .22 } }
@@ -705,4 +730,257 @@ main.hud-grid:has(.console) > * > * { height: 100%; min-height: 0; }
   .console .cns-left, .console .cns-right {
     border: 1px solid var(--cns-rule); background: var(--cns-plate);
   }
+  /*
+   * The month grid is square cells, and square cells in a full-width
+   * stacked rail are 139px across — a 572px calendar, taller than the
+   * stage above it. It is a glance, not a planner: capped at the width it
+   * was designed for and parked left.
+   */
+  .console .mc { max-width: 320px; }
 }
+
+/* ══ THE NEW MODULES ══════════════════════════════════════════════════════
+ *
+ * Five panels added on his list: the clock, the calendar, training, the
+ * brief, and progress. They are styled here rather than each shipping its
+ * own sheet because they only ever appear inside this console, and a
+ * sixth stylesheet is how the look stopped being owned in the first
+ * place. The board is the exception — it has its own file because it
+ * takes the whole stage and shares none of this.
+ */
+
+/* ── the clock ──────────────────────────────────────────────────────── */
+
+.console .ck { padding: 7px var(--cns-pad) 9px; }
+.console .ck-time { display: flex; align-items: baseline; gap: 5px; }
+.console .ck-hm {
+  font-family: var(--cns-mono);
+  font-size: 30px; line-height: 1; font-weight: 300;
+  letter-spacing: .02em;
+  color: var(--cns-t1);
+  font-variant-numeric: tabular-nums;
+}
+/* Seconds change sixty times a minute. Held two steps down so the most
+   restless thing on the screen is not also the loudest. */
+.console .ck-ss {
+  font-family: var(--cns-mono);
+  font-size: 12px; color: var(--cns-t4);
+  font-variant-numeric: tabular-nums;
+}
+.console .ck-date {
+  display: flex; align-items: baseline; gap: 7px; margin-top: 4px;
+  font-family: var(--cns-mono);
+  font-size: var(--cns-micro); letter-spacing: .18em; text-transform: uppercase;
+}
+.console .ck-day { color: var(--cns-t2); }
+.console .ck-d { color: var(--cns-t4); }
+
+/* ── the calendar ───────────────────────────────────────────────────── */
+
+.console .mc { padding-bottom: 2px; }
+.console .mc-nav { display: flex; align-items: center; gap: 6px; }
+.console .mc-nav button {
+  background: none; border: 0; cursor: pointer; padding: 0 2px;
+  font: inherit; color: var(--cns-t4); line-height: 1;
+}
+.console .mc-nav button:hover { color: var(--cns-t1); }
+.console .mc-nav b { color: var(--cns-t2); font-weight: 500; }
+
+.console .mc-dow, .console .mc-grid {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.console .mc-dow {
+  margin-bottom: 2px;
+}
+.console .mc-dow span {
+  text-align: center;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .1em; color: var(--cns-t4);
+}
+.console .mc-grid { gap: 1px; }
+.console .mc-cell {
+  position: relative;
+  display: grid; place-items: center;
+  aspect-ratio: 1 / .82; min-height: 0;
+  font-family: var(--cns-mono); font-size: 9px;
+  color: var(--cns-t3);
+  text-decoration: none;
+  transition: background-color 110ms var(--cns-ease), color 110ms var(--cns-ease);
+}
+.console .mc-cell:hover { background: rgba(255, 255, 255, .07); color: var(--cns-t1); }
+.console .mc-cell.out { color: var(--cns-t4); opacity: .4; }
+/* Today is a box, not a fill: a filled cell competes with the load dots,
+   which are the thing the grid is actually for. */
+.console .mc-cell.now { box-shadow: inset 0 0 0 1px var(--cns-red); color: var(--cns-t1); }
+.console .mc-n { line-height: 1; }
+.console .mc-dot {
+  position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+  width: 3px; height: 3px; background: var(--cns-t3);
+}
+.console .mc-cell.busy .mc-dot { width: 9px; background: var(--cns-t1); }
+
+/* ── training ───────────────────────────────────────────────────────── */
+
+.console .tr { display: flex; flex-direction: column; gap: 7px; }
+.console .tr-today { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.console .tr-state {
+  flex: none;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .16em; text-transform: uppercase;
+  padding: 1px 5px 0; border: 1px solid var(--cns-rule-hi);
+  color: var(--cns-t3);
+}
+.console .tr-state.done { border-color: var(--cns-green); color: var(--cns-green); }
+.console .tr-state.next { border-color: var(--cns-red); color: var(--cns-red); font-variant-numeric: tabular-nums; }
+.console .tr-what {
+  font-size: var(--cns-small); color: var(--cns-t1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console .tr-what.quiet { color: var(--cns-t4); }
+.console .tr-when {
+  margin-left: auto; flex: none;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--cns-t4);
+}
+
+.console .tr-week { display: flex; align-items: flex-end; gap: 3px; }
+.console .tr-day {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  min-width: 0;
+}
+.console .tr-day i {
+  display: block; width: 100%; height: 14px;
+  background: rgba(255, 255, 255, .06);
+  border: 1px solid transparent;
+}
+.console .tr-day.on i { background: var(--cns-t2); }
+/* Today is outlined whether or not it is done, so the strip always says
+   where you are in the week. */
+.console .tr-day.now i { border-color: var(--cns-red); }
+.console .tr-day b {
+  font-family: var(--cns-mono); font-size: var(--cns-micro); font-weight: 400;
+  color: var(--cns-t4);
+}
+.console .tr-day.now b { color: var(--cns-t2); }
+
+.console .tr-rot {
+  margin: 0; display: flex; align-items: baseline; gap: 7px;
+  padding-top: 6px; border-top: 1px solid var(--cns-rule);
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.console .tr-rot-k { color: var(--cns-t4); }
+.console .tr-rot-t { color: var(--cns-t2); }
+.console .tr-rot-n { margin-left: auto; color: var(--cns-t1); font-variant-numeric: tabular-nums; }
+.console .tr-quiet {
+  margin: 0; font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+
+/* ── the brief ──────────────────────────────────────────────────────── */
+
+.console .bt-refresh {
+  background: none; border: 0; cursor: pointer; padding: 0;
+  color: var(--cns-t4); display: grid; place-items: center;
+}
+.console .bt-refresh:hover:not(:disabled) { color: var(--cns-t1); }
+.console .bt-refresh:disabled { opacity: .4; cursor: default; }
+.console .bt-spin { animation: cns-rot 1s linear infinite; }
+@keyframes cns-rot { to { transform: rotate(360deg) } }
+@media (prefers-reduced-motion: reduce) { .console .bt-spin { animation: none } }
+
+/* The one paragraph on the screen, and the one place a serif is right:
+   everything around it is mono, so prose reads as SAGE talking rather
+   than SAGE reporting. */
+.console .bt-text {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 13px; line-height: 1.52;
+  color: var(--cns-t2);
+}
+.console .bt-quiet {
+  margin: 0; font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+
+/* ── progress ───────────────────────────────────────────────────────── */
+
+.console .pg { display: flex; flex-direction: column; gap: 6px; }
+.console .pg-head { display: flex; align-items: baseline; gap: 6px; }
+.console .pg-sep { padding-top: 7px; border-top: 1px solid var(--cns-rule); }
+.console .pg-k {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .18em; text-transform: uppercase; color: var(--cns-t3);
+}
+.console .pg-big {
+  font-family: var(--cns-mono); font-size: 20px; line-height: 1;
+  color: var(--cns-t1); font-variant-numeric: tabular-nums;
+}
+/* The one condition that earns the accent: a live streak with nothing
+   logged today. Not "a streak" — a streak about to break. */
+.console .pg-big.risk { color: var(--cns-red); }
+.console .pg-unit {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .pg-right {
+  margin-left: auto;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  color: var(--cns-t3); font-variant-numeric: tabular-nums;
+}
+.console .pg-right i { font-style: normal; color: var(--cns-t4); }
+.console .pg-quiet {
+  margin-left: auto;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+
+.console .pg-grid { display: flex; gap: 2px; }
+.console .pg-col { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+/* A 2px surface gap between cells rather than a border: at this size a
+   border IS the cell. */
+.console .pg-cell { display: block; width: 100%; aspect-ratio: 1; min-height: 3px; }
+
+.console .pg-tiers { display: flex; flex-direction: column; gap: 3px; }
+.console .pg-tier { display: flex; align-items: center; gap: 7px; }
+.console .pg-tier-k {
+  flex: none; width: 9px;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  color: var(--cns-t3);
+}
+.console .pg-tier-bar {
+  flex: 1; height: 4px; min-width: 0;
+  background: rgba(255, 255, 255, .06);
+}
+.console .pg-tier-bar i { display: block; height: 100%; }
+.console .pg-tier-n {
+  flex: none; min-width: 26px; text-align: right;
+  font-family: var(--cns-mono); font-size: var(--cns-small);
+  color: var(--cns-t1); font-variant-numeric: tabular-nums;
+}
+
+.console .pg-daily {
+  display: flex; align-items: baseline; gap: 7px;
+  padding-top: 6px; border-top: 1px solid var(--cns-rule);
+  text-decoration: none; min-width: 0;
+}
+.console .pg-daily-k {
+  flex: none;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .16em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .pg-daily-t {
+  font-size: var(--cns-small); color: var(--cns-t2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console .pg-daily:hover .pg-daily-t { color: var(--cns-t1); }
+/* Difficulty is one letter in a box, on the grey ramp — it is ordinal,
+   and spending the accent on "Hard" would put red on the screen every
+   day for something that is not wrong. */
+.console .pg-diff {
+  flex: none; margin-left: auto; padding: 0 4px;
+  border: 1px solid var(--cns-rule-hi);
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  text-transform: uppercase; color: var(--cns-t3);
+}
+.console .pg-diff.d-hard { border-color: rgba(255, 255, 255, .42); color: var(--cns-t1); }

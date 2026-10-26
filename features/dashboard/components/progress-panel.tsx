@@ -20,7 +20,7 @@
  * today, which is the one state on this panel that is about to go wrong.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pane } from "@/components/pane";
 import { useLive } from "@/lib/live";
 
@@ -93,6 +93,28 @@ export function ProgressPanel({ n }: { n?: number }) {
   const streak = weeks.length ? streakOf(weeks) : null;
   const atRisk = streak !== null && streak.days > 0 && !streak.todayDone;
 
+  /*
+   * Thirty days of LeetCode submissions.
+   *
+   * The E/M/H bars are a lifetime total and barely move; the streak is a
+   * single number. Neither shows the SHAPE — a fortnight off followed by
+   * a hard week, which is the thing you actually want to see about your
+   * own consistency. The calendar comes back from the API keyed by day,
+   * so this is a free reading of data already on the wire.
+   */
+  const subs = useMemo(() => {
+    const cal = leet?.calendar ?? {};
+    const out: { day: string; n: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const k = iso(d);
+      out.push({ day: k, n: cal[k] ?? 0 });
+    }
+    return out;
+  }, [leet]);
+  const subPeak = Math.max(1, ...subs.map((s) => s.n));
+
   const solved = leet?.solved;
   const tiers: [string, number, string][] = solved
     ? [["E", solved.easy, "var(--q1)"], ["M", solved.medium, "var(--q3)"], ["H", solved.hard, "var(--q5)"]]
@@ -150,6 +172,18 @@ export function ProgressPanel({ n }: { n?: number }) {
             </>
           )}
         </div>
+
+        {leet && (
+          <div className="pg-subs" role="img"
+               aria-label={`LeetCode submissions over 30 days, peak ${subPeak} in a day`}>
+            {subs.map((s) => (
+              <span className={s.n ? "on" : undefined} key={s.day}
+                    title={`${s.day} · ${s.n} submission${s.n === 1 ? "" : "s"}`}>
+                <i style={{ height: `${s.n ? Math.max(14, (s.n / subPeak) * 100) : 1}%` }} />
+              </span>
+            ))}
+          </div>
+        )}
 
         {solved && (
           <div className="pg-tiers">

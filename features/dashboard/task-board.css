@@ -9,8 +9,8 @@
 
 .brd {
   height: 100%; min-height: 0;
-  display: grid; grid-template-rows: 26px minmax(0, 1fr);
-  background: #000;
+  display: grid; grid-template-rows: 26px 44px minmax(0, 1fr);
+  background: transparent;
 }
 
 /* ── adding ─────────────────────────────────────────────────────────── */
@@ -160,3 +160,39 @@
 .brd-link { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
 .brd-link:hover { color: var(--sig); }
 .brd-in:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── the fortnight ahead ────────────────────────────────────────────── */
+
+.brd-ahead {
+  display: flex; align-items: flex-end; gap: 2px;
+  height: 44px; padding: 4px 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+}
+.brd-ab {
+  flex: 1; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch;
+  gap: 2px;
+}
+.brd-ab-stack {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  width: 100%; min-height: 1px;
+  background: rgba(255, 255, 255, .22);
+}
+/* A 2px surface gap would be invisible at this width, so the high share is
+   marked by value instead: the bright block sits on top of the dim one. */
+.brd-ab-stack b { display: block; width: 100%; background: var(--down); }
+.brd-ab u {
+  display: block; text-align: center; text-decoration: none;
+  font-family: var(--font-mono-f), monospace; font-size: 7px;
+  color: rgba(255, 255, 255, .24); font-variant-numeric: tabular-nums;
+}
+.brd-ab.on .brd-ab-stack { background: rgba(255, 255, 255, .5); }
+.brd-ab.today u { color: var(--down); }
+.brd-ab.today .brd-ab-stack { outline: 1px solid rgba(255, 255, 255, .3); outline-offset: 0; }
+.brd-ahead-k {
+  flex: none; align-self: center; padding-left: 8px;
+  font-family: var(--font-mono-f), monospace; font-size: 7.5px;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .3);
+}
+.brd-ahead-k em { font-style: normal; color: rgba(255, 255, 255, .22); }

@@ -499,11 +499,44 @@ body::after { display: none; }
  */
 .tv3 {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
-  background: var(--line); flex: 1; min-height: 0;
+  /* `start`, not the default `stretch`: the row is as tall as a 16:9
+     player plus its channel bar, and the rest of the stage belongs to
+     whatever is below. */
+  align-items: start;
+  background: var(--line); flex: none; min-height: 0;
 }
-.tv3-cell { display: flex; flex-direction: column; background: var(--panel); min-width: 0; min-height: 0; }
 
-.tv3-stage { position: relative; flex: 1; min-height: 0; background: var(--sunken); }
+/*
+ * Nothing to put under them, so they take the room.
+ *
+ * The clip feed is YouTube's RSS and it rate-limits — some mornings it
+ * returns nothing at all. Sizing the players to 16:9 and then having no
+ * clips leaves 500px of black, which is a worse answer than the
+ * letterboxing it replaced. When the strip is absent the players give up
+ * the ratio and fill the stage instead; when it is there, they keep it.
+ * Either way the space is spent on something.
+ */
+.pane:has(.tv3):not(:has(.tv3-saved)) .tv3 { flex: 1; align-items: stretch; }
+.pane:has(.tv3):not(:has(.tv3-saved)) .tv3-cell { height: 100%; }
+.pane:has(.tv3):not(:has(.tv3-saved)) .tv3-stage { aspect-ratio: auto; flex: 1; }
+.tv3-cell {
+  display: flex; flex-direction: column;
+  background: var(--panel); min-width: 0; min-height: 0;
+}
+
+/*
+ * The player is exactly the video, and not a pixel more.
+ *
+ * `flex: 1` made each stage fill its column — 769px tall for a 16:9
+ * stream that wanted 194. YouTube letterboxed the difference, so roughly
+ * two thirds of the biggest area on the screen was black bars around
+ * three small videos. Declaring the ratio hands that height back to the
+ * content underneath, which is what the rest of this cell is for.
+ */
+.tv3-stage {
+  position: relative; flex: none; aspect-ratio: 16 / 9;
+  min-height: 0; background: var(--sunken);
+}
 /*
  * color-scheme: dark is the only lever there is over an iframe's own content.
  * When a stream cannot load — network down, channel offline, an extension
@@ -537,20 +570,39 @@ body::after { display: none; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* The three recent uploads, in a row under the screens. */
+/*
+ * What is worth watching, in the height the players gave back.
+ *
+ * This was one row of three thumbnails pinned under the screens. With the
+ * players down to their real 16:9 height there are roughly 480 more
+ * pixels here, so it becomes a filling grid: bigger stills, three across,
+ * as many rows as fit, scrolling if there are more. The space was already
+ * being paid for — it was just being spent on letterboxing.
+ */
 .tv3-saved {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px;
-  background: var(--line); border-top: 1px solid var(--line); flex: none;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Rows share the reclaimed height rather than hugging their content:
+     with a thin feed two cards become two tall cards instead of two
+     small ones adrift in 500px of black, and with a full one the grid
+     scrolls. The feeds rate-limit, so both cases are normal. */
+  grid-auto-rows: minmax(64px, 1fr);
+  gap: 1px;
+  background: var(--line); border-top: 1px solid var(--line);
+  flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none;
 }
+.tv3-saved::-webkit-scrollbar { display: none; }
 .tv-vid {
-  display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: center;
-  padding: 6px 9px; text-decoration: none; color: inherit; background: var(--panel); min-width: 0;
+  display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 9px; align-items: start;
+  padding: 7px 10px; text-decoration: none; color: inherit; background: var(--panel); min-width: 0;
 }
 .tv-vid:hover { background: var(--panel-hi); }
-.tv-vid img { width: 58px; height: 33px; object-fit: cover; filter: grayscale(1) brightness(0.85); }
+.tv-vid img {
+  width: 88px; aspect-ratio: 16 / 9; height: auto; object-fit: cover;
+  filter: grayscale(.55) brightness(.85);
+}
 .tv-vbody { min-width: 0; }
 .tv-vt {
-  font-family: var(--serif); font-size: 11px; line-height: 1.25; color: var(--ink-2);
+  font-family: var(--serif); font-size: 12px; line-height: 1.3; color: var(--ink-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .tv-vc {
@@ -566,7 +618,7 @@ body::after { display: none; }
   /* Three streams across a phone is three postage stamps. One column, and
      the recent strip stacks under it. */
   .tv3, .tv3-saved { grid-template-columns: none; }
-  .tv3-cell { min-height: 150px; }
+  .tv3-cell { min-height: 0; }
 }
 
 /* ── inbox and agenda ─────────────────────────────────────────────────────── */

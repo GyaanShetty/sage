@@ -20,7 +20,7 @@
  * column teaches you not to trust the absence of bad news.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Check, Loader2, Plus, X } from "lucide-react";
 import { Pane } from "@/components/pane";
 import { asArray } from "@/lib/as-array";
@@ -169,6 +169,38 @@ export function TaskBoard({ n }: { n?: number }) {
 
   const now = new Date();
   const open = (Array.isArray(tasks) ? tasks : []).filter((t) => t.status === 0);
+
+  /*
+   * The fortnight ahead, as a histogram.
+   *
+   * Four lanes tell you what is late and what is today; they cannot tell
+   * you that Thursday has six things on it and the rest of the week is
+   * empty. That is the question a board is actually for — where the
+   * pile-up is — and it is one bar chart. Undated work is deliberately
+   * absent from it rather than dumped on today: it has no date, and
+   * inventing one is how a planning view starts lying.
+   */
+  const ahead = useMemo(() => {
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(start); d.setDate(d.getDate() + i);
+      return { d, n: 0, hi: 0 };
+    });
+    for (const t of open) {
+      if (!t.dueDate) continue;
+      const due = new Date(t.dueDate);
+      if (Number.isNaN(due.getTime())) continue;
+      const idx = Math.floor((due.setHours(0, 0, 0, 0) - start.getTime()) / 86_400_000);
+      if (idx < 0 || idx >= 14) continue;
+      days[idx].n++;
+      if (t.priority >= 5) days[idx].hi++;
+    }
+    return days;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
+
+  const aheadPeak = Math.max(1, ...ahead.map((d) => d.n));
+  const undated = open.filter((t) => !t.dueDate).length;
   const byLane = (lane: Lane) =>
     open
       .filter((t) => laneOf(t, now) === lane)
@@ -205,6 +237,28 @@ export function TaskBoard({ n }: { n?: number }) {
             {adding ? <Loader2 className="size-3 brd-spin" /> : <Plus className="size-3" />}
           </button>
           {err && <span className="brd-err" role="status">{err}</span>}
+        </div>
+
+        {/* Where the pile-up is. Stacked: the darker part of each bar is
+            the high-priority share, so a tall bar that is mostly dim reads
+            differently from a short one that is all urgent. */}
+        <div className="brd-ahead" role="img"
+             aria-label={`Tasks due over the next fortnight, peak ${aheadPeak} on one day`}>
+          {ahead.map((d, i) => (
+            <span
+              className={`brd-ab${i === 0 ? " today" : ""}${d.n ? " on" : ""}`}
+              key={i}
+              title={`${d.d.toDateString()} · ${d.n} due${d.hi ? `, ${d.hi} high` : ""}`}
+            >
+              <i className="brd-ab-stack" style={{ height: `${(d.n / aheadPeak) * 100}%` }}>
+                {d.hi > 0 && <b style={{ height: `${(d.hi / Math.max(d.n, 1)) * 100}%` }} />}
+              </i>
+              <u>{d.d.getDate()}</u>
+            </span>
+          ))}
+          <span className="brd-ahead-k">
+            14d{undated > 0 && <em> · {undated} undated</em>}
+          </span>
         </div>
 
         <div className="brd-lanes">

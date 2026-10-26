@@ -106,7 +106,7 @@ export function LiveTv({ n }: { n?: number }) {
   useEffect(() => {
     fetch("/api/youtube", { signal: AbortSignal.timeout(25_000) })
       .then((r) => r.json())
-      .then((j) => setVideos(asArray<Vid>(j?.data?.videos).slice(0, 3)))
+      .then((j) => setVideos(asArray<Vid>(j?.data?.videos).slice(0, 12)))
       .catch(() => {});
   }, []);
 

@@ -48,9 +48,12 @@
      read; the plate is barely off it so a module is felt rather than
      seen; the raised step is for headers only. */
   --cns-void:     #000000;
-  --cns-plate:    #040404;
-  --cns-raised:   #0b0b0b;
-  --cns-sunken:   #020202;
+  /* Translucent, not opaque. The grid behind has to survive the modules
+     sitting on it, or painting it was pointless — at 86% a plate still
+     reads as a surface and the hairlines still come through. */
+  --cns-plate:    rgba(6, 6, 6, .86);
+  --cns-raised:   rgba(18, 18, 18, .9);
+  --cns-sunken:   rgba(2, 2, 2, .9);
 
   /* ── rules ───────────────────────────────────────────────────────────
      One hairline weight, two brightnesses. The dim one divides rows, the
@@ -116,7 +119,26 @@
     "bar  bar   bar   bar";
   gap: var(--cns-gap);
   padding: var(--cns-gap);
-  background: var(--cns-void);
+  /*
+   * The blueprint grid, which the console had been painting over.
+   *
+   * `.hud-grid` draws it on the page behind every other view in SAGE —
+   * two scales of hairline, the coarse one every five cells — and a flat
+   * #000 ground here was hiding it. It is the thing that makes the
+   * morning block read as a surface rather than a void, and the gaps
+   * between modules are exactly where it should show through.
+   */
+  background-color: var(--cns-void);
+  background-image:
+    linear-gradient(to right,  rgba(244, 245, 247, .022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 245, 247, .022) 1px, transparent 1px),
+    linear-gradient(to right,  rgba(244, 245, 247, .038) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 245, 247, .038) 1px, transparent 1px);
+  background-size:
+    var(--grid-cell) var(--grid-cell),
+    var(--grid-cell) var(--grid-cell),
+    calc(var(--grid-cell) * 5) calc(var(--grid-cell) * 5),
+    calc(var(--grid-cell) * 5) calc(var(--grid-cell) * 5);
   overflow: hidden;
   font-feature-settings: "tnum" 1, "zero" 1;
 }
@@ -984,3 +1006,136 @@ main.hud-grid:has(.console) > * > * { height: 100%; min-height: 0; }
   text-transform: uppercase; color: var(--cns-t3);
 }
 .console .pg-diff.d-hard { border-color: rgba(255, 255, 255, .42); color: var(--cns-t1); }
+
+/* ══ MORNING, ACTIVITY, AND THE CHARTS ════════════════════════════════════ */
+
+/* ── the morning read ───────────────────────────────────────────────── */
+
+.console .mt-hd { display: flex; align-items: center; gap: 8px; }
+.console .mt-refresh {
+  background: none; border: 0; cursor: pointer; padding: 0;
+  color: var(--cns-t4); display: grid; place-items: center;
+}
+.console .mt-refresh:hover:not(:disabled) { color: var(--cns-t1); }
+.console .mt-refresh:disabled { opacity: .4; cursor: default; }
+.console .mt-spin { animation: cns-rot 1s linear infinite; }
+
+.console .mt { display: flex; flex-direction: column; gap: 8px; }
+
+/* Nine cells, not a bar: which steps are left is the useful reading. */
+.console .mt-steps {
+  display: flex; align-items: center; gap: 2px;
+  text-decoration: none;
+}
+.console .mt-steps i {
+  flex: 1; height: 4px; min-width: 0;
+  background: rgba(255, 255, 255, .09);
+  transition: background-color 140ms var(--cns-ease);
+}
+.console .mt-steps i.on { background: var(--cns-red); }
+.console .mt-steps:hover i:not(.on) { background: rgba(255, 255, 255, .18); }
+.console .mt-pct {
+  flex: none; margin-left: 7px;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  color: var(--cns-t4); font-variant-numeric: tabular-nums;
+}
+
+/* The synthesis. Serif, like the brief — this is SAGE talking. */
+.console .mt-sum {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 12.5px; line-height: 1.5;
+  color: var(--cns-t2);
+}
+.console .mt-sec { display: flex; flex-direction: column; gap: 3px; }
+.console .mt-k {
+  margin: 0;
+  font-family: var(--cns-mono); font-size: var(--cns-micro); font-weight: 400;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .mt-k-act { color: var(--cns-red); }
+.console .mt-list { margin: 0; padding: 0; list-style: none; }
+.console .mt-list li {
+  position: relative; padding-left: 9px;
+  font-size: var(--cns-small); line-height: 1.38; color: var(--cns-t3);
+}
+.console .mt-list li + li { margin-top: 3px; }
+.console .mt-list li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 3px; height: 1px; background: var(--cns-t4);
+}
+/* Suggestions are marked at the bullet rather than by colouring the
+   sentence — the text still has to be readable prose. */
+.console .mt-acts li::before { background: var(--cns-red); width: 4px; height: 4px; top: .45em; }
+.console .mt-quiet, .console .av-quiet {
+  margin: 0; font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .mt-link { color: var(--cns-t2); text-decoration: underline; text-underline-offset: 2px; }
+.console .mt-link:hover { color: var(--cns-red); }
+
+/* ── activity ───────────────────────────────────────────────────────── */
+
+.console .av { display: flex; flex-direction: column; gap: 5px; }
+.console .av-band {
+  display: flex; align-items: flex-end; gap: 1px;
+  height: 30px;
+}
+.console .av-h { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.console .av-h i {
+  display: block; width: 100%;
+  background: rgba(255, 255, 255, .12);
+}
+.console .av-h.on i { background: var(--cns-t2); }
+.console .av-scale {
+  display: flex; justify-content: space-between;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .14em; text-transform: uppercase; color: var(--cns-t4);
+}
+
+.console .av-list { margin: 0; padding: 0; list-style: none; }
+.console .av-row {
+  display: grid; grid-template-columns: 34px 54px minmax(0, 1fr); gap: 7px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-top: 1px solid var(--cns-rule);
+}
+.console .av-t {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  color: var(--cns-t4); font-variant-numeric: tabular-nums;
+}
+.console .av-who {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--cns-t3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console .av-what {
+  font-size: var(--cns-small); color: var(--cns-t2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── training volume ────────────────────────────────────────────────── */
+
+.console .tr-vol {
+  display: flex; align-items: flex-end; gap: 2px;
+  height: 26px; padding-top: 2px;
+}
+.console .tr-vb { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.console .tr-vb i { display: block; width: 100%; background: rgba(255, 255, 255, .26); }
+.console .tr-vb.now i { background: var(--cns-t1); }
+.console .tr-vol-k {
+  flex: none; align-self: center; padding-left: 7px;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  color: var(--cns-t3); font-variant-numeric: tabular-nums;
+}
+.console .tr-vol-k em { font-style: normal; color: var(--cns-t4); }
+
+/* ── leetcode submissions ───────────────────────────────────────────── */
+
+.console .pg-subs {
+  display: flex; align-items: flex-end; gap: 1px;
+  height: 24px;
+}
+.console .pg-subs span { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.console .pg-subs i { display: block; width: 100%; background: rgba(255, 255, 255, .12); }
+.console .pg-subs span.on i { background: var(--cns-t2); }

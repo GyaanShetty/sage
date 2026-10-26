@@ -113,6 +113,38 @@ export function TrainingTile({ n, events }: { n?: number; events: EventRow[] | n
     return rows.sort((a, b) => b.days - a.days)[0] ?? null;
   }, [workouts, todayK]);
 
+  /*
+   * Eight weeks of volume.
+   *
+   * The seven-day strip says whether this week is on track; it cannot say
+   * whether the last two months have been. Minutes rather than session
+   * count, because four twenty-minute sessions and four ninety-minute
+   * ones are not the same week and counting sessions says they are.
+   */
+  const weeks = useMemo(() => {
+    const out: { start: Date; minutes: number; sessions: number }[] = [];
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    for (let i = 7; i >= 0; i--) {
+      const s = new Date(monday); s.setDate(s.getDate() - i * 7);
+      const e = new Date(s); e.setDate(e.getDate() + 7);
+      const inWeek = workouts.filter((w) => {
+        const t = Date.parse(w.day);
+        return !Number.isNaN(t) && t >= s.getTime() && t < e.getTime();
+      });
+      out.push({
+        start: s,
+        minutes: inWeek.reduce((a, w) => a + (w.minutes || 0), 0),
+        sessions: inWeek.length,
+      });
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workouts, todayK]);
+
+  const volPeak = Math.max(1, ...weeks.map((w) => w.minutes));
+
   const status = doneToday ? "DONE" : booked ? hhmm(booked.d) : `${doneThisWeek}/${target}`;
 
   return (
@@ -156,6 +188,21 @@ export function TrainingTile({ n, events }: { n?: number; events: EventRow[] | n
               <b>{d.label}</b>
             </span>
           ))}
+        </div>
+
+        {/* ── eight weeks of volume ──────────────────────────────── */}
+        <div className="tr-vol" role="img"
+             aria-label={`Training minutes by week, peak ${volPeak} minutes`}>
+          {weeks.map((w, i) => (
+            <span
+              className={`tr-vb${i === weeks.length - 1 ? " now" : ""}`}
+              key={i}
+              title={`week of ${w.start.toDateString()} · ${w.sessions} session${w.sessions === 1 ? "" : "s"}, ${w.minutes} min`}
+            >
+              <i style={{ height: `${w.minutes ? Math.max(6, (w.minutes / volPeak) * 100) : 1}%` }} />
+            </span>
+          ))}
+          <span className="tr-vol-k num">{volPeak}<em>m peak</em></span>
         </div>
 
         {/* ── the rotation ───────────────────────────────────────── */}

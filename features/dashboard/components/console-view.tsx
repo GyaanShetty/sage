@@ -50,6 +50,8 @@ import { TrainingTile } from "./training-tile";
 import { MiniCalendar } from "./mini-calendar";
 import { BriefTile } from "./brief-tile";
 import { ClockTile } from "./clock-tile";
+import { MorningTile } from "./morning-tile";
+import { ActivityTile } from "./activity-tile";
 import { TZ, APP_NAME } from "@/lib/config";
 import type { EventRow, TaskRow } from "./command-view";
 import "../console.css";
@@ -251,12 +253,17 @@ export function ConsoleView({
       {/* ── intelligence: what SAGE wants, what moved, what is chased ── */}
       <section className="cns-fr cns-right" aria-label="Intelligence">
         <div className="cns-rail">
-          <TileGuard name="BRIEF"><BriefTile n={6} /></TileGuard>
-          <TileGuard name="DOCKET"><Docket n={7} /></TileGuard>
-          <TileGuard name="PROGRESS"><ProgressPanel n={8} /></TileGuard>
-          <TileGuard name="MARKETS"><MarketsList n={9} limit={8} /></TileGuard>
-          <TileGuard name="HOTTOPICS"><HotTopics n={10} /></TileGuard>
-          <TileGuard name="MORNINGWIRE"><MorningWire n={11} /></TileGuard>
+          {/* The morning read leads: it is the one thing on this rail
+              written for today specifically, and by the afternoon it is
+              the only thing here that has stopped being true. */}
+          <TileGuard name="MORNING"><MorningTile n={6} /></TileGuard>
+          <TileGuard name="BRIEF"><BriefTile n={7} /></TileGuard>
+          <TileGuard name="DOCKET"><Docket n={8} /></TileGuard>
+          <TileGuard name="PROGRESS"><ProgressPanel n={9} /></TileGuard>
+          <TileGuard name="MARKETS"><MarketsList n={10} limit={8} /></TileGuard>
+          <TileGuard name="ACTIVITY"><ActivityTile n={11} /></TileGuard>
+          <TileGuard name="HOTTOPICS"><HotTopics n={12} /></TileGuard>
+          <TileGuard name="MORNINGWIRE"><MorningWire n={13} /></TileGuard>
         </div>
       </section>
 

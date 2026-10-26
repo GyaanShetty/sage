@@ -1139,3 +1139,88 @@ main.hud-grid:has(.console) > * > * { height: 100%; min-height: 0; }
 .console .pg-subs span { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
 .console .pg-subs i { display: block; width: 100%; background: rgba(255, 255, 255, .12); }
 .console .pg-subs span.on i { background: var(--cns-t2); }
+
+/* ══ THE MARKETS BOARD ════════════════════════════════════════════════════ */
+
+.console .mk { display: flex; flex-direction: column; gap: 6px; }
+
+/* Breadth: the whole board's direction as one bar. */
+.console .mk-breadth { display: flex; align-items: center; gap: 8px; }
+.console .mk-br-bar {
+  flex: 1; display: flex; height: 4px; min-width: 0;
+  background: rgba(255, 255, 255, .06);
+}
+/* A 1px surface gap between the two fills so the boundary is a drawn edge
+   rather than two colours touching. */
+.console .mk-br-bar i { display: block; height: 100%; }
+.console .mk-br-bar i.up { background: var(--cns-green); }
+.console .mk-br-bar i.down { background: var(--cns-red); margin-left: 1px; }
+.console .mk-br-k {
+  flex: none;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .08em; font-variant-numeric: tabular-nums;
+}
+.console .mk-br-k b { font-weight: 500; }
+.console .mk-br-k b.up { color: var(--cns-green); }
+.console .mk-br-k b.down { color: var(--cns-red); }
+
+.console .mk-rows { display: flex; flex-direction: column; }
+.console .mk-row {
+  display: grid;
+  grid-template-columns: 56px 72px minmax(0, 1fr) 34px 54px;
+  align-items: center; gap: 7px;
+  padding: 3px 0;
+  border-top: 1px solid var(--cns-rule);
+}
+.console .mk-rows .mk-row:first-child { border-top: 0; }
+.console .mk-sym {
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--cns-t2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.console .mk-spark { width: 72px; height: 22px; display: block; }
+.console .mk-spark-empty { width: 72px; height: 22px; display: block; }
+/* The open. Everything above this line is gain, which is the whole reason
+   the spark is filled rather than a line. */
+.console .mk-open {
+  stroke: rgba(255, 255, 255, .22); stroke-width: 1;
+  stroke-dasharray: 2 3; vector-effect: non-scaling-stroke;
+}
+.console .mk-price {
+  text-align: right;
+  font-family: var(--cns-mono); font-size: var(--cns-small);
+  color: var(--cns-t1); font-variant-numeric: tabular-nums;
+}
+/* The move, as a length on one shared scale — the biggest mover is the
+   longest bar, with no decimals to compare. */
+.console .mk-move {
+  display: block; height: 3px; background: rgba(255, 255, 255, .06);
+}
+.console .mk-move i { display: block; height: 100%; }
+.console .mk-move i.up { background: var(--cns-green); }
+.console .mk-move i.down { background: var(--cns-red); }
+.console .mk-pct {
+  text-align: right;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  font-variant-numeric: tabular-nums;
+}
+.console .mk-pct.up { color: var(--cns-green); }
+.console .mk-pct.down { color: var(--cns-red); }
+.console .mk-pct.flat { color: var(--cns-t4); }
+
+/* ── the news flow ──────────────────────────────────────────────────── */
+
+.console .hf { display: flex; flex-direction: column; gap: 3px; margin-bottom: 7px; }
+.console .hf-bars { display: flex; align-items: flex-end; gap: 2px; height: 26px; }
+.console .hf-b { flex: 1; min-width: 0; height: 100%; display: flex; align-items: flex-end; }
+.console .hf-b i { display: block; width: 100%; background: rgba(255, 255, 255, .14); }
+.console .hf-b.on i { background: var(--cns-t2); }
+/* The current hour is still filling, so it is outlined rather than solid —
+   a short last bar is "so far", not "quiet". */
+.console .hf-b.now i { outline: 1px solid var(--cns-red); outline-offset: 0; }
+.console .hf-sc {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--cns-mono); font-size: var(--cns-micro);
+  letter-spacing: .12em; text-transform: uppercase; color: var(--cns-t4);
+}
+.console .hf-n { color: var(--cns-t3); font-variant-numeric: tabular-nums; }

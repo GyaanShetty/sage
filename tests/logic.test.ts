@@ -5482,13 +5482,20 @@ test("market direction ships its arrows with its colours", async () => {
   const sig = css.match(/--sig:\s*(#[0-9a-f]{6})/i)?.[1]?.toLowerCase();
   assert.equal(sig, "#e5484d", "there is one red, used for live and for down");
 
-  /* The secondary encoding here is the SIGN on the number, not an arrow —
-     every percentage prints an explicit + or −. If this fails somebody
-     removed it, and the pair became unreadable to roughly one man in
-     twelve. */
+  /*
+   * The secondary encoding here is the SIGN on the number, not an arrow:
+   * every percentage prints an explicit + or −. If this fails somebody
+   * removed it, and the pair became unreadable to roughly one man in
+   * twelve.
+   *
+   * Matched on the two glyphs in a ternary rather than on the variable
+   * holding the direction — this fired once on a rename that changed
+   * nothing a reader could see, which is a guard testing spelling
+   * instead of behaviour.
+   */
   const src = fs.readFileSync("features/dashboard/components/markets-list.tsx", "utf8");
   assert.match(
-    src, /\$\{up \? "\+" : "−"\}/,
+    src, /\?\s*"\+"\s*:\s*"−"/,
     "every percentage must carry its own sign, not only its colour",
   );
 });

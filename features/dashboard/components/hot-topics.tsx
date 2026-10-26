@@ -58,6 +58,41 @@ export function HotTopics({ n }: { n?: number }) {
   }, [topics]);
   const srcMax = Math.max(1, ...bySource.map((x) => x.n));
 
+  /*
+   * When the day broke.
+   *
+   * Every story in this payload carries a `published` timestamp and not
+   * one of them was being read. The source bars say WHO is driving the
+   * coverage; they cannot say that nine of the twelve landed in one hour
+   * this morning and nothing has moved since — which is the difference
+   * between a story developing and a story that already happened.
+   *
+   * Twelve hours, ending now, deduplicated by title so a topic carried by
+   * four outlets counts once per outlet and not once per topic it
+   * appears under.
+   */
+  const byHour = useMemo(() => {
+    const seen = new Set<string>();
+    const now = new Date();
+    const slots = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now);
+      d.setHours(d.getHours() - (11 - i), 0, 0, 0);
+      return { at: d, n: 0 };
+    });
+    const first = slots[0].at.getTime();
+    for (const t of topics) for (const st of t.stories ?? []) {
+      if (!st?.published) continue;
+      const k = `${st.source}·${st.title}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const idx = Math.floor((st.published - first) / 3_600_000);
+      if (idx >= 0 && idx < 12) slots[idx].n++;
+    }
+    return slots;
+  }, [topics]);
+  const hourMax = Math.max(1, ...byHour.map((h) => h.n));
+  const filed = byHour.reduce((a, h) => a + h.n, 0);
+
   return (
     <Pane
       n={n}
@@ -69,6 +104,30 @@ export function HotTopics({ n }: { n?: number }) {
         ? <Empty reason={feed.loading ? "Reading the wire…" : "Nothing is being covered by more than one outlet right now"} />
         : (
           <div className="ht">
+            {/* When it broke. The source bars say who; this says when, and
+                a flat afternoon after a loud morning is a different day
+                from a steady drip. */}
+            {filed > 0 && (
+              <div className="hf" role="img"
+                   aria-label={`${filed} stories filed over twelve hours`}>
+                <div className="hf-bars">
+                  {byHour.map((h, i) => (
+                    <span
+                      className={`hf-b${h.n ? " on" : ""}${i === byHour.length - 1 ? " now" : ""}`}
+                      key={i}
+                      title={`${hhmm(h.at.getTime())} · ${h.n} filed`}
+                    >
+                      <i style={{ height: `${h.n ? Math.max(14, (h.n / hourMax) * 100) : 1}%` }} />
+                    </span>
+                  ))}
+                </div>
+                <div className="hf-sc">
+                  <span>{hhmm(byHour[0].at.getTime())}</span>
+                  <span className="hf-n num">{filed} filed · 12h</span>
+                  <span>now</span>
+                </div>
+              </div>
+            )}
             {bySource.length > 1 && (
               <div className="hs">
                 <div className="hs-h">Who is running it</div>

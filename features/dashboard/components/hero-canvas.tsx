@@ -141,21 +141,143 @@ export function HeroCanvas({ events }: { events: EventRow[] | null }) {
         ctx.fillText(s.label, x0 + 4, y + bandH - 1);
       });
 
-      /* Calendar events above the axis. Timed events get a block at their
-         hour; all-day events are skipped here because an all-day block would
-         be the whole width and would say nothing about when. */
-      const evs = (evRef.current ?? []).filter((e) => !e.allDay);
-      const evTop = axisY - 34;
-      for (const e of evs) {
-        const d = new Date(e.start);
-        if (Number.isNaN(d.getTime())) continue;
-        if (d.toDateString() !== now.toDateString()) continue;
-        const px = x(hoursInto(d));
-        ctx.fillStyle = accent;
-        ctx.fillRect(Math.round(px) - 1, evTop, 2, 22);
+      /*
+       * The day, written out.
+       *
+       * These were 2px ticks with a dot: they said an event existed and
+       * nothing else — not what it was, not how much of the day was left
+       * around it. In the widest element on the screen that is a waste of
+       * the only part anybody looks at.
+       *
+       * Now each one is a labelled marker, and because labels at 09:00
+       * and 09:30 would overlap at this scale they stagger across two
+       * lanes. Two is enough for a normal day and the test is cheap: if
+       * the previous label's right edge has not cleared this one's left
+       * edge, drop a lane.
+       */
+      const evs = (evRef.current ?? [])
+        .filter((e) => !e.allDay)
+        .map((e) => ({ e, d: new Date(e.start) }))
+        .filter((r) => !Number.isNaN(r.d.getTime()) && r.d.toDateString() === now.toDateString())
+        .sort((a, b) => a.d.getTime() - b.d.getTime());
+
+      const evTop = axisY - 46;
+      const laneH = 17;
+      ctx.font = "9px ui-monospace, monospace";
+      ctx.textAlign = "left";
+      const lastRight = [-Infinity, -Infinity];
+
+      for (const { e, d } of evs) {
+        const hr = hoursInto(d);
+        const px = Math.round(x(hr));
+        const label = `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")} ${e.summary}`;
+        const wName = ctx.measureText(label).width;
+
+        /* First lane whose last label has cleared this x, else lane 0 and
+           accept the collision — a dropped event is worse than a tight one. */
+        let lane = 0;
+        for (let i = 0; i < lastRight.length; i++) {
+          if (px > lastRight[i] + 8) { lane = i; break; }
+          lane = i === lastRight.length - 1 ? 0 : lane;
+        }
+        /* A label drawn leftward occupies up to its stem, not past it. */
+        lastRight[lane] = px + 4 + wName <= pad + inner ? px + wName : px;
+
+        const y = evTop + lane * laneH;
+        const past = hr < t;
+
+        /* A stem down to the axis, so the label is tied to its hour rather
+           than floating near it. */
+        ctx.globalAlpha = past ? 0.42 : 1;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(Math.round(px), evTop, 2.5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(px + 0.5, y + 3);
+        ctx.lineTo(px + 0.5, axisY - 2);
+        ctx.stroke();
+
+        ctx.fillStyle = accent;
+        ctx.fillRect(px - 1.5, y + 1, 3, 3);
+
+        ctx.fillStyle = past ? v("--ink-4", "rgba(242,242,242,.4)") : ink;
+        /*
+         * Late events read leftward.
+         *
+         * Everything after about 19:00 has no room to its right, and
+         * clipping to fit turned "18:00 Boxing (HIIT)" into "18:00…" —
+         * the one part of the evening he would actually look for. When
+         * the label does not fit to the right of its stem it is drawn to
+         * the left of it instead, which costs nothing and keeps the
+         * stem, still, exactly on the hour.
+         */
+        const right = pad + inner;
+        const fitsRight = px + 4 + wName <= right;
+        if (fitsRight) {
+          ctx.textAlign = "left";
+          ctx.fillText(label, px + 4, y + 7);
+        } else {
+          ctx.textAlign = "right";
+          /* Only clip if it does not fit in EITHER direction, which on a
+             1800px axis means a title nobody could have read anyway. */
+          let shown = label;
+          const room = Math.max(0, px - 4 - pad);
+          if (wName > room) {
+            while (shown.length > 4 && ctx.measureText(shown + "…").width > room) {
+              shown = shown.slice(0, -1);
+            }
+            shown += "…";
+          }
+          ctx.fillText(shown, px - 4, y + 7);
+          ctx.textAlign = "left";
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      /*
+       * The longest clear stretch left today.
+       *
+       * The brief keeps telling him he has "a single 4.5-hour afternoon
+       * window", which is a fact about this exact axis that the axis was
+       * not showing. Measured between the end of one event and the start
+       * of the next — SAGE's calendar rows carry no end time, so an event
+       * is treated as occupying the hour it starts, which is honest about
+       * being an approximation and still right about where the gap is.
+       */
+      const edges: number[] = [Math.max(t, 0)];
+      for (const { d } of evs) {
+        const hr = hoursInto(d);
+        if (hr + 1 > t) { edges.push(hr); edges.push(hr + 1); }
+      }
+      edges.push(24);
+      let gap = { from: 0, to: 0 };
+      for (let i = 0; i < edges.length - 1; i += 1) {
+        const from = edges[i], to = edges[i + 1];
+        if (to - from > gap.to - gap.from) gap = { from, to };
+      }
+      if (gap.to - gap.from >= 1.5) {
+        const gx0 = x(gap.from), gx1 = x(gap.to);
+        ctx.fillStyle = ink;
+        ctx.globalAlpha = 0.05;
+        ctx.fillRect(gx0, evTop - 8, gx1 - gx0, laneH * 2 + 14);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = line;
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(gx0 + 0.5, evTop - 8);
+        ctx.lineTo(gx0 + 0.5, evTop + laneH * 2 + 6);
+        ctx.moveTo(gx1 - 0.5, evTop - 8);
+        ctx.lineTo(gx1 - 0.5, evTop + laneH * 2 + 6);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = v("--ink-4", "rgba(242,242,242,.4)");
+        ctx.font = "8px ui-monospace, monospace";
+        ctx.textAlign = "center";
+        const hrs = gap.to - gap.from;
+        ctx.fillText(
+          `${hrs >= 10 ? hrs.toFixed(0) : hrs.toFixed(1)}H CLEAR`,
+          (gx0 + gx1) / 2, evTop - 11,
+        );
+        ctx.textAlign = "left";
       }
 
       /* Now. The one mark that moves, and the only full-height one — it is

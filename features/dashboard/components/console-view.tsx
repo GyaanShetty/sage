@@ -52,6 +52,7 @@ import { BriefTile } from "./brief-tile";
 import { ClockTile } from "./clock-tile";
 import { MorningTile } from "./morning-tile";
 import { ActivityTile } from "./activity-tile";
+import { ReadinessTile } from "./readiness-tile";
 import { TZ, APP_NAME } from "@/lib/config";
 import type { EventRow, TaskRow } from "./command-view";
 import "../console.css";
@@ -262,8 +263,12 @@ export function ConsoleView({
           <TileGuard name="PROGRESS"><ProgressPanel n={9} /></TileGuard>
           <TileGuard name="MARKETS"><MarketsList n={10} limit={8} /></TileGuard>
           <TileGuard name="ACTIVITY"><ActivityTile n={11} /></TileGuard>
-          <TileGuard name="HOTTOPICS"><HotTopics n={12} /></TileGuard>
-          <TileGuard name="MORNINGWIRE"><MorningWire n={13} /></TileGuard>
+          {/* Last, because it is the panel you want to stop needing. It
+              sits directly under Activity on purpose: an empty activity
+              band and the reason for it, one after the other. */}
+          <TileGuard name="READINESS"><ReadinessTile n={12} /></TileGuard>
+          <TileGuard name="HOTTOPICS"><HotTopics n={13} /></TileGuard>
+          <TileGuard name="MORNINGWIRE"><MorningWire n={14} /></TileGuard>
         </div>
       </section>
 

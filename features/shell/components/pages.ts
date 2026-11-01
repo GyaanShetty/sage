@@ -2,7 +2,7 @@ import {
   Gauge,
   LayoutDashboard, Sunrise, MessageSquare, CandlestickChart, Briefcase, Wallet,
   FolderKanban, BookOpen, GraduationCap, Zap, Brain, Network, Bot, PenLine, LayoutGrid,
-  Settings, Activity, ScrollText, BookMarked, Mail, Code2,
+  Settings, Activity, ScrollText, BookMarked, Mail, Code2, PiggyBank,
   Scale, GitBranch, Radio, FileSearch, CalendarDays, FileText, Mic, Lightbulb, Timer, Sparkles,
   Map as MapIcon, type LucideIcon,
 } from "lucide-react";
@@ -34,7 +34,8 @@ export const PAGES: Item[] = [
   { href: "/push", label: "Push", icon: GitBranch, hint: "to github", group: "WORK" },
   { href: "/automations", label: "Automations", icon: Zap, group: "WORK" },
 
-  { href: "/portfolio", label: "Portfolio", icon: Wallet, hint: "budget", group: "MONEY" },
+  { href: "/portfolio", label: "Portfolio", icon: Wallet, hint: "holdings", group: "MONEY" },
+  { href: "/budget", label: "Budget", icon: PiggyBank, hint: "the month's money", group: "MONEY" },
   { href: "/markets", label: "Markets", icon: CandlestickChart, group: "MONEY" },
 
   { href: "/decisions", label: "Decisions", icon: Scale, hint: "calibration", group: "JUDGEMENT" },
@@ -60,7 +61,7 @@ export const GROUP_ORDER = ["NOW", "WORK", "MONEY", "JUDGEMENT", "MIND"] as cons
 export const ALIASES: Record<string, string> = {
   task: "/workspace", todo: "/workspace", work: "/workspace",
   money: "/portfolio", stock: "/markets", crypto: "/markets", invest: "/portfolio",
-  budget: "/portfolio", expense: "/portfolio", spend: "/portfolio",
+  budget: "/budget", expense: "/budget", spend: "/budget", spending: "/budget",
   job: "/career", intern: "/career", application: "/career",
   note: "/knowledge", doc: "/knowledge", paper: "/knowledge", learn: "/education",
   sleep: "/health", steps: "/health", workout: "/health", gym: "/health", body: "/health",

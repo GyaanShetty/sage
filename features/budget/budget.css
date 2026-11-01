@@ -1,0 +1,258 @@
+/* ══ BUDGET ═══════════════════════════════════════════════════════════════
+ *
+ * A page rather than the console's instrument panel: this one is read
+ * sitting still, deciding something, so it gets air and real type sizes.
+ * It keeps the same palette and the same rule about colour — red only
+ * where something is over or heading over, green only where savings are
+ * being met. Everything else is grey, which is what lets the red mean
+ * anything at all.
+ */
+
+.bg {
+  --bg-rule: rgba(255, 255, 255, .08);
+  --bg-rule-hi: rgba(255, 255, 255, .16);
+  --bg-t1: #ffffff;
+  --bg-t2: rgba(255, 255, 255, .74);
+  --bg-t3: rgba(255, 255, 255, .46);
+  --bg-t4: rgba(255, 255, 255, .26);
+  --bg-mono: var(--font-mono-f), ui-monospace, monospace;
+
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px 18px 28px;
+  max-width: 1500px;
+  font-variant-numeric: tabular-nums;
+}
+.bg > * { grid-column: span 6; }
+.bg-wide { grid-column: span 12; }
+.bg-top { grid-column: span 12; }
+
+/* ── month and headline ─────────────────────────────────────────────── */
+
+.bg-month { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.bg-month h1 {
+  margin: 0; font-size: 22px; font-weight: 300; letter-spacing: .02em;
+  color: var(--bg-t1);
+}
+.bg-month button {
+  background: none; border: 0; cursor: pointer; padding: 0 4px;
+  font-size: 18px; line-height: 1; color: var(--bg-t4);
+}
+.bg-month button:hover { color: var(--bg-t1); }
+.bg-today {
+  font-family: var(--bg-mono); font-size: 9px !important;
+  letter-spacing: .16em; text-transform: uppercase;
+  border: 1px solid var(--bg-rule-hi) !important;
+  padding: 3px 8px !important; color: var(--bg-t3) !important;
+}
+
+.bg-heads { display: flex; gap: 0; flex-wrap: wrap; }
+.bg-head {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 0 22px 0 0; margin-right: 22px;
+  border-right: 1px solid var(--bg-rule);
+}
+.bg-head:last-child { border-right: 0; }
+.bg-k {
+  font-family: var(--bg-mono); font-size: 9px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--bg-t4);
+}
+/* The one big number on the page. Everything else is support. */
+.bg-head strong {
+  font-family: var(--bg-mono); font-size: 27px; font-weight: 300;
+  line-height: 1.1; color: var(--bg-t1);
+}
+.bg-head strong.over { color: var(--down); }
+.bg-sub {
+  font-family: var(--bg-mono); font-size: 9px;
+  letter-spacing: .1em; color: var(--bg-t3);
+}
+
+/* ── cards ──────────────────────────────────────────────────────────── */
+
+.bg-card {
+  border: 1px solid var(--bg-rule);
+  background: rgba(8, 8, 8, .7);
+  padding: 12px 14px 14px;
+  min-width: 0;
+}
+.bg-card-hd {
+  display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;
+}
+.bg-card-hd h2 {
+  margin: 0;
+  font-family: var(--bg-mono); font-size: 10px; font-weight: 500;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--bg-t2);
+}
+.bg-card-hd .bg-sub { margin-left: auto; }
+.bg-note {
+  margin: 8px 0 0;
+  font-size: 11.5px; line-height: 1.45; color: var(--bg-t3);
+}
+.bg-quiet {
+  grid-column: span 12; margin: 0;
+  font-family: var(--bg-mono); font-size: 10px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--bg-t4);
+}
+.bg-err {
+  grid-column: span 12; margin: 0;
+  font-family: var(--bg-mono); font-size: 10px;
+  letter-spacing: .14em; color: var(--down);
+}
+
+/* ── the curve ──────────────────────────────────────────────────────── */
+
+.bg-curve { width: 100%; height: 190px; display: block; }
+.bg-grid { stroke: rgba(255, 255, 255, .07); stroke-width: 1; }
+.bg-axis { fill: rgba(255, 255, 255, .3); font-family: var(--bg-mono); font-size: 8px; }
+/* The gap between actual and plan IS the reading, so it is filled. Red
+   when ahead of pace, neutral when behind — being under budget is not an
+   achievement worth a colour, it is just the normal case. */
+.bg-band.over { fill: var(--down); opacity: .16; }
+.bg-band.under { fill: #ffffff; opacity: .06; }
+.bg-plan {
+  stroke: rgba(255, 255, 255, .34); stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.bg-spent { stroke: var(--bg-t1); stroke-width: 1.6; }
+.bg-now { fill: var(--bg-t1); }
+
+.bg-legend {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  font-family: var(--bg-mono); font-size: 8.5px;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--bg-t4);
+}
+.bg-legend i { display: inline-block; width: 12px; height: 2px; margin-left: 8px; }
+.bg-legend .k-spent { background: var(--bg-t1); }
+.bg-legend .k-plan { background: rgba(255, 255, 255, .34); }
+
+/* ── buttons and inputs ─────────────────────────────────────────────── */
+
+.bg-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  background: none; border: 1px solid var(--bg-rule-hi); cursor: pointer;
+  font-family: var(--bg-mono); font-size: 9.5px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--bg-t2);
+  transition: color 120ms, border-color 120ms, background-color 120ms;
+}
+.bg-btn:hover:not(:disabled) { color: var(--bg-t1); border-color: rgba(255, 255, 255, .4); background: rgba(255, 255, 255, .05); }
+.bg-btn:disabled { opacity: .4; cursor: default; }
+/* One primary per group, marked by the accent edge rather than a fill —
+   a filled button on this ground would be the brightest thing here. */
+.bg-btn.primary { border-color: var(--down); color: var(--bg-t1); }
+.bg-btn.primary:hover:not(:disabled) { background: rgba(229, 72, 77, .12); }
+.bg-spin { animation: bg-rot 1s linear infinite; }
+@keyframes bg-rot { to { transform: rotate(360deg) } }
+@media (prefers-reduced-motion: reduce) { .bg-spin { animation: none } }
+
+.bg-in {
+  min-width: 0; padding: 7px 9px;
+  background: rgba(0, 0, 0, .5); border: 1px solid var(--bg-rule);
+  outline: none; color: var(--bg-t1);
+  font-family: var(--bg-mono); font-size: 11px;
+}
+.bg-in:focus { border-color: var(--bg-rule-hi); }
+.bg-in::placeholder { color: var(--bg-t4); }
+.bg-in.amt { max-width: 110px; }
+
+.bg-quick { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.bg-quick .bg-in:nth-child(2) { flex: 1; min-width: 120px; }
+
+.bg-seed { grid-column: span 12; border: 1px solid var(--bg-rule); padding: 18px; }
+.bg-seed h2 { margin: 0 0 6px; font-size: 16px; font-weight: 400; color: var(--bg-t1); }
+.bg-seed p { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--bg-t3); max-width: 60ch; }
+.bg-seed-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ── category lines ─────────────────────────────────────────────────── */
+
+.bg-lines { display: flex; flex-direction: column; }
+.bg-line {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) 88px 92px 48px;
+  align-items: center; gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--bg-rule);
+}
+.bg-lines .bg-line:first-child { border-top: 0; }
+.bg-line-c {
+  font-size: 12.5px; color: var(--bg-t2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bg-line-b {
+  position: relative; display: block; height: 6px;
+  background: rgba(255, 255, 255, .07);
+}
+.bg-line-b .fill { display: block; height: 100%; background: rgba(255, 255, 255, .5); }
+.bg-line.watch .fill { background: rgba(255, 255, 255, .78); }
+.bg-line.over .fill { background: var(--down); }
+/* Where this pace lands by month end: a notch past the limit, so a line
+   that is fine today but heading over is visibly heading over. */
+.bg-line-b .proj {
+  position: absolute; top: -3px; width: 1px; height: 12px;
+  background: var(--down); text-decoration: none;
+}
+.bg-line-n { font-family: var(--bg-mono); font-size: 11.5px; color: var(--bg-t1); text-align: right; }
+.bg-line-l { font-family: var(--bg-mono); font-size: 10px; color: var(--bg-t4); }
+.bg-line-p { font-family: var(--bg-mono); font-size: 11px; text-align: right; color: var(--bg-t3); }
+.bg-line-p.over { color: var(--down); }
+.bg-line-p.watch { color: var(--bg-t1); }
+
+/* ── buckets ────────────────────────────────────────────────────────── */
+
+.bg-buckets { display: flex; flex-direction: column; gap: 9px; }
+.bg-bucket {
+  display: grid; grid-template-columns: 70px minmax(0, 1fr) 46px 86px;
+  align-items: center; gap: 10px;
+}
+.bg-bk {
+  font-family: var(--bg-mono); font-size: 9.5px;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--bg-t3);
+}
+.bg-btrack {
+  position: relative; display: block; height: 8px;
+  background: rgba(255, 255, 255, .07);
+}
+.bg-btrack i { display: block; height: 100%; background: rgba(255, 255, 255, .5); }
+/* Savings is the one bucket where being ahead of target is good news, so
+   it is the one place green appears on this page. */
+.bg-btrack i.good { background: var(--up); }
+.bg-btrack u {
+  position: absolute; top: -3px; width: 1px; height: 14px;
+  background: var(--bg-t1); text-decoration: none;
+}
+.bg-bn { font-family: var(--bg-mono); font-size: 12px; color: var(--bg-t1); text-align: right; }
+.bg-bt { font-family: var(--bg-mono); font-size: 9px; color: var(--bg-t4); }
+
+/* ── unbudgeted and notes ───────────────────────────────────────────── */
+
+.bg-unb { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.bg-chip {
+  padding: 4px 8px; border: 1px solid var(--bg-rule);
+  font-family: var(--bg-mono); font-size: 9.5px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--bg-t3);
+}
+.bg-chip b { color: var(--bg-t1); font-weight: 500; }
+
+.bg-notes { margin: 0; padding: 0; list-style: none; }
+.bg-notes li {
+  position: relative; padding-left: 11px;
+  font-size: 12px; line-height: 1.5; color: var(--bg-t2);
+}
+.bg-notes li + li { margin-top: 5px; }
+.bg-notes li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 4px; height: 1px; background: var(--bg-t4);
+}
+
+/* ── narrow ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1000px) {
+  .bg > *, .bg-wide { grid-column: span 12; }
+  .bg-head { border-right: 0; padding-right: 14px; margin-right: 14px; }
+  .bg-line { grid-template-columns: 96px minmax(0, 1fr) 76px 44px; }
+  /* The limit is the least useful column once space is tight: the
+     percentage already says how much of it is gone. */
+  .bg-line-l { display: none; }
+}

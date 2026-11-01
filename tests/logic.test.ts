@@ -5810,7 +5810,7 @@ test("the briefing does not call the app's own HTTP API", async () => {
  * crossed in either direction.
  */
 test("the task merge moves a change from whichever side made it", async () => {
-  const { decide } = await import("../core/tasks/sync.ts");
+  const { decide } = await import("../core/tasks/sync");
   const was = { title: "Write the brief", done: false, dueAt: null, priority: 2 };
 
   // Only SAGE moved → TickTick is told.
@@ -5832,7 +5832,7 @@ test("the task merge moves a change from whichever side made it", async () => {
 });
 
 test("when both sides changed the same field, TickTick wins", async () => {
-  const { decide } = await import("../core/tasks/sync.ts");
+  const { decide } = await import("../core/tasks/sync");
   const was = { title: "Gym", done: false, dueAt: null, priority: 2 };
   const d = decide(was, { ...was, title: "Gym — legs" }, { ...was, title: "Boxing" });
   assert.equal(d.toSage.title, "Boxing", "TickTick is the app he edits in");
@@ -5841,7 +5841,7 @@ test("when both sides changed the same field, TickTick wins", async () => {
 });
 
 test("done is sticky and travels both ways", async () => {
-  const { decide } = await import("../core/tasks/sync.ts");
+  const { decide } = await import("../core/tasks/sync");
   const was = { title: "Pay rent", done: false, dueAt: null, priority: 1 };
 
   // Ticked off in SAGE.
@@ -5862,7 +5862,7 @@ test("done is sticky and travels both ways", async () => {
 });
 
 test("a due date that only reformatted is not an edit", async () => {
-  const { decide } = await import("../core/tasks/sync.ts");
+  const { decide } = await import("../core/tasks/sync");
   const was = { title: "Call", done: false, dueAt: "2026-11-02T09:00:00.000Z", priority: 2 };
   /* TickTick rounds and restyles timestamps. If a second of drift counted
      as a change, every sync would rewrite every task forever. */
@@ -5872,7 +5872,7 @@ test("a due date that only reformatted is not an edit", async () => {
 });
 
 test("clearing a due date is distinguishable from not touching it", async () => {
-  const { decide } = await import("../core/tasks/sync.ts");
+  const { decide } = await import("../core/tasks/sync");
   const was = { title: "Call", done: false, dueAt: "2026-11-02T09:00:00.000Z", priority: 2 };
   const d = decide(was, { ...was, dueAt: null }, { ...was });
   /* null, not undefined: the updater treats undefined as "leave alone",

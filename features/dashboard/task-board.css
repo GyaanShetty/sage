@@ -196,3 +196,18 @@
   color: rgba(255, 255, 255, .3);
 }
 .brd-ahead-k em { font-style: normal; color: rgba(255, 255, 255, .22); }
+
+/* Reconcile on demand. Labelled rather than an icon alone: it writes to
+   two systems, and a bare arrow gives no idea which way anything goes. */
+.brd-sync {
+  display: flex; align-items: center; gap: 5px;
+  align-self: stretch; padding: 0 10px;
+  background: none; border: 0; border-left: 1px solid rgba(255, 255, 255, .075);
+  cursor: pointer;
+  font-family: var(--font-mono-f), monospace;
+  font-size: 8px; letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255, 255, 255, .44);
+  transition: color 120ms cubic-bezier(.32, .72, 0, 1), background-color 120ms;
+}
+.brd-sync:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, .05); }
+.brd-sync:disabled { opacity: .5; cursor: default; }

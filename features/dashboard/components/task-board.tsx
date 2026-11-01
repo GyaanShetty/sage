@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useMemo, useState } from "react";
-import { Check, Loader2, Plus, X } from "lucide-react";
+import { Check, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { Pane } from "@/components/pane";
 import { asArray } from "@/lib/as-array";
 import { useLive, notifyDataChanged } from "@/lib/live";
@@ -90,6 +90,8 @@ export function TaskBoard({ n }: { n?: number }) {
   const [draft, setDraft] = useState("");
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [synced, setSynced] = useState<string | null>(null);
 
   const load = useCallback(() => {
     return fetch("/api/ticktick")
@@ -143,6 +145,30 @@ export function TaskBoard({ n }: { n?: number }) {
       setErr("TickTick wouldn't delete that.");
       return;
     }
+    notifyDataChanged("tasks");
+  };
+
+  /*
+   * Reconcile on demand.
+   *
+   * The heartbeat does this every five minutes, which is the right
+   * cadence and the wrong answer when you have just ticked something off
+   * on your phone and want to see it here. It also works when the
+   * heartbeat is not running at all, which is currently the case.
+   */
+  const sync = async () => {
+    setSyncing(true);
+    setErr(null);
+    const r = await fetch("/api/task/sync", { method: "POST" })
+      .then((x) => x.json())
+      .catch(() => null);
+    setSyncing(false);
+    if (!r?.ok) { setErr(r?.data?.reason ?? "Sync didn't complete"); return; }
+    const d = r.data;
+    const moved = d.createdInSage + d.createdInTickTick + d.completedInSage
+      + d.completedInTickTick + d.editsToSage + d.editsToTickTick + d.adopted;
+    setSynced(moved === 0 ? "in step" : `${moved} reconciled`);
+    await load();
     notifyDataChanged("tasks");
   };
 
@@ -235,6 +261,16 @@ export function TaskBoard({ n }: { n?: number }) {
           />
           <button className="brd-plus" onClick={add} disabled={adding || !draft.trim()} aria-label="Add task">
             {adding ? <Loader2 className="size-3 brd-spin" /> : <Plus className="size-3" />}
+          </button>
+          <button
+            className="brd-sync"
+            onClick={sync}
+            disabled={syncing}
+            title="Reconcile with TickTick now"
+            aria-label="Sync with TickTick"
+          >
+            <RefreshCw className={`size-3${syncing ? " brd-spin" : ""}`} />
+            <span>{syncing ? "Syncing" : synced ?? "Sync"}</span>
           </button>
           {err && <span className="brd-err" role="status">{err}</span>}
         </div>

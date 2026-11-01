@@ -32,15 +32,35 @@ export async function POST(req: Request) {
   // in SAGE and the two lists drifted apart. Deliberately after the insert and
   // never awaited into the failure path: a task missing from TickTick is a
   // mild annoyance, losing it because TickTick was slow is not.
-  let tickId: string | null = null;
+  let mirrored = false;
   if (parsed.data.mirror !== false) {
     const { createTickTask } = await import("@/infrastructure/integrations/ticktick");
-    tickId = await createTickTask({
+    const created = await createTickTask({
       title: task.title,
       dueAt: parsed.data.dueAt ?? null,
       priority: task.priority,
     }).catch(() => null);
+
+    /*
+     * Record the link here, not later.
+     *
+     * The copy was being posted and the returned id thrown away, so the
+     * two tasks were strangers from the moment they were created and
+     * nothing could ever match them again. The sync can adopt an orphan
+     * pair by title, but only once it next runs and only while the
+     * titles are still identical — recording it now is free and exact.
+     */
+    if (created) {
+      mirrored = true;
+      const { linkTask } = await import("@/core/tasks/sync");
+      await linkTask(task.id, created, {
+        title: task.title,
+        done: false,
+        dueAt: parsed.data.dueAt ?? null,
+        priority: task.priority,
+      }).catch(() => { /* the task exists; the link can be adopted later */ });
+    }
   }
 
-  return NextResponse.json({ ok: true, data: { ...task, mirroredToTickTick: !!tickId } });
+  return NextResponse.json({ ok: true, data: { ...task, mirroredToTickTick: mirrored } });
 }

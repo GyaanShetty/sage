@@ -59,6 +59,31 @@ const JOBS: Job[] = [
     },
   },
   {
+    /*
+     * Keep the two task lists honest.
+     *
+     * Five minutes, not one: this walks every TickTick project and
+     * rewrites links, which is far more work than a reminder check and
+     * nowhere near as urgent. A task ticked off on his phone showing as
+     * open in SAGE for a few minutes is fine; the failure that mattered
+     * was it showing as open forever.
+     */
+    name: "tasks.sync",
+    everyMin: 5,
+    run: async () => {
+      const { syncTasks } = await import("@/core/tasks/sync");
+      const r = await syncTasks();
+      return {
+        ok: r.ok,
+        ...(r.reason ? { reason: r.reason } : {}),
+        linked: r.linked, adopted: r.adopted,
+        intoSage: r.createdInSage, intoTickTick: r.createdInTickTick,
+        completed: r.completedInSage + r.completedInTickTick,
+        edits: r.editsToSage + r.editsToTickTick,
+      };
+    },
+  },
+  {
     // The whole reason this exists. Twice-daily crons made a 3pm reminder
     // arrive at 9pm, as a note about something already missed.
     name: "reminders",

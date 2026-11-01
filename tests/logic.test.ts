@@ -5795,3 +5795,88 @@ test("the briefing does not call the app's own HTTP API", async () => {
   assert.doesNotMatch(core, /fetch\(`\$\{origin\}/);
   assert.match(core, /from "@\/infrastructure\/markets\/quotes"/);
 });
+
+/*
+ * The TickTick merge.
+ *
+ * This is the one piece of the sync that has to be right and the one
+ * piece that cannot be exercised against the real thing from a test, so
+ * it was pulled out of the sync loop as a pure function and is pinned
+ * here. Everything around it reads and writes; this decides.
+ *
+ * The bug it replaces: SAGE posted a copy of each new task to TickTick
+ * and discarded the returned id, so the two were strangers from birth.
+ * Nothing could ever be matched again, which is why completions never
+ * crossed in either direction.
+ */
+test("the task merge moves a change from whichever side made it", async () => {
+  const { decide } = await import("../core/tasks/sync.ts");
+  const was = { title: "Write the brief", done: false, dueAt: null, priority: 2 };
+
+  // Only SAGE moved → TickTick is told.
+  const a = decide(was, { ...was, title: "Write the morning brief" }, { ...was });
+  assert.equal(a.toTick.title, "Write the morning brief");
+  assert.equal(a.toSage.title, undefined);
+  assert.equal(a.nextSeen.title, "Write the morning brief");
+
+  // Only TickTick moved → SAGE is told.
+  const b = decide(was, { ...was }, { ...was, title: "Brief, written" });
+  assert.equal(b.toSage.title, "Brief, written");
+  assert.equal(b.toTick.title, undefined);
+
+  // Neither moved → nothing happens. A sync run twice must be a no-op.
+  const c = decide(was, { ...was }, { ...was });
+  assert.deepEqual(c.toSage, {});
+  assert.deepEqual(c.toTick, {});
+  assert.equal(c.complete, null);
+});
+
+test("when both sides changed the same field, TickTick wins", async () => {
+  const { decide } = await import("../core/tasks/sync.ts");
+  const was = { title: "Gym", done: false, dueAt: null, priority: 2 };
+  const d = decide(was, { ...was, title: "Gym — legs" }, { ...was, title: "Boxing" });
+  assert.equal(d.toSage.title, "Boxing", "TickTick is the app he edits in");
+  assert.equal(d.toTick.title, undefined, "and must not be written back over");
+  assert.equal(d.nextSeen.title, "Boxing");
+});
+
+test("done is sticky and travels both ways", async () => {
+  const { decide } = await import("../core/tasks/sync.ts");
+  const was = { title: "Pay rent", done: false, dueAt: null, priority: 1 };
+
+  // Ticked off in SAGE.
+  const fromSage = decide(was, { ...was, done: true }, { ...was });
+  assert.equal(fromSage.complete, "ticktick");
+  assert.equal(fromSage.nextSeen.done, true);
+
+  // Ticked off on his phone.
+  const fromTick = decide(was, { ...was }, { ...was, done: true });
+  assert.equal(fromTick.complete, "sage");
+  assert.equal(fromTick.nextSeen.done, true);
+
+  /* Completing on one side while renaming on the other must do BOTH —
+     an edit is not a reason to lose a completion. */
+  const both = decide(was, { ...was, done: true }, { ...was, title: "Rent" });
+  assert.equal(both.complete, "ticktick");
+  assert.equal(both.toSage.title, "Rent");
+});
+
+test("a due date that only reformatted is not an edit", async () => {
+  const { decide } = await import("../core/tasks/sync.ts");
+  const was = { title: "Call", done: false, dueAt: "2026-11-02T09:00:00.000Z", priority: 2 };
+  /* TickTick rounds and restyles timestamps. If a second of drift counted
+     as a change, every sync would rewrite every task forever. */
+  const d = decide(was, { ...was }, { ...was, dueAt: "2026-11-02T09:00:30+0000" });
+  assert.deepEqual(d.toSage, {});
+  assert.deepEqual(d.toTick, {});
+});
+
+test("clearing a due date is distinguishable from not touching it", async () => {
+  const { decide } = await import("../core/tasks/sync.ts");
+  const was = { title: "Call", done: false, dueAt: "2026-11-02T09:00:00.000Z", priority: 2 };
+  const d = decide(was, { ...was, dueAt: null }, { ...was });
+  /* null, not undefined: the updater treats undefined as "leave alone",
+     so collapsing the two is how "no due date" becomes "due forever". */
+  assert.equal(d.toTick.dueAt, null);
+  assert.ok("dueAt" in d.toTick);
+});

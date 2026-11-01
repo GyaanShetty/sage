@@ -161,7 +161,7 @@ export async function createTickTask(input: {
   /** SAGE priority: 0 urgent … 3 low. TickTick uses 5 high … 0 none. */
   priority?: number;
   notes?: string;
-}): Promise<string | null> {
+}): Promise<{ id: string; projectId: string } | null> {
   const t = await token();
   if (!t) return null;
 
@@ -182,9 +182,57 @@ export async function createTickTask(input: {
       signal: AbortSignal.timeout(9000),
     });
     if (!res.ok) return null;
-    const created = (await res.json()) as { id?: string };
-    return created.id ?? null;
+    /*
+     * The project id is returned and was being discarded.
+     *
+     * Every later call — complete, update, delete — is addressed by
+     * project AND task, so dropping it meant a task SAGE had just created
+     * was one it could never touch again. That is the single omission
+     * that made two-way sync impossible.
+     */
+    const created = (await res.json()) as { id?: string; projectId?: string };
+    if (!created.id) return null;
+    return { id: created.id, projectId: created.projectId ?? "inbox" };
   } catch {
     return null;
+  }
+}
+
+/**
+ * Change a task in place.
+ *
+ * `updateTickTaskPriority` existed and could only do priority, so a title
+ * or a due date edited in SAGE had nowhere to go. TickTick's update is a
+ * merge-POST: fields left out are left alone, which is exactly what a
+ * sync wants — it should never overwrite something it was not asked to.
+ */
+export async function updateTickTask(
+  projectId: string,
+  taskId: string,
+  patch: { title?: string; dueAt?: string | null; priority?: number },
+): Promise<boolean> {
+  const t = await token();
+  if (!t) return false;
+  try {
+    const res = await proxyFetch(`${API}/task/${taskId}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${t}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        id: taskId,
+        projectId,
+        ...(patch.title !== undefined ? { title: patch.title.slice(0, 300) } : {}),
+        ...(patch.priority !== undefined ? { priority: patch.priority } : {}),
+        /* An explicit null clears the date; undefined leaves it untouched.
+           Collapsing those two is how "no due date" becomes "due now". */
+        ...(patch.dueAt === null ? { dueDate: null } : {}),
+        ...(patch.dueAt
+          ? { dueDate: new Date(patch.dueAt).toISOString().replace(/\.\d{3}Z$/, "+0000") }
+          : {}),
+      }),
+      signal: AbortSignal.timeout(9000),
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }

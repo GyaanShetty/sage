@@ -32,6 +32,10 @@ import { useCallback, useMemo, useState } from "react";
 import { Loader2, Plus, RefreshCw, Wand2, Copy } from "lucide-react";
 import { useLive } from "@/lib/live";
 import { asArray } from "@/lib/as-array";
+import {
+  Donut, MonthHistogram, DailyBars, Radar, rupees as money, shadeFor,
+  type Slice, type MonthBar, type Day, type Axis,
+} from "./charts";
 import "./budget.css";
 
 type Bucket = "needs" | "wants" | "savings";
@@ -50,10 +54,19 @@ interface Status {
   projectedTotal: number; leftToSpend: number; notes: string[];
 }
 interface Curve { day: number; spent: number; planned: number; future: boolean }
+interface Analytics {
+  months: MonthBar[];
+  categories: { category: string; spent: number; pct: number }[];
+  days: Day[];
+  merchants: { merchant: string; spent: number; count: number }[];
+  recurring: { merchant: string; spent: number; count: number }[];
+  recurringTotal: number;
+  medianMonth: number;
+  thisMonthTotal: number;
+}
 interface Plan { month: string; income: number; basis: string; lines: LineStatus[] }
 
-const rupees = (n: number) =>
-  "₹" + Math.round(n).toLocaleString("en-IN");
+const rupees = money;
 
 const monthLabel = (m: string) => {
   const [y, mo] = m.split("-").map(Number);
@@ -131,6 +144,7 @@ export function BudgetView() {
   const [curve, setCurve] = useState<Curve[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [reachable, setReachable] = useState(true);
+  const [an, setAn] = useState<Analytics | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
@@ -153,12 +167,17 @@ export function BudgetView() {
      * so you wait instead of acting. Timed out and said plainly, it is a
      * fact you can do something with.
      */
-    const [b, e] = await Promise.all([
+    const [b, e, a] = await Promise.all([
       fetch(`/api/budget?month=${month}`, { signal: AbortSignal.timeout(12_000) })
         .then((r) => r.json()).catch(() => "unreachable" as const),
       fetch("/api/expenses", { signal: AbortSignal.timeout(12_000) })
         .then((r) => r.json()).catch(() => null),
+      /* A year of expenses, so it is allowed longer and is never what
+         keeps the headline numbers off the screen. */
+      fetch(`/api/budget/analytics?month=${month}&months=12`, { signal: AbortSignal.timeout(20_000) })
+        .then((r) => r.json()).catch(() => null),
     ]);
+    setAn((a?.data as Analytics) ?? null);
     if (b === "unreachable") { setReachable(false); setLoaded(true); return; }
     setReachable(true);
     setPlan(b?.data?.plan ?? null);
@@ -205,6 +224,25 @@ export function BudgetView() {
      of it to find the one line that is in trouble. */
   const lines = useMemo(
     () => [...(status?.lines ?? [])].sort((a, b) => b.usedPct - a.usedPct),
+    [status],
+  );
+
+  /* Which categories are over, so the donut can mark exactly those and
+     nothing else wears the accent. */
+  const overBudget = useMemo(
+    () => new Set((status?.lines ?? []).filter((l) => l.usedPct > 100).map((l) => l.category)),
+    [status],
+  );
+
+  /* The five biggest LIMITS, not the five biggest spends: the radar is
+     about how you are doing against the plan, and a category with no
+     limit has no axis to be measured on. */
+  const radarAxes = useMemo<Axis[]>(
+    () => [...(status?.lines ?? [])]
+      .filter((l) => l.limit > 0)
+      .sort((a, b) => b.limit - a.limit)
+      .slice(0, 5)
+      .map((l) => ({ label: l.category, actual: l.spent, limit: l.limit })),
     [status],
   );
 
@@ -305,6 +343,135 @@ export function BudgetView() {
             The shaded gap is how far ahead of — or behind — an evenly paced
             month you are today.
           </p>
+        </section>
+      )}
+
+      {/* ── where it goes ───────────────────────────────────────── */}
+      {an && an.categories.length > 0 && (
+        <section className="bg-card">
+          <div className="bg-card-hd">
+            <h2>Where it goes</h2>
+            <span className="bg-sub">this month</span>
+          </div>
+          <Donut
+            total={an.thisMonthTotal}
+            slices={an.categories.map<Slice>((c) => ({
+              label: c.category,
+              value: c.spent,
+              /* A category over its own line is the only slice allowed
+                 the accent — everything else is ranked grey. */
+              over: overBudget.has(c.category),
+            }))}
+          />
+        </section>
+      )}
+
+      {/* ── budget as a shape ───────────────────────────────────── */}
+      {radarAxes.length >= 3 && (
+        <section className="bg-card">
+          <div className="bg-card-hd">
+            <h2>Against your limits</h2>
+            <span className="bg-sub">biggest five</span>
+          </div>
+          {/*
+            The radar plus its own table.
+            A spider chart is a shape, and a shape tells you the pattern
+            but never the number. The table beside it is the direct
+            labelling the shape cannot carry — and it fills a card that
+            was otherwise a small pentagon in a lot of black.
+          */}
+          <div className="bg-radar-wrap">
+            <Radar axes={radarAxes} />
+            <ul className="bg-rd-key">
+              {radarAxes.map((a) => {
+                const pct = a.limit > 0 ? (a.actual / a.limit) * 100 : 0;
+                return (
+                  <li key={a.label} className={pct > 100 ? "over" : undefined}>
+                    <span className="k">{a.label}</span>
+                    <span className="v num">{rupees(a.actual)}</span>
+                    <span className="l num">/ {rupees(a.limit)}</span>
+                    <b className="num">{Math.round(pct)}%</b>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
+
+      {/* ── the year ────────────────────────────────────────────── */}
+      {an && an.months.length > 1 && (
+        <section className="bg-card bg-wide">
+          <div className="bg-card-hd">
+            <h2>Month by month</h2>
+            <span className="bg-sub">
+              {an.medianMonth > 0 ? `typical month ${rupees(an.medianMonth)}` : "building history"}
+            </span>
+          </div>
+          <MonthHistogram months={an.months} median={an.medianMonth} />
+        </section>
+      )}
+
+      {/* ── day by day ──────────────────────────────────────────── */}
+      {an && an.days.length > 0 && (
+        <section className="bg-card bg-wide">
+          <div className="bg-card-hd">
+            <h2>Day by day</h2>
+            <span className="bg-sub">weekends marked · spikes outlined</span>
+          </div>
+          <DailyBars days={an.days} />
+        </section>
+      )}
+
+      {/* ── who you paid ────────────────────────────────────────── */}
+      {an && an.merchants.length > 0 && (
+        <section className="bg-card">
+          <div className="bg-card-hd"><h2>Biggest payees</h2></div>
+          <div className="bg-rank">
+            {an.merchants.map((m, i) => (
+              <div className="bg-rank-row" key={m.merchant}>
+                <span className="bg-rank-n num">{i + 1}</span>
+                <span className="bg-rank-m">{m.merchant}</span>
+                <span className="bg-rank-b">
+                  <i style={{
+                    width: `${(m.spent / Math.max(1, an.merchants[0].spent)) * 100}%`,
+                    background: shadeFor(i),
+                  }} />
+                </span>
+                <span className="bg-rank-v num">{rupees(m.spent)}</span>
+                <span className="bg-rank-c num">×{m.count}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── already committed ───────────────────────────────────── */}
+      {an && an.recurring.length > 0 && (
+        <section className="bg-card">
+          <div className="bg-card-hd">
+            <h2>Committed each month</h2>
+            <span className="bg-sub num">{rupees(an.recurringTotal)}</span>
+          </div>
+          <p className="bg-note">
+            Subscriptions and standing charges — the part of next month that is
+            already decided.
+          </p>
+          <div className="bg-rank">
+            {an.recurring.map((m, i) => (
+              <div className="bg-rank-row" key={m.merchant}>
+                <span className="bg-rank-n num">{i + 1}</span>
+                <span className="bg-rank-m">{m.merchant}</span>
+                <span className="bg-rank-b">
+                  <i style={{
+                    width: `${(m.spent / Math.max(1, an.recurring[0].spent)) * 100}%`,
+                    background: shadeFor(i),
+                  }} />
+                </span>
+                <span className="bg-rank-v num">{rupees(m.spent)}</span>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
